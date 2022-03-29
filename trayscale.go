@@ -7,8 +7,11 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"time"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 	"github.com/getlantern/systray"
 	"tailscale.com/cmd/tailscale/cli"
 )
@@ -36,10 +39,22 @@ func addItem(ctx context.Context, label string, onClick func()) *systray.MenuIte
 	return item
 }
 
-func initTray(ctx context.Context) {
+func initTray(ctx context.Context) fyne.App {
+	app := app.NewWithID("trayscale")
+	win := app.NewWindow("Trayscale")
+	win.SetContent(
+		container.NewCenter(
+			container.NewVBox(
+				widget.NewRichTextFromMarkdown(`# Trayscale`),
+				widget.NewCheck("Show Window at Start", func(bool) {}),
+			),
+		),
+	)
+	win.SetCloseIntercept(func() { win.Hide() })
+
 	systray.SetIcon(tailscaleLightIcon)
 
-	status := addItem(ctx, "Status: Down", func() {})
+	addItem(ctx, "Show", func() { win.Show() })
 
 	systray.AddSeparator()
 
@@ -47,25 +62,7 @@ func initTray(ctx context.Context) {
 		systray.Quit()
 	})
 
-	go func() {
-		for {
-			check := time.NewTicker(time.Second)
-			defer check.Stop()
-
-			select {
-			case <-ctx.Done():
-				return
-
-			case <-check.C:
-				err := cli.Run([]string{"status"})
-				if err != nil {
-					status.SetTitle("Status: Down")
-					continue
-				}
-				status.SetTitle("Status: Up")
-			}
-		}
-	}()
+	return app
 }
 
 func main() {
@@ -76,10 +73,10 @@ func main() {
 		log.Printf("Tailscale error: %v", fmt.Sprintf(format, a...))
 	}
 
-	initTray(ctx)
+	app := initTray(ctx)
 
 	log.Println("Displaying icon...")
-	systray.Run(
+	go systray.Run(
 		func() {
 			log.Println("Icon ready.")
 
@@ -90,6 +87,9 @@ func main() {
 		},
 		func() {
 			log.Println("Exiting...")
+			app.Quit()
 		},
 	)
+
+	app.Run()
 }

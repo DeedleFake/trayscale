@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	_ "embed"
-	"fmt"
-	"log"
 	"os"
 	"os/signal"
 
@@ -13,7 +11,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/getlantern/systray"
-	"tailscale.com/cmd/tailscale/cli"
 )
 
 var (
@@ -24,7 +21,69 @@ var (
 	tailscaleLightIcon []byte
 )
 
-func addItem(ctx context.Context, label string, onClick func()) *systray.MenuItem {
+type App struct {
+	app fyne.App
+	win fyne.Window
+}
+
+func (a *App) initUI(ctx context.Context) {
+	a.app = app.NewWithID("trayscale")
+
+	a.win = a.app.NewWindow("Trayscale")
+	a.win.SetContent(
+		container.NewCenter(
+			container.NewVBox(
+				widget.NewRichTextFromMarkdown(`# Trayscale`),
+				widget.NewCheck("Show Window at Start", func(bool) {}),
+			),
+		),
+	)
+	a.win.SetCloseIntercept(func() { a.win.Hide() })
+}
+
+func (a *App) initTray(ctx context.Context) {
+	systray.SetIcon(tailscaleLightIcon)
+
+	newTrayItem(ctx, "Show", func() { a.win.Show() })
+
+	systray.AddSeparator()
+
+	newTrayItem(ctx, "Exit", func() {
+		a.Quit()
+	})
+}
+
+func (a *App) Quit() {
+	a.app.Quit()
+	systray.Quit()
+}
+
+func (a *App) Run(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	a.initUI(ctx)
+	a.initTray(ctx)
+
+	go systray.Run(
+		func() {
+			go func() {
+				<-ctx.Done()
+				systray.Quit()
+			}()
+		},
+		nil,
+	)
+
+	go func() {
+		<-ctx.Done()
+		a.app.Quit()
+	}()
+
+	a.app.Run()
+}
+
+func newTrayItem(ctx context.Context, label string, onClick func()) *systray.MenuItem {
 	item := systray.AddMenuItem(label, "")
 	go func() {
 		for {
@@ -39,57 +98,10 @@ func addItem(ctx context.Context, label string, onClick func()) *systray.MenuIte
 	return item
 }
 
-func initTray(ctx context.Context) fyne.App {
-	app := app.NewWithID("trayscale")
-	win := app.NewWindow("Trayscale")
-	win.SetContent(
-		container.NewCenter(
-			container.NewVBox(
-				widget.NewRichTextFromMarkdown(`# Trayscale`),
-				widget.NewCheck("Show Window at Start", func(bool) {}),
-			),
-		),
-	)
-	win.SetCloseIntercept(func() { win.Hide() })
-
-	systray.SetIcon(tailscaleLightIcon)
-
-	addItem(ctx, "Show", func() { win.Show() })
-
-	systray.AddSeparator()
-
-	addItem(ctx, "Exit", func() {
-		systray.Quit()
-	})
-
-	return app
-}
-
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	cli.Fatalf = func(format string, a ...any) {
-		log.Printf("Tailscale error: %v", fmt.Sprintf(format, a...))
-	}
-
-	app := initTray(ctx)
-
-	log.Println("Displaying icon...")
-	go systray.Run(
-		func() {
-			log.Println("Icon ready.")
-
-			go func() {
-				<-ctx.Done()
-				systray.Quit()
-			}()
-		},
-		func() {
-			log.Println("Exiting...")
-			app.Quit()
-		},
-	)
-
-	app.Run()
+	var a App
+	a.Run(ctx)
 }

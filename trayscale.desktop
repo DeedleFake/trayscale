@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Trayscale
+Comment=An unofficial GUI wrapper around the Tailscale CLI.
+Exec=/usr/bin/trayscale
+Icon=tailscale
+Type=Application
+Categories=Network;

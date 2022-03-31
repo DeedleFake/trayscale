@@ -63,7 +63,6 @@ func (a *App) initUI(ctx context.Context) {
 	a.app = app.NewWithID("trayscale")
 
 	a.status = binding.NewBool()
-	statusLabel := binding.BoolToStringWithFormat(a.status, "Running: %v")
 	go a.pollStatus(ctx)
 
 	a.win = a.app.NewWindow("Trayscale")
@@ -75,7 +74,7 @@ func (a *App) initUI(ctx context.Context) {
 					"Show Window at Start",
 					binding.BindPreferenceBool(prefShowWindowAtStart, a.app.Preferences()),
 				),
-				widget.NewLabelWithData(statusLabel),
+				widget.NewButton("Quit", func() { a.Quit() }),
 			),
 		),
 	)

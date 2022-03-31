@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	_ "embed"
 	"log"
 	"os"
@@ -18,13 +19,8 @@ import (
 	"github.com/getlantern/systray"
 )
 
-var (
-	//go:embed tailscale.png
-	tailscaleIcon []byte
-
-	//go:embed tailscale-light.png
-	tailscaleLightIcon []byte
-)
+//go:embed assets
+var assets embed.FS
 
 type App struct {
 	TS *tailscale.Client
@@ -75,7 +71,8 @@ func (a *App) initUI(ctx context.Context) {
 }
 
 func (a *App) initTray(ctx context.Context) {
-	systray.SetIcon(tailscaleLightIcon)
+	icon, _ := assets.ReadFile("assets/icon-active.png")
+	systray.SetIcon(icon)
 
 	newTrayItem(ctx, "Show", func() { a.win.Show() })
 

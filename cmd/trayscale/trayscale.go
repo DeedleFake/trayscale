@@ -69,7 +69,7 @@ func (a *App) initUI(ctx context.Context) {
 	a.win.SetContent(
 		container.NewCenter(
 			container.NewVBox(
-				widget.NewRichTextFromMarkdown(`# Trayscale`),
+				container.NewCenter(widget.NewRichTextFromMarkdown(`# Trayscale`)),
 				widget.NewCheckWithData(
 					"Show Window at Start",
 					binding.BindPreferenceBool(prefShowWindowAtStart, a.app.Preferences()),
@@ -78,6 +78,7 @@ func (a *App) initUI(ctx context.Context) {
 			),
 		),
 	)
+	a.win.SetFixedSize(true)
 	a.win.SetCloseIntercept(func() { a.win.Hide() })
 
 	if a.app.Preferences().Bool(prefShowWindowAtStart) {

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD polkit Policy Configuration 1.0//EN" "http://www.freedesktop.org/software/polkit/policyconfig-1.dtd">
+<policyconfig>
+	<vendor>Trayscale</vendor>
+	<vendor_url>https://github.com/DeedleFake/trayscale</vendor_url>
+	<action id="com.github.DeedleFake.trayscale.run-tailscale">
+		<description>Run the Tailscale CLI</description>
+		<message>Authentication is required to run Tailscale CLI</message>
+		<icon_name>network-x-generic</icon_name>
+		<defaults>
+			<allow_any>auth_admin_keep</allow_any>
+			<allow_inactive>auth_admin_keep</allow_inactive>
+			<allow_active>auth_admin_keep</allow_active>
+		</defaults>
+		<annotate key="org.freedesktop.policykit.exec.path">/usr/bin/tailscale</annotate>
+		<annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+	</action>
+</policyconfig>

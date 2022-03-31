@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"time"
 
@@ -24,6 +25,8 @@ var assets embed.FS
 type App struct {
 	TS *tailscale.Client
 
+	poll chan struct{}
+
 	app fyne.App
 	win fyne.Window
 
@@ -31,7 +34,8 @@ type App struct {
 }
 
 func (a *App) pollStatus(ctx context.Context) {
-	check := time.NewTicker(5 * time.Second)
+	const ticklen = 5 * time.Second
+	check := time.NewTicker(ticklen)
 
 	for {
 		running, err := a.TS.Status(ctx)
@@ -45,6 +49,8 @@ func (a *App) pollStatus(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-check.C:
+		case <-a.poll:
+			check.Reset(ticklen)
 		}
 	}
 }
@@ -92,6 +98,7 @@ func (a *App) initTray(ctx context.Context) {
 		if err != nil {
 			log.Printf("Error: start tailscale: %v", err)
 		}
+		a.poll <- struct{}{}
 	})
 	a.status.AddListener(binding.NewDataListener(func() {
 		active, _ := a.status.Get()
@@ -107,6 +114,7 @@ func (a *App) initTray(ctx context.Context) {
 		if err != nil {
 			log.Printf("Error: stop tailscale: %v", err)
 		}
+		a.poll <- struct{}{}
 	})
 	a.status.AddListener(binding.NewDataListener(func() {
 		active, _ := a.status.Get()
@@ -132,6 +140,8 @@ func (a *App) Quit() {
 func (a *App) Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	a.poll = make(chan struct{}, 1)
 
 	a.initUI(ctx)
 	a.initTray(ctx)
@@ -173,9 +183,12 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
+	tscli, err := exec.LookPath("tailscale")
+	if err != nil {
+		log.Fatalf("Error: could not find tailscale command")
+	}
 	ts := tailscale.Client{
-		Sudo:    "pkexec",
-		Command: "tailscale",
+		Command: tscli,
 	}
 
 	a := App{

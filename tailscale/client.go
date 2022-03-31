@@ -3,25 +3,52 @@ package tailscale
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/snapcore/snapd/polkit"
 )
 
+var (
+	ErrNotAuthorized = errors.New("polkit: not authorized")
+)
+
+const defaultAuthAction = "com.github.DeedleFake.trayscale.run-tailscale"
+
+var defaultAuthActionError = fmt.Sprintf("Action %v is not registered", defaultAuthAction)
+
 type Client struct {
-	Sudo    string
 	Command string
 }
 
-func (c Client) command(sudo bool, args []string) (string, []string) {
-	if !sudo || (c.Sudo == "") {
-		return c.Command, args
+func (c *Client) authorize(action string) error {
+	if action == "" {
+		action = defaultAuthAction
 	}
-	return c.Sudo, append([]string{c.Command}, args...)
+
+	ok, err := polkit.CheckAuthorization(
+		int32(os.Getpid()),
+		uint32(os.Getuid()),
+		action,
+		nil,
+		polkit.CheckAllowInteraction,
+	)
+	if err != nil {
+		if err.Error() == defaultAuthActionError {
+			return c.authorize("org.freedesktop.policykit.exec")
+		}
+		return fmt.Errorf("polkit: %w", err)
+	}
+	if !ok {
+		return ErrNotAuthorized
+	}
+	return nil
 }
 
-func (c Client) run(ctx context.Context, sudo bool, args ...string) (string, error) {
-	command, args := c.command(sudo, args)
-	cmd := exec.CommandContext(ctx, command, args...)
+func (c *Client) run(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, c.Command, args...)
 
 	var out strings.Builder
 	cmd.Stdout = &out
@@ -31,8 +58,8 @@ func (c Client) run(ctx context.Context, sudo bool, args ...string) (string, err
 	return out.String(), err
 }
 
-func (c Client) Status(ctx context.Context) (bool, error) {
-	_, err := c.run(ctx, false, "status")
+func (c *Client) Status(ctx context.Context) (bool, error) {
+	_, err := c.run(ctx, "status")
 	if err != nil {
 		var exit *exec.ExitError
 		if errors.As(err, &exit) {
@@ -46,12 +73,22 @@ func (c Client) Status(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (c Client) Start(ctx context.Context) error {
-	_, err := c.run(ctx, true, "up")
+func (c *Client) Start(ctx context.Context) error {
+	err := c.authorize("")
+	if err != nil {
+		return fmt.Errorf("authorize: %w", err)
+	}
+
+	_, err = c.run(ctx, "up")
 	return err
 }
 
-func (c Client) Stop(ctx context.Context) error {
-	_, err := c.run(ctx, true, "down")
+func (c *Client) Stop(ctx context.Context) error {
+	err := c.authorize("")
+	if err != nil {
+		return fmt.Errorf("authorize: %w", err)
+	}
+
+	_, err = c.run(ctx, "down")
 	return err
 }

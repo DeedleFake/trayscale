@@ -12,15 +12,15 @@ type Client struct {
 	Command string
 }
 
-func (cli Client) command(sudo bool, args []string) (string, []string) {
-	if !sudo || (cli.Sudo == "") {
-		return cli.Command, args
+func (c Client) command(sudo bool, args []string) (string, []string) {
+	if !sudo || (c.Sudo == "") {
+		return c.Command, args
 	}
-	return cli.Sudo, append([]string{cli.Command}, args...)
+	return c.Sudo, append([]string{c.Command}, args...)
 }
 
-func (cli Client) run(ctx context.Context, sudo bool, args ...string) (string, error) {
-	command, args := cli.command(sudo, args)
+func (c Client) run(ctx context.Context, sudo bool, args ...string) (string, error) {
+	command, args := c.command(sudo, args)
 	cmd := exec.CommandContext(ctx, command, args...)
 
 	var out strings.Builder
@@ -31,8 +31,8 @@ func (cli Client) run(ctx context.Context, sudo bool, args ...string) (string, e
 	return out.String(), err
 }
 
-func (cli Client) Status(ctx context.Context) (bool, error) {
-	_, err := cli.run(ctx, false, "status")
+func (c Client) Status(ctx context.Context) (bool, error) {
+	_, err := c.run(ctx, false, "status")
 	if err != nil {
 		var exit *exec.ExitError
 		if errors.As(err, &exit) {
@@ -44,4 +44,14 @@ func (cli Client) Status(ctx context.Context) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (c Client) Start(ctx context.Context) error {
+	_, err := c.run(ctx, true, "up")
+	return err
+}
+
+func (c Client) Stop(ctx context.Context) error {
+	_, err := c.run(ctx, true, "down")
+	return err
 }

@@ -55,20 +55,7 @@ func (a *App) initUI(ctx context.Context) {
 
 	a.status = binding.NewBool()
 	statusLabel := binding.BoolToStringWithFormat(a.status, "Running: %v")
-	a.status.AddListener(binding.NewDataListener(func() {
-		icon := "assets/icon-active.png"
-		active, err := a.status.Get()
-		if err != nil {
-			log.Printf("Error: icon switcher: get status: %v", err)
-			return
-		}
-		if !active {
-			icon = "assets/icon-inactive.png"
-		}
-
-		data, _ := assets.ReadFile(icon)
-		systray.SetIcon(data)
-	}))
+	a.status.AddListener(binding.NewDataListener(a.updateIcon))
 	go a.pollStatus(ctx)
 
 	a.win = a.app.NewWindow("Trayscale")
@@ -82,6 +69,21 @@ func (a *App) initUI(ctx context.Context) {
 		),
 	)
 	a.win.SetCloseIntercept(func() { a.win.Hide() })
+}
+
+func (a *App) updateIcon() {
+	icon := "assets/icon-active.png"
+	active, err := a.status.Get()
+	if err != nil {
+		log.Printf("Error: icon switcher: get status: %v", err)
+		return
+	}
+	if !active {
+		icon = "assets/icon-inactive.png"
+	}
+
+	data, _ := assets.ReadFile(icon)
+	systray.SetIcon(data)
 }
 
 func (a *App) initTray(ctx context.Context) {

@@ -22,6 +22,10 @@ import (
 //go:embed assets
 var assets embed.FS
 
+const (
+	prefShowWindowAtStart = "showWindowAtStart"
+)
+
 type App struct {
 	TS *tailscale.Client
 
@@ -67,12 +71,19 @@ func (a *App) initUI(ctx context.Context) {
 		container.NewCenter(
 			container.NewVBox(
 				widget.NewRichTextFromMarkdown(`# Trayscale`),
-				widget.NewCheck("Show Window at Start", func(bool) {}),
+				widget.NewCheckWithData(
+					"Show Window at Start",
+					binding.BindPreferenceBool(prefShowWindowAtStart, a.app.Preferences()),
+				),
 				widget.NewLabelWithData(statusLabel),
 			),
 		),
 	)
 	a.win.SetCloseIntercept(func() { a.win.Hide() })
+
+	if a.app.Preferences().Bool(prefShowWindowAtStart) {
+		a.win.Show()
+	}
 }
 
 func (a *App) updateIcon() {

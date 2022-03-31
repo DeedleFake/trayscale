@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"time"
 
@@ -145,12 +144,9 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	tscli, err := exec.LookPath("tailscale")
-	if err != nil {
-		log.Fatalf("Error: tailscale binary not found: %v", err)
-	}
 	ts := tailscale.Client{
-		Command: tscli,
+		Sudo:    "pkexec",
+		Command: "tailscale",
 	}
 
 	a := App{

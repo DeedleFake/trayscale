@@ -12,7 +12,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
@@ -78,15 +77,9 @@ func (a *App) initUI(ctx context.Context) {
 	})
 	go a.pollStatus(ctx)
 
-	statusCircle := canvas.NewCircle(colorActive)
+	icon := widget.NewIcon(fyneutil.NewMemoryResource("icon", a.updateIcon()))
 	a.status.AddListener(binding.NewDataListener(func() {
-		defer statusCircle.Refresh()
-		running, _ := a.status.Get()
-		if running {
-			statusCircle.FillColor = colorActive
-			return
-		}
-		statusCircle.FillColor = colorInactive
+		icon.SetResource(fyneutil.NewMemoryResource("icon", a.updateIcon()))
 	}))
 
 	startButton := widget.NewButton("Start", func() { a.TS.Start(ctx) })
@@ -104,14 +97,31 @@ func (a *App) initUI(ctx context.Context) {
 
 	a.win = a.app.NewWindow("Trayscale")
 	a.win.SetContent(
-		container.NewCenter(
+		container.NewBorder(
 			container.NewVBox(
 				container.NewCenter(
 					container.NewHBox(
+						icon,
 						widget.NewRichTextFromMarkdown(`# Trayscale`),
-						container.NewCenter(container.NewGridWrap(fyne.NewSize(32, 32), statusCircle)),
 					),
 				),
+				container.New(
+					fyneutil.NewMaxHBoxLayout(),
+					startButton,
+					stopButton,
+				),
+			),
+			container.NewVBox(
+				widget.NewCheckWithData(
+					"Show Window at Start",
+					binding.BindPreferenceBool(prefShowWindowAtStart, a.app.Preferences()),
+				),
+				widget.NewButton("Quit", func() { a.Quit() }),
+			),
+			nil,
+			nil,
+			container.NewGridWrap(
+				fyne.NewSize(300, 500),
 				widget.NewListWithData(
 					a.peers,
 					func() fyne.CanvasObject { return widget.NewLabel("") },
@@ -124,20 +134,9 @@ func (a *App) initUI(ctx context.Context) {
 						})
 					},
 				),
-				widget.NewCheckWithData(
-					"Show Window at Start",
-					binding.BindPreferenceBool(prefShowWindowAtStart, a.app.Preferences()),
-				),
-				container.New(
-					fyneutil.NewMaxHBoxLayout(),
-					startButton,
-					stopButton,
-				),
-				widget.NewButton("Quit", func() { a.Quit() }),
 			),
 		),
 	)
-	a.win.SetFixedSize(true)
 	a.win.SetCloseIntercept(func() { a.win.Hide() })
 
 	if a.app.Preferences().Bool(prefShowWindowAtStart) {
@@ -145,7 +144,7 @@ func (a *App) initUI(ctx context.Context) {
 	}
 }
 
-func (a *App) updateIcon() {
+func (a *App) updateIcon() []byte {
 	icon := "assets/icon-active.png"
 	active, _ := a.status.Get()
 	if !active {
@@ -153,11 +152,11 @@ func (a *App) updateIcon() {
 	}
 
 	data, _ := assets.ReadFile(icon)
-	systray.SetIcon(data)
+	return data
 }
 
 func (a *App) initTray(ctx context.Context) {
-	a.status.AddListener(binding.NewDataListener(a.updateIcon))
+	a.status.AddListener(binding.NewDataListener(func() { systray.SetIcon(a.updateIcon()) }))
 
 	newTrayItem(ctx, "Show", func() { a.win.Show() })
 

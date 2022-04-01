@@ -120,24 +120,22 @@ func (a *App) initUI(ctx context.Context) {
 			),
 			nil,
 			nil,
-			container.NewGridWrap(
-				fyne.NewSize(300, 500),
-				widget.NewListWithData(
-					a.peers,
-					func() fyne.CanvasObject { return widget.NewLabel("") },
-					func(data binding.DataItem, w fyne.CanvasObject) {
-						str := binding.NewString()
-						w.(*widget.Label).Bind(str)
-						fyneutil.Transform(str, data.(binding.Untyped), func(u any) string {
-							peer := u.(*ipnstate.PeerStatus)
-							return peer.HostName
-						})
-					},
-				),
+			widget.NewListWithData(
+				a.peers,
+				func() fyne.CanvasObject { return widget.NewLabel("") },
+				func(data binding.DataItem, w fyne.CanvasObject) {
+					str := binding.NewString()
+					w.(*widget.Label).Bind(str)
+					fyneutil.Transform(str, data.(binding.Untyped), func(u any) string {
+						peer := u.(*ipnstate.PeerStatus)
+						return peer.HostName
+					})
+				},
 			),
 		),
 	)
 	a.win.SetCloseIntercept(func() { a.win.Hide() })
+	a.win.Resize(fyne.NewSize(300, 500))
 
 	if a.app.Preferences().Bool(prefShowWindowAtStart) {
 		a.win.Show()

@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/snapcore/snapd/polkit"
+	"tailscale.com/client/tailscale"
+	"tailscale.com/ipn"
 )
 
 var (
@@ -59,18 +61,11 @@ func (c *Client) run(ctx context.Context, args ...string) (string, error) {
 }
 
 func (c *Client) Status(ctx context.Context) (bool, error) {
-	_, err := c.run(ctx, "status")
+	st, err := tailscale.Status(ctx)
 	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			if exit.ExitCode() == 1 {
-				return false, nil
-			}
-		}
-		return false, err
+		return false, fmt.Errorf("get tailscale status: %w", err)
 	}
-
-	return true, nil
+	return (st.BackendState == ipn.Starting.String()) || (st.BackendState == ipn.Running.String()), nil
 }
 
 func (c *Client) Start(ctx context.Context) error {

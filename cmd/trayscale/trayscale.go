@@ -73,6 +73,7 @@ func (a *App) initUI(ctx context.Context) {
 
 	statusCircle := canvas.NewCircle(colorActive)
 	a.status.AddListener(binding.NewDataListener(func() {
+		defer statusCircle.Refresh()
 		running, _ := a.status.Get()
 		if running {
 			statusCircle.FillColor = colorActive

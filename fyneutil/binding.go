@@ -9,7 +9,7 @@ type Binding[T any] interface {
 	Set(T) error
 }
 
-type SliceBinding[T any, S ~[]T] interface {
+type ListBinding[T any, S ~[]T] interface {
 	binding.DataList
 	Binding[S]
 
@@ -19,16 +19,16 @@ type SliceBinding[T any, S ~[]T] interface {
 	SetValue(int, T) error
 }
 
-func NewSliceBinding[T any, S ~[]T]() SliceBinding[T, S] {
-	return &sliceBinding[T, S]{UntypedList: binding.NewUntypedList()}
+func NewListBinding[T any, S ~[]T]() ListBinding[T, S] {
+	return &listBinding[T, S]{UntypedList: binding.NewUntypedList()}
 }
 
-type sliceBinding[T any, S ~[]T] struct {
+type listBinding[T any, S ~[]T] struct {
 	// TODO: Implement this properly.
 	binding.UntypedList
 }
 
-func (b *sliceBinding[T, S]) Get() (S, error) {
+func (b *listBinding[T, S]) Get() (S, error) {
 	v, err := b.UntypedList.Get()
 	s := make(S, 0, len(v))
 	for _, v := range v {
@@ -37,7 +37,7 @@ func (b *sliceBinding[T, S]) Get() (S, error) {
 	return s, err
 }
 
-func (b *sliceBinding[T, S]) Set(v S) error {
+func (b *listBinding[T, S]) Set(v S) error {
 	s := make([]interface{}, 0, len(v))
 	for _, v := range v {
 		s = append(s, v)
@@ -45,21 +45,21 @@ func (b *sliceBinding[T, S]) Set(v S) error {
 	return b.UntypedList.Set(s)
 }
 
-func (b *sliceBinding[T, S]) Append(v T) error {
+func (b *listBinding[T, S]) Append(v T) error {
 	return b.UntypedList.Append(v)
 }
 
-func (b *sliceBinding[T, S]) Prepend(v T) error {
+func (b *listBinding[T, S]) Prepend(v T) error {
 	return b.UntypedList.Prepend(v)
 }
 
-func (b *sliceBinding[T, S]) GetValue(index int) (T, error) {
+func (b *listBinding[T, S]) GetValue(index int) (T, error) {
 	v, err := b.UntypedList.GetValue(index)
 	t, _ := v.(T)
 	return t, err
 }
 
-func (b *sliceBinding[T, S]) SetValue(index int, v T) error {
+func (b *listBinding[T, S]) SetValue(index int, v T) error {
 	return b.UntypedList.SetValue(index, v)
 }
 

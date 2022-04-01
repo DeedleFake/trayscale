@@ -7,7 +7,6 @@ import (
 	"image/color"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"time"
 
@@ -216,12 +215,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	tscli, err := exec.LookPath("tailscale")
-	if err != nil {
-		log.Fatalf("Error: could not find tailscale command")
-	}
 	ts := tailscale.Client{
-		Command: tscli,
+		Command: "tailscale",
 	}
 
 	a := App{

@@ -88,7 +88,7 @@ func (a *App) initUI(ctx context.Context) {
 				container.NewCenter(
 					container.NewHBox(
 						widget.NewRichTextFromMarkdown(`# Trayscale`),
-						statusCircle,
+						container.NewCenter(container.NewGridWrap(fyne.NewSize(32, 32), statusCircle)),
 					),
 				),
 				widget.NewCheckWithData(

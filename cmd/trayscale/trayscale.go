@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	_ "embed"
+	"fmt"
 	"image/color"
 	"log"
 	"os"
@@ -128,7 +129,7 @@ func (a *App) initUI(ctx context.Context) {
 					w.(*widget.Label).Bind(str)
 					fyneutil.Transform(str, data.(binding.Untyped), func(u any) string {
 						peer := u.(*ipnstate.PeerStatus)
-						return peer.HostName
+						return fmt.Sprintf("%v - %v", peer.HostName, peer.TailscaleIPs)
 					})
 				},
 			),

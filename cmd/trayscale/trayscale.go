@@ -43,7 +43,7 @@ type App struct {
 	win fyne.Window
 
 	peers  fyneutil.ListBinding[*ipnstate.PeerStatus, []*ipnstate.PeerStatus]
-	status binding.Bool
+	status fyneutil.Binding[bool]
 }
 
 func (a *App) pollStatus(ctx context.Context) {
@@ -111,6 +111,18 @@ func (a *App) initUI(ctx context.Context) {
 						widget.NewRichTextFromMarkdown(`# Trayscale`),
 						container.NewCenter(container.NewGridWrap(fyne.NewSize(32, 32), statusCircle)),
 					),
+				),
+				widget.NewListWithData(
+					a.peers,
+					func() fyne.CanvasObject { return widget.NewLabel("") },
+					func(data binding.DataItem, w fyne.CanvasObject) {
+						str := binding.NewString()
+						w.(*widget.Label).Bind(str)
+						fyneutil.Transform(str, data.(binding.Untyped), func(u any) string {
+							peer := u.(*ipnstate.PeerStatus)
+							return peer.HostName
+						})
+					},
 				),
 				widget.NewCheckWithData(
 					"Show Window at Start",

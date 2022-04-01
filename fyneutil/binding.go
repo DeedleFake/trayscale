@@ -38,7 +38,7 @@ func (b *listBinding[T, S]) Get() (S, error) {
 }
 
 func (b *listBinding[T, S]) Set(v S) error {
-	s := make([]interface{}, 0, len(v))
+	s := make([]any, 0, len(v))
 	for _, v := range v {
 		s = append(s, v)
 	}

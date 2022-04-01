@@ -9,8 +9,10 @@ import (
 	"strings"
 
 	"github.com/snapcore/snapd/polkit"
+	"golang.org/x/exp/maps"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn"
+	"tailscale.com/ipn/ipnstate"
 )
 
 var (
@@ -60,12 +62,15 @@ func (c *Client) run(ctx context.Context, args ...string) (string, error) {
 	return out.String(), err
 }
 
-func (c *Client) Status(ctx context.Context) (bool, error) {
+func (c *Client) Status(ctx context.Context) ([]*ipnstate.PeerStatus, error) {
 	st, err := tailscale.Status(ctx)
 	if err != nil {
-		return false, fmt.Errorf("get tailscale status: %w", err)
+		return nil, fmt.Errorf("get tailscale status: %w", err)
 	}
-	return st.BackendState == ipn.Running.String(), nil
+	if st.BackendState != ipn.Running.String() {
+		return nil, nil
+	}
+	return maps.Values(st.Peer), nil
 }
 
 func (c *Client) Start(ctx context.Context) error {

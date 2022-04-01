@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	_ "embed"
+	"image/color"
 	"log"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
@@ -24,6 +26,11 @@ var assets embed.FS
 
 const (
 	prefShowWindowAtStart = "showWindowAtStart"
+)
+
+var (
+	colorActive   = &color.NRGBA{0, 255, 0, 255}
+	colorInactive = &color.NRGBA{255, 0, 0, 255}
 )
 
 type App struct {
@@ -65,11 +72,26 @@ func (a *App) initUI(ctx context.Context) {
 	a.status = binding.NewBool()
 	go a.pollStatus(ctx)
 
+	statusCircle := canvas.NewCircle(colorActive)
+	a.status.AddListener(binding.NewDataListener(func() {
+		running, _ := a.status.Get()
+		if running {
+			statusCircle.FillColor = colorActive
+			return
+		}
+		statusCircle.FillColor = colorInactive
+	}))
+
 	a.win = a.app.NewWindow("Trayscale")
 	a.win.SetContent(
 		container.NewCenter(
 			container.NewVBox(
-				container.NewCenter(widget.NewRichTextFromMarkdown(`# Trayscale`)),
+				container.NewCenter(
+					container.NewHBox(
+						widget.NewRichTextFromMarkdown(`# Trayscale`),
+						statusCircle,
+					),
+				),
 				widget.NewCheckWithData(
 					"Show Window at Start",
 					binding.BindPreferenceBool(prefShowWindowAtStart, a.app.Preferences()),

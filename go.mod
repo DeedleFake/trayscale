@@ -6,6 +6,7 @@ require (
 	fyne.io/fyne/v2 v2.1.4
 	github.com/getlantern/systray v1.2.1
 	github.com/snapcore/snapd v0.0.0-20220331194012-2eaec4324e2c
+	golang.org/x/exp v0.0.0-20220328175248-053ad81199eb
 	tailscale.com v1.22.2
 )
 

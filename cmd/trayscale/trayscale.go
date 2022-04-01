@@ -19,6 +19,7 @@ import (
 	"github.com/DeedleFake/trayscale/fyneutil"
 	"github.com/DeedleFake/trayscale/tailscale"
 	"github.com/getlantern/systray"
+	"tailscale.com/ipn/ipnstate"
 )
 
 //go:embed assets
@@ -41,6 +42,7 @@ type App struct {
 	app fyne.App
 	win fyne.Window
 
+	peers  fyneutil.SliceBinding[*ipnstate.PeerStatus, []*ipnstate.PeerStatus]
 	status binding.Bool
 }
 
@@ -49,12 +51,12 @@ func (a *App) pollStatus(ctx context.Context) {
 	check := time.NewTicker(ticklen)
 
 	for {
-		running, err := a.TS.Status(ctx)
+		peers, err := a.TS.Status(ctx)
 		if err != nil {
 			log.Printf("Error: Tailscale status: %v", err)
 			continue
 		}
-		a.status.Set(running)
+		a.peers.Set(peers)
 
 		select {
 		case <-ctx.Done():
@@ -69,7 +71,11 @@ func (a *App) pollStatus(ctx context.Context) {
 func (a *App) initUI(ctx context.Context) {
 	a.app = app.NewWithID("trayscale")
 
+	a.peers = fyneutil.NewSliceBinding[*ipnstate.PeerStatus, []*ipnstate.PeerStatus]()
 	a.status = binding.NewBool()
+	fyneutil.Transform(a.status, a.peers, func(peers []*ipnstate.PeerStatus) bool {
+		return len(peers) != 0
+	})
 	go a.pollStatus(ctx)
 
 	statusCircle := canvas.NewCircle(colorActive)

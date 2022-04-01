@@ -65,7 +65,7 @@ func (c *Client) Status(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("get tailscale status: %w", err)
 	}
-	return (st.BackendState == ipn.Starting.String()) || (st.BackendState == ipn.Running.String()), nil
+	return st.BackendState == ipn.Running.String(), nil
 }
 
 func (c *Client) Start(ctx context.Context) error {

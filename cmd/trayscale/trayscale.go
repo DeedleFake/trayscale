@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
+	"github.com/DeedleFake/trayscale/fyneutil"
 	"github.com/DeedleFake/trayscale/tailscale"
 	"github.com/getlantern/systray"
 )
@@ -82,6 +83,19 @@ func (a *App) initUI(ctx context.Context) {
 		statusCircle.FillColor = colorInactive
 	}))
 
+	startButton := widget.NewButton("Start", func() { a.TS.Start(ctx) })
+	stopButton := widget.NewButton("Stop", func() { a.TS.Stop(ctx) })
+	a.status.AddListener(binding.NewDataListener(func() {
+		running, _ := a.status.Get()
+		if running {
+			startButton.Disable()
+			stopButton.Enable()
+			return
+		}
+		startButton.Enable()
+		stopButton.Disable()
+	}))
+
 	a.win = a.app.NewWindow("Trayscale")
 	a.win.SetContent(
 		container.NewCenter(
@@ -95,6 +109,11 @@ func (a *App) initUI(ctx context.Context) {
 				widget.NewCheckWithData(
 					"Show Window at Start",
 					binding.BindPreferenceBool(prefShowWindowAtStart, a.app.Preferences()),
+				),
+				container.New(
+					fyneutil.NewMaxHBoxLayout(),
+					startButton,
+					stopButton,
 				),
 				widget.NewButton("Quit", func() { a.Quit() }),
 			),

@@ -70,7 +70,10 @@ func (c *Client) Status(ctx context.Context) ([]*ipnstate.PeerStatus, error) {
 	if st.BackendState != ipn.Running.String() {
 		return nil, nil
 	}
-	return maps.Values(st.Peer), nil
+	peers := maps.Values(st.Peer)
+	peers = append(peers, st.Self)
+	peers[0], peers[len(peers)-1] = peers[len(peers)-1], peers[0]
+	return peers, nil
 }
 
 func (c *Client) Start(ctx context.Context) error {

@@ -5,7 +5,6 @@ import (
 	"embed"
 	_ "embed"
 	"fmt"
-	"image/color"
 	"log"
 	"os"
 	"os/signal"
@@ -13,9 +12,9 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
-	"fyne.io/fyne/v2/widget"
+	"github.com/DeedleFake/fyner"
+	"github.com/DeedleFake/fyner/state"
 	"github.com/DeedleFake/trayscale/fyneutil"
 	"github.com/DeedleFake/trayscale/tailscale"
 	"github.com/getlantern/systray"
@@ -29,11 +28,6 @@ const (
 	prefShowWindowAtStart = "showWindowAtStart"
 )
 
-var (
-	colorActive   = &color.NRGBA{0, 255, 0, 255}
-	colorInactive = &color.NRGBA{255, 0, 0, 255}
-)
-
 type App struct {
 	TS *tailscale.Client
 
@@ -42,8 +36,8 @@ type App struct {
 	app fyne.App
 	win fyne.Window
 
-	peers  fyneutil.ListBinding[*ipnstate.PeerStatus, []*ipnstate.PeerStatus]
-	status fyneutil.Binding[bool]
+	peers  state.MutableState[[]*ipnstate.PeerStatus]
+	status state.State[bool]
 }
 
 func (a *App) pollStatus(ctx context.Context) {
@@ -71,70 +65,79 @@ func (a *App) pollStatus(ctx context.Context) {
 func (a *App) initUI(ctx context.Context) {
 	a.app = app.NewWithID("trayscale")
 
-	a.peers = fyneutil.NewListBinding[*ipnstate.PeerStatus, []*ipnstate.PeerStatus]()
-	a.status = binding.NewBool()
-	fyneutil.Transform(a.status, a.peers, func(peers []*ipnstate.PeerStatus) bool {
+	a.peers = state.Mutable[[]*ipnstate.PeerStatus](nil)
+	a.status = state.Derived(a.peers, func(peers []*ipnstate.PeerStatus) bool {
 		return len(peers) != 0
 	})
 	go a.pollStatus(ctx)
 
-	icon := widget.NewIcon(fyneutil.NewMemoryResource("icon", a.updateIcon()))
-	a.status.AddListener(binding.NewDataListener(func() {
-		icon.SetResource(fyneutil.NewMemoryResource("icon", a.updateIcon()))
-	}))
+	icon := state.Derived(a.status, func(running bool) fyne.Resource {
+		return fyneutil.NewMemoryResource("icon", a.updateIcon(running))
+	})
 
-	startButton := widget.NewButton("Start", func() { a.TS.Start(ctx) })
-	stopButton := widget.NewButton("Stop", func() { a.TS.Stop(ctx) })
-	a.status.AddListener(binding.NewDataListener(func() {
-		running, _ := a.status.Get()
-		if running {
-			startButton.Disable()
-			stopButton.Enable()
-			return
-		}
-		startButton.Enable()
-		stopButton.Disable()
-	}))
+	showWindowAtStart := state.FromBinding[bool](
+		binding.BindPreferenceBool(
+			prefShowWindowAtStart,
+			a.app.Preferences(),
+		),
+	)
 
 	a.win = a.app.NewWindow("Trayscale")
-	a.win.SetContent(
-		container.NewBorder(
-			container.NewVBox(
-				container.NewCenter(
-					container.NewHBox(
-						icon,
-						widget.NewRichTextFromMarkdown(`# Trayscale`),
-					),
-				),
-				container.New(
-					fyneutil.NewMaxHBoxLayout(),
-					startButton,
-					stopButton,
-				),
-			),
-			container.NewVBox(
-				widget.NewCheckWithData(
-					"Show Window at Start",
-					binding.BindPreferenceBool(prefShowWindowAtStart, a.app.Preferences()),
-				),
-				widget.NewButton("Quit", func() { a.Quit() }),
-			),
-			nil,
-			nil,
-			widget.NewListWithData(
-				a.peers,
-				func() fyne.CanvasObject { return widget.NewLabel("") },
-				func(data binding.DataItem, w fyne.CanvasObject) {
-					str := binding.NewString()
-					w.(*widget.Label).Bind(str)
-					fyneutil.Transform(str, data.(binding.Untyped), func(u any) string {
-						peer := u.(*ipnstate.PeerStatus)
+	a.win.SetContent(fyner.Content(
+		&fyner.Border{
+			Top: &fyner.Box{
+				Children: []fyner.Component{
+					&fyner.Center{
+						Child: &fyner.Box{
+							Horizontal: state.Static(true),
+							Children: []fyner.Component{
+								&fyner.Icon{Resource: icon},
+								&fyner.RichText{Markdown: state.Static(`# Trayscale`)},
+							},
+						},
+					},
+					&fyner.Container{
+						Layout: state.Static(fyneutil.NewMaxHBoxLayout()),
+						Children: []fyner.Component{
+							&fyner.Button{
+								Text:     state.Static("Start"),
+								Disabled: a.status,
+								OnTapped: func() { a.TS.Start(ctx) },
+							},
+							&fyner.Button{
+								Text:     state.Static("Stop"),
+								Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
+								OnTapped: func() { a.TS.Stop(ctx) },
+							},
+						},
+					},
+				},
+			},
+			Bottom: &fyner.Box{
+				Children: []fyner.Component{
+					&fyner.Check{
+						Text:    state.Static("Show Window at Start"),
+						Checked: showWindowAtStart,
+					},
+					&fyner.Button{
+						Text:     state.Static("Quit"),
+						OnTapped: func() { a.Quit() },
+					},
+				},
+			},
+			Center: &fyner.List[*ipnstate.PeerStatus, *fyner.Label]{
+				Items: state.ToSliceOfStates[*ipnstate.PeerStatus, []*ipnstate.PeerStatus](a.peers),
+				Builder: func() *fyner.Label {
+					return new(fyner.Label)
+				},
+				Binder: func(s state.State[*ipnstate.PeerStatus], label *fyner.Label) {
+					label.Text = state.Derived(s, func(peer *ipnstate.PeerStatus) string {
 						return fmt.Sprintf("%v - %v", peer.HostName, peer.TailscaleIPs)
 					})
 				},
-			),
-		),
-	)
+			},
+		},
+	))
 	a.win.SetCloseIntercept(func() { a.win.Hide() })
 	a.win.Resize(fyne.NewSize(300, 500))
 
@@ -143,9 +146,8 @@ func (a *App) initUI(ctx context.Context) {
 	}
 }
 
-func (a *App) updateIcon() []byte {
+func (a *App) updateIcon(active bool) []byte {
 	icon := "assets/icon-active.png"
-	active, _ := a.status.Get()
 	if !active {
 		icon = "assets/icon-inactive.png"
 	}
@@ -155,7 +157,7 @@ func (a *App) updateIcon() []byte {
 }
 
 func (a *App) initTray(ctx context.Context) {
-	a.status.AddListener(binding.NewDataListener(func() { systray.SetIcon(a.updateIcon()) }))
+	a.status.Listen(func(running bool) { systray.SetIcon(a.updateIcon(running)) })
 
 	newTrayItem(ctx, "Show", func() { a.win.Show() })
 
@@ -168,14 +170,13 @@ func (a *App) initTray(ctx context.Context) {
 		}
 		a.poll <- struct{}{}
 	})
-	a.status.AddListener(binding.NewDataListener(func() {
-		active, _ := a.status.Get()
+	a.status.Listen(func(active bool) {
 		if active {
 			start.Disable()
 			return
 		}
 		start.Enable()
-	}))
+	})
 
 	stop := newTrayItem(ctx, "Stop", func() {
 		err := a.TS.Stop(ctx)
@@ -184,14 +185,13 @@ func (a *App) initTray(ctx context.Context) {
 		}
 		a.poll <- struct{}{}
 	})
-	a.status.AddListener(binding.NewDataListener(func() {
-		active, _ := a.status.Get()
+	a.status.Listen(func(active bool) {
 		if !active {
 			stop.Disable()
 			return
 		}
 		stop.Enable()
-	}))
+	})
 
 	systray.AddSeparator()
 

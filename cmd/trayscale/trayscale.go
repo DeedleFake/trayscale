@@ -125,12 +125,15 @@ func (a *App) initUI(ctx context.Context) {
 					},
 				},
 			},
-			Center: &fyner.List{
-				Items: a.peers,
-				Builder: func(peer *ipnstate.PeerStatus) (string, fyner.Component) {
-					return peer.HostName, &fyner.Label{
-						Text: state.Static(fmt.Sprintf("%v - %v", peer.HostName, peer.TailscaleIPs)),
-					}
+			Center: &fyner.List[*ipnstate.PeerStatus, *fyner.Label]{
+				Items: state.ToSliceOfStates[*ipnstate.PeerStatus, []*ipnstate.PeerStatus](a.peers),
+				Builder: func() *fyner.Label {
+					return new(fyner.Label)
+				},
+				Binder: func(s state.State[*ipnstate.PeerStatus], label *fyner.Label) {
+					label.Text = state.Derived(s, func(peer *ipnstate.PeerStatus) string {
+						return fmt.Sprintf("%v - %v", peer.HostName, peer.TailscaleIPs)
+					})
 				},
 			},
 		},

@@ -16,6 +16,7 @@ import (
 	"github.com/DeedleFake/fyner"
 	"github.com/DeedleFake/fyner/state"
 	"github.com/DeedleFake/trayscale/fyneutil"
+	"github.com/DeedleFake/trayscale/stray"
 	"github.com/DeedleFake/trayscale/tailscale"
 	"github.com/getlantern/systray"
 	"tailscale.com/ipn/ipnstate"
@@ -60,6 +61,16 @@ func (a *App) pollStatus(ctx context.Context) {
 			check.Reset(ticklen)
 		}
 	}
+}
+
+func (a *App) updateIcon(active bool) []byte {
+	icon := "assets/icon-active.png"
+	if !active {
+		icon = "assets/icon-inactive.png"
+	}
+
+	data, _ := assets.ReadFile(icon)
+	return data
 }
 
 func (a *App) initUI(ctx context.Context) {
@@ -146,63 +157,43 @@ func (a *App) initUI(ctx context.Context) {
 	}
 }
 
-func (a *App) updateIcon(active bool) []byte {
-	icon := "assets/icon-active.png"
-	if !active {
-		icon = "assets/icon-inactive.png"
-	}
+func (a *App) initTray(ctx context.Context) (start, stop func()) {
+	// This implementation is a placeholder until fyne-io/systray#2 is
+	// fixed.
 
-	data, _ := assets.ReadFile(icon)
-	return data
-}
+	go func() {
+		stray.Run(&stray.Stray{
+			Icon: state.Derived(a.status, a.updateIcon),
+			Items: []stray.Item{
+				&stray.MenuItem{
+					Text:    state.Static("Show"),
+					OnClick: func() { a.win.Show() },
+				},
+				&stray.Separator{},
+				&stray.MenuItem{
+					Text:     state.Static("Start"),
+					Disabled: a.status,
+					OnClick:  func() { a.TS.Start(ctx) },
+				},
+				&stray.MenuItem{
+					Text:     state.Static("Stop"),
+					Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
+					OnClick:  func() { a.TS.Stop(ctx) },
+				},
+				&stray.Separator{},
+				&stray.MenuItem{
+					Text:    state.Static("Quit"),
+					OnClick: func() { a.Quit() },
+				},
+			},
+		})
+	}()
 
-func (a *App) initTray(ctx context.Context) {
-	a.status.Listen(func(running bool) { systray.SetIcon(a.updateIcon(running)) })
-
-	newTrayItem(ctx, "Show", func() { a.win.Show() })
-
-	systray.AddSeparator()
-
-	start := newTrayItem(ctx, "Start", func() {
-		err := a.TS.Start(ctx)
-		if err != nil {
-			log.Printf("Error: start tailscale: %v", err)
-		}
-		a.poll <- struct{}{}
-	})
-	a.status.Listen(func(active bool) {
-		if active {
-			start.Disable()
-			return
-		}
-		start.Enable()
-	})
-
-	stop := newTrayItem(ctx, "Stop", func() {
-		err := a.TS.Stop(ctx)
-		if err != nil {
-			log.Printf("Error: stop tailscale: %v", err)
-		}
-		a.poll <- struct{}{}
-	})
-	a.status.Listen(func(active bool) {
-		if !active {
-			stop.Disable()
-			return
-		}
-		stop.Enable()
-	})
-
-	systray.AddSeparator()
-
-	newTrayItem(ctx, "Exit", func() {
-		a.Quit()
-	})
+	return func() {}, func() { systray.Quit() }
 }
 
 func (a *App) Quit() {
 	a.app.Quit()
-	systray.Quit()
 }
 
 func (a *App) Run(ctx context.Context) {
@@ -212,39 +203,16 @@ func (a *App) Run(ctx context.Context) {
 	a.poll = make(chan struct{}, 1)
 
 	a.initUI(ctx)
-	a.initTray(ctx)
-
-	go systray.Run(
-		func() {
-			go func() {
-				<-ctx.Done()
-				systray.Quit()
-			}()
-		},
-		nil,
-	)
+	startTray, stopTray := a.initTray(ctx)
 
 	go func() {
 		<-ctx.Done()
 		a.app.Quit()
 	}()
 
+	startTray()
+	defer stopTray()
 	a.app.Run()
-}
-
-func newTrayItem(ctx context.Context, label string, onClick func()) *systray.MenuItem {
-	item := systray.AddMenuItem(label, "")
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-item.ClickedCh:
-				onClick()
-			}
-		}
-	}()
-	return item
 }
 
 func main() {

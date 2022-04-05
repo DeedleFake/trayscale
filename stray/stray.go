@@ -3,7 +3,7 @@ package stray
 import (
 	"sync"
 
-	"github.com/DeedleFake/state"
+	"deedles.dev/state"
 	"github.com/getlantern/systray"
 )
 

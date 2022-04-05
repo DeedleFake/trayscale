@@ -20,6 +20,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/data/binding"
 	"github.com/getlantern/systray"
+	"golang.org/x/exp/slices"
 	"tailscale.com/ipn/ipnstate"
 )
 
@@ -30,6 +31,10 @@ const (
 	prefShowWindowAtStart = "showWindowAtStart"
 )
 
+func peersEqual(p1, p2 *ipnstate.PeerStatus) bool {
+	return p1.HostName == p2.HostName && slices.Equal(p1.TailscaleIPs, p2.TailscaleIPs)
+}
+
 type App struct {
 	TS *tailscale.Client
 
@@ -38,11 +43,11 @@ type App struct {
 	app fyne.App
 	win fyne.Window
 
-	peers  state.MutableState[[]*ipnstate.PeerStatus]
+	peers  state.State[[]*ipnstate.PeerStatus]
 	status state.State[bool]
 }
 
-func (a *App) pollStatus(ctx context.Context) {
+func (a *App) pollStatus(ctx context.Context, rawpeers state.MutableState[[]*ipnstate.PeerStatus]) {
 	const ticklen = 5 * time.Second
 	check := time.NewTicker(ticklen)
 
@@ -52,7 +57,7 @@ func (a *App) pollStatus(ctx context.Context) {
 			log.Printf("Error: Tailscale status: %v", err)
 			continue
 		}
-		a.peers.Set(peers)
+		rawpeers.Set(peers)
 
 		select {
 		case <-ctx.Done():
@@ -77,11 +82,14 @@ func (a *App) updateIcon(active bool) []byte {
 func (a *App) initUI(ctx context.Context) {
 	a.app = app.NewWithID("trayscale")
 
-	a.peers = state.Mutable[[]*ipnstate.PeerStatus](nil)
+	rawpeers := state.Mutable[[]*ipnstate.PeerStatus](nil)
+	a.peers = state.UniqFunc(rawpeers, func(peers, old []*ipnstate.PeerStatus) bool {
+		return slices.EqualFunc(peers, old, peersEqual)
+	})
 	a.status = state.Derived(a.peers, func(peers []*ipnstate.PeerStatus) bool {
 		return len(peers) != 0
 	})
-	go a.pollStatus(ctx)
+	go a.pollStatus(ctx, rawpeers)
 
 	icon := state.Derived(a.status, func(running bool) fyne.Resource {
 		return fyneutil.NewMemoryResource("icon", a.updateIcon(running))

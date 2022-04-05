@@ -10,6 +10,7 @@ import (
 
 	"github.com/snapcore/snapd/polkit"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -70,9 +71,14 @@ func (c *Client) Status(ctx context.Context) ([]*ipnstate.PeerStatus, error) {
 	if st.BackendState != ipn.Running.String() {
 		return nil, nil
 	}
+
 	peers := maps.Values(st.Peer)
 	peers = append(peers, st.Self)
 	peers[0], peers[len(peers)-1] = peers[len(peers)-1], peers[0]
+	slices.SortFunc(peers[1:], func(p1, p2 *ipnstate.PeerStatus) bool {
+		return p1.HostName < p2.HostName
+	})
+
 	return peers, nil
 }
 

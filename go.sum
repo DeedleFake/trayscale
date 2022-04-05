@@ -4,6 +4,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/toml v0.4.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/DeedleFake/fyner v0.0.0-20220404233304-e71c730ab8f2 h1:rj1Afg7JAf5mt5yhR5vIsz2+9arpZKSddPFX55WsS+U=
 github.com/DeedleFake/fyner v0.0.0-20220404233304-e71c730ab8f2/go.mod h1:u09FDtiVEA3uwBl7ar2HlHIIgcXpB8S8ZKMvyuncRx4=
+github.com/DeedleFake/state v0.0.0-20220405141257-1ca5859a81c0 h1:3DhyXsqsz7dfDdQO3HZKJcj43bA04oG+C/7VJmPqKC4=
+github.com/DeedleFake/state v0.0.0-20220405141257-1ca5859a81c0/go.mod h1:VcXSxZv70TzIbp/FLa6T1SA9wBwODvtVkML7TTZTXoc=
 github.com/Kodeworks/golang-image-ico v0.0.0-20141118225523-73f0f4cfade9/go.mod h1:7uhhqiBaR4CpN0k9rMjOtjpcfGd6DG2m04zQxKnWQ0I=
 github.com/akavel/rsrc v0.8.0/go.mod h1:uLoCtb9J+EyAqh+26kdrTgmzRBFPGOolLWKpdxkKq+c=
 github.com/akutz/memconn v0.1.0 h1:NawI0TORU4hcOMsMr11g7vwlCdkYeLKXBcxWu2W/P8A=

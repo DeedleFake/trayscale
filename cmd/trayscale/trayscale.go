@@ -14,7 +14,8 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/data/binding"
 	"github.com/DeedleFake/fyner"
-	"github.com/DeedleFake/fyner/state"
+	"github.com/DeedleFake/fyner/fstate"
+	"github.com/DeedleFake/state"
 	"github.com/DeedleFake/trayscale/fyneutil"
 	"github.com/DeedleFake/trayscale/stray"
 	"github.com/DeedleFake/trayscale/tailscale"
@@ -86,7 +87,7 @@ func (a *App) initUI(ctx context.Context) {
 		return fyneutil.NewMemoryResource("icon", a.updateIcon(running))
 	})
 
-	showWindowAtStart := state.FromBinding[bool](
+	showWindowAtStart := fstate.FromBinding[bool](
 		binding.BindPreferenceBool(
 			prefShowWindowAtStart,
 			a.app.Preferences(),
@@ -137,10 +138,7 @@ func (a *App) initUI(ctx context.Context) {
 				},
 			},
 			Center: &fyner.List[*ipnstate.PeerStatus, *fyner.Label]{
-				Items: state.ToSliceOfStates[*ipnstate.PeerStatus, []*ipnstate.PeerStatus](a.peers),
-				Builder: func() *fyner.Label {
-					return new(fyner.Label)
-				},
+				Items: fstate.ToSliceOfStates[*ipnstate.PeerStatus, []*ipnstate.PeerStatus](a.peers),
 				Binder: func(s state.State[*ipnstate.PeerStatus], label *fyner.Label) {
 					label.Text = state.Derived(s, func(peer *ipnstate.PeerStatus) string {
 						return fmt.Sprintf("%v - %v", peer.HostName, peer.TailscaleIPs)

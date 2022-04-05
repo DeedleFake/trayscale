@@ -5,6 +5,7 @@ go 1.18
 require (
 	fyne.io/fyne/v2 v2.1.4
 	github.com/DeedleFake/fyner v0.0.0-20220404233304-e71c730ab8f2
+	github.com/DeedleFake/state v0.0.0-20220405141257-1ca5859a81c0
 	github.com/getlantern/systray v1.2.1
 	github.com/snapcore/snapd v0.0.0-20220404152935-e21669cca50a
 	golang.org/x/exp v0.0.0-20220328175248-053ad81199eb

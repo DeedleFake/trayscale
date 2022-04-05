@@ -3,7 +3,7 @@ package stray
 import (
 	"sync"
 
-	"github.com/DeedleFake/fyner/state"
+	"github.com/DeedleFake/state"
 	"github.com/getlantern/systray"
 )
 

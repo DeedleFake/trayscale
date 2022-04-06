@@ -31,10 +31,6 @@ const (
 	prefShowWindowAtStart = "showWindowAtStart"
 )
 
-func peersEqual(p1, p2 *ipnstate.PeerStatus) bool {
-	return p1.HostName == p2.HostName && slices.Equal(p1.TailscaleIPs, p2.TailscaleIPs)
-}
-
 type App struct {
 	TS *tailscale.Client
 
@@ -84,7 +80,9 @@ func (a *App) initUI(ctx context.Context) {
 
 	rawpeers := state.Mutable[[]*ipnstate.PeerStatus](nil)
 	a.peers = state.UniqFunc(rawpeers, func(peers, old []*ipnstate.PeerStatus) bool {
-		return slices.EqualFunc(peers, old, peersEqual)
+		return slices.EqualFunc(peers, old, func(p1, p2 *ipnstate.PeerStatus) bool {
+			return p1.HostName == p2.HostName && slices.Equal(p1.TailscaleIPs, p2.TailscaleIPs)
+		})
 	})
 	a.status = state.Derived(a.peers, func(peers []*ipnstate.PeerStatus) bool {
 		return len(peers) != 0

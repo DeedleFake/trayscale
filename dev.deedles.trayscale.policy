@@ -2,7 +2,7 @@
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD polkit Policy Configuration 1.0//EN" "http://www.freedesktop.org/software/polkit/policyconfig-1.dtd">
 <policyconfig>
 	<vendor>Trayscale</vendor>
-	<vendor_url>https://github.com/DeedleFake/trayscale</vendor_url>
+	<vendor_url>https://deedles.dev/trayscale</vendor_url>
 	<action id="com.github.DeedleFake.trayscale.run-tailscale">
 		<description>Run the Tailscale CLI</description>
 		<message>Authentication is required to run Tailscale CLI</message>

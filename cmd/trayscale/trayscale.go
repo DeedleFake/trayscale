@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"deedles.dev/fyner"
@@ -150,13 +151,23 @@ func (a *App) initUI(ctx context.Context) {
 						return fmt.Sprintf("%v - %v", peer.HostName, peer.TailscaleIPs)
 					})
 				},
+				OnSelect: func(s state.State[*ipnstate.PeerStatus], label *fyner.Label) {
+					var str strings.Builder
+					var sep string
+					for _, ip := range state.Get(s).TailscaleIPs {
+						str.WriteString(sep)
+						str.WriteString(ip.String())
+						sep = ", "
+					}
+					a.win.Clipboard().SetContent(str.String())
+				},
 			},
 		},
 	))
 	a.win.SetCloseIntercept(func() { a.win.Hide() })
 	a.win.Resize(fyne.NewSize(300, 500))
 
-	if a.app.Preferences().Bool(prefShowWindowAtStart) {
+	if state.Get[bool](showWindowAtStart) {
 		a.win.Show()
 	}
 }

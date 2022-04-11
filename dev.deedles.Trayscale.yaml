@@ -1,0 +1,14 @@
+app-id: dev.deedles.Trayscale
+runtime: org.freedesktop.Platform
+runtime-version: '21.08'
+sdk: org.freedesktop.Sdk
+command: trayscale
+modules:
+  - name: trayscale
+    buildsystem: simple
+    build-commands:
+      - install -D trayscale /app/bin/trayscale
+    sources:
+      type: archive
+      url: https://github.com/DeedleFake/trayscale/releases/download/v0.1.0/trayscale.tar.zst
+      sha256: 4e6903974ea986342c43d2a3ec8b06d1a739031d55ead74ad7150839def05546

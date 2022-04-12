@@ -4,22 +4,16 @@ import (
 	"context"
 	"embed"
 	_ "embed"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"time"
 
-	"deedles.dev/fyner"
-	"deedles.dev/fyner/fstate"
 	"deedles.dev/state"
-	"deedles.dev/trayscale/fyneutil"
-	"deedles.dev/trayscale/stray"
 	"deedles.dev/trayscale/tailscale"
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/data/binding"
-	"github.com/getlantern/systray"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/slices"
 	"tailscale.com/ipn/ipnstate"
 )
@@ -36,8 +30,8 @@ type App struct {
 
 	poll chan struct{}
 
-	app fyne.App
-	win fyne.Window
+	app *gtk.Application
+	win *gtk.ApplicationWindow
 
 	peers  state.State[[]*ipnstate.PeerStatus]
 	status state.State[bool]
@@ -75,9 +69,7 @@ func (a *App) updateIcon(active bool) []byte {
 	return data
 }
 
-func (a *App) initUI(ctx context.Context) {
-	a.app = app.NewWithID("trayscale")
-
+func (a *App) initState(ctx context.Context) {
 	rawpeers := state.Mutable[[]*ipnstate.PeerStatus](nil)
 	a.peers = state.UniqFunc(rawpeers, func(peers, old []*ipnstate.PeerStatus) bool {
 		return slices.EqualFunc(peers, old, func(p1, p2 *ipnstate.PeerStatus) bool {
@@ -88,113 +80,151 @@ func (a *App) initUI(ctx context.Context) {
 		return len(peers) != 0
 	})
 	go a.pollStatus(ctx, rawpeers)
+}
 
-	icon := state.Derived(a.status, func(running bool) fyne.Resource {
-		return fyneutil.NewMemoryResource("icon", a.updateIcon(running))
+func (a *App) initUI(ctx context.Context) {
+	statusIconActive := gdkpixbuf.NewPixbufFromXPMData(iconActiveXPM)
+	statusIconInactive := gdkpixbuf.NewPixbufFromXPMData(iconInactiveXPM)
+	statusIconState := state.Derived(a.status, func(running bool) *gdkpixbuf.Pixbuf {
+		if running {
+			return statusIconActive
+		}
+		return statusIconInactive
 	})
 
-	showWindowAtStart := fstate.FromBinding[bool](
-		binding.BindPreferenceBool(
-			prefShowWindowAtStart,
-			a.app.Preferences(),
-		),
-	)
+	a.app = gtk.NewApplication("dev.deedles.trayscale", 0)
+	a.app.ConnectActivate(func() {
+		statusIcon := gtk.NewImageFromPixbuf(state.Get(statusIconState))
+		statusIconState.Listen(statusIcon.SetFromPixbuf)
 
-	a.win = a.app.NewWindow("Trayscale")
-	a.win.SetContent(fyner.Content(
-		&fyner.Border{
-			Top: &fyner.Box{
-				Children: []fyner.Component{
-					&fyner.Center{
-						Child: &fyner.Box{
-							Horizontal: state.Static(true),
-							Children: []fyner.Component{
-								&fyner.Icon{Resource: icon},
-								&fyner.RichText{Markdown: state.Static(`# Trayscale`)},
-							},
-						},
-					},
-					&fyner.Container{
-						Layout: state.Static(fyneutil.NewMaxHBoxLayout()),
-						Children: []fyner.Component{
-							&fyner.Button{
-								Text:     state.Static("Start"),
-								Disabled: a.status,
-								OnTapped: func() { a.TS.Start(ctx) },
-							},
-							&fyner.Button{
-								Text:     state.Static("Stop"),
-								Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
-								OnTapped: func() { a.TS.Stop(ctx) },
-							},
-						},
-					},
-				},
-			},
-			Bottom: &fyner.Box{
-				Children: []fyner.Component{
-					&fyner.Check{
-						Text:    state.Static("Show Window at Start"),
-						Checked: showWindowAtStart,
-					},
-					&fyner.Button{
-						Text:     state.Static("Quit"),
-						OnTapped: func() { a.Quit() },
-					},
-				},
-			},
-			Center: &fyner.List[*ipnstate.PeerStatus, *fyner.Label]{
-				Items: fstate.ToSliceOfStates[*ipnstate.PeerStatus, []*ipnstate.PeerStatus](a.peers),
-				Binder: func(s state.State[*ipnstate.PeerStatus], label *fyner.Label) {
-					label.Text = state.Derived(s, func(peer *ipnstate.PeerStatus) string {
-						return fmt.Sprintf("%v - %v", peer.HostName, peer.TailscaleIPs)
-					})
-				},
-			},
-		},
-	))
-	a.win.SetCloseIntercept(func() { a.win.Hide() })
-	a.win.Resize(fyne.NewSize(300, 500))
-
-	if a.app.Preferences().Bool(prefShowWindowAtStart) {
-		a.win.Show()
-	}
-}
-
-func (a *App) initTray(ctx context.Context) (start, stop func()) {
-	// This implementation is a placeholder until fyne-io/systray#2 is
-	// fixed.
-
-	go func() {
-		stray.Run(&stray.Stray{
-			Icon: state.Derived(a.status, a.updateIcon),
-			Items: []stray.Item{
-				&stray.MenuItem{
-					Text:    state.Static("Show"),
-					OnClick: func() { a.win.Show() },
-				},
-				&stray.Separator{},
-				&stray.MenuItem{
-					Text:     state.Static("Start"),
-					Disabled: a.status,
-					OnClick:  func() { a.TS.Start(ctx) },
-				},
-				&stray.MenuItem{
-					Text:     state.Static("Stop"),
-					Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
-					OnClick:  func() { a.TS.Stop(ctx) },
-				},
-				&stray.Separator{},
-				&stray.MenuItem{
-					Text:    state.Static("Quit"),
-					OnClick: func() { a.Quit() },
-				},
-			},
+		status := gtk.NewSwitch()
+		a.status.Listen(status.SetActive)
+		status.ConnectStateSet(func(status bool) bool {
+			if status {
+				a.TS.Start(ctx)
+				return true
+			}
+			a.TS.Stop(ctx)
+			return false
 		})
-	}()
 
-	return func() {}, func() { systray.Quit() }
+		header := adw.NewHeaderBar()
+		header.PackStart(status)
+		header.PackStart(statusIcon)
+
+		a.win = gtk.NewApplicationWindow(a.app)
+		a.win.SetTitle("Trayscale")
+		a.win.SetTitlebar(header)
+		a.win.Show()
+	})
+	//a.app = app.NewWithID("trayscale")
+
+	//icon := state.Derived(a.status, func(running bool) fyne.Resource {
+	//	return fyneutil.NewMemoryResource("icon", a.updateIcon(running))
+	//})
+
+	//showWindowAtStart := fstate.FromBinding[bool](
+	//	binding.BindPreferenceBool(
+	//		prefShowWindowAtStart,
+	//		a.app.Preferences(),
+	//	),
+	//)
+
+	//a.win = a.app.NewWindow("Trayscale")
+	//a.win.SetContent(fyner.Content(
+	//	&fyner.Border{
+	//		Top: &fyner.Box{
+	//			Children: []fyner.Component{
+	//				&fyner.Center{
+	//					Child: &fyner.Box{
+	//						Horizontal: state.Static(true),
+	//						Children: []fyner.Component{
+	//							&fyner.Icon{Resource: icon},
+	//							&fyner.RichText{Markdown: state.Static(`# Trayscale`)},
+	//						},
+	//					},
+	//				},
+	//				&fyner.Container{
+	//					Layout: state.Static(fyneutil.NewMaxHBoxLayout()),
+	//					Children: []fyner.Component{
+	//						&fyner.Button{
+	//							Text:     state.Static("Start"),
+	//							Disabled: a.status,
+	//							OnTapped: func() { a.TS.Start(ctx) },
+	//						},
+	//						&fyner.Button{
+	//							Text:     state.Static("Stop"),
+	//							Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
+	//							OnTapped: func() { a.TS.Stop(ctx) },
+	//						},
+	//					},
+	//				},
+	//			},
+	//		},
+	//		Bottom: &fyner.Box{
+	//			Children: []fyner.Component{
+	//				&fyner.Check{
+	//					Text:    state.Static("Show Window at Start"),
+	//					Checked: showWindowAtStart,
+	//				},
+	//				&fyner.Button{
+	//					Text:     state.Static("Quit"),
+	//					OnTapped: func() { a.Quit() },
+	//				},
+	//			},
+	//		},
+	//		Center: &fyner.List[*ipnstate.PeerStatus, *fyner.Label]{
+	//			Items: fstate.ToSliceOfStates[*ipnstate.PeerStatus, []*ipnstate.PeerStatus](a.peers),
+	//			Binder: func(s state.State[*ipnstate.PeerStatus], label *fyner.Label) {
+	//				label.Text = state.Derived(s, func(peer *ipnstate.PeerStatus) string {
+	//					return fmt.Sprintf("%v - %v", peer.HostName, peer.TailscaleIPs)
+	//				})
+	//			},
+	//		},
+	//	},
+	//))
+	//a.win.SetCloseIntercept(func() { a.win.Hide() })
+	//a.win.Resize(fyne.NewSize(300, 500))
+
+	//if a.app.Preferences().Bool(prefShowWindowAtStart) {
+	//	a.win.Show()
+	//}
 }
+
+//func (a *App) initTray(ctx context.Context) (start, stop func()) {
+//	// This implementation is a placeholder until fyne-io/systray#2 is
+//	// fixed.
+//
+//	go func() {
+//		stray.Run(&stray.Stray{
+//			Icon: state.Derived(a.status, a.updateIcon),
+//			Items: []stray.Item{
+//				&stray.MenuItem{
+//					Text:    state.Static("Show"),
+//					OnClick: func() { a.win.Show() },
+//				},
+//				&stray.Separator{},
+//				&stray.MenuItem{
+//					Text:     state.Static("Start"),
+//					Disabled: a.status,
+//					OnClick:  func() { a.TS.Start(ctx) },
+//				},
+//				&stray.MenuItem{
+//					Text:     state.Static("Stop"),
+//					Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
+//					OnClick:  func() { a.TS.Stop(ctx) },
+//				},
+//				&stray.Separator{},
+//				&stray.MenuItem{
+//					Text:    state.Static("Quit"),
+//					OnClick: func() { a.Quit() },
+//				},
+//			},
+//		})
+//	}()
+//
+//	return func() {}, func() { systray.Quit() }
+//}
 
 func (a *App) Quit() {
 	a.app.Quit()
@@ -206,17 +236,18 @@ func (a *App) Run(ctx context.Context) {
 
 	a.poll = make(chan struct{}, 1)
 
+	a.initState(ctx)
 	a.initUI(ctx)
-	startTray, stopTray := a.initTray(ctx)
+	//startTray, stopTray := a.initTray(ctx)
 
 	go func() {
 		<-ctx.Done()
 		a.app.Quit()
 	}()
 
-	startTray()
-	defer stopTray()
-	a.app.Run()
+	//startTray()
+	//defer stopTray()
+	a.app.Run(os.Args)
 }
 
 func main() {

@@ -176,6 +176,7 @@ func (a *App) initUI(ctx context.Context) {
 		a.win.SetTitle("Trayscale")
 		a.win.SetContent(windowBox)
 		a.win.SetDefaultSize(-1, 400)
+		//a.win.SetHideOnClose(true)
 		a.win.Show() // TODO: Make this configurable.
 	})
 }

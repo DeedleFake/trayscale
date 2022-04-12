@@ -11,7 +11,6 @@ import (
 
 	"deedles.dev/state"
 	"deedles.dev/trayscale/tailscale"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/slices"
@@ -97,19 +96,32 @@ func (a *App) initUI(ctx context.Context) {
 		statusIcon := gtk.NewImageFromPixbuf(state.Get(statusIconState))
 		statusIconState.Listen(statusIcon.SetFromPixbuf)
 
-		status := gtk.NewSwitch()
-		a.status.Listen(status.SetActive)
-		status.ConnectStateSet(func(status bool) bool {
+		statusSwitch := gtk.NewSwitch()
+		a.status.Listen(statusSwitch.SetState)
+		statusSwitch.ConnectStateSet(func(status bool) bool {
+			if status == state.Get(a.status) {
+				return false
+			}
+
+			var err error
+			defer func() {
+				if err != nil {
+					statusSwitch.SetActive(state.Get(a.status))
+				}
+			}()
+
 			if status {
-				a.TS.Start(ctx)
+				err = a.TS.Start(ctx)
+				a.poll <- struct{}{}
 				return true
 			}
-			a.TS.Stop(ctx)
-			return false
+			err = a.TS.Stop(ctx)
+			a.poll <- struct{}{}
+			return true
 		})
 
-		header := adw.NewHeaderBar()
-		header.PackStart(status)
+		header := gtk.NewHeaderBar()
+		header.PackStart(statusSwitch)
 		header.PackStart(statusIcon)
 
 		a.win = gtk.NewApplicationWindow(a.app)

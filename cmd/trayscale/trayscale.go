@@ -166,6 +166,7 @@ func (a *App) initUI(ctx context.Context) {
 
 		scroller := gtk.NewScrolledWindow()
 		scroller.SetVExpand(true)
+		scroller.SetMinContentWidth(400)
 		scroller.SetChild(peersListFrame)
 
 		windowBox := gtk.NewBox(gtk.OrientationVertical, 0)

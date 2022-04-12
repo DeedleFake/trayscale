@@ -83,20 +83,8 @@ func (a *App) initState(ctx context.Context) {
 }
 
 func (a *App) initUI(ctx context.Context) {
-	//statusIconActive := gdkpixbuf.NewPixbufFromXPMData(iconActiveXPM)
-	//statusIconInactive := gdkpixbuf.NewPixbufFromXPMData(iconInactiveXPM)
-	//statusIconState := state.Derived(a.status, func(running bool) *gdkpixbuf.Pixbuf {
-	//	if running {
-	//		return statusIconActive
-	//	}
-	//	return statusIconInactive
-	//})
-
 	a.app = adw.NewApplication("dev.deedles.trayscale", 0)
 	a.app.ConnectActivate(func() {
-		//statusIcon := gtk.NewImageFromPixbuf(state.Get(statusIconState))
-		//statusIconState.Listen(statusIcon.SetFromPixbuf)
-
 		statusSwitch := gtk.NewSwitch()
 		a.status.Listen(statusSwitch.SetState)
 		statusSwitch.ConnectStateSet(func(status bool) bool {
@@ -123,7 +111,6 @@ func (a *App) initUI(ctx context.Context) {
 
 		header := adw.NewHeaderBar()
 		header.PackStart(statusSwitch)
-		//header.PackStart(statusIcon)
 
 		peersList := adw.NewPreferencesGroup()
 		var peersWidgets []gtk.Widgetter

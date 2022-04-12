@@ -11,7 +11,8 @@ import (
 
 	"deedles.dev/state"
 	"deedles.dev/trayscale/tailscale"
-	"github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/slices"
 	"tailscale.com/ipn/ipnstate"
@@ -29,8 +30,8 @@ type App struct {
 
 	poll chan struct{}
 
-	app *gtk.Application
-	win *gtk.ApplicationWindow
+	app *adw.Application
+	win *adw.ApplicationWindow
 
 	peers  state.State[[]*ipnstate.PeerStatus]
 	status state.State[bool]
@@ -82,19 +83,19 @@ func (a *App) initState(ctx context.Context) {
 }
 
 func (a *App) initUI(ctx context.Context) {
-	statusIconActive := gdkpixbuf.NewPixbufFromXPMData(iconActiveXPM)
-	statusIconInactive := gdkpixbuf.NewPixbufFromXPMData(iconInactiveXPM)
-	statusIconState := state.Derived(a.status, func(running bool) *gdkpixbuf.Pixbuf {
-		if running {
-			return statusIconActive
-		}
-		return statusIconInactive
-	})
+	//statusIconActive := gdkpixbuf.NewPixbufFromXPMData(iconActiveXPM)
+	//statusIconInactive := gdkpixbuf.NewPixbufFromXPMData(iconInactiveXPM)
+	//statusIconState := state.Derived(a.status, func(running bool) *gdkpixbuf.Pixbuf {
+	//	if running {
+	//		return statusIconActive
+	//	}
+	//	return statusIconInactive
+	//})
 
-	a.app = gtk.NewApplication("dev.deedles.trayscale", 0)
+	a.app = adw.NewApplication("dev.deedles.trayscale", 0)
 	a.app.ConnectActivate(func() {
-		statusIcon := gtk.NewImageFromPixbuf(state.Get(statusIconState))
-		statusIconState.Listen(statusIcon.SetFromPixbuf)
+		//statusIcon := gtk.NewImageFromPixbuf(state.Get(statusIconState))
+		//statusIconState.Listen(statusIcon.SetFromPixbuf)
 
 		statusSwitch := gtk.NewSwitch()
 		a.status.Listen(statusSwitch.SetState)
@@ -120,87 +121,63 @@ func (a *App) initUI(ctx context.Context) {
 			return true
 		})
 
-		header := gtk.NewHeaderBar()
+		header := adw.NewHeaderBar()
 		header.PackStart(statusSwitch)
-		header.PackStart(statusIcon)
+		//header.PackStart(statusIcon)
 
-		a.win = gtk.NewApplicationWindow(a.app)
+		peersList := adw.NewPreferencesGroup()
+		var peersWidgets []gtk.Widgetter
+		a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
+			for _, w := range peersWidgets {
+				peersList.Remove(w)
+			}
+			peersWidgets = peersWidgets[:0]
+
+			for _, p := range peers {
+				row := adw.NewExpanderRow()
+				row.SetTitle(p.HostName)
+
+				for _, ip := range p.TailscaleIPs {
+					str := ip.String()
+
+					copyButton := gtk.NewButtonFromIconName("edit-copy")
+					copyButton.ConnectClicked(func() {
+						copyButton.Clipboard().Set(glib.NewValue(str))
+					})
+
+					iprow := adw.NewActionRow()
+					iprow.AddPrefix(gtk.NewLabel(str))
+					iprow.AddSuffix(copyButton)
+
+					row.AddRow(iprow)
+				}
+
+				peersList.Add(row)
+				peersWidgets = append(peersWidgets, row)
+			}
+		})
+
+		peersListFrame := gtk.NewFrame("")
+		peersListFrame.SetMarginTop(30)
+		peersListFrame.SetMarginBottom(30)
+		peersListFrame.SetMarginStart(30)
+		peersListFrame.SetMarginEnd(30)
+		peersListFrame.SetChild(peersList)
+
+		scroller := gtk.NewScrolledWindow()
+		scroller.SetVExpand(true)
+		scroller.SetChild(peersListFrame)
+
+		windowBox := gtk.NewBox(gtk.OrientationVertical, 0)
+		windowBox.Append(header)
+		windowBox.Append(scroller)
+
+		a.win = adw.NewApplicationWindow(&a.app.Application)
 		a.win.SetTitle("Trayscale")
-		a.win.SetTitlebar(header)
-		a.win.Show()
+		a.win.SetContent(windowBox)
+		a.win.SetDefaultSize(-1, 400)
+		a.win.Show() // TODO: Make this configurable.
 	})
-	//a.app = app.NewWithID("trayscale")
-
-	//icon := state.Derived(a.status, func(running bool) fyne.Resource {
-	//	return fyneutil.NewMemoryResource("icon", a.updateIcon(running))
-	//})
-
-	//showWindowAtStart := fstate.FromBinding[bool](
-	//	binding.BindPreferenceBool(
-	//		prefShowWindowAtStart,
-	//		a.app.Preferences(),
-	//	),
-	//)
-
-	//a.win = a.app.NewWindow("Trayscale")
-	//a.win.SetContent(fyner.Content(
-	//	&fyner.Border{
-	//		Top: &fyner.Box{
-	//			Children: []fyner.Component{
-	//				&fyner.Center{
-	//					Child: &fyner.Box{
-	//						Horizontal: state.Static(true),
-	//						Children: []fyner.Component{
-	//							&fyner.Icon{Resource: icon},
-	//							&fyner.RichText{Markdown: state.Static(`# Trayscale`)},
-	//						},
-	//					},
-	//				},
-	//				&fyner.Container{
-	//					Layout: state.Static(fyneutil.NewMaxHBoxLayout()),
-	//					Children: []fyner.Component{
-	//						&fyner.Button{
-	//							Text:     state.Static("Start"),
-	//							Disabled: a.status,
-	//							OnTapped: func() { a.TS.Start(ctx) },
-	//						},
-	//						&fyner.Button{
-	//							Text:     state.Static("Stop"),
-	//							Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
-	//							OnTapped: func() { a.TS.Stop(ctx) },
-	//						},
-	//					},
-	//				},
-	//			},
-	//		},
-	//		Bottom: &fyner.Box{
-	//			Children: []fyner.Component{
-	//				&fyner.Check{
-	//					Text:    state.Static("Show Window at Start"),
-	//					Checked: showWindowAtStart,
-	//				},
-	//				&fyner.Button{
-	//					Text:     state.Static("Quit"),
-	//					OnTapped: func() { a.Quit() },
-	//				},
-	//			},
-	//		},
-	//		Center: &fyner.List[*ipnstate.PeerStatus, *fyner.Label]{
-	//			Items: fstate.ToSliceOfStates[*ipnstate.PeerStatus, []*ipnstate.PeerStatus](a.peers),
-	//			Binder: func(s state.State[*ipnstate.PeerStatus], label *fyner.Label) {
-	//				label.Text = state.Derived(s, func(peer *ipnstate.PeerStatus) string {
-	//					return fmt.Sprintf("%v - %v", peer.HostName, peer.TailscaleIPs)
-	//				})
-	//			},
-	//		},
-	//	},
-	//))
-	//a.win.SetCloseIntercept(func() { a.win.Hide() })
-	//a.win.Resize(fyne.NewSize(300, 500))
-
-	//if a.app.Preferences().Bool(prefShowWindowAtStart) {
-	//	a.win.Show()
-	//}
 }
 
 //func (a *App) initTray(ctx context.Context) (start, stop func()) {

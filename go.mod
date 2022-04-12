@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	deedles.dev/state v0.1.2
+	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220222022210-034bb7f401e5
 	github.com/diamondburned/gotk4/pkg v0.0.0-20211029022411-ad571a40956f
 	github.com/getlantern/systray v1.2.1
 	github.com/snapcore/snapd v0.0.0-20220412102834-ece9bc6a1895

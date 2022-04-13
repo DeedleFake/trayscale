@@ -150,10 +150,18 @@ func (a *App) initUI(ctx context.Context) {
 		scroller.SetVExpand(true)
 		scroller.SetMinContentWidth(480)
 		scroller.SetChild(peersList)
+		a.status.Listen(scroller.SetVisible)
+
+		nopeersStatusPage := adw.NewStatusPage()
+		nopeersStatusPage.SetIconName("com.tailscale-tailscale")
+		nopeersStatusPage.SetTitle("Tailscale is not connected")
+		nopeersStatusPage.SetVExpand(true)
+		a.status.Listen(func(status bool) { nopeersStatusPage.SetVisible(!status) })
 
 		windowBox := gtk.NewBox(gtk.OrientationVertical, 0)
 		windowBox.Append(header)
 		windowBox.Append(scroller)
+		windowBox.Append(nopeersStatusPage)
 
 		a.win = adw.NewApplicationWindow(&a.app.Application)
 		a.win.SetTitle("Trayscale")

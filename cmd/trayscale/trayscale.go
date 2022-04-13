@@ -76,7 +76,7 @@ func (a *App) initUI(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
 	a.app.ConnectActivate(func() {
 		if a.win != nil {
-			a.win.Show()
+			a.win.Present()
 			return
 		}
 

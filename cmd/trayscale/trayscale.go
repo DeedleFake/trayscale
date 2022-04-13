@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	_ "embed"
+	"io"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"deedles.dev/state"
+	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/tailscale"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -25,6 +28,20 @@ const (
 
 //go:embed trayscale.ui
 var uiXML string
+
+func must[T any](v T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func readAssetString(file string) string {
+	var str strings.Builder
+	f := must(trayscale.Assets().Open(file))
+	must(io.Copy(&str, f))
+	return str.String()
+}
 
 func withWidget[T glib.Objector](b *gtk.Builder, name string, f func(T)) {
 	w := b.GetObject(name).Cast().(T)
@@ -69,8 +86,9 @@ func (a *App) showAboutDialog() {
 	dialog := gtk.NewAboutDialog()
 	dialog.SetAuthors([]string{"DeedleFake"})
 	dialog.SetCopyright("Copyright (c) 2022 DeedleFake")
-	dialog.SetLicense("MIT")
+	dialog.SetLicense(readAssetString("LICENSE"))
 	dialog.SetLogoIconName("com.tailscale-tailscale")
+	dialog.SetProgramName("Trayscale")
 	dialog.Show()
 
 	a.app.AddWindow(&dialog.Window)

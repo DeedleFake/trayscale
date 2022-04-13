@@ -1,0 +1,49 @@
+<?xml version="1.0" ?>
+<interface>
+	<requires lib="gtk" version="4.0" />
+	<requires lib="adwaita" version="1.0" />
+	<object class="AdwApplicationWindow" id="MainWindow">
+		<property name="title">Trayscale</property>
+		<property name="icon-name">com.tailscale-tailscale</property>
+		<property name="default-height">400</property>
+		<property name="hide-on-close">true</property>
+		<property name="content">
+			<object class="GtkBox">
+				<property name="orientation">vertical</property>
+				<child>
+					<object class="AdwHeaderBar">
+						<child>
+							<object class="GtkSwitch" id="StatusSwitch" />
+						</child>
+						<child type="end">
+							<object class="GtkButton" id="QuitButton">
+								<property name="label">Quit</property>
+							</object>
+						</child>
+					</object>
+				</child>
+				<child>
+					<object class="GtkScrolledWindow" id="MainContent">
+						<property name="vexpand">true</property>
+						<property name="min-content-width">480</property>
+						<child>
+							<object class="AdwPreferencesGroup" id="PeersList">
+								<property name="margin-top">30</property>
+								<property name="margin-bottom">30</property>
+								<property name="margin-start">30</property>
+								<property name="margin-end">30</property>
+							</object>
+						</child>
+					</object>
+				</child>
+				<child>
+					<object class="AdwStatusPage" id="NotConnectedStatusPage">
+						<property name="icon-name">com.tailscale-tailscale</property>
+						<property name="title">Tailscale is not connected</property>
+						<property name="vexpand">true</property>
+					</object>
+				</child>
+			</object>
+		</property>
+	</object>
+</interface>

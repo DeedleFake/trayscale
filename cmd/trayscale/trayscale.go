@@ -81,11 +81,14 @@ func (a *App) initUI(ctx context.Context) {
 		}
 
 		statusSwitch := gtk.NewSwitch()
-		statusSwitchStateSet := statusSwitch.ConnectStateSet(func(status bool) bool {
+		var statusSwitchStateSet glib.SignalHandle
+		statusSwitchStateSet = statusSwitch.ConnectStateSet(func(status bool) bool {
 			var err error
 			defer func() {
 				if err != nil {
-					statusSwitch.SetState(status)
+					statusSwitch.HandlerBlock(statusSwitchStateSet)
+					defer statusSwitch.HandlerUnblock(statusSwitchStateSet)
+					statusSwitch.SetActive(state.Get(a.status))
 				}
 			}()
 

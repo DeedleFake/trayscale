@@ -107,8 +107,12 @@ func (a *App) initUI(ctx context.Context) {
 			statusSwitch.SetState(status)
 		})
 
+		quitButton := gtk.NewButtonWithLabel("Quit")
+		quitButton.ConnectClicked(func() { a.Quit() })
+
 		header := adw.NewHeaderBar()
 		header.PackStart(statusSwitch)
+		header.PackEnd(quitButton)
 
 		peersList := adw.NewPreferencesGroup()
 		peersList.SetMarginTop(30)

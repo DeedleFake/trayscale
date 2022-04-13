@@ -65,6 +65,17 @@ func (a *App) pollStatus(ctx context.Context, rawpeers state.MutableState[[]*ipn
 	}
 }
 
+func (a *App) showAboutDialog() {
+	dialog := gtk.NewAboutDialog()
+	dialog.SetAuthors([]string{"DeedleFake"})
+	dialog.SetCopyright("Copyright (c) 2022 DeedleFake")
+	dialog.SetLicense("MIT")
+	dialog.SetLogoIconName("com.tailscale-tailscale")
+	dialog.Show()
+
+	a.app.AddWindow(&dialog.Window)
+}
+
 func (a *App) initState(ctx context.Context) {
 	a.poll = make(chan struct{}, 1)
 
@@ -87,6 +98,14 @@ func (a *App) initUI(ctx context.Context) {
 			a.win.Present()
 			return
 		}
+
+		aboutAction := gio.NewSimpleAction("about", nil)
+		aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })
+		a.app.AddAction(aboutAction)
+
+		quitAction := gio.NewSimpleAction("quit", nil)
+		quitAction.ConnectActivate(func(p *glib.Variant) { a.Quit() })
+		a.app.AddAction(quitAction)
 
 		builder := gtk.NewBuilderFromString(uiXML, len(uiXML))
 
@@ -116,10 +135,6 @@ func (a *App) initUI(ctx context.Context) {
 				defer w.HandlerUnblock(handler)
 				w.SetState(status)
 			})
-		})
-
-		withWidget(builder, "QuitButton", func(w *gtk.Button) {
-			w.ConnectClicked(func() { a.Quit() })
 		})
 
 		withWidget(builder, "MainContent", func(w *gtk.ScrolledWindow) {

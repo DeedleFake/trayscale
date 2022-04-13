@@ -16,8 +16,9 @@
 							<object class="GtkSwitch" id="StatusSwitch" />
 						</child>
 						<child type="end">
-							<object class="GtkButton" id="QuitButton">
-								<property name="label">Quit</property>
+							<object class="GtkMenuButton">
+								<property name="icon-name">open-menu-symbolic</property>
+								<property name="menu-model">More</property>
 							</object>
 						</child>
 					</object>
@@ -46,4 +47,16 @@
 			</object>
 		</property>
 	</object>
+	<menu id="More">
+		<section>
+			<item>
+				<attribute name="label">_About</attribute>
+				<attribute name="action">app.about</attribute>
+			</item>
+			<item>
+				<attribute name="label">_Quit</attribute>
+				<attribute name="action">app.quit</attribute>
+			</item>
+		</section>
+	</menu>
 </interface>

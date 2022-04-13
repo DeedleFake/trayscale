@@ -6,3 +6,4 @@ Icon=com.tailscale-tailscale
 Type=Application
 Categories=Network;
 SingleMainWindow=true
+X-GNOME-UsesNotifications=true

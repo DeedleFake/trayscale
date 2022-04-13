@@ -115,6 +115,10 @@ func (a *App) initUI(ctx context.Context) {
 		header.PackStart(statusSwitch)
 
 		peersList := adw.NewPreferencesGroup()
+		peersList.SetMarginTop(30)
+		peersList.SetMarginBottom(30)
+		peersList.SetMarginStart(30)
+		peersList.SetMarginEnd(30)
 		var peersWidgets []gtk.Widgetter
 		a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
 			for _, w := range peersWidgets {
@@ -146,17 +150,10 @@ func (a *App) initUI(ctx context.Context) {
 			}
 		})
 
-		peersListFrame := gtk.NewFrame("")
-		peersListFrame.SetMarginTop(30)
-		peersListFrame.SetMarginBottom(30)
-		peersListFrame.SetMarginStart(30)
-		peersListFrame.SetMarginEnd(30)
-		peersListFrame.SetChild(peersList)
-
 		scroller := gtk.NewScrolledWindow()
 		scroller.SetVExpand(true)
 		scroller.SetMinContentWidth(480)
-		scroller.SetChild(peersListFrame)
+		scroller.SetChild(peersList)
 
 		windowBox := gtk.NewBox(gtk.OrientationVertical, 0)
 		windowBox.Append(header)

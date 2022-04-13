@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"embed"
 	_ "embed"
 	"log"
 	"os"
@@ -18,9 +17,6 @@ import (
 	"golang.org/x/exp/slices"
 	"tailscale.com/ipn/ipnstate"
 )
-
-//go:embed assets
-var assets embed.FS
 
 const (
 	appID                 = "dev.deedles-trayscale"
@@ -61,16 +57,6 @@ func (a *App) pollStatus(ctx context.Context, rawpeers state.MutableState[[]*ipn
 	}
 }
 
-func (a *App) updateIcon(active bool) []byte {
-	icon := "assets/icon-active.png"
-	if !active {
-		icon = "assets/icon-inactive.png"
-	}
-
-	data, _ := assets.ReadFile(icon)
-	return data
-}
-
 func (a *App) initState(ctx context.Context) {
 	a.poll = make(chan struct{}, 1)
 
@@ -89,17 +75,17 @@ func (a *App) initState(ctx context.Context) {
 func (a *App) initUI(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
 	a.app.ConnectActivate(func() {
-		statusSwitch := gtk.NewSwitch()
-		a.status.Listen(statusSwitch.SetState)
-		statusSwitch.ConnectStateSet(func(status bool) bool {
-			if status == state.Get(a.status) {
-				return false
-			}
+		if a.win != nil {
+			a.win.Show()
+			return
+		}
 
+		statusSwitch := gtk.NewSwitch()
+		statusSwitchStateSet := statusSwitch.ConnectStateSet(func(status bool) bool {
 			var err error
 			defer func() {
 				if err != nil {
-					statusSwitch.SetActive(state.Get(a.status))
+					statusSwitch.SetState(status)
 				}
 			}()
 
@@ -111,6 +97,11 @@ func (a *App) initUI(ctx context.Context) {
 			err = a.TS.Stop(ctx)
 			a.poll <- struct{}{}
 			return true
+		})
+		a.status.Listen(func(status bool) {
+			statusSwitch.HandlerBlock(statusSwitchStateSet)
+			defer statusSwitch.HandlerUnblock(statusSwitchStateSet)
+			statusSwitch.SetState(status)
 		})
 
 		header := adw.NewHeaderBar()
@@ -163,6 +154,7 @@ func (a *App) initUI(ctx context.Context) {
 
 		a.win = adw.NewApplicationWindow(&a.app.Application)
 		a.win.SetTitle("Trayscale")
+		a.win.SetIconName("com.tailscale-tailscale")
 		a.win.SetContent(windowBox)
 		a.win.SetDefaultSize(-1, 400)
 		//a.win.SetHideOnClose(true)

@@ -12,6 +12,7 @@ import (
 	"deedles.dev/state"
 	"deedles.dev/trayscale/tailscale"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/slices"
@@ -22,6 +23,7 @@ import (
 var assets embed.FS
 
 const (
+	appID                 = "dev.deedles-trayscale"
 	prefShowWindowAtStart = "showWindowAtStart"
 )
 
@@ -85,7 +87,7 @@ func (a *App) initState(ctx context.Context) {
 }
 
 func (a *App) initUI(ctx context.Context) {
-	a.app = adw.NewApplication("dev.deedles.trayscale", 0)
+	a.app = adw.NewApplication(appID, 0)
 	a.app.ConnectActivate(func() {
 		statusSwitch := gtk.NewSwitch()
 		a.status.Listen(statusSwitch.SetState)
@@ -165,6 +167,23 @@ func (a *App) initUI(ctx context.Context) {
 		a.win.SetDefaultSize(-1, 400)
 		//a.win.SetHideOnClose(true)
 		a.win.Show() // TODO: Make this configurable.
+
+		a.status.Listen(func(status bool) {
+			body := "Tailscale is not connected."
+			if status {
+				body = "Tailscale is connected."
+			}
+
+			icon, iconerr := gio.NewIconForString("com.tailscale-tailscale")
+
+			n := gio.NewNotification("Tailscale Status")
+			n.SetBody(body)
+			if iconerr == nil {
+				n.SetIcon(icon)
+			}
+
+			a.app.SendNotification("tailscale-status", n)
+		})
 	})
 }
 

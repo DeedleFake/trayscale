@@ -2,6 +2,7 @@
 Name=Trayscale
 Comment=An unofficial GUI wrapper around the Tailscale CLI.
 Exec=trayscale
-Icon=tailscale
+Icon=com.tailscale-tailscale
 Type=Application
 Categories=Network;
+SingleMainWindow=true

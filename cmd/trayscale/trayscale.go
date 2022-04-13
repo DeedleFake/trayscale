@@ -70,6 +70,8 @@ func (a *App) updateIcon(active bool) []byte {
 }
 
 func (a *App) initState(ctx context.Context) {
+	a.poll = make(chan struct{}, 1)
+
 	rawpeers := state.Mutable[[]*ipnstate.PeerStatus](nil)
 	a.peers = state.UniqFunc(rawpeers, func(peers, old []*ipnstate.PeerStatus) bool {
 		return slices.EqualFunc(peers, old, func(p1, p2 *ipnstate.PeerStatus) bool {
@@ -169,44 +171,6 @@ func (a *App) initUI(ctx context.Context) {
 	})
 }
 
-func (a *App) initTray(ctx context.Context) (start, stop func()) {
-	// TODO: Find a way to display a tray icon without requiring Gtk3.
-	return func() {}, func() {}
-
-	// This implementation is a placeholder until fyne-io/systray#2 is
-	// fixed.
-
-	//go func() {
-	//	stray.Run(&stray.Stray{
-	//		Icon: state.Derived(a.status, a.updateIcon),
-	//		Items: []stray.Item{
-	//			&stray.MenuItem{
-	//				Text:    state.Static("Show"),
-	//				OnClick: func() { a.win.Show() },
-	//			},
-	//			&stray.Separator{},
-	//			&stray.MenuItem{
-	//				Text:     state.Static("Start"),
-	//				Disabled: a.status,
-	//				OnClick:  func() { a.TS.Start(ctx) },
-	//			},
-	//			&stray.MenuItem{
-	//				Text:     state.Static("Stop"),
-	//				Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
-	//				OnClick:  func() { a.TS.Stop(ctx) },
-	//			},
-	//			&stray.Separator{},
-	//			&stray.MenuItem{
-	//				Text:    state.Static("Quit"),
-	//				OnClick: func() { a.Quit() },
-	//			},
-	//		},
-	//	})
-	//}()
-
-	//return func() {}, func() { systray.Quit() }
-}
-
 func (a *App) Quit() {
 	a.app.Quit()
 }
@@ -215,19 +179,14 @@ func (a *App) Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	a.poll = make(chan struct{}, 1)
-
 	a.initState(ctx)
 	a.initUI(ctx)
-	startTray, stopTray := a.initTray(ctx)
 
 	go func() {
 		<-ctx.Done()
 		a.app.Quit()
 	}()
 
-	startTray()
-	defer stopTray()
 	a.app.Run(os.Args)
 }
 

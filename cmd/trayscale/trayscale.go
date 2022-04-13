@@ -129,7 +129,7 @@ func (a *App) initUI(ctx context.Context) {
 				for _, ip := range p.TailscaleIPs {
 					str := ip.String()
 
-					copyButton := gtk.NewButtonFromIconName("edit-copy")
+					copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
 					copyButton.ConnectClicked(func() {
 						copyButton.Clipboard().Set(glib.NewValue(str))
 					})

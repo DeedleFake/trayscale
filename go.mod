@@ -5,7 +5,7 @@ go 1.18
 require (
 	deedles.dev/state v0.1.2
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220222022210-034bb7f401e5
-	github.com/diamondburned/gotk4/pkg v0.0.0-20211029022411-ad571a40956f
+	github.com/diamondburned/gotk4/pkg v0.0.0-20220224183509-a424ccf7497a
 	github.com/snapcore/snapd v0.0.0-20220412102834-ece9bc6a1895
 	golang.org/x/exp v0.0.0-20220407100705-7b9b53b0aca4
 	tailscale.com v1.22.2

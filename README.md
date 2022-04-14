@@ -14,7 +14,7 @@ Installation
 
 ### AUR
 
-If you are on an Arch Linux or a derivative, [Trayscale is available through the AUR](https://aur.archlinux.org/packages/trayscale).
+If you are on an Arch Linux or a derivative, [Trayscale is available from the AUR](https://aur.archlinux.org/packages/trayscale).
 
 ### Manual
 

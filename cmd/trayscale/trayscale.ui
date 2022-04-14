@@ -8,40 +8,44 @@
 		<property name="default-height">400</property>
 		<property name="hide-on-close">true</property>
 		<property name="content">
-			<object class="GtkBox">
-				<property name="orientation">vertical</property>
+			<object class="AdwToastOverlay" id="ToastOverlay">
 				<child>
-					<object class="AdwHeaderBar">
+					<object class="GtkBox">
+						<property name="orientation">vertical</property>
 						<child>
-							<object class="GtkSwitch" id="StatusSwitch" />
-						</child>
-						<child type="end">
-							<object class="GtkMenuButton">
-								<property name="icon-name">open-menu-symbolic</property>
-								<property name="menu-model">More</property>
+							<object class="AdwHeaderBar">
+								<child>
+									<object class="GtkSwitch" id="StatusSwitch" />
+								</child>
+								<child type="end">
+									<object class="GtkMenuButton">
+										<property name="icon-name">open-menu-symbolic</property>
+										<property name="menu-model">More</property>
+									</object>
+								</child>
 							</object>
 						</child>
-					</object>
-				</child>
-				<child>
-					<object class="GtkScrolledWindow" id="MainContent">
-						<property name="vexpand">true</property>
-						<property name="min-content-width">480</property>
 						<child>
-							<object class="AdwPreferencesGroup" id="PeersList">
-								<property name="margin-top">30</property>
-								<property name="margin-bottom">30</property>
-								<property name="margin-start">30</property>
-								<property name="margin-end">30</property>
+							<object class="GtkScrolledWindow" id="MainContent">
+								<property name="vexpand">true</property>
+								<property name="min-content-width">480</property>
+								<child>
+									<object class="AdwPreferencesGroup" id="PeersList">
+										<property name="margin-top">30</property>
+										<property name="margin-bottom">30</property>
+										<property name="margin-start">30</property>
+										<property name="margin-end">30</property>
+									</object>
+								</child>
 							</object>
 						</child>
-					</object>
-				</child>
-				<child>
-					<object class="AdwStatusPage" id="NotConnectedStatusPage">
-						<property name="icon-name">com.tailscale-tailscale</property>
-						<property name="title">Tailscale is not connected</property>
-						<property name="vexpand">true</property>
+						<child>
+							<object class="AdwStatusPage" id="NotConnectedStatusPage">
+								<property name="icon-name">network-offline-symbolic</property>
+								<property name="title">Tailscale is not connected</property>
+								<property name="vexpand">true</property>
+							</object>
+						</child>
 					</object>
 				</child>
 			</object>

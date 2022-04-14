@@ -53,8 +53,9 @@ type App struct {
 
 	poll chan struct{}
 
-	app *adw.Application
-	win *adw.ApplicationWindow
+	app     *adw.Application
+	toaster *adw.ToastOverlay
+	win     *adw.ApplicationWindow
 
 	peers  state.State[[]*ipnstate.PeerStatus]
 	status state.State[bool]
@@ -178,6 +179,10 @@ func (a *App) initUI(ctx context.Context) {
 						copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
 						copyButton.ConnectClicked(func() {
 							copyButton.Clipboard().Set(glib.NewValue(str))
+
+							t := adw.NewToast("Copied to clipboard")
+							t.SetTimeout(3)
+							a.toaster.AddToast(t)
 						})
 
 						iprow := adw.NewActionRow()
@@ -196,6 +201,8 @@ func (a *App) initUI(ctx context.Context) {
 		withWidget(builder, "NotConnectedStatusPage", func(w *adw.StatusPage) {
 			a.status.Listen(func(status bool) { w.SetVisible(!status) })
 		})
+
+		a.toaster = builder.GetObject("ToastOverlay").Cast().(*adw.ToastOverlay)
 
 		a.win = builder.GetObject("MainWindow").Cast().(*adw.ApplicationWindow)
 		a.app.AddWindow(&a.win.Window)

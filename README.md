@@ -35,4 +35,4 @@ If you would like, you can also copy the `.desktop` file, the icon, and other pi
 * `dev.deedles-trayscale.desktop` -> `$HOME/.local/share/applications/`
 * `com.tailscale-tailscale.png` -> `$HOME/.local/share/icons/hicolor/256x256/apps/`
 
-Note that without copying both of these files into the correct locations, notifications will likely not functions correctly.
+Note that without copying both of these files into the correct locations, notifications will likely not functions correctly in GNOME. Also keep in mind that the `trayscale` binary must be in your `$PATH` in a way that the desktop environment can locate, then the file will not be considered valid. If this is an issue, modify the file manually and change the `Exec=` line to point directly to the binary with an absolute path.

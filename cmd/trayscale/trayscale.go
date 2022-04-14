@@ -126,6 +126,7 @@ func (a *App) initUI(ctx context.Context) {
 		quitAction := gio.NewSimpleAction("quit", nil)
 		quitAction.ConnectActivate(func(p *glib.Variant) { a.Quit() })
 		a.app.AddAction(quitAction)
+		a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
 
 		builder := gtk.NewBuilderFromString(uiXML, len(uiXML))
 

@@ -169,9 +169,12 @@ func (a *App) initUI(ctx context.Context) {
 				}
 				children = children[:0]
 
-				for _, p := range peers {
+				for i, p := range peers {
 					row := adw.NewExpanderRow()
 					row.SetTitle(p.HostName)
+					if i == 0 {
+						row.SetSubtitle("This machine")
+					}
 
 					for _, ip := range p.TailscaleIPs {
 						str := ip.String()

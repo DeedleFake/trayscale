@@ -85,6 +85,7 @@ func (a *App) pollStatus(ctx context.Context, rawpeers state.MutableState[[]*ipn
 func (a *App) showAboutDialog() {
 	dialog := gtk.NewAboutDialog()
 	dialog.SetAuthors([]string{"DeedleFake"})
+	dialog.SetComments("A simple, unofficial GUI wrapper for the Tailscale CLI client.")
 	dialog.SetCopyright("Copyright (c) 2022 DeedleFake")
 	dialog.SetLicense(readAssetString("LICENSE"))
 	dialog.SetLogoIconName("com.tailscale-tailscale")

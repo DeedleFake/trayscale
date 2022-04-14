@@ -7,4 +7,32 @@ Trayscale is an unofficial GUI wrapper around the Tailscale CLI client, particul
 
 _Disclaimer: This project is in an alpha state. If it bricks your machine, it's not my fault. Use at your own risk._
 
-![image](https://user-images.githubusercontent.com/326750/163301079-5a62323b-797c-4980-a1b8-d6cfb7f3d959.png)
+![image](https://user-images.githubusercontent.com/326750/163421383-87b57d9f-7602-4112-8308-a92926b1942f.png)
+
+Installation
+------------
+
+### AUR
+
+If you are on an Arch Linux or a derivative, [Trayscale is available from the AUR](https://aur.archlinux.org/packages/trayscale).
+
+### Manual
+
+First, make sure that you have dependencies installed:
+
+* Go >= 1.18
+* GTK >= 4.0
+* Libadwaita >= 1.0
+
+The main Trayscale binary can be installed with `go install`:
+
+```bash
+$ go install deedles.dev/trayscale@latest
+```
+
+If you would like, you can also copy the `.desktop` file, the icon, and other pieces of extra metadata into the places that they need to be put to function properly:
+
+* `dev.deedles-trayscale.desktop` -> `$HOME/.local/share/applications/`
+* `com.tailscale-tailscale.png` -> `$HOME/.local/share/icons/hicolor/256x256/apps/`
+
+Note that without copying both of these files into the correct locations, notifications will likely not functions correctly in GNOME. Also keep in mind that the `trayscale` binary must be in your `$PATH` in a way that the desktop environment can locate, then the file will not be considered valid. If this is an issue, modify the file manually and change the `Exec=` line to point directly to the binary with an absolute path.

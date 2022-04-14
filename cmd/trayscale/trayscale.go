@@ -189,8 +189,11 @@ func (a *App) initUI(ctx context.Context) {
 							a.toaster.AddToast(t)
 						})
 
+						iplabel := gtk.NewLabel(str)
+						iplabel.SetSelectable(true)
+
 						iprow := adw.NewActionRow()
-						iprow.AddPrefix(gtk.NewLabel(str))
+						iprow.AddPrefix(iplabel)
 						iprow.AddSuffix(copyButton)
 
 						row.AddRow(iprow)

@@ -113,11 +113,34 @@ func (a *App) initState(ctx context.Context) {
 
 func (a *App) initUI(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
+	a.app.Hold()
+
+	a.app.ConnectStartup(func() {
+		a.status.Listen(func(status bool) {
+			body := "Tailscale is not connected."
+			if status {
+				body = "Tailscale is connected."
+			}
+
+			icon, iconerr := gio.NewIconForString("com.tailscale-tailscale")
+
+			n := gio.NewNotification("Tailscale Status")
+			n.SetBody(body)
+			if iconerr == nil {
+				n.SetIcon(icon)
+			}
+
+			a.app.SendNotification("tailscale-status", n)
+		})
+	})
+
 	a.app.ConnectActivate(func() {
 		if a.win != nil {
 			a.win.Present()
 			return
 		}
+
+		var cancelers []state.CancelFunc
 
 		aboutAction := gio.NewSimpleAction("about", nil)
 		aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })
@@ -151,20 +174,20 @@ func (a *App) initUI(ctx context.Context) {
 				a.poll <- struct{}{}
 				return true
 			})
-			a.status.Listen(func(status bool) {
+			cancelers = append(cancelers, a.status.Listen(func(status bool) {
 				w.HandlerBlock(handler)
 				defer w.HandlerUnblock(handler)
 				w.SetState(status)
-			})
+			}))
 		})
 
 		withWidget(builder, "MainContent", func(w *gtk.ScrolledWindow) {
-			a.status.Listen(w.SetVisible)
+			cancelers = append(cancelers, a.status.Listen(w.SetVisible))
 		})
 
 		withWidget(builder, "PeersList", func(w *adw.PreferencesGroup) {
 			var children []gtk.Widgetter
-			a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
+			cancelers = append(cancelers, a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
 				for _, child := range children {
 					w.Remove(child)
 				}
@@ -202,35 +225,25 @@ func (a *App) initUI(ctx context.Context) {
 					w.Add(row)
 					children = append(children, row)
 				}
-			})
+			}))
 		})
 
 		withWidget(builder, "NotConnectedStatusPage", func(w *adw.StatusPage) {
-			a.status.Listen(func(status bool) { w.SetVisible(!status) })
+			cancelers = append(cancelers, a.status.Listen(func(status bool) { w.SetVisible(!status) }))
 		})
 
 		a.toaster = builder.GetObject("ToastOverlay").Cast().(*adw.ToastOverlay)
 
 		a.win = builder.GetObject("MainWindow").Cast().(*adw.ApplicationWindow)
 		a.app.AddWindow(&a.win.Window)
-		a.win.Show()
-
-		a.status.Listen(func(status bool) {
-			body := "Tailscale is not connected."
-			if status {
-				body = "Tailscale is connected."
+		a.win.ConnectCloseRequest(func() bool {
+			for _, c := range cancelers {
+				c()
 			}
-
-			icon, iconerr := gio.NewIconForString("com.tailscale-tailscale")
-
-			n := gio.NewNotification("Tailscale Status")
-			n.SetBody(body)
-			if iconerr == nil {
-				n.SetIcon(icon)
-			}
-
-			a.app.SendNotification("tailscale-status", n)
+			a.win = nil
+			return false
 		})
+		a.win.Show()
 	})
 }
 

@@ -15,7 +15,9 @@
 						<child>
 							<object class="AdwHeaderBar">
 								<child>
-									<object class="GtkSwitch" id="StatusSwitch" />
+									<object class="GtkSwitch" id="StatusSwitch">
+										<property name="tooltip-text">Connect/disconnect to Tailscale</property>
+									</object>
 								</child>
 								<child type="end">
 									<object class="GtkMenuButton">

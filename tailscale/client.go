@@ -11,6 +11,7 @@ import (
 	"github.com/snapcore/snapd/polkit"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
+	"inet.af/netaddr"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -73,11 +74,9 @@ func (c *Client) Status(ctx context.Context) ([]*ipnstate.PeerStatus, error) {
 	}
 
 	peers := maps.Values(st.Peer)
+	normalizePeers(peers)
 	peers = append(peers, st.Self)
 	peers[0], peers[len(peers)-1] = peers[len(peers)-1], peers[0]
-	slices.SortFunc(peers[1:], func(p1, p2 *ipnstate.PeerStatus) bool {
-		return p1.HostName < p2.HostName
-	})
 
 	return peers, nil
 }
@@ -100,4 +99,14 @@ func (c *Client) Stop(ctx context.Context) error {
 
 	_, err = c.run(ctx, "down")
 	return err
+}
+
+func normalizePeers(peers []*ipnstate.PeerStatus) {
+	slices.SortFunc(peers, func(p1, p2 *ipnstate.PeerStatus) bool {
+		return p1.HostName < p2.HostName
+	})
+
+	for _, peer := range peers {
+		slices.SortFunc(peer.TailscaleIPs, netaddr.IP.Less)
+	}
 }

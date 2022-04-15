@@ -3,11 +3,12 @@ module deedles.dev/trayscale
 go 1.18
 
 require (
-	deedles.dev/state v0.1.2
+	deedles.dev/state v0.1.3
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220222022210-034bb7f401e5
 	github.com/diamondburned/gotk4/pkg v0.0.0-20220224183509-a424ccf7497a
 	github.com/snapcore/snapd v0.0.0-20220413135107-52eb823dcd11
 	golang.org/x/exp v0.0.0-20220407100705-7b9b53b0aca4
+	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6
 	tailscale.com v1.22.2
 )
 
@@ -21,5 +22,4 @@ require (
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
-	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6 // indirect
 )

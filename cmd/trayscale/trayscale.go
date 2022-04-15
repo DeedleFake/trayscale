@@ -12,6 +12,7 @@ import (
 
 	"deedles.dev/state"
 	"deedles.dev/trayscale"
+	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/trayscale/tailscale"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -91,6 +92,9 @@ func (a *App) showAboutDialog() {
 	dialog.SetLicense(readAssetString("LICENSE"))
 	dialog.SetLogoIconName("com.tailscale-tailscale")
 	dialog.SetProgramName("Trayscale")
+	if v, ok := version.Get(); ok {
+		dialog.SetVersion(v)
+	}
 	dialog.Show()
 
 	a.app.AddWindow(&dialog.Window)

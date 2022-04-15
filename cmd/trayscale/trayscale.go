@@ -240,6 +240,7 @@ func (a *App) initUI(ctx context.Context) {
 			for _, c := range cancelers {
 				c()
 			}
+			cancelers = cancelers[:0]
 			a.win = nil
 			return false
 		})

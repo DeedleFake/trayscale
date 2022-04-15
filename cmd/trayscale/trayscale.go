@@ -113,9 +113,10 @@ func (a *App) initState(ctx context.Context) {
 
 func (a *App) initUI(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
-	a.app.Hold()
 
 	a.app.ConnectStartup(func() {
+		a.app.Hold()
+
 		a.status.Listen(func(status bool) {
 			body := "Tailscale is not connected."
 			if status {

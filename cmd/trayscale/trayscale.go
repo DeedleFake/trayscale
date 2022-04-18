@@ -145,7 +145,7 @@ func (a *App) initUI(ctx context.Context) {
 			return
 		}
 
-		var cancelers []state.CancelFunc
+		var cg CancelGroup
 
 		aboutAction := gio.NewSimpleAction("about", nil)
 		aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })
@@ -179,7 +179,7 @@ func (a *App) initUI(ctx context.Context) {
 				a.poll <- struct{}{}
 				return true
 			})
-			cancelers = append(cancelers, a.status.Listen(func(status bool) {
+			cg.Add(a.status.Listen(func(status bool) {
 				w.HandlerBlock(handler)
 				defer w.HandlerUnblock(handler)
 				w.SetState(status)
@@ -187,12 +187,12 @@ func (a *App) initUI(ctx context.Context) {
 		})
 
 		withWidget(builder, "MainContent", func(w *gtk.ScrolledWindow) {
-			cancelers = append(cancelers, a.status.Listen(w.SetVisible))
+			cg.Add(a.status.Listen(w.SetVisible))
 		})
 
 		withWidget(builder, "PeersList", func(w *adw.PreferencesGroup) {
 			var children []gtk.Widgetter
-			cancelers = append(cancelers, a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
+			cg.Add(a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
 				for _, child := range children {
 					w.Remove(child)
 				}
@@ -234,7 +234,7 @@ func (a *App) initUI(ctx context.Context) {
 		})
 
 		withWidget(builder, "NotConnectedStatusPage", func(w *adw.StatusPage) {
-			cancelers = append(cancelers, a.status.Listen(func(status bool) { w.SetVisible(!status) }))
+			cg.Add(a.status.Listen(func(status bool) { w.SetVisible(!status) }))
 		})
 
 		a.toaster = builder.GetObject("ToastOverlay").Cast().(*adw.ToastOverlay)
@@ -242,10 +242,7 @@ func (a *App) initUI(ctx context.Context) {
 		a.win = builder.GetObject("MainWindow").Cast().(*adw.ApplicationWindow)
 		a.app.AddWindow(&a.win.Window)
 		a.win.ConnectCloseRequest(func() bool {
-			for _, c := range cancelers {
-				c()
-			}
-			cancelers = cancelers[:0]
+			cg.Cancel()
 			a.win = nil
 			return false
 		})

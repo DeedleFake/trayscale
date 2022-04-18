@@ -30,6 +30,8 @@ const (
 //go:embed trayscale.ui
 var uiXML string
 
+// must returns v if err is nil. If err is not nil, it panics with
+// err's value.
 func must[T any](v T, err error) T {
 	if err != nil {
 		panic(err)
@@ -37,6 +39,8 @@ func must[T any](v T, err error) T {
 	return v
 }
 
+// readAssetString returns the contents of the given embedded asset as
+// a string. It panics if there are any errors.
 func readAssetString(file string) string {
 	var str strings.Builder
 	f := must(trayscale.Assets().Open(file))
@@ -44,12 +48,18 @@ func readAssetString(file string) string {
 	return str.String()
 }
 
+// withWidget gets the widget with the given name from b, asserts it
+// to T, and then calls f with it.
 func withWidget[T glib.Objector](b *gtk.Builder, name string, f func(T)) {
 	w := b.GetObject(name).Cast().(T)
 	f(w)
 }
 
+// App is the main type for the app, containing all of the state
+// necessary to run it.
 type App struct {
+	// TS is the Tailscale Client instance to use for interaction with
+	// Tailscale.
 	TS *tailscale.Client
 
 	poll chan struct{}
@@ -62,6 +72,9 @@ type App struct {
 	status state.State[bool]
 }
 
+// pollStatus runs a loop that continues until ctx is cancelled. The
+// loop polls Tailscale at regular intervals to determine the
+// network's status, updating the App's state with the result.
 func (a *App) pollStatus(ctx context.Context, rawpeers state.MutableState[[]*ipnstate.PeerStatus]) {
 	const ticklen = 5 * time.Second
 	check := time.NewTicker(ticklen)
@@ -84,6 +97,7 @@ func (a *App) pollStatus(ctx context.Context, rawpeers state.MutableState[[]*ipn
 	}
 }
 
+// showAboutDialog shows the app's about dialog.
 func (a *App) showAboutDialog() {
 	dialog := gtk.NewAboutDialog()
 	dialog.SetAuthors([]string{"DeedleFake"})
@@ -100,6 +114,8 @@ func (a *App) showAboutDialog() {
 	a.app.AddWindow(&dialog.Window)
 }
 
+// initState initializes internal App state, starts the pollStatus
+// loop, and other similar initializations.
 func (a *App) initState(ctx context.Context) {
 	a.poll = make(chan struct{}, 1)
 
@@ -115,6 +131,8 @@ func (a *App) initState(ctx context.Context) {
 	go a.pollStatus(ctx, rawpeers)
 }
 
+// initUI initializes the App's UI, loading the builder XML, creating
+// a window, and so on.
 func (a *App) initUI(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
 
@@ -250,10 +268,14 @@ func (a *App) initUI(ctx context.Context) {
 	})
 }
 
+// Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
 	a.app.Quit()
 }
 
+// Run runs the app, initializing everything and then entering the
+// main loop. It will return if either ctx is cancelled or Quit is
+// called.
 func (a *App) Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

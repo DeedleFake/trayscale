@@ -18,6 +18,8 @@ import (
 )
 
 var (
+	// ErrNotAuthorized is returned by functions that require polkit
+	// authorization but fail to get it.
 	ErrNotAuthorized = errors.New("polkit: not authorized")
 )
 
@@ -25,10 +27,19 @@ const defaultAuthAction = "com.github.DeedleFake.trayscale.run-tailscale"
 
 var defaultAuthActionError = fmt.Sprintf("Action %v is not registered", defaultAuthAction)
 
+// Client is a client for Tailscale's services. Some functionality is
+// handled via the Go API, and some is handled via execution of the
+// Tailscale CLI binary.
 type Client struct {
+	// Command is the command to call for the Tailscale CLI binary. It
+	// defaults to "tailscale".
 	Command string
 }
 
+// authorize attempts to gain authorization from polkit. It will
+// attempt to get authorization first for the given action. If that
+// fails, it will default to a general action that will allow
+// execution of the Tailscale CLI binary.
 func (c *Client) authorize(action string) error {
 	if action == "" {
 		action = defaultAuthAction
@@ -53,8 +64,14 @@ func (c *Client) authorize(action string) error {
 	return nil
 }
 
+// run runs the Tailscale CLI binary with the given arguments. It
+// returns the combined stdout and stderr of the resulting process.
 func (c *Client) run(ctx context.Context, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, c.Command, args...)
+	command := "tailscale"
+	if c.Command != "" {
+		command = c.Command
+	}
+	cmd := exec.CommandContext(ctx, command, args...)
 
 	var out strings.Builder
 	cmd.Stdout = &out
@@ -64,6 +81,11 @@ func (c *Client) run(ctx context.Context, args ...string) (string, error) {
 	return out.String(), err
 }
 
+// Status returns the status of the Tailscale daemon as a list of
+// known peers. If the daemon is not connected, it will return nil,
+// nil. The daemon itself will always be the first in the returned
+// list, if a list is returned at all, and the remainder of the list
+// will be sorted by hostname in ascending order.
 func (c *Client) Status(ctx context.Context) ([]*ipnstate.PeerStatus, error) {
 	st, err := tailscale.Status(ctx)
 	if err != nil {
@@ -81,6 +103,7 @@ func (c *Client) Status(ctx context.Context) ([]*ipnstate.PeerStatus, error) {
 	return peers, nil
 }
 
+// Start connects the local peer to the Tailscale network.
 func (c *Client) Start(ctx context.Context) error {
 	err := c.authorize("")
 	if err != nil {
@@ -91,6 +114,7 @@ func (c *Client) Start(ctx context.Context) error {
 	return err
 }
 
+// Stop disconnects the local peer from the Tailscale network.
 func (c *Client) Stop(ctx context.Context) error {
 	err := c.authorize("")
 	if err != nil {
@@ -101,6 +125,10 @@ func (c *Client) Stop(ctx context.Context) error {
 	return err
 }
 
+// normalizePeers transforms the list of peers into a consistent
+// state, sorting them by hostname and modifying several fields of
+// each peer to produce a list that is similar to any other list of
+// the same peers.
 func normalizePeers(peers []*ipnstate.PeerStatus) {
 	slices.SortFunc(peers, func(p1, p2 *ipnstate.PeerStatus) bool {
 		return p1.HostName < p2.HostName

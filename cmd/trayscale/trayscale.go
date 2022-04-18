@@ -109,6 +109,8 @@ func (a *App) showAboutDialog() {
 	if v, ok := version.Get(); ok {
 		dialog.SetVersion(v)
 	}
+	dialog.SetTransientFor(&a.win.Window)
+	dialog.SetModal(true)
 	dialog.Show()
 
 	a.app.AddWindow(&dialog.Window)

@@ -285,7 +285,7 @@ func (a *App) Run(ctx context.Context) {
 
 	go func() {
 		<-ctx.Done()
-		a.app.Quit()
+		a.Quit()
 	}()
 
 	a.app.Run(os.Args)

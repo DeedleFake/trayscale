@@ -14,11 +14,11 @@ import (
 	"deedles.dev/fyner/fstate"
 	"deedles.dev/state"
 	"deedles.dev/trayscale/fyneutil"
-	"deedles.dev/trayscale/stray"
 	"deedles.dev/trayscale/tailscale"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/systray"
 	"golang.org/x/exp/slices"
 	"tailscale.com/ipn/ipnstate"
 )
@@ -64,16 +64,6 @@ func (a *App) pollStatus(ctx context.Context, rawpeers state.MutableState[[]*ipn
 	}
 }
 
-func (a *App) updateIcon(active bool) []byte {
-	icon := "assets/icon-active.png"
-	if !active {
-		icon = "assets/icon-inactive.png"
-	}
-
-	data, _ := assets.ReadFile(icon)
-	return data
-}
-
 func (a *App) initUI(ctx context.Context) {
 	a.app = app.NewWithID("trayscale")
 
@@ -89,7 +79,7 @@ func (a *App) initUI(ctx context.Context) {
 	go a.pollStatus(ctx, rawpeers)
 
 	icon := state.Derived(a.status, func(running bool) fyne.Resource {
-		return fyneutil.NewMemoryResource("icon", a.updateIcon(running))
+		return fyneutil.NewMemoryResource("icon", updateIcon(running))
 	})
 
 	showWindowAtStart := fstate.FromBinding[bool](
@@ -152,7 +142,7 @@ func (a *App) initUI(ctx context.Context) {
 			},
 		},
 	))
-	a.win.SetCloseIntercept(func() { a.win.Hide() })
+	//a.win.SetCloseIntercept(func() { a.win.Hide() })
 	a.win.Resize(fyne.NewSize(300, 500))
 
 	if a.app.Preferences().Bool(prefShowWindowAtStart) {
@@ -160,35 +150,52 @@ func (a *App) initUI(ctx context.Context) {
 	}
 }
 
+func updateIcon(active bool) []byte {
+	icon := "assets/icon-active.png"
+	if !active {
+		icon = "assets/icon-inactive.png"
+	}
+
+	data, _ := assets.ReadFile(icon)
+	return data
+}
+
 func (a *App) initTray(ctx context.Context) (start, stop func()) {
-	return stray.RunWithExternalLoop(&stray.Stray{
-		Icon: state.Derived(a.status, a.updateIcon),
-		Items: []stray.Item{
-			&stray.MenuItem{
-				Text:    state.Static("Show"),
-				OnClick: func() { a.win.Show() },
-			},
-			&stray.Separator{},
-			&stray.MenuItem{
-				Text:     state.Static("Start"),
-				Disabled: a.status,
-				OnClick:  func() { a.TS.Start(ctx) },
-			},
-			&stray.MenuItem{
-				Text:     state.Static("Stop"),
-				Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
-				OnClick:  func() { a.TS.Stop(ctx) },
-			},
-			&stray.Separator{},
-			&stray.MenuItem{
-				Text:    state.Static("Quit"),
-				OnClick: func() { a.Quit() },
-			},
-		},
+	cancel := a.status.Listen(func(status bool) {
+		systray.SetIcon(updateIcon(status))
 	})
+
+	return systray.RunWithExternalLoop(nil, cancel)
+
+	//return stray.RunWithExternalLoop(&stray.Stray{
+	//	Icon: state.Derived(a.status, a.updateIcon),
+	//	Items: []stray.Item{
+	//		&stray.MenuItem{
+	//			Text:    state.Static("Show"),
+	//			OnClick: func() { a.win.Show() },
+	//		},
+	//		&stray.Separator{},
+	//		&stray.MenuItem{
+	//			Text:     state.Static("Start"),
+	//			Disabled: a.status,
+	//			OnClick:  func() { a.TS.Start(ctx) },
+	//		},
+	//		&stray.MenuItem{
+	//			Text:     state.Static("Stop"),
+	//			Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
+	//			OnClick:  func() { a.TS.Stop(ctx) },
+	//		},
+	//		&stray.Separator{},
+	//		&stray.MenuItem{
+	//			Text:    state.Static("Quit"),
+	//			OnClick: func() { a.Quit() },
+	//		},
+	//	},
+	//})
 }
 
 func (a *App) Quit() {
+	systray.Quit()
 	a.app.Quit()
 }
 

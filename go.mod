@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	deedles.dev/fyner v0.0.0-20220405180212-cfb4038b749f
-	deedles.dev/state v0.1.1
+	deedles.dev/state v0.1.3
 	fyne.io/fyne/v2 v2.1.4
 	fyne.io/systray v1.9.1-0.20220331100914-9177bf851614
 	github.com/snapcore/snapd v0.0.0-20220405152401-4aec18cba91e

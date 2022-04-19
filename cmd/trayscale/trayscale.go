@@ -19,7 +19,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/data/binding"
-	"github.com/getlantern/systray"
 	"golang.org/x/exp/slices"
 	"tailscale.com/ipn/ipnstate"
 )
@@ -162,38 +161,31 @@ func (a *App) initUI(ctx context.Context) {
 }
 
 func (a *App) initTray(ctx context.Context) (start, stop func()) {
-	// This implementation is a placeholder until fyne-io/systray#2 is
-	// fixed.
-
-	go func() {
-		stray.Run(&stray.Stray{
-			Icon: state.Derived(a.status, a.updateIcon),
-			Items: []stray.Item{
-				&stray.MenuItem{
-					Text:    state.Static("Show"),
-					OnClick: func() { a.win.Show() },
-				},
-				&stray.Separator{},
-				&stray.MenuItem{
-					Text:     state.Static("Start"),
-					Disabled: a.status,
-					OnClick:  func() { a.TS.Start(ctx) },
-				},
-				&stray.MenuItem{
-					Text:     state.Static("Stop"),
-					Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
-					OnClick:  func() { a.TS.Stop(ctx) },
-				},
-				&stray.Separator{},
-				&stray.MenuItem{
-					Text:    state.Static("Quit"),
-					OnClick: func() { a.Quit() },
-				},
+	return stray.RunWithExternalLoop(&stray.Stray{
+		Icon: state.Derived(a.status, a.updateIcon),
+		Items: []stray.Item{
+			&stray.MenuItem{
+				Text:    state.Static("Show"),
+				OnClick: func() { a.win.Show() },
 			},
-		})
-	}()
-
-	return func() {}, func() { systray.Quit() }
+			&stray.Separator{},
+			&stray.MenuItem{
+				Text:     state.Static("Start"),
+				Disabled: a.status,
+				OnClick:  func() { a.TS.Start(ctx) },
+			},
+			&stray.MenuItem{
+				Text:     state.Static("Stop"),
+				Disabled: state.Derived(a.status, func(running bool) bool { return !running }),
+				OnClick:  func() { a.TS.Stop(ctx) },
+			},
+			&stray.Separator{},
+			&stray.MenuItem{
+				Text:    state.Static("Quit"),
+				OnClick: func() { a.Quit() },
+			},
+		},
+	})
 }
 
 func (a *App) Quit() {

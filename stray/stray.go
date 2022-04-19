@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"deedles.dev/state"
-	"github.com/getlantern/systray"
+	"fyne.io/systray"
 )
 
 type Item interface {
@@ -131,7 +131,7 @@ func Run(s *Stray) {
 	systray.Run(nil, cancel)
 }
 
-//func RunWithExternalLoop(s *Stray) (start, end func()) {
-//	cancel := s.init()
-//	return systray.RunWithExternalLoop(nil, cancel)
-//}
+func RunWithExternalLoop(s *Stray) (start, end func()) {
+	cancel := s.init()
+	return systray.RunWithExternalLoop(nil, cancel)
+}

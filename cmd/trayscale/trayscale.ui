@@ -6,18 +6,23 @@
 		<property name="title">Trayscale</property>
 		<property name="icon-name">com.tailscale-tailscale</property>
 		<property name="default-height">400</property>
-		<property name="content">
-			<object class="AdwToastOverlay" id="ToastOverlay">
+		<child>
+			<object class="AdwLeaflet" id="Leaflet">
+				<property name="hexpand">true</property>
 				<child>
 					<object class="GtkBox">
 						<property name="orientation">vertical</property>
 						<child>
 							<object class="AdwHeaderBar">
+								<binding name="show-end-title-buttons">
+									<lookup name="folded">Leaflet</lookup>
+								</binding>
 								<child>
 									<object class="GtkSwitch" id="StatusSwitch">
 										<property name="tooltip-text">Connect/disconnect to Tailscale</property>
 									</object>
 								</child>
+								<child type="title">Peers</child>
 								<child type="end">
 									<object class="GtkMenuButton">
 										<property name="icon-name">open-menu-symbolic</property>
@@ -27,30 +32,59 @@
 							</object>
 						</child>
 						<child>
-							<object class="GtkScrolledWindow" id="MainContent">
-								<property name="vexpand">true</property>
-								<property name="min-content-width">480</property>
+							<object class="GtkStack" id="StatusStack">
 								<child>
-									<object class="AdwPreferencesGroup" id="PeersList">
-										<property name="margin-top">30</property>
-										<property name="margin-bottom">30</property>
-										<property name="margin-start">30</property>
-										<property name="margin-end">30</property>
+									<object class="GtkStackPage">
+										<property name="name">NotConnected</property>
+										<child>
+											<object class="AdwStatusPage">
+												<property name="icon-name">network-offline-symbolic</property>
+												<property name="title">Tailscale is not connected</property>
+												<property name="vexpand">true</property>
+											</object>
+										</child>
+									</object>
+								</child>
+								<child>
+									<object class="GtkStackPage">
+										<property name="name">Connected</property>
+										<child>
+											<object class="GtkScrolledWindow">
+												<property name="vexpand">true</property>
+												<property name="min-content-width">480</property>
+												<child>
+													<object class="GtkListBox" id="PeersList">
+														<property name="margin-top">30</property>
+														<property name="margin-bottom">30</property>
+														<property name="margin-start">30</property>
+														<property name="margin-end">30</property>
+														<style>
+															<class name="boxed-list" />
+														</style>
+													</object>
+												</child>
+											</object>
+										</child>
 									</object>
 								</child>
 							</object>
 						</child>
+					</object>
+				</child>
+				<child>
+					<object class="GtkBox">
+						<property name="orientation">vertical</property>
 						<child>
-							<object class="AdwStatusPage" id="NotConnectedStatusPage">
-								<property name="icon-name">network-offline-symbolic</property>
-								<property name="title">Tailscale is not connected</property>
-								<property name="vexpand">true</property>
+							<object class="AdwHeaderBar" />
+						</child>
+						<child>
+							<object class="AdwToastOverlay" id="ToastOverlay">
 							</object>
 						</child>
 					</object>
 				</child>
 			</object>
-		</property>
+		</child>
 	</object>
 	<menu id="More">
 		<section>

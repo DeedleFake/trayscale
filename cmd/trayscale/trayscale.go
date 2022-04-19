@@ -206,11 +206,17 @@ func (a *App) initUI(ctx context.Context) {
 			}))
 		})
 
-		withWidget(builder, "MainContent", func(w *gtk.ScrolledWindow) {
-			cg.Add(a.status.Listen(w.SetVisible))
+		withWidget(builder, "StatusStack", func(w *gtk.Stack) {
+			cg.Add(a.status.Listen(func(status bool) {
+				v := "NotConnected"
+				if status {
+					v = "Connected"
+				}
+				w.SetVisibleChildName(v)
+			}))
 		})
 
-		withWidget(builder, "PeersList", func(w *adw.PreferencesGroup) {
+		withWidget(builder, "PeersList", func(w *gtk.ListBox) {
 			var children []gtk.Widgetter
 			cg.Add(a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
 				for _, child := range children {
@@ -219,42 +225,38 @@ func (a *App) initUI(ctx context.Context) {
 				children = children[:0]
 
 				for i, p := range peers {
-					row := adw.NewExpanderRow()
+					row := adw.NewActionRow()
 					row.SetTitle(p.HostName)
 					if i == 0 {
 						row.SetSubtitle("This machine")
 					}
 
-					for _, ip := range p.TailscaleIPs {
-						str := ip.String()
+					//for _, ip := range p.TailscaleIPs {
+					//	str := ip.String()
 
-						copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
-						copyButton.ConnectClicked(func() {
-							copyButton.Clipboard().Set(glib.NewValue(str))
+					//	copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
+					//	copyButton.ConnectClicked(func() {
+					//		copyButton.Clipboard().Set(glib.NewValue(str))
 
-							t := adw.NewToast("Copied to clipboard")
-							t.SetTimeout(3)
-							a.toaster.AddToast(t)
-						})
+					//		t := adw.NewToast("Copied to clipboard")
+					//		t.SetTimeout(3)
+					//		a.toaster.AddToast(t)
+					//	})
 
-						iplabel := gtk.NewLabel(str)
-						iplabel.SetSelectable(true)
+					//	iplabel := gtk.NewLabel(str)
+					//	iplabel.SetSelectable(true)
 
-						iprow := adw.NewActionRow()
-						iprow.AddPrefix(iplabel)
-						iprow.AddSuffix(copyButton)
+					//	iprow := adw.NewActionRow()
+					//	iprow.AddPrefix(iplabel)
+					//	iprow.AddSuffix(copyButton)
 
-						row.AddRow(iprow)
-					}
+					//	row.AddRow(iprow)
+					//}
 
-					w.Add(row)
+					w.Append(row)
 					children = append(children, row)
 				}
 			}))
-		})
-
-		withWidget(builder, "NotConnectedStatusPage", func(w *adw.StatusPage) {
-			cg.Add(a.status.Listen(func(status bool) { w.SetVisible(!status) }))
 		})
 
 		a.toaster = builder.GetObject("ToastOverlay").Cast().(*adw.ToastOverlay)

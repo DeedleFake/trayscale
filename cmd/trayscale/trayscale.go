@@ -216,6 +216,10 @@ func (a *App) initUI(ctx context.Context) {
 			}))
 		})
 
+		withWidget(builder, "RightPane", func(w *gtk.Box) {
+			cg.Add(a.status.Listen(w.SetVisible))
+		})
+
 		withWidget(builder, "PeersList", func(w *gtk.ListBox) {
 			var children []gtk.Widgetter
 			cg.Add(a.peers.Listen(func(peers []*ipnstate.PeerStatus) {

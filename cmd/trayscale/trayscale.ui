@@ -9,9 +9,11 @@
 		<child>
 			<object class="AdwLeaflet" id="Leaflet">
 				<property name="hexpand">true</property>
-				<child>
+				<child> <!-- Left Pane -->
 					<object class="GtkBox">
 						<property name="orientation">vertical</property>
+						<property name="width-request">480</property>
+						<property name="hexpand" bind-source="RightPane" bind-property="visible" bind-flags="G_BINDING_INVERT_BOOLEAN" />
 						<child>
 							<object class="AdwHeaderBar">
 								<binding name="show-end-title-buttons">
@@ -36,22 +38,21 @@
 								<child>
 									<object class="GtkStackPage">
 										<property name="name">NotConnected</property>
-										<child>
+										<property name="child">
 											<object class="AdwStatusPage">
 												<property name="icon-name">network-offline-symbolic</property>
 												<property name="title">Tailscale is not connected</property>
 												<property name="vexpand">true</property>
 											</object>
-										</child>
+										</property>
 									</object>
 								</child>
 								<child>
 									<object class="GtkStackPage">
 										<property name="name">Connected</property>
-										<child>
+										<property name="child">
 											<object class="GtkScrolledWindow">
 												<property name="vexpand">true</property>
-												<property name="min-content-width">480</property>
 												<child>
 													<object class="GtkListBox" id="PeersList">
 														<property name="margin-top">30</property>
@@ -64,15 +65,16 @@
 													</object>
 												</child>
 											</object>
-										</child>
+										</property>
 									</object>
 								</child>
 							</object>
 						</child>
 					</object>
 				</child>
-				<child>
-					<object class="GtkBox">
+				<child> <!-- Right Pane -->
+					<object class="GtkBox" id="RightPane">
+						<property name="hexpand">true</property>
 						<property name="orientation">vertical</property>
 						<child>
 							<object class="AdwHeaderBar" />

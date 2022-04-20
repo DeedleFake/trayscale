@@ -24,7 +24,11 @@
 										<property name="tooltip-text">Connect/disconnect to Tailscale</property>
 									</object>
 								</child>
-								<child type="title">Peers</child>
+								<child type="title">
+									<object class="AdwWindowTitle">
+										<property name="title">Peers</property>
+									</object>
+								</child>
 								<child type="end">
 									<object class="GtkMenuButton">
 										<property name="icon-name">open-menu-symbolic</property>

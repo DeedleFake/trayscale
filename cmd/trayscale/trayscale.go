@@ -127,9 +127,9 @@ func (a *App) initState(ctx context.Context) {
 			return p1.HostName == p2.HostName && slices.Equal(p1.TailscaleIPs, p2.TailscaleIPs)
 		})
 	})
-	a.status = state.Derived(a.peers, func(peers []*ipnstate.PeerStatus) bool {
+	a.status = state.Uniq[bool](state.Derived(a.peers, func(peers []*ipnstate.PeerStatus) bool {
 		return len(peers) != 0
-	})
+	}))
 	go a.pollStatus(ctx, rawpeers)
 }
 

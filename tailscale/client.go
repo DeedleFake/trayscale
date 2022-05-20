@@ -130,9 +130,7 @@ func (c *Client) Stop(ctx context.Context) error {
 // each peer to produce a list that is similar to any other list of
 // the same peers.
 func normalizePeers(peers []*ipnstate.PeerStatus) {
-	slices.SortFunc(peers, func(p1, p2 *ipnstate.PeerStatus) bool {
-		return p1.HostName < p2.HostName
-	})
+	slices.SortFunc(peers, (p1, p2) => { p1.HostName < p2.HostName })
 
 	for _, peer := range peers {
 		slices.SortFunc(peer.TailscaleIPs, netaddr.IP.Less)

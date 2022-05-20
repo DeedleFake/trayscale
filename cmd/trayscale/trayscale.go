@@ -122,14 +122,12 @@ func (a *App) initState(ctx context.Context) {
 	a.poll = make(chan struct{}, 1)
 
 	rawpeers := state.Mutable[[]*ipnstate.PeerStatus](nil)
-	a.peers = state.UniqFunc(rawpeers, func(peers, old []*ipnstate.PeerStatus) bool {
-		return slices.EqualFunc(peers, old, func(p1, p2 *ipnstate.PeerStatus) bool {
-			return p1.HostName == p2.HostName && slices.Equal(p1.TailscaleIPs, p2.TailscaleIPs)
+	a.peers = state.UniqFunc(rawpeers, (peers, old) => {
+		slices.EqualFunc(peers, old, (p1, p2) => {
+			p1.HostName == p2.HostName && slices.Equal(p1.TailscaleIPs, p2.TailscaleIPs)
 		})
 	})
-	a.status = state.Uniq[bool](state.Derived(a.peers, func(peers []*ipnstate.PeerStatus) bool {
-		return len(peers) != 0
-	}))
+	a.status = state.Uniq[bool](state.Derived(a.peers, (peers) => { len(peers) != 0 }))
 	go a.pollStatus(ctx, rawpeers)
 }
 
@@ -138,10 +136,10 @@ func (a *App) initState(ctx context.Context) {
 func (a *App) initUI(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
 
-	a.app.ConnectStartup(func() {
+	a.app.ConnectStartup(() => {
 		a.app.Hold()
 
-		a.status.Listen(func(status bool) {
+		a.status.Listen((status) => {
 			body := "Tailscale is not connected."
 			if status {
 				body = "Tailscale is connected."
@@ -159,7 +157,7 @@ func (a *App) initUI(ctx context.Context) {
 		})
 	})
 
-	a.app.ConnectActivate(func() {
+	a.app.ConnectActivate(() => {
 		if a.win != nil {
 			a.win.Present()
 			return
@@ -168,19 +166,23 @@ func (a *App) initUI(ctx context.Context) {
 		var cg CancelGroup
 
 		aboutAction := gio.NewSimpleAction("about", nil)
-		aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })
+		aboutAction.ConnectActivate((p) => { a.showAboutDialog() })
 		a.app.AddAction(aboutAction)
 
 		quitAction := gio.NewSimpleAction("quit", nil)
-		quitAction.ConnectActivate(func(p *glib.Variant) { a.Quit() })
+		quitAction.ConnectActivate((p) => { a.Quit() })
 		a.app.AddAction(quitAction)
 		a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
 
 		builder := gtk.NewBuilderFromString(uiXML, len(uiXML))
 
-		withWidget(builder, "StatusSwitch", func(w *gtk.Switch) {
+		// I'm kind of torn on this one, since the type has to be
+		// specified somewhere anyways. I think is better in case some
+		// other derived type needs to be added to the closure or
+		// something.
+		withWidget[*gtk.Switch](builder, "StatusSwitch", (w) => {
 			var handler glib.SignalHandle
-			handler = w.ConnectStateSet(func(status bool) bool {
+			handler = w.ConnectStateSet((status) => {
 				var err error
 				defer func() {
 					if err != nil {
@@ -199,20 +201,20 @@ func (a *App) initUI(ctx context.Context) {
 				a.poll <- struct{}{}
 				return true
 			})
-			cg.Add(a.status.Listen(func(status bool) {
+			cg.Add(a.status.Listen((status) => {
 				w.HandlerBlock(handler)
 				defer w.HandlerUnblock(handler)
 				w.SetState(status)
 			}))
 		})
 
-		withWidget(builder, "MainContent", func(w *gtk.ScrolledWindow) {
+		withWidget[*gtk.ScrolledWindow](builder, "MainContent", (w) => {
 			cg.Add(a.status.Listen(w.SetVisible))
 		})
 
-		withWidget(builder, "PeersList", func(w *adw.PreferencesGroup) {
+		withWidget[*adw.PreferencesGroup](builder, "PeersList", (w) => {
 			var children []gtk.Widgetter
-			cg.Add(a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
+			cg.Add(a.peers.Listen((peers) => {
 				for _, child := range children {
 					w.Remove(child)
 				}
@@ -229,7 +231,7 @@ func (a *App) initUI(ctx context.Context) {
 						str := ip.String()
 
 						copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
-						copyButton.ConnectClicked(func() {
+						copyButton.ConnectClicked(() => {
 							copyButton.Clipboard().Set(glib.NewValue(str))
 
 							t := adw.NewToast("Copied to clipboard")
@@ -253,15 +255,15 @@ func (a *App) initUI(ctx context.Context) {
 			}))
 		})
 
-		withWidget(builder, "NotConnectedStatusPage", func(w *adw.StatusPage) {
-			cg.Add(a.status.Listen(func(status bool) { w.SetVisible(!status) }))
+		withWidget[*adw.StatusPage](builder, "NotConnectedStatusPage", (w) => {
+			cg.Add(a.status.Listen((status) => { w.SetVisible(!status) }))
 		})
 
 		a.toaster = builder.GetObject("ToastOverlay").Cast().(*adw.ToastOverlay)
 
 		a.win = builder.GetObject("MainWindow").Cast().(*adw.ApplicationWindow)
 		a.app.AddWindow(&a.win.Window)
-		a.win.ConnectCloseRequest(func() bool {
+		a.win.ConnectCloseRequest(() => {
 			cg.Cancel()
 			a.win = nil
 			return false

@@ -224,10 +224,21 @@ func (a *App) initUI(ctx context.Context) {
 					if i == 0 {
 						row.SetSubtitle("This machine")
 					}
+					if p.ExitNode {
+						row.SetSubtitle("Exit node")
+					}
+
 					if p.ExitNodeOption && (i > 0) {
-						b := gtk.NewButtonFromIconName("application-exit-symbolic")
-						b.SetTooltipText("Use as Exit Node")
-						row.AddAction(b)
+						exitLabel := gtk.NewLabel("Use as Exit Node")
+
+						exitSwitch := gtk.NewSwitch()
+						exitSwitch.SetVExpand(false)
+
+						exitRow := adw.NewActionRow()
+						exitRow.AddPrefix(exitLabel)
+						exitRow.AddSuffix(exitSwitch)
+
+						row.AddRow(exitRow)
 					}
 
 					for _, ip := range p.TailscaleIPs {
@@ -235,6 +246,7 @@ func (a *App) initUI(ctx context.Context) {
 
 						copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
 						copyButton.SetTooltipText("Copy to Clipboard")
+						copyButton.SetVExpand(false)
 						copyButton.ConnectClicked(func() {
 							copyButton.Clipboard().Set(glib.NewValue(str))
 

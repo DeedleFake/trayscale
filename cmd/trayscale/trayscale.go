@@ -224,11 +224,17 @@ func (a *App) initUI(ctx context.Context) {
 					if i == 0 {
 						row.SetSubtitle("This machine")
 					}
+					if p.ExitNodeOption && (i > 0) {
+						b := gtk.NewButtonFromIconName("application-exit-symbolic")
+						b.SetTooltipText("Use as Exit Node")
+						row.AddAction(b)
+					}
 
 					for _, ip := range p.TailscaleIPs {
 						str := ip.String()
 
 						copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
+						copyButton.SetTooltipText("Copy to Clipboard")
 						copyButton.ConnectClicked(func() {
 							copyButton.Clipboard().Set(glib.NewValue(str))
 

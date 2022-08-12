@@ -233,6 +233,14 @@ func (a *App) initUI(ctx context.Context) {
 
 						exitSwitch := gtk.NewSwitch()
 						exitSwitch.SetVExpand(false)
+						exitSwitch.ConnectStateSet(func(status bool) bool {
+							var exit *ipnstate.PeerStatus
+							if status {
+								exit = p
+							}
+							a.TS.ExitNode(ctx, exit)
+							return true
+						})
 
 						exitRow := adw.NewActionRow()
 						exitRow.AddPrefix(exitLabel)

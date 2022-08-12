@@ -125,6 +125,23 @@ func (c *Client) Stop(ctx context.Context) error {
 	return err
 }
 
+// ExitNode uses the specified peer as an exit node, or unsets
+// an existing exit node if peer is nil.
+func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
+	err := c.authorize("")
+	if err != nil {
+		return fmt.Errorf("authorize: %w", err)
+	}
+
+	var name string
+	if peer != nil {
+		name = peer.Addrs[0]
+	}
+
+	_, err = c.run(ctx, "up", "--exit-node", name)
+	return err
+}
+
 // normalizePeers transforms the list of peers into a consistent
 // state, sorting them by hostname and modifying several fields of
 // each peer to produce a list that is similar to any other list of

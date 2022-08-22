@@ -173,11 +173,9 @@ func (a *App) newPeerPage(p peerListInfo) (gtk.Widgetter, state.CancelFunc) {
 					a.toaster.AddToast(t)
 				})
 
-				iplabel := gtk.NewLabel(ipstr)
-				iplabel.SetSelectable(true)
-
 				iprow := adw.NewActionRow()
-				iprow.AddPrefix(iplabel)
+				iprow.SetTitle(ipstr)
+				iprow.SetObjectProperty("title-selectable", true)
 				iprow.AddSuffix(copyButton)
 
 				w.Add(iprow)

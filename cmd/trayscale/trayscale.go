@@ -27,8 +27,13 @@ const (
 	prefShowWindowAtStart = "showWindowAtStart"
 )
 
-//go:embed trayscale.ui
-var uiXML string
+var (
+	//go:embed trayscale.ui
+	uiXML string
+
+	//go:embed menu.ui
+	menuXML string
+)
 
 // must returns v if err is nil. If err is not nil, it panics with
 // err's value.
@@ -176,7 +181,19 @@ func (a *App) initUI(ctx context.Context) {
 		a.app.AddAction(quitAction)
 		a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
 
-		builder := gtk.NewBuilderFromString(uiXML, len(uiXML))
+		statusPage := adw.NewStatusPage()
+		statusPage.SetTitle("Not Connected")
+		statusPage.SetIconName("network-offline-symbolic")
+		statusPage.SetDescription("Tailscale is not connected")
+
+		builder := gtk.NewBuilder()
+		builder.AddFromString(uiXML, len(uiXML))
+		builder.AddFromString(menuXML, len(menuXML))
+
+		// Workaround for Cambalache limitations.
+		withWidget(builder, "MainMenuButton", func(w *gtk.MenuButton) {
+			w.SetMenuModel(builder.GetObject("MainMenu").Cast().(gio.MenuModeller))
+		})
 
 		withWidget(builder, "StatusSwitch", func(w *gtk.Switch) {
 			var handler glib.SignalHandle
@@ -206,82 +223,106 @@ func (a *App) initUI(ctx context.Context) {
 			}))
 		})
 
-		withWidget(builder, "MainContent", func(w *gtk.ScrolledWindow) {
-			cg.Add(a.status.Listen(w.SetVisible))
-		})
-
-		withWidget(builder, "PeersList", func(w *adw.PreferencesGroup) {
-			var children []gtk.Widgetter
+		withWidget(builder, "PeersStack", func(w *gtk.Stack) {
+			var pages []*gtk.StackPage
 			cg.Add(a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
-				for _, child := range children {
-					w.Remove(child)
+				for _, page := range pages {
+					w.Remove(page.Child())
 				}
-				children = children[:0]
+				pages = pages[:0]
 
 				for i, p := range peers {
-					row := adw.NewExpanderRow()
-					row.SetTitle(p.HostName)
+					title := p.HostName
 					if i == 0 {
-						row.SetSubtitle("This machine")
+						title += " (This machine)"
 					}
 					if p.ExitNode {
-						row.SetSubtitle("Exit node")
+						title += " (Exit node)"
 					}
 
-					if p.ExitNodeOption && (i > 0) {
-						exitLabel := gtk.NewLabel("Use as Exit Node")
+					page := w.AddTitled(gtk.NewLabel(p.HostName), string(p.ID), title)
+					pages = append(pages, page)
+				}
 
-						exitSwitch := gtk.NewSwitch()
-						exitSwitch.SetVExpand(false)
-						exitSwitch.ConnectStateSet(func(status bool) bool {
-							var exit *ipnstate.PeerStatus
-							if status {
-								exit = p
-							}
-							a.TS.ExitNode(ctx, exit)
-							return true
-						})
-
-						exitRow := adw.NewActionRow()
-						exitRow.AddPrefix(exitLabel)
-						exitRow.AddSuffix(exitSwitch)
-
-						row.AddRow(exitRow)
-					}
-
-					for _, ip := range p.TailscaleIPs {
-						str := ip.String()
-
-						copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
-						copyButton.SetTooltipText("Copy to Clipboard")
-						copyButton.SetVExpand(false)
-						copyButton.ConnectClicked(func() {
-							copyButton.Clipboard().Set(glib.NewValue(str))
-
-							t := adw.NewToast("Copied to clipboard")
-							t.SetTimeout(3)
-							a.toaster.AddToast(t)
-						})
-
-						iplabel := gtk.NewLabel(str)
-						iplabel.SetSelectable(true)
-
-						iprow := adw.NewActionRow()
-						iprow.AddPrefix(iplabel)
-						iprow.AddSuffix(copyButton)
-
-						row.AddRow(iprow)
-					}
-
-					w.Add(row)
-					children = append(children, row)
+				if len(pages) == 0 {
+					page := w.AddTitled(statusPage, "status", "Not Connected")
+					pages = append(pages, page)
 				}
 			}))
 		})
 
-		withWidget(builder, "NotConnectedStatusPage", func(w *adw.StatusPage) {
-			cg.Add(a.status.Listen(func(status bool) { w.SetVisible(!status) }))
-		})
+		//withWidget(builder, "PeersList", func(w *adw.PreferencesGroup) {
+		//	var children []gtk.Widgetter
+		//	cg.Add(a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
+		//		for _, child := range children {
+		//			w.Remove(child)
+		//		}
+		//		children = children[:0]
+
+		//		for i, p := range peers {
+		//			row := adw.NewExpanderRow()
+		//			row.SetTitle(p.HostName)
+		//			if i == 0 {
+		//				row.SetSubtitle("This machine")
+		//			}
+		//			if p.ExitNode {
+		//				row.SetSubtitle("Exit node")
+		//			}
+
+		//			if p.ExitNodeOption && (i > 0) {
+		//				exitLabel := gtk.NewLabel("Use as Exit Node")
+
+		//				exitSwitch := gtk.NewSwitch()
+		//				exitSwitch.SetVExpand(false)
+		//				exitSwitch.ConnectStateSet(func(status bool) bool {
+		//					var exit *ipnstate.PeerStatus
+		//					if status {
+		//						exit = p
+		//					}
+		//					a.TS.ExitNode(ctx, exit)
+		//					return true
+		//				})
+
+		//				exitRow := adw.NewActionRow()
+		//				exitRow.AddPrefix(exitLabel)
+		//				exitRow.AddSuffix(exitSwitch)
+
+		//				row.AddRow(exitRow)
+		//			}
+
+		//			for _, ip := range p.TailscaleIPs {
+		//				str := ip.String()
+
+		//				copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
+		//				copyButton.SetTooltipText("Copy to Clipboard")
+		//				copyButton.SetVExpand(false)
+		//				copyButton.ConnectClicked(func() {
+		//					copyButton.Clipboard().Set(glib.NewValue(str))
+
+		//					t := adw.NewToast("Copied to clipboard")
+		//					t.SetTimeout(3)
+		//					a.toaster.AddToast(t)
+		//				})
+
+		//				iplabel := gtk.NewLabel(str)
+		//				iplabel.SetSelectable(true)
+
+		//				iprow := adw.NewActionRow()
+		//				iprow.AddPrefix(iplabel)
+		//				iprow.AddSuffix(copyButton)
+
+		//				row.AddRow(iprow)
+		//			}
+
+		//			w.Add(row)
+		//			children = append(children, row)
+		//		}
+		//	}))
+		//})
+
+		//withWidget(builder, "NotConnectedStatusPage", func(w *adw.StatusPage) {
+		//	cg.Add(a.status.Listen(func(status bool) { w.SetVisible(!status) }))
+		//})
 
 		a.toaster = builder.GetObject("ToastOverlay").Cast().(*adw.ToastOverlay)
 

@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<!DOCTYPE cambalache-project SYSTEM "cambalache-project.dtd">
+<cambalache-project version="0.11.2" target_tk="gtk-4.0">
+  <ui>
+	(1,None,"trayscale.ui","trayscale.ui",None,None,None,None,None,None,None)
+  </ui>
+  <object>
+	(1,1,"AdwApplicationWindow","MainWindow",None,None,None,None,None,None),
+	(1,4,"AdwToastOverlay","ToastOverlay",1,None,None,None,2,None),
+	(1,5,"AdwLeaflet",None,4,None,None,None,None,None),
+	(1,6,"GtkBox",None,5,None,None,None,None,None),
+	(1,7,"AdwHeaderBar",None,6,None,None,None,None,None),
+	(1,8,"GtkBox",None,5,None,None,None,1,None),
+	(1,9,"AdwHeaderBar",None,8,None,None,None,1,None),
+	(1,10,"GtkMenuButton","MainMenuButton",7,None,"end",None,1,None),
+	(1,11,"GtkStackSidebar",None,6,None,None,None,1,None),
+	(1,15,"GtkBox",None,9,None,"title",None,None,None),
+	(1,16,"GtkStack","PeersStack",8,None,None,None,2,None),
+	(1,17,"GtkSwitch","StatusSwitch",7,None,"start",None,None,None)
+  </object>
+  <object_property>
+	(1,1,"AdwApplicationWindow","content","4",None,None,None,None,None),
+	(1,1,"GtkWindow","default-height","600",None,None,None,None,None),
+	(1,1,"GtkWindow","default-width","800",None,None,None,None,None),
+	(1,1,"GtkWindow","title","Trayscale",None,None,None,None,None),
+	(1,6,"GtkOrientable","orientation","vertical",None,None,None,None,None),
+	(1,6,"GtkWidget","width-request","360",None,None,None,None,None),
+	(1,7,"AdwHeaderBar","show-end-title-buttons","False",None,None,None,None,None),
+	(1,8,"GtkOrientable","orientation","vertical",None,None,None,None,None),
+	(1,8,"GtkWidget","hexpand","True",None,None,None,None,None),
+	(1,9,"AdwHeaderBar","show-start-title-buttons","False",None,None,None,None,None),
+	(1,10,"GtkMenuButton","icon-name","open-menu-symbolic",None,None,None,None,None),
+	(1,10,"GtkMenuButton","primary","True",None,None,None,None,None),
+	(1,11,"GtkStackSidebar","stack","16",None,None,None,None,None),
+	(1,11,"GtkWidget","vexpand","True",None,None,None,None,None),
+	(1,11,"GtkWidget","width-request","270",None,None,None,None,None),
+	(1,16,"GtkStack","transition-type","slide-up-down",None,None,None,None,None),
+	(1,16,"GtkWidget","vexpand","True",None,None,None,None,None)
+  </object_property>
+</cambalache-project>

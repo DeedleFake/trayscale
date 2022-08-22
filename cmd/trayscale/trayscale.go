@@ -19,6 +19,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/slices"
+	"inet.af/netaddr"
 	"tailscale.com/ipn/ipnstate"
 )
 
@@ -30,6 +31,9 @@ const (
 var (
 	//go:embed trayscale.ui
 	uiXML string
+
+	//go:embed page.ui
+	pageXML string
 
 	//go:embed menu.ui
 	menuXML string
@@ -60,6 +64,21 @@ func withWidget[T glib.Objector](b *gtk.Builder, name string, f func(T)) {
 	f(w)
 }
 
+type peerListInfo struct {
+	id   string
+	name string
+}
+
+type peerStates struct {
+	s state.State[*ipnstate.PeerStatus]
+}
+
+func (ps peerStates) IPs() state.State[[]netaddr.IP] {
+	return state.UniqFunc(state.Derived(ps.s, func(peer *ipnstate.PeerStatus) []netaddr.IP {
+		return peer.TailscaleIPs
+	}), slices.Equal[netaddr.IP])
+}
+
 // App is the main type for the app, containing all of the state
 // necessary to run it.
 type App struct {
@@ -73,8 +92,9 @@ type App struct {
 	toaster *adw.ToastOverlay
 	win     *adw.ApplicationWindow
 
-	peers  state.State[[]*ipnstate.PeerStatus]
-	status state.State[bool]
+	peerInfo state.State[map[string]*ipnstate.PeerStatus]
+	peerList state.State[[]peerListInfo]
+	status   state.State[bool]
 }
 
 // pollStatus runs a loop that continues until ctx is cancelled. The
@@ -121,18 +141,84 @@ func (a *App) showAboutDialog() {
 	a.app.AddWindow(&dialog.Window)
 }
 
+func (a *App) newPeerPage(p peerListInfo) (gtk.Widgetter, state.CancelFunc) {
+	builder := gtk.NewBuilderFromString(pageXML, len(pageXML))
+	withWidget(builder, "Container", func(w *adw.StatusPage) {
+		w.SetTitle(p.name)
+	})
+
+	var cg CancelGroup
+	peerStates := peerStates{s: state.Derived(a.peerInfo, func(peers map[string]*ipnstate.PeerStatus) *ipnstate.PeerStatus {
+		return peers[p.id]
+	})}
+
+	var addrRows []gtk.Widgetter
+	cg.Add(peerStates.IPs().Listen(func(ips []netaddr.IP) {
+		withWidget(builder, "IPGroup", func(w *adw.PreferencesGroup) {
+			for _, row := range addrRows {
+				w.Remove(row)
+			}
+			addrRows = addrRows[:0]
+
+			for _, ip := range ips {
+				ipstr := ip.String()
+
+				copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
+				copyButton.SetTooltipText("Copy to Clipboard")
+				copyButton.ConnectClicked(func() {
+					copyButton.Clipboard().Set(glib.NewValue(ipstr))
+
+					t := adw.NewToast("Copied to clipboard")
+					t.SetTimeout(3)
+					a.toaster.AddToast(t)
+				})
+
+				iplabel := gtk.NewLabel(ipstr)
+				iplabel.SetSelectable(true)
+
+				iprow := adw.NewActionRow()
+				iprow.AddPrefix(iplabel)
+				iprow.AddSuffix(copyButton)
+
+				w.Add(iprow)
+				addrRows = append(addrRows, iprow)
+			}
+		})
+	}))
+	return builder.GetObject("Container").Cast().(gtk.Widgetter), cg.Cancel
+}
+
 // initState initializes internal App state, starts the pollStatus
 // loop, and other similar initializations.
 func (a *App) initState(ctx context.Context) {
 	a.poll = make(chan struct{}, 1)
 
 	rawpeers := state.Mutable[[]*ipnstate.PeerStatus](nil)
-	a.peers = state.UniqFunc(rawpeers, func(peers, old []*ipnstate.PeerStatus) bool {
-		return slices.EqualFunc(peers, old, func(p1, p2 *ipnstate.PeerStatus) bool {
-			return p1.HostName == p2.HostName && p1.ExitNode == p2.ExitNode && p1.ExitNodeOption == p2.ExitNodeOption && slices.Equal(p1.TailscaleIPs, p2.TailscaleIPs)
-		})
+	a.peerInfo = state.Derived(rawpeers, func(peers []*ipnstate.PeerStatus) map[string]*ipnstate.PeerStatus {
+		m := make(map[string]*ipnstate.PeerStatus)
+		for _, p := range peers {
+			m[string(p.ID)] = p
+		}
+		return m
 	})
-	a.status = state.Uniq[bool](state.Derived(a.peers, func(peers []*ipnstate.PeerStatus) bool {
+	a.peerList = state.UniqFunc(state.Derived(rawpeers, func(peers []*ipnstate.PeerStatus) (list []peerListInfo) {
+		for i, p := range peers {
+			name := p.HostName
+			if i == 0 {
+				name += " (This machine)"
+			}
+			if p.ExitNode {
+				name += " (Exit node)"
+			}
+
+			list = append(list, peerListInfo{
+				id:   string(p.ID),
+				name: name,
+			})
+		}
+		return list
+	}), slices.Equal[peerListInfo])
+	a.status = state.Uniq[bool](state.Derived(a.peerList, func(peers []peerListInfo) bool {
 		return len(peers) != 0
 	}))
 	go a.pollStatus(ctx, rawpeers)
@@ -224,23 +310,21 @@ func (a *App) initUI(ctx context.Context) {
 		})
 
 		withWidget(builder, "PeersStack", func(w *gtk.Stack) {
+			var pagesCG CancelGroup
+			cg.Add(pagesCG.Cancel)
+
 			var pages []*gtk.StackPage
-			cg.Add(a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
+			cg.Add(a.peerList.Listen(func(peers []peerListInfo) {
+				pagesCG.Cancel()
 				for _, page := range pages {
 					w.Remove(page.Child())
 				}
 				pages = pages[:0]
 
-				for i, p := range peers {
-					title := p.HostName
-					if i == 0 {
-						title += " (This machine)"
-					}
-					if p.ExitNode {
-						title += " (Exit node)"
-					}
-
-					page := w.AddTitled(gtk.NewLabel(p.HostName), string(p.ID), title)
+				for _, p := range peers {
+					pw, cancel := a.newPeerPage(p)
+					pagesCG.Add(cancel)
+					page := w.AddTitled(pw, string(p.id), p.name)
 					pages = append(pages, page)
 				}
 

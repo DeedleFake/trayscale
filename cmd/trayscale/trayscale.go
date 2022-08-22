@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 
@@ -64,6 +65,25 @@ func withWidget[T glib.Objector](b *gtk.Builder, name string, f func(T)) {
 	f(w)
 }
 
+func connectSwitch(w *gtk.Switch, status state.State[bool], f func(bool) error) state.CancelFunc {
+	var handler glib.SignalHandle
+	handler = w.ConnectStateSet(func(s bool) bool {
+		err := f(s)
+		if err != nil {
+			w.HandlerBlock(handler)
+			defer w.HandlerUnblock(handler)
+			w.SetActive(state.Get(status))
+		}
+		return true
+	})
+
+	return status.Listen(func(s bool) {
+		w.HandlerBlock(handler)
+		defer w.HandlerUnblock(handler)
+		w.SetState(s)
+	})
+}
+
 type peerListInfo struct {
 	id   string
 	name string
@@ -79,6 +99,15 @@ func (ps peerStates) IPs() state.State[[]netaddr.IP] {
 	}), slices.Equal[netaddr.IP])
 }
 
+func (ps peerStates) Misc() state.State[*ipnstate.PeerStatus] {
+	return state.UniqFunc(ps.s, func(v1, v2 *ipnstate.PeerStatus) bool {
+		return v1.ExitNode == v2.ExitNode &&
+			v1.ExitNodeOption == v2.ExitNodeOption &&
+			v1.RxBytes == v2.RxBytes &&
+			v1.TxBytes == v2.TxBytes
+	})
+}
+
 // App is the main type for the app, containing all of the state
 // necessary to run it.
 type App struct {
@@ -92,8 +121,8 @@ type App struct {
 	toaster *adw.ToastOverlay
 	win     *adw.ApplicationWindow
 
-	peerInfo state.State[map[string]*ipnstate.PeerStatus]
 	peerList state.State[[]peerListInfo]
+	peerInfo state.State[map[string]*ipnstate.PeerStatus]
 	status   state.State[bool]
 }
 
@@ -183,6 +212,21 @@ func (a *App) newPeerPage(p peerListInfo) (gtk.Widgetter, state.CancelFunc) {
 			}
 		})
 	}))
+
+	cg.Add(peerStates.Misc().Listen(func(peer *ipnstate.PeerStatus) {
+		withWidget(builder, "ExitNodeRow", func(w *adw.ActionRow) {
+			w.SetVisible(peer.ExitNodeOption)
+		})
+		withWidget(builder, "ExitNodeSwitch", func(w *gtk.Switch) {
+		})
+		withWidget(builder, "RxBytes", func(w *gtk.Label) {
+			w.SetText(strconv.FormatInt(peer.RxBytes, 10))
+		})
+		withWidget(builder, "TxBytes", func(w *gtk.Label) {
+			w.SetText(strconv.FormatInt(peer.TxBytes, 10))
+		})
+	}))
+
 	return builder.GetObject("Container").Cast().(gtk.Widgetter), cg.Cancel
 }
 
@@ -192,13 +236,6 @@ func (a *App) initState(ctx context.Context) {
 	a.poll = make(chan struct{}, 1)
 
 	rawpeers := state.Mutable[[]*ipnstate.PeerStatus](nil)
-	a.peerInfo = state.Derived(rawpeers, func(peers []*ipnstate.PeerStatus) map[string]*ipnstate.PeerStatus {
-		m := make(map[string]*ipnstate.PeerStatus)
-		for _, p := range peers {
-			m[string(p.ID)] = p
-		}
-		return m
-	})
 	a.peerList = state.UniqFunc(state.Derived(rawpeers, func(peers []*ipnstate.PeerStatus) (list []peerListInfo) {
 		for i, p := range peers {
 			name := p.HostName
@@ -216,6 +253,13 @@ func (a *App) initState(ctx context.Context) {
 		}
 		return list
 	}), slices.Equal[peerListInfo])
+	a.peerInfo = state.Derived(rawpeers, func(peers []*ipnstate.PeerStatus) map[string]*ipnstate.PeerStatus {
+		m := make(map[string]*ipnstate.PeerStatus)
+		for _, p := range peers {
+			m[string(p.ID)] = p
+		}
+		return m
+	})
 	a.status = state.Uniq[bool](state.Derived(a.peerList, func(peers []peerListInfo) bool {
 		return len(peers) != 0
 	}))
@@ -280,30 +324,15 @@ func (a *App) initUI(ctx context.Context) {
 		})
 
 		withWidget(builder, "StatusSwitch", func(w *gtk.Switch) {
-			var handler glib.SignalHandle
-			handler = w.ConnectStateSet(func(status bool) bool {
-				var err error
-				defer func() {
-					if err != nil {
-						w.HandlerBlock(handler)
-						defer w.HandlerUnblock(handler)
-						w.SetActive(state.Get(a.status))
-					}
-				}()
-
+			cg.Add(connectSwitch(w, a.status, func(status bool) error {
 				if status {
-					err = a.TS.Start(ctx)
+					err := a.TS.Start(ctx)
 					a.poll <- struct{}{}
-					return true
+					return err
 				}
-				err = a.TS.Stop(ctx)
+				err := a.TS.Stop(ctx)
 				a.poll <- struct{}{}
-				return true
-			})
-			cg.Add(a.status.Listen(func(status bool) {
-				w.HandlerBlock(handler)
-				defer w.HandlerUnblock(handler)
-				w.SetState(status)
+				return err
 			}))
 		})
 

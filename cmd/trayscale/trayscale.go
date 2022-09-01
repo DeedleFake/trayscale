@@ -7,11 +7,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"time"
 
-	"deedles.dev/state"
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/trayscale/tailscale"
@@ -19,8 +17,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"golang.org/x/exp/slices"
-	"inet.af/netaddr"
 	"tailscale.com/ipn/ipnstate"
 )
 
@@ -65,48 +61,24 @@ func withWidget[T glib.Objector](b *gtk.Builder, name string, f func(T)) {
 	f(w)
 }
 
-func connectSwitch(w *gtk.Switch, status state.State[bool], f func(bool) error) state.CancelFunc {
-	var handler glib.SignalHandle
-	handler = w.ConnectStateSet(func(s bool) bool {
-		err := f(s)
-		if err != nil {
-			w.HandlerBlock(handler)
-			defer w.HandlerUnblock(handler)
-			w.SetActive(state.Get(status))
-		}
-		return true
-	})
-
-	return status.Listen(func(s bool) {
-		w.HandlerBlock(handler)
-		defer w.HandlerUnblock(handler)
-		w.SetState(s)
-	})
-}
-
-type peerListInfo struct {
-	id   string
-	name string
-}
-
-type peerStates struct {
-	s state.State[*ipnstate.PeerStatus]
-}
-
-func (ps peerStates) IPs() state.State[[]netaddr.IP] {
-	return state.UniqFunc(state.Derived(ps.s, func(peer *ipnstate.PeerStatus) []netaddr.IP {
-		return peer.TailscaleIPs
-	}), slices.Equal[netaddr.IP])
-}
-
-func (ps peerStates) Misc() state.State[*ipnstate.PeerStatus] {
-	return state.UniqFunc(ps.s, func(v1, v2 *ipnstate.PeerStatus) bool {
-		return v1.ExitNode == v2.ExitNode &&
-			v1.ExitNodeOption == v2.ExitNodeOption &&
-			v1.RxBytes == v2.RxBytes &&
-			v1.TxBytes == v2.TxBytes
-	})
-}
+//func connectSwitch(w *gtk.Switch, status state.State[bool], f func(bool) error) state.CancelFunc {
+//	var handler glib.SignalHandle
+//	handler = w.ConnectStateSet(func(s bool) bool {
+//		err := f(s)
+//		if err != nil {
+//			w.HandlerBlock(handler)
+//			defer w.HandlerUnblock(handler)
+//			w.SetActive(state.Get(status))
+//		}
+//		return true
+//	})
+//
+//	return status.Listen(func(s bool) {
+//		w.HandlerBlock(handler)
+//		defer w.HandlerUnblock(handler)
+//		w.SetState(s)
+//	})
+//}
 
 // App is the main type for the app, containing all of the state
 // necessary to run it.
@@ -120,16 +92,12 @@ type App struct {
 	app     *adw.Application
 	toaster *adw.ToastOverlay
 	win     *adw.ApplicationWindow
-
-	peerList state.State[[]peerListInfo]
-	peerInfo state.State[map[string]*ipnstate.PeerStatus]
-	status   state.State[bool]
 }
 
 // pollStatus runs a loop that continues until ctx is cancelled. The
 // loop polls Tailscale at regular intervals to determine the
 // network's status, updating the App's state with the result.
-func (a *App) pollStatus(ctx context.Context, rawpeers state.MutableState[[]*ipnstate.PeerStatus]) {
+func (a *App) pollStatus(ctx context.Context) {
 	const ticklen = 5 * time.Second
 	check := time.NewTicker(ticklen)
 
@@ -139,7 +107,7 @@ func (a *App) pollStatus(ctx context.Context, rawpeers state.MutableState[[]*ipn
 			log.Printf("Error: Tailscale status: %v", err)
 			continue
 		}
-		rawpeers.Set(peers)
+		glib.IdleAdd(func() { a.updatePeers(peers) })
 
 		select {
 		case <-ctx.Done():
@@ -170,100 +138,107 @@ func (a *App) showAboutDialog() {
 	a.app.AddWindow(&dialog.Window)
 }
 
-func (a *App) newPeerPage(p peerListInfo) (gtk.Widgetter, state.CancelFunc) {
-	builder := gtk.NewBuilderFromString(pageXML, len(pageXML))
-	withWidget(builder, "Container", func(w *adw.StatusPage) {
-		w.SetTitle(p.name)
-	})
-
-	var cg CancelGroup
-	peerStates := peerStates{s: state.Derived(a.peerInfo, func(peers map[string]*ipnstate.PeerStatus) *ipnstate.PeerStatus {
-		return peers[p.id]
-	})}
-
-	var addrRows []gtk.Widgetter
-	cg.Add(peerStates.IPs().Listen(func(ips []netaddr.IP) {
-		withWidget(builder, "IPGroup", func(w *adw.PreferencesGroup) {
-			for _, row := range addrRows {
-				w.Remove(row)
-			}
-			addrRows = addrRows[:0]
-
-			for _, ip := range ips {
-				ipstr := ip.String()
-
-				copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
-				copyButton.SetTooltipText("Copy to Clipboard")
-				copyButton.ConnectClicked(func() {
-					copyButton.Clipboard().Set(glib.NewValue(ipstr))
-
-					t := adw.NewToast("Copied to clipboard")
-					t.SetTimeout(3)
-					a.toaster.AddToast(t)
-				})
-
-				iprow := adw.NewActionRow()
-				iprow.SetTitle(ipstr)
-				iprow.SetObjectProperty("title-selectable", true)
-				iprow.AddSuffix(copyButton)
-
-				w.Add(iprow)
-				addrRows = append(addrRows, iprow)
-			}
-		})
-	}))
-
-	cg.Add(peerStates.Misc().Listen(func(peer *ipnstate.PeerStatus) {
-		withWidget(builder, "ExitNodeRow", func(w *adw.ActionRow) {
-			w.SetVisible(peer.ExitNodeOption)
-		})
-		withWidget(builder, "ExitNodeSwitch", func(w *gtk.Switch) {
-		})
-		withWidget(builder, "RxBytes", func(w *gtk.Label) {
-			w.SetText(strconv.FormatInt(peer.RxBytes, 10))
-		})
-		withWidget(builder, "TxBytes", func(w *gtk.Label) {
-			w.SetText(strconv.FormatInt(peer.TxBytes, 10))
-		})
-	}))
-
-	return builder.GetObject("Container").Cast().(gtk.Widgetter), cg.Cancel
-}
+//func (a *App) newPeerPage(p peerListInfo) (gtk.Widgetter, state.CancelFunc) {
+//	builder := gtk.NewBuilderFromString(pageXML, len(pageXML))
+//	withWidget(builder, "Container", func(w *adw.StatusPage) {
+//		w.SetTitle(p.name)
+//	})
+//
+//	var cg CancelGroup
+//	peerStates := peerStates{s: state.Derived(a.peerInfo, func(peers map[string]*ipnstate.PeerStatus) *ipnstate.PeerStatus {
+//		p := peers[p.id]
+//		if p == nil {
+//			p = new(ipnstate.PeerStatus)
+//		}
+//		return p
+//	})}
+//
+//	var addrRows []gtk.Widgetter
+//	cg.Add(peerStates.IPs().Listen(func(ips []netaddr.IP) {
+//		withWidget(builder, "IPGroup", func(w *adw.PreferencesGroup) {
+//			for _, row := range addrRows {
+//				w.Remove(row)
+//			}
+//			addrRows = addrRows[:0]
+//
+//			for _, ip := range ips {
+//				ipstr := ip.String()
+//
+//				copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
+//				copyButton.SetTooltipText("Copy to Clipboard")
+//				copyButton.ConnectClicked(func() {
+//					copyButton.Clipboard().Set(glib.NewValue(ipstr))
+//
+//					t := adw.NewToast("Copied to clipboard")
+//					t.SetTimeout(3)
+//					a.toaster.AddToast(t)
+//				})
+//
+//				iprow := adw.NewActionRow()
+//				iprow.SetTitle(ipstr)
+//				iprow.SetObjectProperty("title-selectable", true)
+//				iprow.AddSuffix(copyButton)
+//
+//				w.Add(iprow)
+//				addrRows = append(addrRows, iprow)
+//			}
+//		})
+//	}))
+//
+//	cg.Add(peerStates.Misc().Listen(func(peer *ipnstate.PeerStatus) {
+//		withWidget(builder, "ExitNodeRow", func(w *adw.ActionRow) {
+//			w.SetVisible(peer.ExitNodeOption)
+//		})
+//		withWidget(builder, "ExitNodeSwitch", func(w *gtk.Switch) {
+//		})
+//		withWidget(builder, "RxBytes", func(w *gtk.Label) {
+//			w.SetText(strconv.FormatInt(peer.RxBytes, 10))
+//		})
+//		withWidget(builder, "TxBytes", func(w *gtk.Label) {
+//			w.SetText(strconv.FormatInt(peer.TxBytes, 10))
+//		})
+//	}))
+//
+//	return builder.GetObject("Container").Cast().(gtk.Widgetter), cg.Cancel
+//}
 
 // initState initializes internal App state, starts the pollStatus
 // loop, and other similar initializations.
-func (a *App) initState(ctx context.Context) {
-	a.poll = make(chan struct{}, 1)
+//func (a *App) initState(ctx context.Context) {
+//	a.poll = make(chan struct{}, 1)
+//
+//	rawpeers := state.Mutable[[]*ipnstate.PeerStatus](nil)
+//	a.peerList = state.UniqFunc(state.Derived(rawpeers, func(peers []*ipnstate.PeerStatus) (list []peerListInfo) {
+//		for i, p := range peers {
+//			name := p.HostName
+//			if i == 0 {
+//				name += " (This machine)"
+//			}
+//			if p.ExitNode {
+//				name += " (Exit node)"
+//			}
+//
+//			list = append(list, peerListInfo{
+//				id:   string(p.ID),
+//				name: name,
+//			})
+//		}
+//		return list
+//	}), slices.Equal[peerListInfo])
+//	a.peerInfo = state.Derived(rawpeers, func(peers []*ipnstate.PeerStatus) map[string]*ipnstate.PeerStatus {
+//		m := make(map[string]*ipnstate.PeerStatus)
+//		for _, p := range peers {
+//			m[string(p.ID)] = p
+//		}
+//		return m
+//	})
+//	a.status = state.Uniq[bool](state.Derived(a.peerList, func(peers []peerListInfo) bool {
+//		return len(peers) != 0
+//	}))
+//	go a.pollStatus(ctx, rawpeers)
+//}
 
-	rawpeers := state.Mutable[[]*ipnstate.PeerStatus](nil)
-	a.peerList = state.UniqFunc(state.Derived(rawpeers, func(peers []*ipnstate.PeerStatus) (list []peerListInfo) {
-		for i, p := range peers {
-			name := p.HostName
-			if i == 0 {
-				name += " (This machine)"
-			}
-			if p.ExitNode {
-				name += " (Exit node)"
-			}
-
-			list = append(list, peerListInfo{
-				id:   string(p.ID),
-				name: name,
-			})
-		}
-		return list
-	}), slices.Equal[peerListInfo])
-	a.peerInfo = state.Derived(rawpeers, func(peers []*ipnstate.PeerStatus) map[string]*ipnstate.PeerStatus {
-		m := make(map[string]*ipnstate.PeerStatus)
-		for _, p := range peers {
-			m[string(p.ID)] = p
-		}
-		return m
-	})
-	a.status = state.Uniq[bool](state.Derived(a.peerList, func(peers []peerListInfo) bool {
-		return len(peers) != 0
-	}))
-	go a.pollStatus(ctx, rawpeers)
+func (a *App) updatePeers(peers []*ipnstate.PeerStatus) {
 }
 
 // initUI initializes the App's UI, loading the builder XML, creating
@@ -361,79 +336,6 @@ func (a *App) initUI(ctx context.Context) {
 				}
 			}))
 		})
-
-		//withWidget(builder, "PeersList", func(w *adw.PreferencesGroup) {
-		//	var children []gtk.Widgetter
-		//	cg.Add(a.peers.Listen(func(peers []*ipnstate.PeerStatus) {
-		//		for _, child := range children {
-		//			w.Remove(child)
-		//		}
-		//		children = children[:0]
-
-		//		for i, p := range peers {
-		//			row := adw.NewExpanderRow()
-		//			row.SetTitle(p.HostName)
-		//			if i == 0 {
-		//				row.SetSubtitle("This machine")
-		//			}
-		//			if p.ExitNode {
-		//				row.SetSubtitle("Exit node")
-		//			}
-
-		//			if p.ExitNodeOption && (i > 0) {
-		//				exitLabel := gtk.NewLabel("Use as Exit Node")
-
-		//				exitSwitch := gtk.NewSwitch()
-		//				exitSwitch.SetVExpand(false)
-		//				exitSwitch.ConnectStateSet(func(status bool) bool {
-		//					var exit *ipnstate.PeerStatus
-		//					if status {
-		//						exit = p
-		//					}
-		//					a.TS.ExitNode(ctx, exit)
-		//					return true
-		//				})
-
-		//				exitRow := adw.NewActionRow()
-		//				exitRow.AddPrefix(exitLabel)
-		//				exitRow.AddSuffix(exitSwitch)
-
-		//				row.AddRow(exitRow)
-		//			}
-
-		//			for _, ip := range p.TailscaleIPs {
-		//				str := ip.String()
-
-		//				copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
-		//				copyButton.SetTooltipText("Copy to Clipboard")
-		//				copyButton.SetVExpand(false)
-		//				copyButton.ConnectClicked(func() {
-		//					copyButton.Clipboard().Set(glib.NewValue(str))
-
-		//					t := adw.NewToast("Copied to clipboard")
-		//					t.SetTimeout(3)
-		//					a.toaster.AddToast(t)
-		//				})
-
-		//				iplabel := gtk.NewLabel(str)
-		//				iplabel.SetSelectable(true)
-
-		//				iprow := adw.NewActionRow()
-		//				iprow.AddPrefix(iplabel)
-		//				iprow.AddSuffix(copyButton)
-
-		//				row.AddRow(iprow)
-		//			}
-
-		//			w.Add(row)
-		//			children = append(children, row)
-		//		}
-		//	}))
-		//})
-
-		//withWidget(builder, "NotConnectedStatusPage", func(w *adw.StatusPage) {
-		//	cg.Add(a.status.Listen(func(status bool) { w.SetVisible(!status) }))
-		//})
 
 		a.toaster = builder.GetObject("ToastOverlay").Cast().(*adw.ToastOverlay)
 

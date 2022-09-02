@@ -37,7 +37,8 @@ type App struct {
 	// Tailscale.
 	TS *tailscale.Client
 
-	poll chan struct{}
+	poll   chan struct{}
+	status bool
 
 	app     *adw.Application
 	toaster *adw.ToastOverlay
@@ -202,7 +203,10 @@ func (a *App) updatePeers(peers []*ipnstate.PeerStatus) {
 
 func (a *App) update(peers []*ipnstate.PeerStatus) {
 	status := len(peers) != 0
-	a.notify(status)
+	if a.status != status {
+		a.status = status
+		a.notify(status) // TODO: Notify on startup if not connected?
+	}
 	if a.win == nil {
 		return
 	}

@@ -32,7 +32,7 @@ First, make sure that you have dependencies installed:
 The main Trayscale binary can be installed with `go install`:
 
 ```bash
-$ go install deedles.dev/trayscale@latest
+$ go install deedles.dev/trayscale/cmd/trayscale@latest
 ```
 
 If you would like, you can also copy the `.desktop` file, the icon, and other pieces of extra metadata into the places that they need to be put to function properly:

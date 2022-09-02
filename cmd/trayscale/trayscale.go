@@ -11,6 +11,7 @@ import (
 	"deedles.dev/trayscale/tailscale"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/ipn/ipnstate"
 )
 
 const (
@@ -43,24 +44,15 @@ func withWidget[T glib.Objector](b *gtk.Builder, name string, f func(T)) {
 	f(w)
 }
 
-//func connectSwitch(w *gtk.Switch, status state.State[bool], f func(bool) error) state.CancelFunc {
-//	var handler glib.SignalHandle
-//	handler = w.ConnectStateSet(func(s bool) bool {
-//		err := f(s)
-//		if err != nil {
-//			w.HandlerBlock(handler)
-//			defer w.HandlerUnblock(handler)
-//			w.SetActive(state.Get(status))
-//		}
-//		return true
-//	})
-//
-//	return status.Listen(func(s bool) {
-//		w.HandlerBlock(handler)
-//		defer w.HandlerUnblock(handler)
-//		w.SetState(s)
-//	})
-//}
+func peerName(peer *ipnstate.PeerStatus) string {
+	if peer.ExitNode {
+		return peer.HostName + " (Exit node)"
+	}
+	if peer.ExitNodeOption {
+		return peer.HostName + " (Exit node option)"
+	}
+	return peer.HostName
+}
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)

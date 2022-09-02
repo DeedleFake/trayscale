@@ -9,6 +9,11 @@ _Disclaimer: This project is in an alpha state. If it bricks your machine, it's 
 
 ![image](https://user-images.githubusercontent.com/326750/163421383-87b57d9f-7602-4112-8308-a92926b1942f.png)
 
+Tailscale Config
+----------------
+
+Trayscale makes calls to the Tailscale CLI for some operations. In order for this to work, the `tailscale` command must be in your `$PATH`. Additionally, the daemon must have been configured with the current user as the "operator". To do this, run `sudo tailscale up --operator=$USER` from the command-line at least once manually.
+
 Installation
 ------------
 
@@ -27,7 +32,7 @@ First, make sure that you have dependencies installed:
 The main Trayscale binary can be installed with `go install`:
 
 ```bash
-$ go install deedles.dev/trayscale@latest
+$ go install deedles.dev/trayscale/cmd/trayscale@latest
 ```
 
 If you would like, you can also copy the `.desktop` file, the icon, and other pieces of extra metadata into the places that they need to be put to function properly:
@@ -35,4 +40,4 @@ If you would like, you can also copy the `.desktop` file, the icon, and other pi
 * `dev.deedles-trayscale.desktop` -> `$HOME/.local/share/applications/`
 * `com.tailscale-tailscale.png` -> `$HOME/.local/share/icons/hicolor/256x256/apps/`
 
-Note that without copying both of these files into the correct locations, notifications will likely not functions correctly in GNOME. Also keep in mind that the `trayscale` binary must be in your `$PATH` in a way that the desktop environment can locate, then the file will not be considered valid. If this is an issue, modify the file manually and change the `Exec=` line to point directly to the binary with an absolute path.
+Note that without copying both of these files into the correct locations, notifications will likely not function correctly in GNOME. Also keep in mind that if the `trayscale` binary is not in your `$PATH` in a way that the desktop environment can locate then the `.desktop` file will not be considered valid. If this is an issue, modify the file manually and change the `Exec=` line to point directly to the binary with an absolute path.

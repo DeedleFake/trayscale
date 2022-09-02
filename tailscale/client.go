@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"net/netip"
 	"os/exec"
 	"strings"
 
-	"github.com/snapcore/snapd/polkit"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
-	"inet.af/netaddr"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -40,29 +38,29 @@ type Client struct {
 // attempt to get authorization first for the given action. If that
 // fails, it will default to a general action that will allow
 // execution of the Tailscale CLI binary.
-func (c *Client) authorize(action string) error {
-	if action == "" {
-		action = defaultAuthAction
-	}
-
-	ok, err := polkit.CheckAuthorization(
-		int32(os.Getpid()),
-		uint32(os.Getuid()),
-		action,
-		nil,
-		polkit.CheckAllowInteraction,
-	)
-	if err != nil {
-		if err.Error() == defaultAuthActionError {
-			return c.authorize("org.freedesktop.policykit.exec")
-		}
-		return fmt.Errorf("polkit: %w", err)
-	}
-	if !ok {
-		return ErrNotAuthorized
-	}
-	return nil
-}
+//func (c *Client) authorize(action string) error {
+//	if action == "" {
+//		action = defaultAuthAction
+//	}
+//
+//	ok, err := polkit.CheckAuthorization(
+//		int32(os.Getpid()),
+//		uint32(os.Getuid()),
+//		action,
+//		nil,
+//		polkit.CheckAllowInteraction,
+//	)
+//	if err != nil {
+//		if err.Error() == defaultAuthActionError {
+//			return c.authorize("org.freedesktop.policykit.exec")
+//		}
+//		return fmt.Errorf("polkit: %w", err)
+//	}
+//	if !ok {
+//		return ErrNotAuthorized
+//	}
+//	return nil
+//}
 
 // run runs the Tailscale CLI binary with the given arguments. It
 // returns the combined stdout and stderr of the resulting process.
@@ -105,23 +103,40 @@ func (c *Client) Status(ctx context.Context) ([]*ipnstate.PeerStatus, error) {
 
 // Start connects the local peer to the Tailscale network.
 func (c *Client) Start(ctx context.Context) error {
-	err := c.authorize("")
-	if err != nil {
-		return fmt.Errorf("authorize: %w", err)
-	}
+	//err := c.authorize("")
+	//if err != nil {
+	//	return fmt.Errorf("authorize: %w", err)
+	//}
 
-	_, err = c.run(ctx, "up")
+	_, err := c.run(ctx, "up")
 	return err
 }
 
 // Stop disconnects the local peer from the Tailscale network.
 func (c *Client) Stop(ctx context.Context) error {
-	err := c.authorize("")
-	if err != nil {
-		return fmt.Errorf("authorize: %w", err)
+	//err := c.authorize("")
+	//if err != nil {
+	//	return fmt.Errorf("authorize: %w", err)
+	//}
+
+	_, err := c.run(ctx, "down")
+	return err
+}
+
+// ExitNode uses the specified peer as an exit node, or unsets
+// an existing exit node if peer is nil.
+func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
+	//err := c.authorize("")
+	//if err != nil {
+	//	return fmt.Errorf("authorize: %w", err)
+	//}
+
+	var name string
+	if peer != nil {
+		name = peer.TailscaleIPs[0].String()
 	}
 
-	_, err = c.run(ctx, "down")
+	_, err := c.run(ctx, "up", "--exit-node", name)
 	return err
 }
 
@@ -135,6 +150,6 @@ func normalizePeers(peers []*ipnstate.PeerStatus) {
 	})
 
 	for _, peer := range peers {
-		slices.SortFunc(peer.TailscaleIPs, netaddr.IP.Less)
+		slices.SortFunc(peer.TailscaleIPs, netip.Addr.Less)
 	}
 }

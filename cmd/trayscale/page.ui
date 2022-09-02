@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Created with Cambalache 0.11.2 -->
+<!-- Created with Cambalache 0.11.3 -->
 <interface>
   <requires lib="gtk" version="4.6"/>
   <requires lib="libadwaita" version="1.1"/>
@@ -23,7 +23,10 @@
                     <property name="icon-name">security-high-symbolic</property>
                     <property name="title">Use as exit node</property>
                     <child>
-                      <object class="GtkSwitch" id="ExitNodeSwitch"/>
+                      <object class="GtkSwitch" id="ExitNodeSwitch">
+                        <property name="margin-bottom">12</property>
+                        <property name="margin-top">12</property>
+                      </object>
                     </child>
                   </object>
                 </child>

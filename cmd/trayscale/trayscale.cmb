@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8' standalone='no'?>
 <!DOCTYPE cambalache-project SYSTEM "cambalache-project.dtd">
-<cambalache-project version="0.11.2" target_tk="gtk-4.0">
+<cambalache-project version="0.11.3" target_tk="gtk-4.0">
   <ui>
 	(1,None,"trayscale.ui","trayscale.ui",None,None,None,None,None,None,None),
 	(2,None,None,"page.ui",None,None,None,None,None,None,None)
@@ -55,6 +55,8 @@
 	(2,11,"AdwActionRow","icon-name","security-high-symbolic",None,None,None,None,None),
 	(2,11,"AdwPreferencesRow","title","Use as exit node",None,None,None,None,None),
 	(2,12,"AdwPreferencesRow","title","Bytes received",None,None,None,None,None),
-	(2,13,"AdwPreferencesRow","title","Bytes sent",None,None,None,None,None)
+	(2,13,"AdwPreferencesRow","title","Bytes sent",None,None,None,None,None),
+	(2,16,"GtkWidget","margin-bottom","12",None,None,None,None,None),
+	(2,16,"GtkWidget","margin-top","12",None,None,None,None,None)
   </object_property>
 </cambalache-project>

@@ -109,6 +109,8 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus) {
 		ipstr := ip.String()
 
 		copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
+		copyButton.SetMarginTop(12)
+		copyButton.SetMarginBottom(12)
 		copyButton.SetTooltipText("Copy to Clipboard")
 		copyButton.ConnectClicked(func() {
 			copyButton.Clipboard().Set(glib.NewValue(ipstr))

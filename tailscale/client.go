@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os/exec"
 	"strings"
 
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
-	"inet.af/netaddr"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -150,6 +150,6 @@ func normalizePeers(peers []*ipnstate.PeerStatus) {
 	})
 
 	for _, peer := range peers {
-		slices.SortFunc(peer.TailscaleIPs, netaddr.IP.Less)
+		slices.SortFunc(peer.TailscaleIPs, netip.Addr.Less)
 	}
 }

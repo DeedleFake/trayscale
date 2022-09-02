@@ -54,6 +54,17 @@ func peerName(peer *ipnstate.PeerStatus) string {
 	return peer.HostName
 }
 
+func peerIcon(peer *ipnstate.PeerStatus) string {
+	if peer.ExitNode {
+		return "network-workgroup-symbolic"
+	}
+	if peer.ExitNodeOption {
+		return "network-server-symbolic"
+	}
+
+	return "folder-remote-symbolic"
+}
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()

@@ -95,6 +95,7 @@ func (a *App) showAboutDialog() {
 }
 
 func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus) {
+	page.page.SetIconName(peerIcon(peer))
 	page.page.SetTitle(peerName(peer))
 
 	page.container.SetTitle(peer.HostName)

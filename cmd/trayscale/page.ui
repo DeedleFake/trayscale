@@ -31,7 +31,47 @@
                   </object>
                 </child>
                 <child>
-                  <object class="AdwActionRow">
+                  <object class="AdwActionRow" id="OnlineRow">
+                    <property name="title">Online</property>
+                    <child>
+                      <object class="GtkImage" id="Online"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="LastSeenRow">
+                    <property name="title">Last seen</property>
+                    <child>
+                      <object class="GtkLabel" id="LastSeen"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="CreatedRow">
+                    <property name="title">Created at</property>
+                    <child>
+                      <object class="GtkLabel" id="Created"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="LastWriteRow">
+                    <property name="title">Last write</property>
+                    <child>
+                      <object class="GtkLabel" id="LastWrite"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="LastHandshakeRow">
+                    <property name="title">Last handshake</property>
+                    <child>
+                      <object class="GtkLabel" id="LastHandshake"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="RxBytesRow">
                     <property name="title">Bytes received</property>
                     <child>
                       <object class="GtkLabel" id="RxBytes"/>
@@ -39,7 +79,7 @@
                   </object>
                 </child>
                 <child>
-                  <object class="AdwActionRow">
+                  <object class="AdwActionRow" id="TxBytesRow">
                     <property name="title">Bytes sent</property>
                     <child>
                       <object class="GtkLabel" id="TxBytes"/>

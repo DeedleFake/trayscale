@@ -109,7 +109,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus) {
 		ipstr := ip.String()
 
 		copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
-		copyButton.SetMarginTop(12)
+		copyButton.SetMarginTop(12) // Why is this necessary?
 		copyButton.SetMarginBottom(12)
 		copyButton.SetTooltipText("Copy to Clipboard")
 		copyButton.ConnectClicked(func() {
@@ -133,6 +133,17 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus) {
 	page.exitNodeSwitch.SetState(peer.ExitNode)
 	page.rxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
 	page.txBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
+	page.created.SetText(formatTime(peer.Created))
+	page.lastSeen.SetText(formatTime(peer.LastSeen))
+	page.lastSeenRow.SetVisible(!peer.Online)
+	page.lastWrite.SetText(formatTime(peer.LastWrite))
+	page.lastHandshake.SetText(formatTime(peer.LastHandshake))
+
+	var onlineIcon string
+	if peer.Online {
+		onlineIcon = "emblem-ok-symbolic"
+	}
+	page.online.SetFromIconName(onlineIcon)
 }
 
 func (a *App) notify(status bool) {
@@ -311,11 +322,22 @@ type peerPage struct {
 	addrs    *adw.PreferencesGroup
 	addrRows []*adw.ActionRow
 
-	exitNodeRow    *adw.ActionRow
-	exitNodeSwitch *gtk.Switch
-
-	rxBytes *gtk.Label
-	txBytes *gtk.Label
+	exitNodeRow      *adw.ActionRow
+	exitNodeSwitch   *gtk.Switch
+	rxBytesRow       *adw.ActionRow
+	rxBytes          *gtk.Label
+	txBytesRow       *adw.ActionRow
+	txBytes          *gtk.Label
+	createdRow       *adw.ActionRow
+	created          *gtk.Label
+	lastWriteRow     *adw.ActionRow
+	lastWrite        *gtk.Label
+	lastSeenRow      *adw.ActionRow
+	lastSeen         *gtk.Label
+	lastHandshakeRow *adw.ActionRow
+	lastHandshake    *gtk.Label
+	onlineRow        *adw.ActionRow
+	online           *gtk.Image
 }
 
 func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
@@ -342,11 +364,23 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	})
 
 	return &peerPage{
-		container:      builder.GetObject("Container").Cast().(*adw.StatusPage),
-		addrs:          builder.GetObject("IPGroup").Cast().(*adw.PreferencesGroup),
-		exitNodeRow:    builder.GetObject("ExitNodeRow").Cast().(*adw.ActionRow),
-		exitNodeSwitch: exitNodeSwitch,
-		rxBytes:        builder.GetObject("RxBytes").Cast().(*gtk.Label),
-		txBytes:        builder.GetObject("TxBytes").Cast().(*gtk.Label),
+		container:        builder.GetObject("Container").Cast().(*adw.StatusPage),
+		addrs:            builder.GetObject("IPGroup").Cast().(*adw.PreferencesGroup),
+		exitNodeRow:      builder.GetObject("ExitNodeRow").Cast().(*adw.ActionRow),
+		exitNodeSwitch:   exitNodeSwitch,
+		rxBytesRow:       builder.GetObject("RxBytesRow").Cast().(*adw.ActionRow),
+		rxBytes:          builder.GetObject("RxBytes").Cast().(*gtk.Label),
+		txBytesRow:       builder.GetObject("TxBytesRow").Cast().(*adw.ActionRow),
+		txBytes:          builder.GetObject("TxBytes").Cast().(*gtk.Label),
+		createdRow:       builder.GetObject("CreatedRow").Cast().(*adw.ActionRow),
+		created:          builder.GetObject("Created").Cast().(*gtk.Label),
+		lastWriteRow:     builder.GetObject("LastWriteRow").Cast().(*adw.ActionRow),
+		lastWrite:        builder.GetObject("LastWrite").Cast().(*gtk.Label),
+		lastSeenRow:      builder.GetObject("LastSeenRow").Cast().(*adw.ActionRow),
+		lastSeen:         builder.GetObject("LastSeen").Cast().(*gtk.Label),
+		lastHandshakeRow: builder.GetObject("LastHandshakeRow").Cast().(*adw.ActionRow),
+		lastHandshake:    builder.GetObject("LastHandshake").Cast().(*gtk.Label),
+		onlineRow:        builder.GetObject("OnlineRow").Cast().(*adw.ActionRow),
+		online:           builder.GetObject("Online").Cast().(*gtk.Image),
 	}
 }

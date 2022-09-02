@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"time"
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/tailscale"
@@ -18,6 +19,13 @@ const (
 	appID                 = "dev.deedles-trayscale"
 	prefShowWindowAtStart = "showWindowAtStart"
 )
+
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format(time.StampMilli)
+}
 
 // must returns v if err is nil. If err is not nil, it panics with
 // err's value.

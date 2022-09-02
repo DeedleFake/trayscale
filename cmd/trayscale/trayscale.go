@@ -52,10 +52,10 @@ func peerName(peer *ipnstate.PeerStatus) string {
 	}
 
 	if peer.ExitNode {
-		return name + " (Exit node)"
+		return name + " [Exit node]"
 	}
 	if peer.ExitNodeOption {
-		return name + " (Exit node option)"
+		return name + " [Exit node option]"
 	}
 	return name
 }

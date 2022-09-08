@@ -52,13 +52,16 @@ func withWidget[T glib.Objector](b *gtk.Builder, name string, f func(T)) {
 	f(w)
 }
 
-func peerName(peer *ipnstate.PeerStatus) string {
+func peerName(peer *ipnstate.PeerStatus, self bool) string {
 	const maxNameLength = 30
 	name := peer.HostName
 	if len(name) > maxNameLength {
 		name = name[:maxNameLength-3] + "..."
 	}
 
+	if self {
+		return name + " [Self]"
+	}
 	if peer.ExitNode {
 		return name + " [Exit node]"
 	}

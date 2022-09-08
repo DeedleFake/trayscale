@@ -238,7 +238,7 @@ func (a *App) update(status *ipnstate.Status) {
 // window, and so on.
 func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
-	a.peerPages = make(map[key.NodePublic]*peerPage)
+	makeMap(&a.peerPages, 0)
 
 	a.app.ConnectStartup(func() {
 		a.app.Hold()
@@ -296,11 +296,11 @@ func (a *App) init(ctx context.Context) {
 			})
 		})
 
-		a.peersStack = builder.GetObject("PeersStack").Cast().(*gtk.Stack)
+		getObject(&a.peersStack, builder, "PeersStack")
 
-		a.toaster = builder.GetObject("ToastOverlay").Cast().(*adw.ToastOverlay)
+		getObject(&a.toaster, builder, "ToastOverlay")
 
-		a.win = builder.GetObject("MainWindow").Cast().(*adw.ApplicationWindow)
+		getObject(&a.win, builder, "MainWindow")
 		a.app.AddWindow(&a.win.Window)
 		a.win.ConnectCloseRequest(func() bool {
 			maps.Clear(a.peerPages)
@@ -326,7 +326,7 @@ func (a *App) Run(ctx context.Context) {
 
 	a.init(ctx)
 
-	a.poll = make(chan struct{}, 1)
+	makeChan(&a.poll, 1)
 	go a.pollStatus(ctx)
 
 	go func() {
@@ -408,8 +408,4 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	})
 
 	return &page
-}
-
-func getObject[T any](w *T, builder *gtk.Builder, name string) {
-	*w = builder.GetObject(name).Cast().(T)
 }

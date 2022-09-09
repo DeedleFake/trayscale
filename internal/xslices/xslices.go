@@ -17,11 +17,3 @@ func Partition[E any, S ~[]E](s S, pred func(E) bool) (t, f S) {
 
 	return t, f
 }
-
-// ToMap inserts the elements of s into m, calling f() with each
-// element and its index to generate a key for the map entry.
-func ToMap[K comparable, V any, S ~[]V, M ~map[K]V](m M, s S, f func(int, V) K) {
-	for i, v := range s {
-		m[f(i, v)] = v
-	}
-}

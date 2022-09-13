@@ -2,8 +2,8 @@
 <!DOCTYPE cambalache-project SYSTEM "cambalache-project.dtd">
 <cambalache-project version="0.11.3" target_tk="gtk-4.0">
   <ui>
-	(1,None,"trayscale.ui","trayscale.ui",None,None,None,None,None,None,None),
-	(2,None,None,"page.ui",None,None,None,None,None,None,None)
+	(1,1,"mainwindow.ui","mainwindow.ui",None,None,None,None,None,None,None),
+	(2,3,None,"peerpage.ui",None,None,None,None,None,None,None)
   </ui>
   <object>
 	(1,1,"AdwApplicationWindow","MainWindow",None,None,None,None,None,None),
@@ -18,7 +18,7 @@
 	(1,15,"GtkBox",None,9,None,"title",None,None,None),
 	(1,16,"GtkStack","PeersStack",8,None,None,None,2,None),
 	(1,17,"GtkSwitch","StatusSwitch",7,None,"start",None,None,None),
-	(2,3,"AdwStatusPage","Container",None,None,None,None,None,None),
+	(2,3,"AdwStatusPage","PeerPage",None,None,None,None,None,None),
 	(2,5,"AdwClamp",None,3,None,None,None,None,None),
 	(2,7,"GtkBox",None,5,None,None,None,None,None),
 	(2,8,"AdwPreferencesGroup","IPGroup",7,None,None,None,None,None),

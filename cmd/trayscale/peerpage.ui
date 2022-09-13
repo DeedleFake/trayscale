@@ -1,71 +1,9 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!-- Created with Cambalache 0.11.3 -->
 <interface>
-  <!-- interface-name trayscale.ui -->
   <requires lib="gtk" version="4.6"/>
   <requires lib="libadwaita" version="1.1"/>
-  <template parent="AdwApplicationWindow" class="MainWindow">
-    <property name="content">ToastOverlay</property>
-    <property name="default-height">600</property>
-    <property name="default-width">800</property>
-    <property name="title">Trayscale</property>
-    <child>
-      <object class="AdwToastOverlay" id="ToastOverlay">
-        <child>
-          <object class="AdwLeaflet">
-            <child>
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
-                <property name="width-request">360</property>
-                <child>
-                  <object class="AdwHeaderBar">
-                    <property name="show-end-title-buttons">False</property>
-                    <child type="start">
-                      <object class="GtkSwitch" id="StatusSwitch"/>
-                    </child>
-                    <child type="end">
-                      <object class="GtkMenuButton" id="MainMenuButton">
-                        <property name="icon-name">open-menu-symbolic</property>
-                        <property name="primary">True</property>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkStackSidebar">
-                    <property name="stack">PeersStack</property>
-                    <property name="vexpand">True</property>
-                    <property name="width-request">270</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="hexpand">True</property>
-                <property name="orientation">vertical</property>
-                <child>
-                  <object class="AdwHeaderBar">
-                    <property name="show-start-title-buttons">False</property>
-                    <child type="title">
-                      <object class="GtkBox"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkStack" id="PeersStack">
-                    <property name="transition-type">slide-up-down</property>
-                    <property name="vexpand">True</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-          </object>
-        </child>
-      </object>
-    </child>
-  </template>
-  <template parent="AdwStatusPage" class="PeerPage">
+  <template class="PeerPage" parent="AdwStatusPage">
     <child>
       <object class="AdwClamp">
         <child>

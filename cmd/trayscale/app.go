@@ -23,7 +23,7 @@ import (
 	"tailscale.com/types/key"
 )
 
-//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen trayscale.ui
+//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen -out ui.go mainwindow.ui peerpage.ui
 
 //go:embed menu.ui
 var menuXML string

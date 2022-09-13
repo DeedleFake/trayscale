@@ -51,7 +51,7 @@ func peerName(peer *ipnstate.PeerStatus, self bool) string {
 	}
 
 	if self {
-		return name + " [Self]"
+		return name + " [This machine]"
 	}
 	if peer.ExitNode {
 		return name + " [Exit node]"

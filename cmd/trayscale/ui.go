@@ -17,53 +17,51 @@ type MainWindow struct {
 }
 
 func NewMainWindow(app *gtk.Application) *MainWindow {
-
-	StatusSwitch := gtk.NewSwitch()
-
-	MainMenuButton := gtk.NewMenuButton()
-	MainMenuButton.SetObjectProperty("icon-name", "open-menu-symbolic")
-	MainMenuButton.SetObjectProperty("primary", "True")
-
-	ToastOverlayw0w0w0 := adw.NewHeaderBar()
-	ToastOverlayw0w0w0.SetObjectProperty("show-end-title-buttons", "False")
-	ToastOverlayw0w0w0.PackStart(StatusSwitch)
-	ToastOverlayw0w0w0.PackEnd(MainMenuButton)
-
-	ToastOverlayw0w0w1 := gtk.NewStackSidebar()
-	ToastOverlayw0w0w1.SetObjectProperty("stack", "PeersStack")
-	ToastOverlayw0w0w1.SetObjectProperty("vexpand", "True")
-	ToastOverlayw0w0w1.SetObjectProperty("width-request", 270)
-
-	ToastOverlayw0w0 := gtk.NewBox(0, 0)
-	ToastOverlayw0w0.SetObjectProperty("orientation", "vertical")
-	ToastOverlayw0w0.SetObjectProperty("width-request", 360)
-	ToastOverlayw0w0.Append(ToastOverlayw0w0w0)
-	ToastOverlayw0w0.Append(ToastOverlayw0w0w1)
-
-	ToastOverlayw0w1w0w0 := gtk.NewBox(0, 0)
-
-	ToastOverlayw0w1w0 := adw.NewHeaderBar()
-	ToastOverlayw0w1w0.SetObjectProperty("show-start-title-buttons", "False")
-	ToastOverlayw0w1w0.SetTitleWidget(ToastOverlayw0w1w0w0)
-
-	PeersStack := gtk.NewStack()
-	PeersStack.SetObjectProperty("transition-type", "slide-up-down")
-	PeersStack.SetObjectProperty("vexpand", "True")
-
-	ToastOverlayw0w1 := gtk.NewBox(0, 0)
-	ToastOverlayw0w1.SetObjectProperty("hexpand", "True")
-	ToastOverlayw0w1.SetObjectProperty("orientation", "vertical")
-	ToastOverlayw0w1.Append(ToastOverlayw0w1w0)
-	ToastOverlayw0w1.Append(PeersStack)
-
-	ToastOverlayw0 := adw.NewLeaflet()
-	ToastOverlayw0.Append(ToastOverlayw0w0)
-	ToastOverlayw0.Append(ToastOverlayw0w1)
-
 	ToastOverlay := adw.NewToastOverlay()
-	ToastOverlay.SetChild(ToastOverlayw0)
-
+	ToastOverlay0 := adw.NewLeaflet()
+	ToastOverlay00 := gtk.NewBox(0, 0)
+	ToastOverlay000 := adw.NewHeaderBar()
+	StatusSwitch := gtk.NewSwitch()
+	MainMenuButton := gtk.NewMenuButton()
+	ToastOverlay001 := gtk.NewStackSidebar()
+	ToastOverlay01 := gtk.NewBox(0, 0)
+	ToastOverlay010 := adw.NewHeaderBar()
+	ToastOverlay0100 := gtk.NewBox(0, 0)
+	PeersStack := gtk.NewStack()
 	parent := adw.NewApplicationWindow(app)
+
+	ToastOverlay.SetChild(ToastOverlay0)
+
+	ToastOverlay0.Append(ToastOverlay00)
+	ToastOverlay0.Append(ToastOverlay01)
+
+	ToastOverlay00.SetObjectProperty("orientation", 1)
+	ToastOverlay00.SetObjectProperty("width-request", 360)
+	ToastOverlay00.Append(ToastOverlay000)
+	ToastOverlay00.Append(ToastOverlay001)
+
+	ToastOverlay000.SetObjectProperty("show-end-title-buttons", false)
+	ToastOverlay000.PackStart(StatusSwitch)
+	ToastOverlay000.PackEnd(MainMenuButton)
+
+	MainMenuButton.SetObjectProperty("icon-name", "open-menu-symbolic")
+	MainMenuButton.SetObjectProperty("primary", true)
+
+	ToastOverlay001.SetObjectProperty("stack", PeersStack)
+	ToastOverlay001.SetObjectProperty("vexpand", true)
+	ToastOverlay001.SetObjectProperty("width-request", 270)
+
+	ToastOverlay01.SetObjectProperty("hexpand", true)
+	ToastOverlay01.SetObjectProperty("orientation", 1)
+	ToastOverlay01.Append(ToastOverlay010)
+	ToastOverlay01.Append(PeersStack)
+
+	ToastOverlay010.SetObjectProperty("show-start-title-buttons", false)
+	ToastOverlay010.SetTitleWidget(ToastOverlay0100)
+
+	PeersStack.SetObjectProperty("transition-type", 7)
+	PeersStack.SetObjectProperty("vexpand", true)
+
 	parent.SetObjectProperty("content", ToastOverlay)
 	parent.SetObjectProperty("default-height", 600)
 	parent.SetObjectProperty("default-width", 800)
@@ -104,62 +102,37 @@ type PeerPage struct {
 }
 
 func NewPeerPage() *PeerPage {
-
+	parent0 := adw.NewClamp()
+	parent00 := gtk.NewBox(0, 0)
 	IPGroup := adw.NewPreferencesGroup()
+	MiscGroup := adw.NewPreferencesGroup()
+	ExitNodeRow := adw.NewActionRow()
+	ExitNodeSwitch := gtk.NewSwitch()
+	OnlineRow := adw.NewActionRow()
+	Online := gtk.NewImage()
+	LastSeenRow := adw.NewActionRow()
+	LastSeen := gtk.NewLabel("")
+	CreatedRow := adw.NewActionRow()
+	Created := gtk.NewLabel("")
+	LastWriteRow := adw.NewActionRow()
+	LastWrite := gtk.NewLabel("")
+	LastHandshakeRow := adw.NewActionRow()
+	LastHandshake := gtk.NewLabel("")
+	RxBytesRow := adw.NewActionRow()
+	RxBytes := gtk.NewLabel("")
+	TxBytesRow := adw.NewActionRow()
+	TxBytes := gtk.NewLabel("")
+	parent := adw.NewStatusPage()
+
+	parent0.SetChild(parent00)
+
+	parent00.SetObjectProperty("orientation", 1)
+	parent00.SetObjectProperty("spacing", 12)
+	parent00.Append(IPGroup)
+	parent00.Append(MiscGroup)
+
 	IPGroup.SetObjectProperty("title", "Tailscale IPs")
 
-	ExitNodeSwitch := gtk.NewSwitch()
-	ExitNodeSwitch.SetObjectProperty("margin-bottom", 12)
-	ExitNodeSwitch.SetObjectProperty("margin-top", 12)
-
-	ExitNodeRow := adw.NewActionRow()
-	ExitNodeRow.SetObjectProperty("icon-name", "security-high-symbolic")
-	ExitNodeRow.SetObjectProperty("title", "Use as exit node")
-	ExitNodeRow.AddSuffix(ExitNodeSwitch)
-
-	Online := gtk.NewImage()
-
-	OnlineRow := adw.NewActionRow()
-	OnlineRow.SetObjectProperty("title", "Online")
-	OnlineRow.AddSuffix(Online)
-
-	LastSeen := gtk.NewLabel("")
-
-	LastSeenRow := adw.NewActionRow()
-	LastSeenRow.SetObjectProperty("title", "Last seen")
-	LastSeenRow.AddSuffix(LastSeen)
-
-	Created := gtk.NewLabel("")
-
-	CreatedRow := adw.NewActionRow()
-	CreatedRow.SetObjectProperty("title", "Created at")
-	CreatedRow.AddSuffix(Created)
-
-	LastWrite := gtk.NewLabel("")
-
-	LastWriteRow := adw.NewActionRow()
-	LastWriteRow.SetObjectProperty("title", "Last write")
-	LastWriteRow.AddSuffix(LastWrite)
-
-	LastHandshake := gtk.NewLabel("")
-
-	LastHandshakeRow := adw.NewActionRow()
-	LastHandshakeRow.SetObjectProperty("title", "Last handshake")
-	LastHandshakeRow.AddSuffix(LastHandshake)
-
-	RxBytes := gtk.NewLabel("")
-
-	RxBytesRow := adw.NewActionRow()
-	RxBytesRow.SetObjectProperty("title", "Bytes received")
-	RxBytesRow.AddSuffix(RxBytes)
-
-	TxBytes := gtk.NewLabel("")
-
-	TxBytesRow := adw.NewActionRow()
-	TxBytesRow.SetObjectProperty("title", "Bytes sent")
-	TxBytesRow.AddSuffix(TxBytes)
-
-	MiscGroup := adw.NewPreferencesGroup()
 	MiscGroup.SetObjectProperty("title", "Misc.")
 	MiscGroup.Add(ExitNodeRow)
 	MiscGroup.Add(OnlineRow)
@@ -170,17 +143,35 @@ func NewPeerPage() *PeerPage {
 	MiscGroup.Add(RxBytesRow)
 	MiscGroup.Add(TxBytesRow)
 
-	w0w0 := gtk.NewBox(0, 0)
-	w0w0.SetObjectProperty("orientation", "vertical")
-	w0w0.SetObjectProperty("spacing", 12)
-	w0w0.Append(IPGroup)
-	w0w0.Append(MiscGroup)
+	ExitNodeRow.SetObjectProperty("icon-name", "security-high-symbolic")
+	ExitNodeRow.SetObjectProperty("title", "Use as exit node")
+	ExitNodeRow.AddSuffix(ExitNodeSwitch)
 
-	w0 := adw.NewClamp()
-	w0.SetChild(w0w0)
+	ExitNodeSwitch.SetObjectProperty("margin-bottom", 12)
+	ExitNodeSwitch.SetObjectProperty("margin-top", 12)
 
-	parent := adw.NewStatusPage()
-	parent.SetChild(w0)
+	OnlineRow.SetObjectProperty("title", "Online")
+	OnlineRow.AddSuffix(Online)
+
+	LastSeenRow.SetObjectProperty("title", "Last seen")
+	LastSeenRow.AddSuffix(LastSeen)
+
+	CreatedRow.SetObjectProperty("title", "Created at")
+	CreatedRow.AddSuffix(Created)
+
+	LastWriteRow.SetObjectProperty("title", "Last write")
+	LastWriteRow.AddSuffix(LastWrite)
+
+	LastHandshakeRow.SetObjectProperty("title", "Last handshake")
+	LastHandshakeRow.AddSuffix(LastHandshake)
+
+	RxBytesRow.SetObjectProperty("title", "Bytes received")
+	RxBytesRow.AddSuffix(RxBytes)
+
+	TxBytesRow.SetObjectProperty("title", "Bytes sent")
+	TxBytesRow.AddSuffix(TxBytes)
+
+	parent.SetChild(parent0)
 
 	return &PeerPage{
 		StatusPage: parent,

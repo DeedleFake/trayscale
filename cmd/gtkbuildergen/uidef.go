@@ -6,6 +6,8 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 type Interface struct {
@@ -57,9 +59,15 @@ type Object struct {
 	Children   []Child    `xml:"child"`
 }
 
+func (obj Object) Type() Class {
+	if obj.Parent != "" {
+		return obj.Parent
+	}
+	return obj.Class
+}
+
 func (t Object) NamedChildren() (children []Object) {
-	children = t.namedChildren(children)
-	return children
+	return t.namedChildren(children)
 }
 
 func (t Object) namedChildren(children []Object) []Object {
@@ -73,6 +81,21 @@ func (t Object) namedChildren(children []Object) []Object {
 	return children
 }
 
+func (t Object) Descendants() (desc []Object) {
+	return t.descendants("parent", desc)
+}
+
+func (t Object) descendants(base string, desc []Object) []Object {
+	for i, c := range t.Children {
+		if c.Object.ID == "" {
+			c.Object.ID = fmt.Sprintf("%v%v", base, i)
+		}
+		desc = append(desc, c.Object)
+		desc = c.Object.descendants(c.Object.ID, desc)
+	}
+	return desc
+}
+
 type Property struct {
 	XMLName xml.Name `xml:"property"`
 
@@ -81,7 +104,7 @@ type Property struct {
 }
 
 func (p Property) WantsWidget() bool {
-	return p.Name == "content"
+	return (p.Name == "content") || (p.Name == "stack")
 }
 
 type Child struct {
@@ -225,16 +248,22 @@ func (arg Arg) Default() string {
 	}
 }
 
+// TODO: Parse values lazily with more context instead of guessing as
+// this currently does.
 type Value struct {
 	Val any
 }
 
 func (v Value) String() string {
 	switch val := v.Val.(type) {
-	case int, float64:
+	case int, float64, bool:
 		return fmt.Sprint(val)
 	case string:
 		return fmt.Sprintf("%q", val)
+	case gtk.Orientation:
+		return fmt.Sprint(int(val))
+	case gtk.StackTransitionType:
+		return fmt.Sprint(int(val))
 	default:
 		panic(fmt.Errorf("unexpected value type (%T): %q", val, val))
 	}
@@ -242,6 +271,24 @@ func (v Value) String() string {
 
 func (v *Value) UnmarshalText(text []byte) error {
 	str := string(text)
+
+	switch str {
+	case "true", "True":
+		v.Val = true
+		return nil
+	case "false", "False":
+		v.Val = false
+		return nil
+	case "horizontal":
+		v.Val = gtk.OrientationHorizontal
+		return nil
+	case "vertical":
+		v.Val = gtk.OrientationVertical
+		return nil
+	case "slide-up-down":
+		v.Val = gtk.StackTransitionTypeSlideUpDown
+		return nil
+	}
 
 	i, err := strconv.ParseInt(str, 10, 0)
 	if err == nil {
@@ -257,37 +304,4 @@ func (v *Value) UnmarshalText(text []byte) error {
 
 	v.Val = str
 	return nil
-}
-
-type Initializer struct {
-	child    InitChild
-	children []InitChild
-}
-
-func (init *Initializer) Child(child Child) *Initializer {
-	ichild := InitChild{
-		Var:   child.Object.ID,
-		Child: child,
-	}
-	if ichild.Var == "" {
-		ichild.Var = fmt.Sprintf("%vw%v", init.child.Var, len(init.children))
-	}
-	init.children = append(init.children, ichild)
-
-	return &Initializer{
-		child: ichild,
-	}
-}
-
-func (init *Initializer) Current() InitChild {
-	return init.child
-}
-
-func (init *Initializer) Children() []InitChild {
-	return init.children
-}
-
-type InitChild struct {
-	Var   string
-	Child Child
 }

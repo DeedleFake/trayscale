@@ -7,18 +7,16 @@ type {{.Class.Convert}} struct {
 }
 
 func New{{.Class.Convert}}({{.Parent.Constructor.Args.WithTypes}}) *{{.Class.Convert}} {
-	{{- $init := initializer -}}
-	{{range .Children -}}
-		{{template "init.tmpl" ($init.Child .)}}
+	{{- $desc := .Descendants -}}
+	{{range $desc -}}
+		{{.ID}} := {{.Class.Constructor}}({{.Class.Constructor.Args.Defaults}})
 	{{end -}}
-
 	parent := {{.Parent.Constructor}}({{.Parent.Constructor.Args}})
-	{{range .Properties -}}
-		parent.SetObjectProperty({{.Name | printf "%q"}}, {{if .WantsWidget}}{{.Value.Val}}{{else}}{{.Value}}{{end}})
+
+	{{range $desc -}}
+		{{template "init.tmpl" .}}
 	{{end -}}
-	{{range $child := $init.Children -}}
-		parent.{{$.Parent.AddChild $child.Child.Type $child.Var}}
-	{{end}}
+	{{template "init.tmpl" .}}
 
 	return &{{.Class.Convert}}{
 		{{.Parent.Short}}: parent,

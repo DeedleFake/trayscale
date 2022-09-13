@@ -1,15 +1,9 @@
-{{- $init := . -}}
-{{- $id := .Current.Var -}}
-{{- $obj := .Current.Child.Object -}}
+{{- $id := or .ID "parent" -}}
 
-{{range $child := $obj.Children -}}
-	{{template "init.tmpl" ($init.Child $child)}}
-{{end}}
-
-{{$id}} := {{$obj.Class.Constructor}}({{$obj.Class.Constructor.Args.Defaults}})
-{{range $obj.Properties -}}
+{{range .Properties -}}
 	{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{if .WantsWidget}}{{.Value.Val}}{{else}}{{.Value}}{{end}})
 {{end -}}
-{{range $child := .Children -}}
-	{{$id}}.{{$obj.Class.AddChild $child.Child.Type $child.Var}}
+{{range $i, $c := .Children -}}
+	{{- $cid := or .Object.ID (printf "%v%v" $id $i) -}}
+	{{$id}}.{{$.Type.AddChild .Type $cid}}
 {{end}}

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/trayscale/internal/xslices"
 	"deedles.dev/trayscale/tailscale"
@@ -22,16 +23,10 @@ import (
 	"tailscale.com/types/key"
 )
 
-var (
-	//go:embed trayscale.ui
-	uiXML string
+//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen -out ui.go mainwindow.ui peerpage.ui
 
-	//go:embed page.ui
-	pageXML string
-
-	//go:embed menu.ui
-	menuXML string
-)
+//go:embed menu.ui
+var menuXML string
 
 // App is the main type for the app, containing all of the state
 // necessary to run it.
@@ -43,14 +38,10 @@ type App struct {
 	poll   chan struct{}
 	online bool
 
-	app     *adw.Application
-	toaster *adw.ToastOverlay
-	win     *adw.ApplicationWindow
+	app *adw.Application
+	win *MainWindow
 
-	statusSwitch *gtk.Switch
-	statusPage   *adw.StatusPage
-
-	peersStack *gtk.Stack
+	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
 }
 
@@ -105,7 +96,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, self boo
 	page.container.SetTitle(peer.HostName)
 
 	for _, row := range page.addrRows {
-		page.addrs.Remove(row)
+		page.container.IPGroup.Remove(row)
 	}
 	page.addrRows = page.addrRows[:0]
 
@@ -122,7 +113,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, self boo
 
 			t := adw.NewToast("Copied to clipboard")
 			t.SetTimeout(3)
-			a.toaster.AddToast(t)
+			a.win.ToastOverlay.AddToast(t)
 		})
 
 		iprow := adw.NewActionRow()
@@ -130,26 +121,26 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, self boo
 		iprow.SetObjectProperty("title-selectable", true)
 		iprow.AddSuffix(copyButton)
 
-		page.addrs.Add(iprow)
+		page.container.IPGroup.Add(iprow)
 		page.addrRows = append(page.addrRows, iprow)
 	}
 
-	page.miscGroup.SetVisible(!self)
-	page.exitNodeRow.SetVisible(peer.ExitNodeOption)
-	page.exitNodeSwitch.SetState(peer.ExitNode)
-	page.rxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
-	page.txBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
-	page.created.SetText(formatTime(peer.Created))
-	page.lastSeen.SetText(formatTime(peer.LastSeen))
-	page.lastSeenRow.SetVisible(!peer.Online)
-	page.lastWrite.SetText(formatTime(peer.LastWrite))
-	page.lastHandshake.SetText(formatTime(peer.LastHandshake))
+	page.container.MiscGroup.SetVisible(!self)
+	page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
+	page.container.ExitNodeSwitch.SetState(peer.ExitNode)
+	page.container.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
+	page.container.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
+	page.container.Created.SetText(formatTime(peer.Created))
+	page.container.LastSeen.SetText(formatTime(peer.LastSeen))
+	page.container.LastSeenRow.SetVisible(!peer.Online)
+	page.container.LastWrite.SetText(formatTime(peer.LastWrite))
+	page.container.LastHandshake.SetText(formatTime(peer.LastHandshake))
 
 	var onlineIcon string
 	if peer.Online {
 		onlineIcon = "emblem-ok-symbolic"
 	}
-	page.online.SetFromIconName(onlineIcon)
+	page.container.Online.SetFromIconName(onlineIcon)
 }
 
 func (a *App) notify(status bool) {
@@ -172,7 +163,7 @@ func (a *App) notify(status bool) {
 func (a *App) updatePeers(status *ipnstate.Status) {
 	const statusPageName = "status"
 
-	w := a.peersStack
+	w := a.win.PeersStack
 
 	var peerMap map[key.NodePublic]*ipnstate.PeerStatus
 	var peers []key.NodePublic
@@ -230,7 +221,7 @@ func (a *App) update(status *ipnstate.Status) {
 		return
 	}
 
-	a.statusSwitch.SetState(online)
+	a.win.StatusSwitch.SetState(online)
 	a.updatePeers(status)
 }
 
@@ -238,7 +229,7 @@ func (a *App) update(status *ipnstate.Status) {
 // window, and so on.
 func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
-	makeMap(&a.peerPages, 0)
+	mk.Map(&a.peerPages, 0)
 
 	a.app.ConnectStartup(func() {
 		a.app.Hold()
@@ -265,43 +256,33 @@ func (a *App) init(ctx context.Context) {
 		a.statusPage.SetDescription("Tailscale is not connected")
 
 		builder := gtk.NewBuilder()
-		builder.AddFromString(uiXML, len(uiXML))
 		builder.AddFromString(menuXML, len(menuXML))
 
+		a.win = NewMainWindow(&a.app.Application)
+
 		// Workaround for Cambalache limitations.
-		withWidget(builder, "MainMenuButton", func(w *gtk.MenuButton) {
-			w.SetMenuModel(builder.GetObject("MainMenu").Cast().(gio.MenuModeller))
-		})
+		a.win.MainMenuButton.SetMenuModel(builder.GetObject("MainMenu").Cast().(gio.MenuModeller))
 
-		withWidget(builder, "StatusSwitch", func(w *gtk.Switch) {
-			a.statusSwitch = w
-			w.ConnectStateSet(func(s bool) bool {
-				if s == w.State() {
-					return false
-				}
+		a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
+			if s == a.win.StatusSwitch.State() {
+				return false
+			}
 
-				f := a.TS.Stop
-				if s {
-					f = a.TS.Start
-				}
+			f := a.TS.Stop
+			if s {
+				f = a.TS.Start
+			}
 
-				err := f(ctx)
-				if err != nil {
-					log.Printf("Error: set Tailscale status: %v", err)
-					w.SetActive(!s)
-					return true
-				}
-				a.poll <- struct{}{}
+			err := f(ctx)
+			if err != nil {
+				log.Printf("Error: set Tailscale status: %v", err)
+				a.win.StatusSwitch.SetActive(!s)
 				return true
-			})
+			}
+			a.poll <- struct{}{}
+			return true
 		})
 
-		getObject(&a.peersStack, builder, "PeersStack")
-
-		getObject(&a.toaster, builder, "ToastOverlay")
-
-		getObject(&a.win, builder, "MainWindow")
-		a.app.AddWindow(&a.win.Window)
 		a.win.ConnectCloseRequest(func() bool {
 			maps.Clear(a.peerPages)
 			a.win = nil
@@ -326,7 +307,7 @@ func (a *App) Run(ctx context.Context) {
 
 	a.init(ctx)
 
-	makeChan(&a.poll, 1)
+	mk.Chan(&a.poll, 1)
 	go a.pollStatus(ctx)
 
 	go func() {
@@ -338,58 +319,19 @@ func (a *App) Run(ctx context.Context) {
 }
 
 type peerPage struct {
-	page *gtk.StackPage
+	page      *gtk.StackPage
+	container *PeerPage
 
-	container *adw.StatusPage
-
-	addrs    *adw.PreferencesGroup
 	addrRows []*adw.ActionRow
-
-	miscGroup        *adw.PreferencesGroup
-	exitNodeRow      *adw.ActionRow
-	exitNodeSwitch   *gtk.Switch
-	rxBytesRow       *adw.ActionRow
-	rxBytes          *gtk.Label
-	txBytesRow       *adw.ActionRow
-	txBytes          *gtk.Label
-	createdRow       *adw.ActionRow
-	created          *gtk.Label
-	lastWriteRow     *adw.ActionRow
-	lastWrite        *gtk.Label
-	lastSeenRow      *adw.ActionRow
-	lastSeen         *gtk.Label
-	lastHandshakeRow *adw.ActionRow
-	lastHandshake    *gtk.Label
-	onlineRow        *adw.ActionRow
-	online           *gtk.Image
 }
 
 func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
-	builder := gtk.NewBuilderFromString(pageXML, len(pageXML))
+	page := peerPage{
+		container: NewPeerPage(),
+	}
 
-	var page peerPage
-	getObject(&page.container, builder, "Container")
-	getObject(&page.addrs, builder, "IPGroup")
-	getObject(&page.miscGroup, builder, "MiscGroup")
-	getObject(&page.exitNodeRow, builder, "ExitNodeRow")
-	getObject(&page.exitNodeSwitch, builder, "ExitNodeSwitch")
-	getObject(&page.rxBytesRow, builder, "RxBytesRow")
-	getObject(&page.rxBytes, builder, "RxBytes")
-	getObject(&page.txBytesRow, builder, "TxBytesRow")
-	getObject(&page.txBytes, builder, "TxBytes")
-	getObject(&page.createdRow, builder, "CreatedRow")
-	getObject(&page.created, builder, "Created")
-	getObject(&page.lastWriteRow, builder, "LastWriteRow")
-	getObject(&page.lastWrite, builder, "LastWrite")
-	getObject(&page.lastSeenRow, builder, "LastSeenRow")
-	getObject(&page.lastSeen, builder, "LastSeen")
-	getObject(&page.lastHandshakeRow, builder, "LastHandshakeRow")
-	getObject(&page.lastHandshake, builder, "LastHandshake")
-	getObject(&page.onlineRow, builder, "OnlineRow")
-	getObject(&page.online, builder, "Online")
-
-	page.exitNodeSwitch.ConnectStateSet(func(s bool) bool {
-		if s == page.exitNodeSwitch.State() {
+	page.container.ExitNodeSwitch.ConnectStateSet(func(s bool) bool {
+		if s == page.container.ExitNodeSwitch.State() {
 			return false
 		}
 
@@ -400,7 +342,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		err := a.TS.ExitNode(context.TODO(), node)
 		if err != nil {
 			log.Printf("Error: set exit node: %v", err)
-			page.exitNodeSwitch.SetActive(!s)
+			page.container.ExitNodeSwitch.SetActive(!s)
 			return true
 		}
 		a.poll <- struct{}{}

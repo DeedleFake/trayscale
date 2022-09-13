@@ -1,10 +1,10 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!-- Created with Cambalache 0.11.3 -->
 <interface>
-  <!-- interface-name trayscale.ui -->
+  <!-- interface-name mainwindow.ui -->
   <requires lib="gtk" version="4.6"/>
   <requires lib="libadwaita" version="1.1"/>
-  <object class="AdwApplicationWindow" id="MainWindow">
+  <template class="MainWindow" parent="AdwApplicationWindow">
     <property name="content">ToastOverlay</property>
     <property name="default-height">600</property>
     <property name="default-width">800</property>
@@ -64,5 +64,5 @@
         </child>
       </object>
     </child>
-  </object>
+  </template>
 </interface>

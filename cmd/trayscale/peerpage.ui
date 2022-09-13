@@ -3,7 +3,7 @@
 <interface>
   <requires lib="gtk" version="4.6"/>
   <requires lib="libadwaita" version="1.1"/>
-  <object class="AdwStatusPage" id="Container">
+  <template class="PeerPage" parent="AdwStatusPage">
     <child>
       <object class="AdwClamp">
         <child>
@@ -92,5 +92,5 @@
         </child>
       </object>
     </child>
-  </object>
+  </template>
 </interface>

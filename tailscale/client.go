@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
 
@@ -126,6 +127,7 @@ func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error 
 		name = peer.TailscaleIPs[0].String()
 	}
 
-	_, err := c.run(ctx, "up", "--exit-node", name)
+	out, err := c.run(ctx, "up", "--exit-node", name)
+	log.Printf("trayscale: exit node: %v\n", out)
 	return err
 }

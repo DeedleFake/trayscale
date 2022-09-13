@@ -1,33 +1,27 @@
 package main
 
 import (
-	"encoding/xml"
+	"bytes"
 	"flag"
 	"fmt"
+	"go/format"
 	"io"
 	"os"
 )
 
-type Generator struct{}
+type Generator struct {
+	ui []Interface
+}
 
 func (gen *Generator) Generate(w io.Writer, pkg string) error {
-	panic("Not implemented.")
+	return tmpl.ExecuteTemplate(w, "output.tmpl", map[string]any{
+		"Package": pkg,
+		"UI":      gen.ui,
+	})
 }
 
-func (gen *Generator) Load(r io.Reader) error {
-	d := xml.NewDecoder(r)
-
-	var data UIDef
-	err := d.Decode(&data)
-	if err != nil {
-		return fmt.Errorf("decode UI definition: %w", err)
-	}
-
-	return gen.Add(data)
-}
-
-func (gen *Generator) Add(data UIDef) error {
-	panic("Not implemented.")
+func (gen *Generator) Add(data Interface) {
+	gen.ui = append(gen.ui, data)
 }
 
 func loadFile(gen *Generator, path string) error {
@@ -37,10 +31,12 @@ func loadFile(gen *Generator, path string) error {
 	}
 	defer file.Close()
 
-	err = gen.Load(file)
+	ui, err := LoadInterface(file)
 	if err != nil {
 		return fmt.Errorf("load: %w", err)
 	}
+
+	gen.Add(ui)
 
 	return nil
 }
@@ -74,14 +70,20 @@ func main() {
 		}
 	}
 
-	outf, err := os.Create(*out)
+	var buf bytes.Buffer
+	err := gen.Generate(&buf, *pkg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: create output file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: write output file: %v\n", err)
 		os.Exit(1)
 	}
-	defer outf.Close()
 
-	err = gen.Generate(outf, *pkg)
+	fbuf, err := format.Source(buf.Bytes())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: gofmt output: %v\n", err)
+		os.Exit(1)
+	}
+
+	err = os.WriteFile(*out, fbuf, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: write output file: %v\n", err)
 		os.Exit(1)

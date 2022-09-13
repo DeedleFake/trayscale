@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -76,7 +77,7 @@ type Property struct {
 	XMLName xml.Name `xml:"property"`
 
 	Name  string `xml:"name,attr"`
-	Value string `xml:",chardata"`
+	Value Value  `xml:",chardata"`
 }
 
 type Child struct {
@@ -154,4 +155,38 @@ func (args Args) WithTypes() string {
 
 type Arg struct {
 	Name, Type string
+}
+
+type Value struct {
+	Val any
+}
+
+func (v Value) String() string {
+	switch val := v.Val.(type) {
+	case int, float64:
+		return fmt.Sprint(val)
+	case string:
+		return fmt.Sprintf("%q", val)
+	default:
+		panic(fmt.Errorf("unexpected value type (%T): %q", val, val))
+	}
+}
+
+func (v *Value) UnmarshalText(text []byte) error {
+	str := string(text)
+
+	i, err := strconv.ParseInt(str, 10, 0)
+	if err == nil {
+		v.Val = int(i)
+		return nil
+	}
+
+	f, err := strconv.ParseFloat(str, 64)
+	if err == nil {
+		v.Val = f
+		return nil
+	}
+
+	v.Val = str
+	return nil
 }

@@ -20,6 +20,9 @@ func init() {
 			// TODO: Return better values.
 			return ui[0].Requires
 		},
+		"initializer": func() *Initializer {
+			return new(Initializer)
+		},
 	})
 	tmpl = template.Must(tmpl.ParseFS(tmplFS, "*.tmpl"))
 }

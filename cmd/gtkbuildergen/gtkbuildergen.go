@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"io"
 	"os"
+	"strings"
 )
 
 type Generator struct {
@@ -80,6 +81,8 @@ func main() {
 	fbuf, err := format.Source(buf.Bytes())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: gofmt output: %v\n", err)
+		fmt.Fprintln(os.Stderr, strings.Repeat("-", 70))
+		fmt.Fprintf(os.Stderr, "%s\n", buf.Bytes())
 		os.Exit(1)
 	}
 

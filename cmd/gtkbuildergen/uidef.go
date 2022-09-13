@@ -80,6 +80,10 @@ type Property struct {
 	Value Value  `xml:",chardata"`
 }
 
+func (p Property) WantsWidget() bool {
+	return p.Name == "content"
+}
+
 type Child struct {
 	XMLName xml.Name `xml:"child"`
 
@@ -122,6 +126,42 @@ func (class Class) Constructor() Func {
 	return Func(pkg + "New" + short)
 }
 
+func (class Class) AddChild(t, name string) string {
+	switch class {
+	case "AdwHeaderBar":
+		switch t {
+		case "title":
+			return fmt.Sprintf("SetTitleWidget(%v)", name)
+		case "start":
+			return fmt.Sprintf("PackStart(%v)", name)
+		case "end":
+			return fmt.Sprintf("PackEnd(%v)", name)
+		}
+
+	case "AdwToastOverlay", "AdwClamp", "AdwStatusPage":
+		return fmt.Sprintf("SetChild(%v)", name)
+
+	case "AdwApplicationWindow":
+		return fmt.Sprintf("SetContent(%v)", name)
+
+	case "GtkBox", "AdwLeaflet":
+		return fmt.Sprintf("Append(%v)", name)
+
+	case "AdwActionRow":
+		switch t {
+		case "prefix":
+			return fmt.Sprintf("AddPrefix(%v)", name)
+		default:
+			return fmt.Sprintf("AddSuffix(%v)", name)
+		}
+
+	case "AdwPreferencesGroup":
+		return fmt.Sprintf("Add(%v)", name)
+	}
+
+	panic(fmt.Errorf("unexpected class and child type combination: %q -> %q", class, t))
+}
+
 type Func string
 
 func (f Func) Args() Args {
@@ -129,6 +169,15 @@ func (f Func) Args() Args {
 	case "adw.NewApplicationWindow":
 		return Args{
 			{"app", "*gtk.Application"},
+		}
+	case "gtk.NewBox":
+		return Args{
+			{"orientation", "gtk.Orientation"},
+			{"spacing", "int"},
+		}
+	case "gtk.NewLabel":
+		return Args{
+			{"text", "string"},
 		}
 	default:
 		return nil
@@ -153,8 +202,27 @@ func (args Args) WithTypes() string {
 	return strings.Join(defs, ", ")
 }
 
+func (args Args) Defaults() string {
+	defs := make([]string, 0, len(args))
+	for _, arg := range args {
+		defs = append(defs, arg.Default())
+	}
+	return strings.Join(defs, ", ")
+}
+
 type Arg struct {
 	Name, Type string
+}
+
+func (arg Arg) Default() string {
+	switch arg.Type {
+	case "gtk.Orientation", "int":
+		return "0"
+	case "string":
+		return "\"\""
+	default:
+		panic(fmt.Errorf("unexpected arg type %q: %q", arg.Type, arg.Name))
+	}
 }
 
 type Value struct {
@@ -189,4 +257,37 @@ func (v *Value) UnmarshalText(text []byte) error {
 
 	v.Val = str
 	return nil
+}
+
+type Initializer struct {
+	child    InitChild
+	children []InitChild
+}
+
+func (init *Initializer) Child(child Child) *Initializer {
+	ichild := InitChild{
+		Var:   child.Object.ID,
+		Child: child,
+	}
+	if ichild.Var == "" {
+		ichild.Var = fmt.Sprintf("%vw%v", init.child.Var, len(init.children))
+	}
+	init.children = append(init.children, ichild)
+
+	return &Initializer{
+		child: ichild,
+	}
+}
+
+func (init *Initializer) Current() InitChild {
+	return init.child
+}
+
+func (init *Initializer) Children() []InitChild {
+	return init.children
+}
+
+type InitChild struct {
+	Var   string
+	Child Child
 }

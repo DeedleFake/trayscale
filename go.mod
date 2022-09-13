@@ -3,6 +3,7 @@ module deedles.dev/trayscale
 go 1.18
 
 require (
+	deedles.dev/mk v0.1.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220417101956-dcc3707dc307
 	github.com/diamondburned/gotk4/pkg v0.0.0-20220910082532-b037befdd54e
 	golang.org/x/exp v0.0.0-20220909182711-5c715a9e8561
@@ -28,6 +29,6 @@ require (
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
 	golang.org/x/net v0.0.0-20220909164309-bea034e7d591 // indirect
 	golang.org/x/sync v0.0.0-20220907140024-f12130a52804 // indirect
-	golang.org/x/sys v0.0.0-20220909162455-aba9fc2a8ff2 // indirect
+	golang.org/x/sys v0.0.0-20220913175220-63ea55921009 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 )

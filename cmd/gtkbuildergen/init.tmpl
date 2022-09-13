@@ -1,7 +1,7 @@
 {{- $id := or .ID "parent" -}}
 
 {{range .Properties -}}
-	{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{if .WantsWidget}}{{.Value.Val}}{{else}}{{.Value}}{{end}})
+	{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{.Value}})
 {{end -}}
 {{range $i, $c := .Children -}}
 	{{- $cid := or .Object.ID (printf "%v%v" $id $i) -}}

@@ -99,12 +99,38 @@ func (t Object) descendants(base string, desc []Object) []Object {
 type Property struct {
 	XMLName xml.Name `xml:"property"`
 
-	Name  string `xml:"name,attr"`
-	Value Value  `xml:",chardata"`
+	Name     string `xml:"name,attr"`
+	RawValue string `xml:",chardata"`
 }
 
-func (p Property) WantsWidget() bool {
-	return (p.Name == "content") || (p.Name == "stack")
+var (
+	stackTransitionTypeMap = map[string]gtk.StackTransitionType{
+		"slide-up-down": gtk.StackTransitionTypeSlideUpDown,
+	}
+
+	orientationMap = map[string]gtk.Orientation{
+		"vertical":   gtk.OrientationVertical,
+		"horizontal": gtk.OrientationHorizontal,
+	}
+)
+
+func (p Property) Value() string {
+	switch p.Name {
+	case "width-request", "height-request", "default-width", "default-height", "content", "stack", "spacing", "margin-top", "margin-bottom":
+		return p.RawValue
+	case "show-start-title-buttons", "show-end-title-buttons", "primary", "vexpand", "hexpand":
+		b, err := strconv.ParseBool(p.RawValue)
+		if err != nil {
+			return p.RawValue
+		}
+		return strconv.FormatBool(b)
+	case "transition-type":
+		return strconv.FormatInt(int64(stackTransitionTypeMap[strings.ToLower(p.RawValue)]), 10)
+	case "orientation":
+		return strconv.FormatInt(int64(orientationMap[strings.ToLower(p.RawValue)]), 10)
+	default:
+		return strconv.Quote(p.RawValue)
+	}
 }
 
 type Child struct {

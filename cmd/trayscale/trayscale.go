@@ -10,8 +10,6 @@ import (
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/tailscale"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
 )
 
@@ -43,29 +41,6 @@ func readAssetString(file string) string {
 	f := must(trayscale.Assets().Open(file))
 	must(io.Copy(&str, f))
 	return str.String()
-}
-
-// withWidget gets the widget with the given name from b, asserts it
-// to T, and then calls f with it.
-func withWidget[T glib.Objector](b *gtk.Builder, name string, f func(T)) {
-	w := b.GetObject(name).Cast().(T)
-	f(w)
-}
-
-// getObject is a simple helper to avoid unnecessary type repetition.
-// It calls builder.GetObject(name) and, casts the type to T, and then
-// stores it in w. By using a pointer for the output, Go's generic
-// type inference can be exploited.
-func getObject[T any](w *T, builder *gtk.Builder, name string) {
-	*w = builder.GetObject(name).Cast().(T)
-}
-
-func makeMap[M ~map[K]V, K comparable, V any](m *M, c int) {
-	*m = make(M, c)
-}
-
-func makeChan[C ~chan E, E any](c *C, b int) {
-	*c = make(C, b)
 }
 
 func peerName(peer *ipnstate.PeerStatus, self bool) string {

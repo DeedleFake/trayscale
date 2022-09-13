@@ -4,7 +4,7 @@
   <!-- interface-name trayscale.ui -->
   <requires lib="gtk" version="4.6"/>
   <requires lib="libadwaita" version="1.1"/>
-  <object class="AdwApplicationWindow" id="MainWindow">
+  <template parent="AdwApplicationWindow" class="MainWindow">
     <property name="content">ToastOverlay</property>
     <property name="default-height">600</property>
     <property name="default-width">800</property>
@@ -64,5 +64,95 @@
         </child>
       </object>
     </child>
-  </object>
+  </template>
+  <template parent="AdwStatusPage" class="PeerPage">
+    <child>
+      <object class="AdwClamp">
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <property name="spacing">12</property>
+            <child>
+              <object class="AdwPreferencesGroup" id="IPGroup">
+                <property name="title">Tailscale IPs</property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup" id="MiscGroup">
+                <property name="title">Misc.</property>
+                <child>
+                  <object class="AdwActionRow" id="ExitNodeRow">
+                    <property name="icon-name">security-high-symbolic</property>
+                    <property name="title">Use as exit node</property>
+                    <child>
+                      <object class="GtkSwitch" id="ExitNodeSwitch">
+                        <property name="margin-bottom">12</property>
+                        <property name="margin-top">12</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="OnlineRow">
+                    <property name="title">Online</property>
+                    <child>
+                      <object class="GtkImage" id="Online"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="LastSeenRow">
+                    <property name="title">Last seen</property>
+                    <child>
+                      <object class="GtkLabel" id="LastSeen"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="CreatedRow">
+                    <property name="title">Created at</property>
+                    <child>
+                      <object class="GtkLabel" id="Created"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="LastWriteRow">
+                    <property name="title">Last write</property>
+                    <child>
+                      <object class="GtkLabel" id="LastWrite"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="LastHandshakeRow">
+                    <property name="title">Last handshake</property>
+                    <child>
+                      <object class="GtkLabel" id="LastHandshake"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="RxBytesRow">
+                    <property name="title">Bytes received</property>
+                    <child>
+                      <object class="GtkLabel" id="RxBytes"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="TxBytesRow">
+                    <property name="title">Bytes sent</property>
+                    <child>
+                      <object class="GtkLabel" id="TxBytes"/>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
 </interface>

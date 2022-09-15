@@ -5,8 +5,8 @@ go 1.18
 require (
 	deedles.dev/mk v0.1.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220417101956-dcc3707dc307
-	github.com/diamondburned/gotk4/pkg v0.0.0-20220910082532-b037befdd54e
-	golang.org/x/exp v0.0.0-20220909182711-5c715a9e8561
+	github.com/diamondburned/gotk4/pkg v0.0.0-20220914035633-4e35b1a80848
+	golang.org/x/exp v0.0.0-20220914170420-dc92f8653013
 	tailscale.com v1.30.1
 )
 

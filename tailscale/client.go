@@ -1,13 +1,14 @@
 package tailscale
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os/exec"
 	"strings"
 
+	"deedles.dev/trayscale/internal/xerrors"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -77,6 +78,32 @@ func (c *Client) run(ctx context.Context, args ...string) (string, error) {
 	return out.String(), err
 }
 
+func (c *Client) currentOptions(ctx context.Context) ([]string, error) {
+	out, err := c.run(ctx, "up", "--timeout=-1s")
+	if err == nil {
+		return nil, nil
+	}
+	if _, ok := xerrors.As[*exec.ExitError](err); !ok {
+		return nil, fmt.Errorf("run bad tailscale command on purpose: %w", err)
+	}
+
+	s := bufio.NewScanner(strings.NewReader(out))
+	for s.Scan() {
+		line := s.Text()
+		trimmed := strings.TrimPrefix(line, "\ttailscale up --timeout=-1s")
+		if line == trimmed {
+			continue
+		}
+
+		return strings.Fields(trimmed), nil
+	}
+	if s.Err() != nil {
+		return nil, fmt.Errorf("scan tailscale command output: %w", err)
+	}
+
+	return nil, errors.New("unable to parse tailscale output")
+}
+
 // Status returns the status of the connection to the Tailscale
 // network. If the network is not currently connected, it returns
 // nil, nil.
@@ -127,7 +154,12 @@ func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error 
 		name = peer.TailscaleIPs[0].String()
 	}
 
-	out, err := c.run(ctx, "up", "--exit-node", name)
-	log.Printf("trayscale: exit node: %v\n", out)
+	args, err := c.CurrentOptions(ctx)
+	if err != nil {
+		return fmt.Errorf("get current tailscale options: %w", err)
+	}
+	args = append(append([]string{"up"}, args...), "--exit-node", name) // Thankfully, specifying the same option twice seems to work just fine.
+
+	_, err = c.run(ctx, args...)
 	return err
 }

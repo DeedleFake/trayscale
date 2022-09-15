@@ -130,6 +130,9 @@ func (c *Client) IsExitNodeAdvertised(ctx context.Context) (bool, error) {
 	return prefs.AdvertisesExitNode(), nil
 }
 
+// AllowLANAccess enabled and disables the ability for the current
+// node to get access to the regular LAN that it is connected to while
+// an exit node is in use.
 func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
 	prefs := ipn.Prefs{
 		ExitNodeAllowLANAccess: allow,
@@ -146,6 +149,8 @@ func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
 	return nil
 }
 
+// IsLANAccessAllowed returns whether or not it is currently possible
+// to access the local LAN while an exit node is in use.
 func (c *Client) IsLANAccessAllowed(ctx context.Context) (bool, error) {
 	prefs, err := localClient.GetPrefs(ctx)
 	if err != nil {

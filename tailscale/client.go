@@ -54,6 +54,11 @@ func (c *Client) Status(ctx context.Context) (*ipnstate.Status, error) {
 	return st, nil
 }
 
+// Prefs returns the options of the local node.
+func (c *Client) Prefs(ctx context.Context) (*ipn.Prefs, error) {
+	return localClient.GetPrefs(ctx)
+}
+
 // Start connects the local peer to the Tailscale network.
 func (c *Client) Start(ctx context.Context) error {
 	_, err := c.run(ctx, "up")
@@ -119,17 +124,6 @@ func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
 	return nil
 }
 
-// IsExitNodeAdvertised checks if the current node is advertising as
-// an exit node or not.
-func (c *Client) IsExitNodeAdvertised(ctx context.Context) (bool, error) {
-	prefs, err := localClient.GetPrefs(ctx)
-	if err != nil {
-		return false, fmt.Errorf("get prefs: %w", err)
-	}
-
-	return prefs.AdvertisesExitNode(), nil
-}
-
 // AllowLANAccess enabled and disables the ability for the current
 // node to get access to the regular LAN that it is connected to while
 // an exit node is in use.
@@ -147,15 +141,4 @@ func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
 	}
 
 	return nil
-}
-
-// IsLANAccessAllowed returns whether or not it is currently possible
-// to access the local LAN while an exit node is in use.
-func (c *Client) IsLANAccessAllowed(ctx context.Context) (bool, error) {
-	prefs, err := localClient.GetPrefs(ctx)
-	if err != nil {
-		return false, fmt.Errorf("get prefs: %w", err)
-	}
-
-	return prefs.ExitNodeAllowLANAccess, nil
 }

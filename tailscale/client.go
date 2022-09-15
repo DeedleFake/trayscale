@@ -43,7 +43,7 @@ func (c *Client) run(ctx context.Context, args ...string) (string, error) {
 // network. If the network is not currently connected, it returns
 // nil, nil.
 func (c *Client) Status(ctx context.Context) (*ipnstate.Status, error) {
-	st, err := tailscale.Status(ctx)
+	st, err := localClient.Status(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get tailscale status: %w", err)
 	}

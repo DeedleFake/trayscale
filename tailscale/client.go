@@ -2,9 +2,7 @@ package tailscale
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log"
 	"os/exec"
 	"strings"
 
@@ -13,15 +11,7 @@ import (
 	"tailscale.com/ipn/ipnstate"
 )
 
-var (
-	// ErrNotAuthorized is returned by functions that require polkit
-	// authorization but fail to get it.
-	ErrNotAuthorized = errors.New("polkit: not authorized")
-)
-
-const defaultAuthAction = "com.github.DeedleFake.trayscale.run-tailscale"
-
-var defaultAuthActionError = fmt.Sprintf("Action %v is not registered", defaultAuthAction)
+var localClient tailscale.LocalClient
 
 // Client is a client for Tailscale's services. Some functionality is
 // handled via the Go API, and some is handled via execution of the
@@ -31,34 +21,6 @@ type Client struct {
 	// defaults to "tailscale".
 	Command string
 }
-
-// authorize attempts to gain authorization from polkit. It will
-// attempt to get authorization first for the given action. If that
-// fails, it will default to a general action that will allow
-// execution of the Tailscale CLI binary.
-//func (c *Client) authorize(action string) error {
-//	if action == "" {
-//		action = defaultAuthAction
-//	}
-//
-//	ok, err := polkit.CheckAuthorization(
-//		int32(os.Getpid()),
-//		uint32(os.Getuid()),
-//		action,
-//		nil,
-//		polkit.CheckAllowInteraction,
-//	)
-//	if err != nil {
-//		if err.Error() == defaultAuthActionError {
-//			return c.authorize("org.freedesktop.policykit.exec")
-//		}
-//		return fmt.Errorf("polkit: %w", err)
-//	}
-//	if !ok {
-//		return ErrNotAuthorized
-//	}
-//	return nil
-//}
 
 // run runs the Tailscale CLI binary with the given arguments. It
 // returns the combined stdout and stderr of the resulting process.
@@ -81,7 +43,7 @@ func (c *Client) run(ctx context.Context, args ...string) (string, error) {
 // network. If the network is not currently connected, it returns
 // nil, nil.
 func (c *Client) Status(ctx context.Context) (*ipnstate.Status, error) {
-	st, err := tailscale.Status(ctx)
+	st, err := localClient.Status(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get tailscale status: %w", err)
 	}
@@ -94,22 +56,12 @@ func (c *Client) Status(ctx context.Context) (*ipnstate.Status, error) {
 
 // Start connects the local peer to the Tailscale network.
 func (c *Client) Start(ctx context.Context) error {
-	//err := c.authorize("")
-	//if err != nil {
-	//	return fmt.Errorf("authorize: %w", err)
-	//}
-
 	_, err := c.run(ctx, "up")
 	return err
 }
 
 // Stop disconnects the local peer from the Tailscale network.
 func (c *Client) Stop(ctx context.Context) error {
-	//err := c.authorize("")
-	//if err != nil {
-	//	return fmt.Errorf("authorize: %w", err)
-	//}
-
 	_, err := c.run(ctx, "down")
 	return err
 }
@@ -117,17 +69,68 @@ func (c *Client) Stop(ctx context.Context) error {
 // ExitNode uses the specified peer as an exit node, or unsets
 // an existing exit node if peer is nil.
 func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
-	//err := c.authorize("")
-	//if err != nil {
-	//	return fmt.Errorf("authorize: %w", err)
-	//}
-
-	var name string
-	if peer != nil {
-		name = peer.TailscaleIPs[0].String()
+	prefs, err := localClient.GetPrefs(ctx)
+	if err != nil {
+		return fmt.Errorf("get prefs: %w", err)
 	}
 
-	out, err := c.run(ctx, "up", "--exit-node", name)
-	log.Printf("trayscale: exit node: %v\n", out)
-	return err
+	if peer == nil {
+		prefs.ClearExitNode()
+		_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+			Prefs:         *prefs,
+			ExitNodeIDSet: true,
+			ExitNodeIPSet: true,
+		})
+		if err != nil {
+			return fmt.Errorf("edit prefs: %w", err)
+		}
+		return nil
+	}
+
+	status, err := localClient.Status(ctx)
+	if err != nil {
+		return fmt.Errorf("get status: %w", err)
+	}
+
+	prefs.SetExitNodeIP(peer.TailscaleIPs[0].String(), status)
+	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:         *prefs,
+		ExitNodeIDSet: true,
+		ExitNodeIPSet: true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+
+	return nil
+}
+
+// AdvertiseExitNode enables and disables exit node advertisement for
+// the current node.
+func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
+	prefs, err := localClient.GetPrefs(ctx)
+	if err != nil {
+		return fmt.Errorf("get prefs: %w", err)
+	}
+	prefs.SetAdvertiseExitNode(enable)
+
+	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:              *prefs,
+		AdvertiseRoutesSet: true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+
+	return nil
+}
+
+// IsExitNodeAdvertised checks if the current node is advertising as
+// an exit node or not.
+func (c *Client) IsExitNodeAdvertised(ctx context.Context) (bool, error) {
+	prefs, err := localClient.GetPrefs(ctx)
+	if err != nil {
+		return false, fmt.Errorf("get prefs: %w", err)
+	}
+	return prefs.AdvertisesExitNode(), nil
 }

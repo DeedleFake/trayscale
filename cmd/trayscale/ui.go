@@ -81,30 +81,36 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 type PeerPage struct {
 	*adw.StatusPage
 
-	IPGroup          *adw.PreferencesGroup
-	MiscGroup        *adw.PreferencesGroup
-	ExitNodeRow      *adw.ActionRow
-	ExitNodeSwitch   *gtk.Switch
-	OnlineRow        *adw.ActionRow
-	Online           *gtk.Image
-	LastSeenRow      *adw.ActionRow
-	LastSeen         *gtk.Label
-	CreatedRow       *adw.ActionRow
-	Created          *gtk.Label
-	LastWriteRow     *adw.ActionRow
-	LastWrite        *gtk.Label
-	LastHandshakeRow *adw.ActionRow
-	LastHandshake    *gtk.Label
-	RxBytesRow       *adw.ActionRow
-	RxBytes          *gtk.Label
-	TxBytesRow       *adw.ActionRow
-	TxBytes          *gtk.Label
+	IPGroup                 *adw.PreferencesGroup
+	OptionsGroup            *adw.PreferencesGroup
+	AdvertiseExitNodeRow    *adw.ActionRow
+	AdvertiseExitNodeSwitch *gtk.Switch
+	MiscGroup               *adw.PreferencesGroup
+	ExitNodeRow             *adw.ActionRow
+	ExitNodeSwitch          *gtk.Switch
+	OnlineRow               *adw.ActionRow
+	Online                  *gtk.Image
+	LastSeenRow             *adw.ActionRow
+	LastSeen                *gtk.Label
+	CreatedRow              *adw.ActionRow
+	Created                 *gtk.Label
+	LastWriteRow            *adw.ActionRow
+	LastWrite               *gtk.Label
+	LastHandshakeRow        *adw.ActionRow
+	LastHandshake           *gtk.Label
+	RxBytesRow              *adw.ActionRow
+	RxBytes                 *gtk.Label
+	TxBytesRow              *adw.ActionRow
+	TxBytes                 *gtk.Label
 }
 
 func NewPeerPage() *PeerPage {
 	parent0 := adw.NewClamp()
 	parent00 := gtk.NewBox(0, 0)
 	IPGroup := adw.NewPreferencesGroup()
+	OptionsGroup := adw.NewPreferencesGroup()
+	AdvertiseExitNodeRow := adw.NewActionRow()
+	AdvertiseExitNodeSwitch := gtk.NewSwitch()
 	MiscGroup := adw.NewPreferencesGroup()
 	ExitNodeRow := adw.NewActionRow()
 	ExitNodeSwitch := gtk.NewSwitch()
@@ -129,9 +135,19 @@ func NewPeerPage() *PeerPage {
 	parent00.SetObjectProperty("orientation", 1)
 	parent00.SetObjectProperty("spacing", 12)
 	parent00.Append(IPGroup)
+	parent00.Append(OptionsGroup)
 	parent00.Append(MiscGroup)
 
 	IPGroup.SetObjectProperty("title", "Tailscale IPs")
+
+	OptionsGroup.SetObjectProperty("title", "Options")
+	OptionsGroup.Add(AdvertiseExitNodeRow)
+
+	AdvertiseExitNodeRow.SetObjectProperty("title", "Advertise exit node")
+	AdvertiseExitNodeRow.AddSuffix(AdvertiseExitNodeSwitch)
+
+	AdvertiseExitNodeSwitch.SetObjectProperty("margin-bottom", 12)
+	AdvertiseExitNodeSwitch.SetObjectProperty("margin-top", 12)
 
 	MiscGroup.SetObjectProperty("title", "Misc.")
 	MiscGroup.Add(ExitNodeRow)
@@ -176,23 +192,26 @@ func NewPeerPage() *PeerPage {
 	return &PeerPage{
 		StatusPage: parent,
 
-		IPGroup:          IPGroup,
-		MiscGroup:        MiscGroup,
-		ExitNodeRow:      ExitNodeRow,
-		ExitNodeSwitch:   ExitNodeSwitch,
-		OnlineRow:        OnlineRow,
-		Online:           Online,
-		LastSeenRow:      LastSeenRow,
-		LastSeen:         LastSeen,
-		CreatedRow:       CreatedRow,
-		Created:          Created,
-		LastWriteRow:     LastWriteRow,
-		LastWrite:        LastWrite,
-		LastHandshakeRow: LastHandshakeRow,
-		LastHandshake:    LastHandshake,
-		RxBytesRow:       RxBytesRow,
-		RxBytes:          RxBytes,
-		TxBytesRow:       TxBytesRow,
-		TxBytes:          TxBytes,
+		IPGroup:                 IPGroup,
+		OptionsGroup:            OptionsGroup,
+		AdvertiseExitNodeRow:    AdvertiseExitNodeRow,
+		AdvertiseExitNodeSwitch: AdvertiseExitNodeSwitch,
+		MiscGroup:               MiscGroup,
+		ExitNodeRow:             ExitNodeRow,
+		ExitNodeSwitch:          ExitNodeSwitch,
+		OnlineRow:               OnlineRow,
+		Online:                  Online,
+		LastSeenRow:             LastSeenRow,
+		LastSeen:                LastSeen,
+		CreatedRow:              CreatedRow,
+		Created:                 Created,
+		LastWriteRow:            LastWriteRow,
+		LastWrite:               LastWrite,
+		LastHandshakeRow:        LastHandshakeRow,
+		LastHandshake:           LastHandshake,
+		RxBytesRow:              RxBytesRow,
+		RxBytes:                 RxBytes,
+		TxBytesRow:              TxBytesRow,
+		TxBytes:                 TxBytes,
 	}
 }

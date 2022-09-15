@@ -1,19 +1,17 @@
 package tailscale
 
 import (
-	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"os/exec"
-	"strconv"
 	"strings"
 
-	"deedles.dev/trayscale/internal/xerrors"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 )
+
+var localClient tailscale.LocalClient
 
 // Client is a client for Tailscale's services. Some functionality is
 // handled via the Go API, and some is handled via execution of the
@@ -41,32 +39,6 @@ func (c *Client) run(ctx context.Context, args ...string) (string, error) {
 	return out.String(), err
 }
 
-func (c *Client) currentOptions(ctx context.Context) ([]string, error) {
-	out, err := c.run(ctx, "up", "--timeout=-1s")
-	if err == nil {
-		return nil, nil
-	}
-	if _, ok := xerrors.As[*exec.ExitError](err); !ok {
-		return nil, fmt.Errorf("run bad tailscale command on purpose: %w", err)
-	}
-
-	s := bufio.NewScanner(strings.NewReader(out))
-	for s.Scan() {
-		line := s.Text()
-		trimmed := strings.TrimPrefix(line, "\ttailscale up --timeout=-1s")
-		if line == trimmed {
-			continue
-		}
-
-		return strings.Fields(trimmed), nil
-	}
-	if s.Err() != nil {
-		return nil, fmt.Errorf("scan tailscale command output: %w", err)
-	}
-
-	return nil, errors.New("unable to parse tailscale output")
-}
-
 // Status returns the status of the connection to the Tailscale
 // network. If the network is not currently connected, it returns
 // nil, nil.
@@ -84,22 +56,12 @@ func (c *Client) Status(ctx context.Context) (*ipnstate.Status, error) {
 
 // Start connects the local peer to the Tailscale network.
 func (c *Client) Start(ctx context.Context) error {
-	//err := c.authorize("")
-	//if err != nil {
-	//	return fmt.Errorf("authorize: %w", err)
-	//}
-
 	_, err := c.run(ctx, "up")
 	return err
 }
 
 // Stop disconnects the local peer from the Tailscale network.
 func (c *Client) Stop(ctx context.Context) error {
-	//err := c.authorize("")
-	//if err != nil {
-	//	return fmt.Errorf("authorize: %w", err)
-	//}
-
 	_, err := c.run(ctx, "down")
 	return err
 }
@@ -107,44 +69,66 @@ func (c *Client) Stop(ctx context.Context) error {
 // ExitNode uses the specified peer as an exit node, or unsets
 // an existing exit node if peer is nil.
 func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
-	//err := c.authorize("")
-	//if err != nil {
-	//	return fmt.Errorf("authorize: %w", err)
-	//}
-
-	var name string
-	if peer != nil {
-		name = peer.TailscaleIPs[0].String()
-	}
-
-	args, err := c.currentOptions(ctx)
+	prefs, err := localClient.GetPrefs(ctx)
 	if err != nil {
-		return fmt.Errorf("get current tailscale options: %w", err)
+		return fmt.Errorf("get prefs: %w", err)
 	}
-	args = append(append([]string{"up"}, args...), "--exit-node", name) // Thankfully, specifying the same option twice seems to work just fine.
 
-	_, err = c.run(ctx, args...)
-	return err
+	if peer == nil {
+		prefs.ClearExitNode()
+		_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+			Prefs:         *prefs,
+			ExitNodeIDSet: true,
+			ExitNodeIPSet: true,
+		})
+		if err != nil {
+			return fmt.Errorf("edit prefs: %w", err)
+		}
+		return nil
+	}
+
+	status, err := localClient.Status(ctx)
+	if err != nil {
+		return fmt.Errorf("get status: %w", err)
+	}
+
+	prefs.SetExitNodeIP(peer.TailscaleIPs[0].String(), status)
+	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:         *prefs,
+		ExitNodeIDSet: true,
+		ExitNodeIPSet: true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+
+	return nil
 }
 
 // AdvertiseExitNode enables and disables exit node advertisement for
 // the current node.
 func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
-	args, err := c.currentOptions(ctx)
+	prefs, err := localClient.GetPrefs(ctx)
 	if err != nil {
-		return fmt.Errorf("get current tailscale options: %w", err)
+		return fmt.Errorf("get prefs: %w", err)
 	}
-	args = append(append([]string{"up"}, args...), "--advertise-exit-node="+strconv.FormatBool(enable))
+	prefs.SetAdvertiseExitNode(enable)
 
-	_, err = c.run(ctx, args...)
-	return err
+	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:              *prefs,
+		AdvertiseRoutesSet: true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+
+	return nil
 }
 
 // IsExitNodeAdvertised checks if the current node is advertising as
 // an exit node or not.
 func (c *Client) IsExitNodeAdvertised(ctx context.Context) (bool, error) {
-	var lc tailscale.LocalClient
-	prefs, err := lc.GetPrefs(ctx)
+	prefs, err := localClient.GetPrefs(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get prefs: %w", err)
 	}

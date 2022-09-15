@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"deedles.dev/trayscale/internal/xerrors"
+	"golang.org/x/exp/slices"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -176,4 +177,15 @@ func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
 
 	_, err = c.run(ctx, args...)
 	return err
+}
+
+// IsExitNodeAdvertised checks if the current node is advertising as
+// an exit node or not.
+func (c *Client) IsExitNodeAdvertised(ctx context.Context) (bool, error) {
+	// TODO: There has got to be a better way to do this...
+	args, err := c.currentOptions(ctx)
+	if err != nil {
+		return false, fmt.Errorf("get current tailscale options: %w", err)
+	}
+	return slices.Contains(args, "--advertise-exit-node"), nil
 }

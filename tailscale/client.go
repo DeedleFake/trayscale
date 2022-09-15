@@ -134,3 +134,30 @@ func (c *Client) IsExitNodeAdvertised(ctx context.Context) (bool, error) {
 	}
 	return prefs.AdvertisesExitNode(), nil
 }
+
+func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
+	prefs, err := localClient.GetPrefs(ctx)
+	if err != nil {
+		return fmt.Errorf("get prefs: %w", err)
+	}
+
+	prefs.ExitNodeAllowLANAccess = allow
+	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:                     *prefs,
+		ExitNodeAllowLANAccessSet: true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) IsLANAccessAllowed(ctx context.Context) (bool, error) {
+	prefs, err := localClient.GetPrefs(ctx)
+	if err != nil {
+		return false, fmt.Errorf("get prefs: %w", err)
+	}
+
+	return prefs.ExitNodeAllowLANAccess, nil
+}

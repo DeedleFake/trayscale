@@ -10,21 +10,10 @@ import (
 	"strings"
 
 	"deedles.dev/trayscale/internal/xerrors"
-	"golang.org/x/exp/slices"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 )
-
-var (
-	// ErrNotAuthorized is returned by functions that require polkit
-	// authorization but fail to get it.
-	ErrNotAuthorized = errors.New("polkit: not authorized")
-)
-
-const defaultAuthAction = "com.github.DeedleFake.trayscale.run-tailscale"
-
-var defaultAuthActionError = fmt.Sprintf("Action %v is not registered", defaultAuthAction)
 
 // Client is a client for Tailscale's services. Some functionality is
 // handled via the Go API, and some is handled via execution of the
@@ -34,34 +23,6 @@ type Client struct {
 	// defaults to "tailscale".
 	Command string
 }
-
-// authorize attempts to gain authorization from polkit. It will
-// attempt to get authorization first for the given action. If that
-// fails, it will default to a general action that will allow
-// execution of the Tailscale CLI binary.
-//func (c *Client) authorize(action string) error {
-//	if action == "" {
-//		action = defaultAuthAction
-//	}
-//
-//	ok, err := polkit.CheckAuthorization(
-//		int32(os.Getpid()),
-//		uint32(os.Getuid()),
-//		action,
-//		nil,
-//		polkit.CheckAllowInteraction,
-//	)
-//	if err != nil {
-//		if err.Error() == defaultAuthActionError {
-//			return c.authorize("org.freedesktop.policykit.exec")
-//		}
-//		return fmt.Errorf("polkit: %w", err)
-//	}
-//	if !ok {
-//		return ErrNotAuthorized
-//	}
-//	return nil
-//}
 
 // run runs the Tailscale CLI binary with the given arguments. It
 // returns the combined stdout and stderr of the resulting process.
@@ -182,10 +143,10 @@ func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
 // IsExitNodeAdvertised checks if the current node is advertising as
 // an exit node or not.
 func (c *Client) IsExitNodeAdvertised(ctx context.Context) (bool, error) {
-	// TODO: There has got to be a better way to do this...
-	args, err := c.currentOptions(ctx)
+	var lc tailscale.LocalClient
+	prefs, err := lc.GetPrefs(ctx)
 	if err != nil {
-		return false, fmt.Errorf("get current tailscale options: %w", err)
+		return false, fmt.Errorf("get prefs: %w", err)
 	}
-	return slices.Contains(args, "--advertise-exit-node"), nil
+	return prefs.AdvertisesExitNode(), nil
 }

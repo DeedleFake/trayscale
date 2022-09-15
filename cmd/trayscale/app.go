@@ -127,10 +127,10 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, self boo
 
 	page.container.OptionsGroup.SetVisible(self)
 	if self {
-		advertised, err := a.TS.IsExitNodeAdvertised(context.TODO())
+		prefs, err := a.TS.Prefs(context.TODO())
 		if err == nil {
-			//log.Printf("Error: check exit node advertisement status: %v", err)
-			page.container.AdvertiseExitNodeSwitch.SetState(advertised)
+			page.container.AdvertiseExitNodeSwitch.SetState(prefs.AdvertisesExitNode())
+			page.container.AllowLANAccessSwitch.SetState(prefs.ExitNodeAllowLANAccess)
 		}
 	}
 
@@ -367,6 +367,21 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		if err != nil {
 			log.Printf("Error: advertise exit node: %v", err)
 			page.container.AdvertiseExitNodeSwitch.SetActive(!s)
+			return true
+		}
+		a.poll <- struct{}{}
+		return true
+	})
+
+	page.container.AllowLANAccessSwitch.ConnectStateSet(func(s bool) bool {
+		if s == page.container.AllowLANAccessSwitch.State() {
+			return false
+		}
+
+		err := a.TS.AllowLANAccess(context.TODO(), s)
+		if err != nil {
+			log.Printf("Error: advertise exit node: %v", err)
+			page.container.AllowLANAccessSwitch.SetActive(!s)
 			return true
 		}
 		a.poll <- struct{}{}

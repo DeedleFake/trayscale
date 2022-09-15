@@ -41,7 +41,9 @@
 	(2,26,"GtkLabel","LastHandshake",25,None,None,None,None,None),
 	(2,27,"AdwPreferencesGroup","OptionsGroup",7,None,None,None,1,None),
 	(2,28,"AdwActionRow","AdvertiseExitNodeRow",27,None,None,None,None,None),
-	(2,29,"GtkSwitch","AdvertiseExitNodeSwitch",28,None,None,None,None,None)
+	(2,29,"GtkSwitch","AdvertiseExitNodeSwitch",28,None,None,None,None,None),
+	(2,30,"AdwActionRow","AllowLANAccessRow",27,None,None,None,1,None),
+	(2,31,"GtkSwitch","AllowLANAccessSwitch",30,None,None,None,None,None)
   </object>
   <object_property>
 	(1,1,"AdwApplicationWindow","content","4",None,None,None,None,None),
@@ -79,6 +81,9 @@
 	(2,27,"AdwPreferencesGroup","title","Options",None,None,None,None,None),
 	(2,28,"AdwPreferencesRow","title","Advertise exit node",None,None,None,None,None),
 	(2,29,"GtkWidget","margin-bottom","12",None,None,None,None,None),
-	(2,29,"GtkWidget","margin-top","12",None,None,None,None,None)
+	(2,29,"GtkWidget","margin-top","12",None,None,None,None,None),
+	(2,30,"AdwPreferencesRow","title","Allow LAN access",None,None,None,None,None),
+	(2,31,"GtkWidget","margin-bottom","12",None,None,None,None,None),
+	(2,31,"GtkWidget","margin-top","12",None,None,None,None,None)
   </object_property>
 </cambalache-project>

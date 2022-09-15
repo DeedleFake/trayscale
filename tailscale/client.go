@@ -54,6 +54,11 @@ func (c *Client) Status(ctx context.Context) (*ipnstate.Status, error) {
 	return st, nil
 }
 
+// Prefs returns the options of the local node.
+func (c *Client) Prefs(ctx context.Context) (*ipn.Prefs, error) {
+	return localClient.GetPrefs(ctx)
+}
+
 // Start connects the local peer to the Tailscale network.
 func (c *Client) Start(ctx context.Context) error {
 	_, err := c.run(ctx, "up")
@@ -69,15 +74,11 @@ func (c *Client) Stop(ctx context.Context) error {
 // ExitNode uses the specified peer as an exit node, or unsets
 // an existing exit node if peer is nil.
 func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
-	prefs, err := localClient.GetPrefs(ctx)
-	if err != nil {
-		return fmt.Errorf("get prefs: %w", err)
-	}
-
 	if peer == nil {
+		var prefs ipn.Prefs
 		prefs.ClearExitNode()
-		_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-			Prefs:         *prefs,
+		_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+			Prefs:         prefs,
 			ExitNodeIDSet: true,
 			ExitNodeIPSet: true,
 		})
@@ -92,9 +93,10 @@ func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error 
 		return fmt.Errorf("get status: %w", err)
 	}
 
+	var prefs ipn.Prefs
 	prefs.SetExitNodeIP(peer.TailscaleIPs[0].String(), status)
 	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-		Prefs:         *prefs,
+		Prefs:         prefs,
 		ExitNodeIDSet: true,
 		ExitNodeIPSet: true,
 	})
@@ -108,14 +110,11 @@ func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error 
 // AdvertiseExitNode enables and disables exit node advertisement for
 // the current node.
 func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
-	prefs, err := localClient.GetPrefs(ctx)
-	if err != nil {
-		return fmt.Errorf("get prefs: %w", err)
-	}
+	var prefs ipn.Prefs
 	prefs.SetAdvertiseExitNode(enable)
 
-	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-		Prefs:              *prefs,
+	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:              prefs,
 		AdvertiseRoutesSet: true,
 	})
 	if err != nil {
@@ -125,12 +124,21 @@ func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
 	return nil
 }
 
-// IsExitNodeAdvertised checks if the current node is advertising as
-// an exit node or not.
-func (c *Client) IsExitNodeAdvertised(ctx context.Context) (bool, error) {
-	prefs, err := localClient.GetPrefs(ctx)
-	if err != nil {
-		return false, fmt.Errorf("get prefs: %w", err)
+// AllowLANAccess enabled and disables the ability for the current
+// node to get access to the regular LAN that it is connected to while
+// an exit node is in use.
+func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
+	prefs := ipn.Prefs{
+		ExitNodeAllowLANAccess: allow,
 	}
-	return prefs.AdvertisesExitNode(), nil
+
+	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:                     prefs,
+		ExitNodeAllowLANAccessSet: true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+
+	return nil
 }

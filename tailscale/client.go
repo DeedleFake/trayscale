@@ -69,15 +69,11 @@ func (c *Client) Stop(ctx context.Context) error {
 // ExitNode uses the specified peer as an exit node, or unsets
 // an existing exit node if peer is nil.
 func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
-	prefs, err := localClient.GetPrefs(ctx)
-	if err != nil {
-		return fmt.Errorf("get prefs: %w", err)
-	}
-
 	if peer == nil {
+		var prefs ipn.Prefs
 		prefs.ClearExitNode()
-		_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-			Prefs:         *prefs,
+		_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+			Prefs:         prefs,
 			ExitNodeIDSet: true,
 			ExitNodeIPSet: true,
 		})
@@ -92,9 +88,10 @@ func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error 
 		return fmt.Errorf("get status: %w", err)
 	}
 
+	var prefs ipn.Prefs
 	prefs.SetExitNodeIP(peer.TailscaleIPs[0].String(), status)
 	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-		Prefs:         *prefs,
+		Prefs:         prefs,
 		ExitNodeIDSet: true,
 		ExitNodeIPSet: true,
 	})
@@ -108,14 +105,11 @@ func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error 
 // AdvertiseExitNode enables and disables exit node advertisement for
 // the current node.
 func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
-	prefs, err := localClient.GetPrefs(ctx)
-	if err != nil {
-		return fmt.Errorf("get prefs: %w", err)
-	}
+	var prefs ipn.Prefs
 	prefs.SetAdvertiseExitNode(enable)
 
-	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-		Prefs:              *prefs,
+	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:              prefs,
 		AdvertiseRoutesSet: true,
 	})
 	if err != nil {
@@ -132,18 +126,17 @@ func (c *Client) IsExitNodeAdvertised(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("get prefs: %w", err)
 	}
+
 	return prefs.AdvertisesExitNode(), nil
 }
 
 func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
-	prefs, err := localClient.GetPrefs(ctx)
-	if err != nil {
-		return fmt.Errorf("get prefs: %w", err)
+	prefs := ipn.Prefs{
+		ExitNodeAllowLANAccess: allow,
 	}
 
-	prefs.ExitNodeAllowLANAccess = allow
-	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-		Prefs:                     *prefs,
+	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:                     prefs,
 		ExitNodeAllowLANAccessSet: true,
 	})
 	if err != nil {

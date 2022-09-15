@@ -125,6 +125,15 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, self boo
 		page.addrRows = append(page.addrRows, iprow)
 	}
 
+	page.container.OptionsGroup.SetVisible(self)
+	if self {
+		advertised, err := a.TS.IsExitNodeAdvertised(context.TODO())
+		if err == nil {
+			//log.Printf("Error: check exit node advertisement status: %v", err)
+			page.container.AdvertiseExitNodeSwitch.SetState(advertised)
+		}
+	}
+
 	page.container.MiscGroup.SetVisible(!self)
 	page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
 	page.container.ExitNodeSwitch.SetState(peer.ExitNode)
@@ -343,6 +352,21 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		if err != nil {
 			log.Printf("Error: set exit node: %v", err)
 			page.container.ExitNodeSwitch.SetActive(!s)
+			return true
+		}
+		a.poll <- struct{}{}
+		return true
+	})
+
+	page.container.AdvertiseExitNodeSwitch.ConnectStateSet(func(s bool) bool {
+		if s == page.container.AdvertiseExitNodeSwitch.State() {
+			return false
+		}
+
+		err := a.TS.AdvertiseExitNode(context.TODO(), s)
+		if err != nil {
+			log.Printf("Error: advertise exit node: %v", err)
+			page.container.AdvertiseExitNodeSwitch.SetActive(!s)
 			return true
 		}
 		a.poll <- struct{}{}

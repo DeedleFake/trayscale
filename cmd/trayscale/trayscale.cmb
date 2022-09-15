@@ -38,7 +38,10 @@
 	(2,23,"AdwActionRow","OnlineRow",9,None,None,None,1,None),
 	(2,24,"GtkImage","Online",23,None,None,None,None,None),
 	(2,25,"AdwActionRow","LastHandshakeRow",9,None,None,None,5,None),
-	(2,26,"GtkLabel","LastHandshake",25,None,None,None,None,None)
+	(2,26,"GtkLabel","LastHandshake",25,None,None,None,None,None),
+	(2,27,"AdwPreferencesGroup","OptionsGroup",7,None,None,None,1,None),
+	(2,28,"AdwActionRow","AdvertiseExitNodeRow",27,None,None,None,None,None),
+	(2,29,"GtkSwitch","AdvertiseExitNodeSwitch",28,None,None,None,None,None)
   </object>
   <object_property>
 	(1,1,"AdwApplicationWindow","content","4",None,None,None,None,None),
@@ -72,6 +75,10 @@
 	(2,19,"AdwPreferencesRow","title","Last write",None,None,None,None,None),
 	(2,21,"AdwPreferencesRow","title","Last seen",None,None,None,None,None),
 	(2,23,"AdwPreferencesRow","title","Online",None,None,None,None,None),
-	(2,25,"AdwPreferencesRow","title","Last handshake",None,None,None,None,None)
+	(2,25,"AdwPreferencesRow","title","Last handshake",None,None,None,None,None),
+	(2,27,"AdwPreferencesGroup","title","Options",None,None,None,None,None),
+	(2,28,"AdwPreferencesRow","title","Advertise exit node",None,None,None,None,None),
+	(2,29,"GtkWidget","margin-bottom","12",None,None,None,None,None),
+	(2,29,"GtkWidget","margin-top","12",None,None,None,None,None)
   </object_property>
 </cambalache-project>

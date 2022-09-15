@@ -85,6 +85,8 @@ type PeerPage struct {
 	OptionsGroup            *adw.PreferencesGroup
 	AdvertiseExitNodeRow    *adw.ActionRow
 	AdvertiseExitNodeSwitch *gtk.Switch
+	AllowLANAccessRow       *adw.ActionRow
+	AllowLANAccessSwitch    *gtk.Switch
 	MiscGroup               *adw.PreferencesGroup
 	ExitNodeRow             *adw.ActionRow
 	ExitNodeSwitch          *gtk.Switch
@@ -111,6 +113,8 @@ func NewPeerPage() *PeerPage {
 	OptionsGroup := adw.NewPreferencesGroup()
 	AdvertiseExitNodeRow := adw.NewActionRow()
 	AdvertiseExitNodeSwitch := gtk.NewSwitch()
+	AllowLANAccessRow := adw.NewActionRow()
+	AllowLANAccessSwitch := gtk.NewSwitch()
 	MiscGroup := adw.NewPreferencesGroup()
 	ExitNodeRow := adw.NewActionRow()
 	ExitNodeSwitch := gtk.NewSwitch()
@@ -142,12 +146,19 @@ func NewPeerPage() *PeerPage {
 
 	OptionsGroup.SetObjectProperty("title", "Options")
 	OptionsGroup.Add(AdvertiseExitNodeRow)
+	OptionsGroup.Add(AllowLANAccessRow)
 
 	AdvertiseExitNodeRow.SetObjectProperty("title", "Advertise exit node")
 	AdvertiseExitNodeRow.AddSuffix(AdvertiseExitNodeSwitch)
 
 	AdvertiseExitNodeSwitch.SetObjectProperty("margin-bottom", 12)
 	AdvertiseExitNodeSwitch.SetObjectProperty("margin-top", 12)
+
+	AllowLANAccessRow.SetObjectProperty("title", "Allow LAN access")
+	AllowLANAccessRow.AddSuffix(AllowLANAccessSwitch)
+
+	AllowLANAccessSwitch.SetObjectProperty("margin-bottom", 12)
+	AllowLANAccessSwitch.SetObjectProperty("margin-top", 12)
 
 	MiscGroup.SetObjectProperty("title", "Misc.")
 	MiscGroup.Add(ExitNodeRow)
@@ -196,6 +207,8 @@ func NewPeerPage() *PeerPage {
 		OptionsGroup:            OptionsGroup,
 		AdvertiseExitNodeRow:    AdvertiseExitNodeRow,
 		AdvertiseExitNodeSwitch: AdvertiseExitNodeSwitch,
+		AllowLANAccessRow:       AllowLANAccessRow,
+		AllowLANAccessSwitch:    AllowLANAccessSwitch,
 		MiscGroup:               MiscGroup,
 		ExitNodeRow:             ExitNodeRow,
 		ExitNodeSwitch:          ExitNodeSwitch,

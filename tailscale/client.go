@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"deedles.dev/trayscale/internal/xerrors"
@@ -154,11 +155,24 @@ func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error 
 		name = peer.TailscaleIPs[0].String()
 	}
 
-	args, err := c.CurrentOptions(ctx)
+	args, err := c.currentOptions(ctx)
 	if err != nil {
 		return fmt.Errorf("get current tailscale options: %w", err)
 	}
 	args = append(append([]string{"up"}, args...), "--exit-node", name) // Thankfully, specifying the same option twice seems to work just fine.
+
+	_, err = c.run(ctx, args...)
+	return err
+}
+
+// AdvertiseExitNode enables and disables exit node advertisement for
+// the current node.
+func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
+	args, err := c.currentOptions(ctx)
+	if err != nil {
+		return fmt.Errorf("get current tailscale options: %w", err)
+	}
+	args = append(append([]string{"up"}, args...), "--advertise-exit-node", strconv.FormatBool(enable))
 
 	_, err = c.run(ctx, args...)
 	return err

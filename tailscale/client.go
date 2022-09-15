@@ -172,7 +172,7 @@ func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
 	if err != nil {
 		return fmt.Errorf("get current tailscale options: %w", err)
 	}
-	args = append(append([]string{"up"}, args...), "--advertise-exit-node", strconv.FormatBool(enable))
+	args = append(append([]string{"up"}, args...), "--advertise-exit-node="+strconv.FormatBool(enable))
 
 	_, err = c.run(ctx, args...)
 	return err

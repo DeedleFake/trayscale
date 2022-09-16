@@ -12,4 +12,8 @@ import (
 	{{range .Templates -}}
 		{{template "template.tmpl" .}}
 	{{end}}
+
+	{{range .Menus -}}
+		{{template "menu.tmpl" .}}
+	{{end}}
 {{end}}

@@ -9,9 +9,13 @@ import (
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/net/netcheck"
 )
 
-var localClient tailscale.LocalClient
+var (
+	localClient    tailscale.LocalClient
+	netcheckClient netcheck.Client
+)
 
 // Client is a client for Tailscale's services. Some functionality is
 // handled via the Go API, and some is handled via execution of the
@@ -141,4 +145,18 @@ func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
 	}
 
 	return nil
+}
+
+func (c *Client) NetCheck(ctx context.Context) (*netcheck.Report, error) {
+	dm, err := localClient.CurrentDERPMap(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("current DERP map: %w", err)
+	}
+
+	r, err := netcheckClient.GetReport(ctx, dm)
+	if err != nil {
+		return nil, fmt.Errorf("get netcheck report: %w", err)
+	}
+
+	return r, nil
 }

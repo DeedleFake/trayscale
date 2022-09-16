@@ -6,8 +6,8 @@ require (
 	deedles.dev/mk v0.1.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220417101956-dcc3707dc307
 	github.com/diamondburned/gotk4/pkg v0.0.0-20220914035633-4e35b1a80848
-	golang.org/x/exp v0.0.0-20220914170420-dc92f8653013
-	tailscale.com v1.30.1
+	golang.org/x/exp v0.0.0-20220916125017-b168a2c6b86b
+	tailscale.com v1.30.2
 )
 
 require (
@@ -29,6 +29,6 @@ require (
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
 	golang.org/x/net v0.0.0-20220909164309-bea034e7d591 // indirect
 	golang.org/x/sync v0.0.0-20220907140024-f12130a52804 // indirect
-	golang.org/x/sys v0.0.0-20220913175220-63ea55921009 // indirect
+	golang.org/x/sys v0.0.0-20220915200043-7b5979e65e41 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 )

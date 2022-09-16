@@ -4,6 +4,7 @@ package main
 
 import (
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
@@ -227,4 +228,16 @@ func NewPeerPage() *PeerPage {
 		TxBytesRow:              TxBytesRow,
 		TxBytes:                 TxBytes,
 	}
+}
+
+var MainMenu = gio.NewMenu()
+
+func init() {
+	s0 := gio.NewMenu()
+	s0i0 := gio.NewMenuItem("_About", "app.about")
+	s0.AppendItem(s0i0)
+	s0i1 := gio.NewMenuItem("_Quit", "app.quit")
+	s0.AppendItem(s0i1)
+
+	MainMenu.AppendSection("", s0)
 }

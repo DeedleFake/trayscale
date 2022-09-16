@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"log"
 	"net/netip"
 	"os"
@@ -24,10 +23,7 @@ import (
 	"tailscale.com/types/key"
 )
 
-//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen -out ui.go mainwindow.ui peerpage.ui
-
-//go:embed menu.ui
-var menuXML string
+//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen -out ui.go mainwindow.ui peerpage.ui menu.ui
 
 // App is the main type for the app, containing all of the state
 // necessary to run it.
@@ -275,13 +271,10 @@ func (a *App) init(ctx context.Context) {
 		a.statusPage.SetIconName("network-offline-symbolic")
 		a.statusPage.SetDescription("Tailscale is not connected")
 
-		builder := gtk.NewBuilder()
-		builder.AddFromString(menuXML, len(menuXML))
-
 		a.win = NewMainWindow(&a.app.Application)
 
 		// Workaround for Cambalache limitations.
-		a.win.MainMenuButton.SetMenuModel(builder.GetObject("MainMenu").Cast().(gio.MenuModeller))
+		a.win.MainMenuButton.SetMenuModel(MainMenu)
 
 		a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
 			if s == a.win.StatusSwitch.State() {

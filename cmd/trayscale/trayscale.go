@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -74,6 +75,20 @@ func peerIcon(peer *ipnstate.PeerStatus) string {
 }
 
 func main() {
+	if prof, ok := os.LookupEnv("PPROF"); ok {
+		file, err := os.Create(prof)
+		if err != nil {
+			panic(err)
+		}
+		defer file.Close()
+
+		err = pprof.StartCPUProfile(file)
+		if err != nil {
+			panic(err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 

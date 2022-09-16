@@ -5,11 +5,18 @@ package {{.Package}}
 import (
 	{{range .UI | requires -}}
 		{{.Import | printf "%q"}}
-	{{end}}
+	{{end -}}
+	{{if .UI | hasMenus -}}
+		"github.com/diamondburned/gotk4/pkg/gio/v2"
+	{{end -}}
 )
 
 {{range .UI -}}
 	{{range .Templates -}}
 		{{template "template.tmpl" .}}
-	{{end}}
+	{{end -}}
+
+	{{range .Menus -}}
+		{{template "menu.tmpl" .}}
+	{{end -}}
 {{end}}

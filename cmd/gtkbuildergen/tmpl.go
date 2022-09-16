@@ -20,6 +20,14 @@ func init() {
 			// TODO: Return better values.
 			return ui[0].Requires
 		},
+		"hasMenus": func(ui []Interface) bool {
+			for _, i := range ui {
+				if len(i.Menus) != 0 {
+					return true
+				}
+			}
+			return false
+		},
 	})
 	tmpl = template.Must(tmpl.ParseFS(tmplFS, "*.tmpl"))
 }

@@ -145,6 +145,36 @@ type Menu struct {
 	XMLName xml.Name `xml:"menu"`
 
 	ID string `xml:"id,attr"`
+
+	Sections []Section `xml:"section"`
+}
+
+type Section struct {
+	XMLName xml.Name `xml:"section"`
+
+	Items []Item `xml:"item"`
+}
+
+type Item struct {
+	XMLName xml.Name `xml:"item"`
+
+	Attributes []Attribute `xml:"attribute"`
+}
+
+func (item Item) AttrByName(name string) string {
+	for _, attr := range item.Attributes {
+		if attr.Name == name {
+			return attr.Value
+		}
+	}
+	return ""
+}
+
+type Attribute struct {
+	XMLName xml.Name `xml:"attribute"`
+
+	Name  string `xml:"name,attr"`
+	Value string `xml:",chardata"`
 }
 
 type Class string

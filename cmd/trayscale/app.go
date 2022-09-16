@@ -104,6 +104,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 	page.page.SetTitle(peerName(peer, self))
 
 	page.container.SetTitle(peer.HostName)
+	page.container.SetDescription(peer.DNSName)
 
 	for _, row := range page.addrRows {
 		page.container.IPGroup.Remove(row)

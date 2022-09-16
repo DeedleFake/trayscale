@@ -19,6 +19,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
+	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
@@ -45,20 +46,33 @@ type App struct {
 	peerPages  map[key.NodePublic]*peerPage
 }
 
-// pollStatus runs a loop that continues until ctx is cancelled. The
-// loop polls Tailscale at regular intervals to determine the
-// network's status, updating the App's state with the result.
-func (a *App) pollStatus(ctx context.Context) {
+// poller runs a loop that continues until ctx is cancelled. The loop
+// polls Tailscale at regular intervals to determine the network's
+// status, updating the App's state with the result.
+func (a *App) poller(ctx context.Context) {
 	const ticklen = 5 * time.Second
 	check := time.NewTicker(ticklen)
 
 	for {
 		status, err := a.TS.Status(ctx)
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			log.Printf("Error: Tailscale status: %v", err)
 			continue
 		}
-		glib.IdleAdd(func() { a.update(status) })
+
+		prefs, err := a.TS.Prefs(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			log.Printf("Error: Tailscale prefs: %v", err)
+			continue
+		}
+
+		glib.IdleAdd(func() { a.update(status, prefs) })
 
 		select {
 		case <-ctx.Done():
@@ -89,7 +103,7 @@ func (a *App) showAboutDialog() {
 	a.app.AddWindow(&dialog.Window)
 }
 
-func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, self bool) {
+func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *ipn.Prefs, self bool) {
 	page.page.SetIconName(peerIcon(peer))
 	page.page.SetTitle(peerName(peer, self))
 
@@ -127,11 +141,8 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, self boo
 
 	page.container.OptionsGroup.SetVisible(self)
 	if self {
-		prefs, err := a.TS.Prefs(context.TODO())
-		if err == nil {
-			page.container.AdvertiseExitNodeSwitch.SetState(prefs.AdvertisesExitNode())
-			page.container.AllowLANAccessSwitch.SetState(prefs.ExitNodeAllowLANAccess)
-		}
+		page.container.AdvertiseExitNodeSwitch.SetState(prefs.AdvertisesExitNode())
+		page.container.AllowLANAccessSwitch.SetState(prefs.ExitNodeAllowLANAccess)
 	}
 
 	page.container.MiscGroup.SetVisible(!self)
@@ -169,7 +180,7 @@ func (a *App) notify(status bool) {
 	a.app.SendNotification("tailscale-status", n)
 }
 
-func (a *App) updatePeers(status *ipnstate.Status) {
+func (a *App) updatePeers(status *ipnstate.Status, prefs *ipn.Prefs) {
 	const statusPageName = "status"
 
 	w := a.win.PeersStack
@@ -205,13 +216,13 @@ func (a *App) updatePeers(status *ipnstate.Status) {
 		ps := peerMap[p]
 		pw := a.newPeerPage(ps)
 		pw.page = w.AddTitled(pw.container, p.String(), peerName(ps, p == status.Self.PublicKey))
-		a.updatePeerPage(pw, ps, p == status.Self.PublicKey)
+		a.updatePeerPage(pw, ps, prefs, p == status.Self.PublicKey)
 		a.peerPages[p] = pw
 	}
 
 	for _, p := range u {
 		page := a.peerPages[p]
-		a.updatePeerPage(page, peerMap[p], p == status.Self.PublicKey)
+		a.updatePeerPage(page, peerMap[p], prefs, p == status.Self.PublicKey)
 	}
 
 	if w.Pages().NItems() == 0 {
@@ -220,7 +231,7 @@ func (a *App) updatePeers(status *ipnstate.Status) {
 	}
 }
 
-func (a *App) update(status *ipnstate.Status) {
+func (a *App) update(status *ipnstate.Status, prefs *ipn.Prefs) {
 	online := status != nil
 	if a.online != online {
 		a.online = online
@@ -231,7 +242,7 @@ func (a *App) update(status *ipnstate.Status) {
 	}
 
 	a.win.StatusSwitch.SetState(online)
-	a.updatePeers(status)
+	a.updatePeers(status, prefs)
 }
 
 // init initializes the App, loading the builder XML, creating a
@@ -317,7 +328,7 @@ func (a *App) Run(ctx context.Context) {
 	a.init(ctx)
 
 	mk.Chan(&a.poll, 1)
-	go a.pollStatus(ctx)
+	go a.poller(ctx)
 
 	go func() {
 		<-ctx.Done()

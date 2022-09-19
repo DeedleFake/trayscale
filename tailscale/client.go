@@ -10,6 +10,7 @@ import (
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/netcheck"
+	"tailscale.com/tailcfg"
 )
 
 var (
@@ -151,16 +152,16 @@ func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
 	return nil
 }
 
-func (c *Client) NetCheck(ctx context.Context) (*netcheck.Report, error) {
+func (c *Client) NetCheck(ctx context.Context) (*netcheck.Report, *tailcfg.DERPMap, error) {
 	dm, err := localClient.CurrentDERPMap(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("current DERP map: %w", err)
+		return nil, nil, fmt.Errorf("current DERP map: %w", err)
 	}
 
 	r, err := netcheckClient.GetReport(ctx, dm)
 	if err != nil {
-		return nil, fmt.Errorf("get netcheck report: %w", err)
+		return nil, nil, fmt.Errorf("get netcheck report: %w", err)
 	}
 
-	return r, nil
+	return r, dm, nil
 }

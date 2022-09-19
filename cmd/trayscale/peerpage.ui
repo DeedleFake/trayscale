@@ -16,6 +16,17 @@
               </object>
             </child>
             <child>
+              <object class="AdwPreferencesGroup" id="NetCheckGroup">
+                <property name="header-suffix">NetCheckButton</property>
+                <property name="title">Network Check</property>
+                <child>
+                  <object class="GtkButton" id="NetCheckButton">
+                    <property name="icon-name">view-refresh-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
               <object class="AdwPreferencesGroup" id="OptionsGroup">
                 <property name="title">Options</property>
                 <child>

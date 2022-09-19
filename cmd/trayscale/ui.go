@@ -67,7 +67,6 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 	parent.SetObjectProperty("default-height", 600)
 	parent.SetObjectProperty("default-width", 800)
 	parent.SetObjectProperty("title", "Trayscale")
-	parent.SetContent(ToastOverlay)
 
 	return &MainWindow{
 		ApplicationWindow: parent,
@@ -83,6 +82,8 @@ type PeerPage struct {
 	*adw.StatusPage
 
 	IPGroup                 *adw.PreferencesGroup
+	NetCheckGroup           *adw.PreferencesGroup
+	NetCheckButton          *gtk.Button
 	OptionsGroup            *adw.PreferencesGroup
 	AdvertiseExitNodeRow    *adw.ActionRow
 	AdvertiseExitNodeSwitch *gtk.Switch
@@ -111,6 +112,8 @@ func NewPeerPage() *PeerPage {
 	parent0 := adw.NewClamp()
 	parent00 := gtk.NewBox(0, 0)
 	IPGroup := adw.NewPreferencesGroup()
+	NetCheckGroup := adw.NewPreferencesGroup()
+	NetCheckButton := gtk.NewButton()
 	OptionsGroup := adw.NewPreferencesGroup()
 	AdvertiseExitNodeRow := adw.NewActionRow()
 	AdvertiseExitNodeSwitch := gtk.NewSwitch()
@@ -140,10 +143,16 @@ func NewPeerPage() *PeerPage {
 	parent00.SetObjectProperty("orientation", 1)
 	parent00.SetObjectProperty("spacing", 12)
 	parent00.Append(IPGroup)
+	parent00.Append(NetCheckGroup)
 	parent00.Append(OptionsGroup)
 	parent00.Append(MiscGroup)
 
 	IPGroup.SetObjectProperty("title", "Tailscale IPs")
+
+	NetCheckGroup.SetObjectProperty("header-suffix", NetCheckButton)
+	NetCheckGroup.SetObjectProperty("title", "Network Check")
+
+	NetCheckButton.SetObjectProperty("icon-name", "view-refresh-symbolic")
 
 	OptionsGroup.SetObjectProperty("title", "Options")
 	OptionsGroup.Add(AdvertiseExitNodeRow)
@@ -205,6 +214,8 @@ func NewPeerPage() *PeerPage {
 		StatusPage: parent,
 
 		IPGroup:                 IPGroup,
+		NetCheckGroup:           NetCheckGroup,
+		NetCheckButton:          NetCheckButton,
 		OptionsGroup:            OptionsGroup,
 		AdvertiseExitNodeRow:    AdvertiseExitNodeRow,
 		AdvertiseExitNodeSwitch: AdvertiseExitNodeSwitch,

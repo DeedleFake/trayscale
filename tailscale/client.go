@@ -14,7 +14,11 @@ import (
 
 var (
 	localClient    tailscale.LocalClient
-	netcheckClient netcheck.Client
+	netcheckClient = netcheck.Client{
+		Logf: func(format string, v ...any) {
+			// Do nothing.
+		},
+	}
 )
 
 // Client is a client for Tailscale's services. Some functionality is

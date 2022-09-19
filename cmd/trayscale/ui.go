@@ -97,6 +97,12 @@ type PeerPage struct {
 	IPv4                    *gtk.Image
 	IPv6Row                 *adw.ActionRow
 	IPv6                    *gtk.Image
+	UPnPRow                 *adw.ActionRow
+	UPnP                    *gtk.Image
+	PMPRow                  *adw.ActionRow
+	PMP                     *gtk.Image
+	PCPRow                  *adw.ActionRow
+	PCP                     *gtk.Image
 	HairPinningRow          *adw.ActionRow
 	HairPinning             *gtk.Image
 	PreferredDERPRow        *adw.ActionRow
@@ -140,6 +146,12 @@ func NewPeerPage() *PeerPage {
 	IPv4 := gtk.NewImage()
 	IPv6Row := adw.NewActionRow()
 	IPv6 := gtk.NewImage()
+	UPnPRow := adw.NewActionRow()
+	UPnP := gtk.NewImage()
+	PMPRow := adw.NewActionRow()
+	PMP := gtk.NewImage()
+	PCPRow := adw.NewActionRow()
+	PCP := gtk.NewImage()
 	HairPinningRow := adw.NewActionRow()
 	HairPinning := gtk.NewImage()
 	PreferredDERPRow := adw.NewActionRow()
@@ -197,6 +209,9 @@ func NewPeerPage() *PeerPage {
 	NetCheckGroup.Add(UDPRow)
 	NetCheckGroup.Add(IPv4Row)
 	NetCheckGroup.Add(IPv6Row)
+	NetCheckGroup.Add(UPnPRow)
+	NetCheckGroup.Add(PMPRow)
+	NetCheckGroup.Add(PCPRow)
 	NetCheckGroup.Add(HairPinningRow)
 	NetCheckGroup.Add(PreferredDERPRow)
 	NetCheckGroup.Add(DERPLatencies)
@@ -219,6 +234,18 @@ func NewPeerPage() *PeerPage {
 	IPv6Row.SetObjectProperty("title", "IPv6")
 	IPv6Row.SetObjectProperty("visible", false)
 	IPv6Row.AddSuffix(IPv6)
+
+	UPnPRow.SetObjectProperty("title", "UPnP")
+	UPnPRow.SetObjectProperty("visible", false)
+	UPnPRow.AddSuffix(UPnP)
+
+	PMPRow.SetObjectProperty("title", "NAT port mapping protocol")
+	PMPRow.SetObjectProperty("visible", false)
+	PMPRow.AddSuffix(PMP)
+
+	PCPRow.SetObjectProperty("title", "Port control protocol")
+	PCPRow.SetObjectProperty("visible", false)
+	PCPRow.AddSuffix(PCP)
 
 	HairPinningRow.SetObjectProperty("title", "Hair pinning")
 	HairPinningRow.SetObjectProperty("visible", false)
@@ -292,6 +319,12 @@ func NewPeerPage() *PeerPage {
 		IPv4:                    IPv4,
 		IPv6Row:                 IPv6Row,
 		IPv6:                    IPv6,
+		UPnPRow:                 UPnPRow,
+		UPnP:                    UPnP,
+		PMPRow:                  PMPRow,
+		PMP:                     PMP,
+		PCPRow:                  PCPRow,
+		PCP:                     PCP,
 		HairPinningRow:          HairPinningRow,
 		HairPinning:             HairPinning,
 		PreferredDERPRow:        PreferredDERPRow,

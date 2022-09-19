@@ -54,11 +54,17 @@
 	(2,41,"GtkImage","IPv6",38,None,None,None,None,None),
 	(2,42,"AdwActionRow","LastNetCheckRow",32,None,None,None,1,None),
 	(2,43,"GtkLabel","LastNetCheck",42,None,None,None,None,None),
-	(2,44,"AdwActionRow","PreferredDERPRow",32,None,None,None,6,None),
+	(2,44,"AdwActionRow","PreferredDERPRow",32,None,None,None,9,None),
 	(2,45,"GtkLabel","PreferredDERP",44,None,None,None,None,None),
-	(2,48,"AdwActionRow","HairPinningRow",32,None,None,None,5,None),
+	(2,48,"AdwActionRow","HairPinningRow",32,None,None,None,8,None),
 	(2,49,"GtkImage","HairPinning",48,None,None,None,None,None),
-	(2,51,"AdwExpanderRow","DERPLatencies",32,None,None,None,7,None)
+	(2,51,"AdwExpanderRow","DERPLatencies",32,None,None,None,10,None),
+	(2,52,"AdwActionRow","UPnPRow",32,None,None,None,5,None),
+	(2,53,"GtkImage","UPnP",52,None,None,None,None,None),
+	(2,54,"AdwActionRow","PMPRow",32,None,None,None,6,None),
+	(2,55,"GtkImage","PMP",54,None,None,None,None,None),
+	(2,56,"AdwActionRow","PCPRow",32,None,None,None,7,None),
+	(2,57,"GtkImage","PCP",56,None,None,None,None,None)
   </object>
   <object_property>
 	(1,1,"AdwApplicationWindow","content","4",None,None,None,None,None),
@@ -117,6 +123,12 @@
 	(2,48,"AdwPreferencesRow","title","Hair pinning",None,None,None,None,None),
 	(2,48,"GtkWidget","visible","False",None,None,None,None,None),
 	(2,51,"AdwPreferencesRow","title","DERP Latencies",None,None,None,None,None),
-	(2,51,"GtkWidget","visible","False",None,None,None,None,None)
+	(2,51,"GtkWidget","visible","False",None,None,None,None,None),
+	(2,52,"AdwPreferencesRow","title","UPnP",None,None,None,None,None),
+	(2,52,"GtkWidget","visible","False",None,None,None,None,None),
+	(2,54,"AdwPreferencesRow","title","NAT port mapping protocol",None,None,None,None,None),
+	(2,54,"GtkWidget","visible","False",None,None,None,None,None),
+	(2,56,"AdwPreferencesRow","title","Port control protocol",None,None,None,None,None),
+	(2,56,"GtkWidget","visible","False",None,None,None,None,None)
   </object_property>
 </cambalache-project>

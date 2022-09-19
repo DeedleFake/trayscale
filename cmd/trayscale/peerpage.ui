@@ -89,6 +89,33 @@
                   </object>
                 </child>
                 <child>
+                  <object class="AdwActionRow" id="UPnPRow">
+                    <property name="title">UPnP</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="UPnP"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="PMPRow">
+                    <property name="title">NAT port mapping protocol</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="PMP"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="PCPRow">
+                    <property name="title">Port control protocol</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="PCP"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
                   <object class="AdwActionRow" id="HairPinningRow">
                     <property name="title">Hair pinning</property>
                     <property name="visible">False</property>

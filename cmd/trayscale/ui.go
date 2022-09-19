@@ -89,6 +89,14 @@ type PeerPage struct {
 	AllowLANAccessSwitch    *gtk.Switch
 	NetCheckGroup           *adw.PreferencesGroup
 	NetCheckButton          *gtk.Button
+	LastNetCheckRow         *adw.ActionRow
+	LastNetCheck            *gtk.Label
+	UDPRow                  *adw.ActionRow
+	UDP                     *gtk.Image
+	IPv4Row                 *adw.ActionRow
+	IPv4                    *gtk.Image
+	IPv6Row                 *adw.ActionRow
+	IPv6                    *gtk.Image
 	MiscGroup               *adw.PreferencesGroup
 	ExitNodeRow             *adw.ActionRow
 	ExitNodeSwitch          *gtk.Switch
@@ -119,6 +127,14 @@ func NewPeerPage() *PeerPage {
 	AllowLANAccessSwitch := gtk.NewSwitch()
 	NetCheckGroup := adw.NewPreferencesGroup()
 	NetCheckButton := gtk.NewButton()
+	LastNetCheckRow := adw.NewActionRow()
+	LastNetCheck := gtk.NewLabel("")
+	UDPRow := adw.NewActionRow()
+	UDP := gtk.NewImage()
+	IPv4Row := adw.NewActionRow()
+	IPv4 := gtk.NewImage()
+	IPv6Row := adw.NewActionRow()
+	IPv6 := gtk.NewImage()
 	MiscGroup := adw.NewPreferencesGroup()
 	ExitNodeRow := adw.NewActionRow()
 	ExitNodeSwitch := gtk.NewSwitch()
@@ -167,8 +183,29 @@ func NewPeerPage() *PeerPage {
 
 	NetCheckGroup.SetObjectProperty("header-suffix", NetCheckButton)
 	NetCheckGroup.SetObjectProperty("title", "Network Check")
+	NetCheckGroup.Add(LastNetCheckRow)
+	NetCheckGroup.Add(UDPRow)
+	NetCheckGroup.Add(IPv4Row)
+	NetCheckGroup.Add(IPv6Row)
 
 	NetCheckButton.SetObjectProperty("icon-name", "view-refresh-symbolic")
+
+	LastNetCheckRow.SetObjectProperty("title", "Last run")
+	LastNetCheckRow.AddSuffix(LastNetCheck)
+
+	LastNetCheck.SetObjectProperty("label", "Never")
+
+	UDPRow.SetObjectProperty("title", "UDP")
+	UDPRow.SetObjectProperty("visible", false)
+	UDPRow.AddSuffix(UDP)
+
+	IPv4Row.SetObjectProperty("title", "IPv4")
+	IPv4Row.SetObjectProperty("visible", false)
+	IPv4Row.AddSuffix(IPv4)
+
+	IPv6Row.SetObjectProperty("title", "IPv6")
+	IPv6Row.SetObjectProperty("visible", false)
+	IPv6Row.AddSuffix(IPv6)
 
 	MiscGroup.SetObjectProperty("title", "Misc.")
 	MiscGroup.Add(ExitNodeRow)
@@ -221,6 +258,14 @@ func NewPeerPage() *PeerPage {
 		AllowLANAccessSwitch:    AllowLANAccessSwitch,
 		NetCheckGroup:           NetCheckGroup,
 		NetCheckButton:          NetCheckButton,
+		LastNetCheckRow:         LastNetCheckRow,
+		LastNetCheck:            LastNetCheck,
+		UDPRow:                  UDPRow,
+		UDP:                     UDP,
+		IPv4Row:                 IPv4Row,
+		IPv4:                    IPv4,
+		IPv6Row:                 IPv6Row,
+		IPv6:                    IPv6,
 		MiscGroup:               MiscGroup,
 		ExitNodeRow:             ExitNodeRow,
 		ExitNodeSwitch:          ExitNodeSwitch,

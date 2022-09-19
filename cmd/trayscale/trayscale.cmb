@@ -45,7 +45,15 @@
 	(2,30,"AdwActionRow","AllowLANAccessRow",27,None,None,None,1,None),
 	(2,31,"GtkSwitch","AllowLANAccessSwitch",30,None,None,None,None,None),
 	(2,32,"AdwPreferencesGroup","NetCheckGroup",7,None,None,None,2,None),
-	(2,33,"GtkButton","NetCheckButton",32,None,None,None,None,None)
+	(2,33,"GtkButton","NetCheckButton",32,None,None,None,None,None),
+	(2,34,"AdwActionRow","UDPRow",32,None,None,None,2,None),
+	(2,36,"AdwActionRow","IPv4Row",32,None,None,None,3,None),
+	(2,38,"AdwActionRow","IPv6Row",32,None,None,None,4,None),
+	(2,39,"GtkImage","UDP",34,None,None,None,None,None),
+	(2,40,"GtkImage","IPv4",36,None,None,None,None,None),
+	(2,41,"GtkImage","IPv6",38,None,None,None,None,None),
+	(2,42,"AdwActionRow","LastNetCheckRow",32,None,None,None,1,None),
+	(2,43,"GtkLabel","LastNetCheck",42,None,None,None,None,None)
   </object>
   <object_property>
 	(1,1,"AdwApplicationWindow","content","4",None,None,None,None,None),
@@ -89,6 +97,14 @@
 	(2,31,"GtkWidget","margin-top","12",None,None,None,None,None),
 	(2,32,"AdwPreferencesGroup","header-suffix","33",None,None,None,None,None),
 	(2,32,"AdwPreferencesGroup","title","Network Check",None,None,None,None,None),
-	(2,33,"GtkButton","icon-name","view-refresh-symbolic",None,None,None,None,None)
+	(2,33,"GtkButton","icon-name","view-refresh-symbolic",None,None,None,None,None),
+	(2,34,"AdwPreferencesRow","title","UDP",None,None,None,None,None),
+	(2,34,"GtkWidget","visible","False",None,None,None,None,None),
+	(2,36,"AdwPreferencesRow","title","IPv4",None,None,None,None,None),
+	(2,36,"GtkWidget","visible","False",None,None,None,None,None),
+	(2,38,"AdwPreferencesRow","title","IPv6",None,None,None,None,None),
+	(2,38,"GtkWidget","visible","False",None,None,None,None,None),
+	(2,42,"AdwPreferencesRow","title","Last run",None,None,None,None,None),
+	(2,43,"GtkLabel","label","Never",None,None,None,None,None)
   </object_property>
 </cambalache-project>

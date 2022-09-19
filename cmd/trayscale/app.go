@@ -141,6 +141,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 		page.container.AdvertiseExitNodeSwitch.SetState(prefs.AdvertisesExitNode())
 		page.container.AllowLANAccessSwitch.SetState(prefs.ExitNodeAllowLANAccess)
 	}
+	page.container.NetCheckGroup.SetVisible(self)
 
 	page.container.MiscGroup.SetVisible(!self)
 	page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
@@ -152,12 +153,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 	page.container.LastSeenRow.SetVisible(!peer.Online)
 	page.container.LastWrite.SetText(formatTime(peer.LastWrite))
 	page.container.LastHandshake.SetText(formatTime(peer.LastHandshake))
-
-	var onlineIcon string
-	if peer.Online {
-		onlineIcon = "emblem-ok-symbolic"
-	}
-	page.container.Online.SetFromIconName(onlineIcon)
+	page.container.Online.SetFromIconName(boolIcon(peer.Online))
 }
 
 func (a *App) notify(status bool) {
@@ -391,6 +387,22 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		}
 		a.poll <- struct{}{}
 		return true
+	})
+
+	page.container.NetCheckButton.ConnectClicked(func() {
+		r, err := a.TS.NetCheck(context.TODO())
+		if err != nil {
+			log.Printf("Error: netcheck: %v", err)
+			return
+		}
+
+		page.container.LastNetCheck.SetText(formatTime(time.Now()))
+		page.container.UDPRow.SetVisible(true)
+		page.container.UDP.SetFromIconName(boolIcon(r.UDP))
+		page.container.IPv4Row.SetVisible(true)
+		page.container.IPv4.SetFromIconName(boolIcon(r.IPv4))
+		page.container.IPv6Row.SetVisible(true)
+		page.container.IPv6.SetFromIconName(boolIcon(r.IPv6))
 	})
 
 	return &page

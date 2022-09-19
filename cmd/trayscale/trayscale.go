@@ -74,6 +74,13 @@ func peerIcon(peer *ipnstate.PeerStatus) string {
 	return "folder-remote-symbolic"
 }
 
+func boolIcon(v bool) string {
+	if v {
+		return "emblem-ok-symbolic"
+	}
+	return ""
+}
+
 func main() {
 	if prof, ok := os.LookupEnv("PPROF"); ok {
 		file, err := os.Create(prof)

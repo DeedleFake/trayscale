@@ -51,6 +51,43 @@
                     <property name="icon-name">view-refresh-symbolic</property>
                   </object>
                 </child>
+                <child>
+                  <object class="AdwActionRow" id="LastNetCheckRow">
+                    <property name="title">Last run</property>
+                    <child>
+                      <object class="GtkLabel" id="LastNetCheck">
+                        <property name="label">Never</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="UDPRow">
+                    <property name="title">UDP</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="UDP"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="IPv4Row">
+                    <property name="title">IPv4</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="IPv4"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="IPv6Row">
+                    <property name="title">IPv6</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="IPv6"/>
+                    </child>
+                  </object>
+                </child>
               </object>
             </child>
             <child>

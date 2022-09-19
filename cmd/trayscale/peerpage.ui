@@ -88,6 +88,37 @@
                     </child>
                   </object>
                 </child>
+                <child>
+                  <object class="AdwActionRow" id="HairPinningRow">
+                    <property name="title">Hair pinning</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="HairPinning"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="PreferredDERPRow">
+                    <property name="title">Preferred DERP</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkLabel" id="PreferredDERP">
+                        <property name="label">Never</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="PreferredDERPLatencyRow">
+                    <property name="title">Preferred DERP Latency</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkLabel" id="PreferredDERPLatency">
+                        <property name="label">Never</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
               </object>
             </child>
             <child>

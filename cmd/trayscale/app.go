@@ -390,7 +390,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	})
 
 	page.container.NetCheckButton.ConnectClicked(func() {
-		r, err := a.TS.NetCheck(context.TODO())
+		r, dm, err := a.TS.NetCheck(context.TODO())
 		if err != nil {
 			log.Printf("Error: netcheck: %v", err)
 			return
@@ -403,6 +403,12 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		page.container.IPv4.SetFromIconName(boolIcon(r.IPv4))
 		page.container.IPv6Row.SetVisible(true)
 		page.container.IPv6.SetFromIconName(boolIcon(r.IPv6))
+		page.container.HairPinningRow.SetVisible(true)
+		page.container.HairPinning.SetFromIconName(optBoolIcon(r.HairPinning))
+		page.container.PreferredDERPRow.SetVisible(true)
+		page.container.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
+		page.container.PreferredDERPLatencyRow.SetVisible(true)
+		page.container.PreferredDERPLatency.SetText(r.RegionLatency[r.PreferredDERP].String())
 	})
 
 	return &page

@@ -97,6 +97,12 @@ type PeerPage struct {
 	IPv4                    *gtk.Image
 	IPv6Row                 *adw.ActionRow
 	IPv6                    *gtk.Image
+	HairPinningRow          *adw.ActionRow
+	HairPinning             *gtk.Image
+	PreferredDERPRow        *adw.ActionRow
+	PreferredDERP           *gtk.Label
+	PreferredDERPLatencyRow *adw.ActionRow
+	PreferredDERPLatency    *gtk.Label
 	MiscGroup               *adw.PreferencesGroup
 	ExitNodeRow             *adw.ActionRow
 	ExitNodeSwitch          *gtk.Switch
@@ -135,6 +141,12 @@ func NewPeerPage() *PeerPage {
 	IPv4 := gtk.NewImage()
 	IPv6Row := adw.NewActionRow()
 	IPv6 := gtk.NewImage()
+	HairPinningRow := adw.NewActionRow()
+	HairPinning := gtk.NewImage()
+	PreferredDERPRow := adw.NewActionRow()
+	PreferredDERP := gtk.NewLabel("")
+	PreferredDERPLatencyRow := adw.NewActionRow()
+	PreferredDERPLatency := gtk.NewLabel("")
 	MiscGroup := adw.NewPreferencesGroup()
 	ExitNodeRow := adw.NewActionRow()
 	ExitNodeSwitch := gtk.NewSwitch()
@@ -187,6 +199,9 @@ func NewPeerPage() *PeerPage {
 	NetCheckGroup.Add(UDPRow)
 	NetCheckGroup.Add(IPv4Row)
 	NetCheckGroup.Add(IPv6Row)
+	NetCheckGroup.Add(HairPinningRow)
+	NetCheckGroup.Add(PreferredDERPRow)
+	NetCheckGroup.Add(PreferredDERPLatencyRow)
 
 	NetCheckButton.SetObjectProperty("icon-name", "view-refresh-symbolic")
 
@@ -206,6 +221,22 @@ func NewPeerPage() *PeerPage {
 	IPv6Row.SetObjectProperty("title", "IPv6")
 	IPv6Row.SetObjectProperty("visible", false)
 	IPv6Row.AddSuffix(IPv6)
+
+	HairPinningRow.SetObjectProperty("title", "Hair pinning")
+	HairPinningRow.SetObjectProperty("visible", false)
+	HairPinningRow.AddSuffix(HairPinning)
+
+	PreferredDERPRow.SetObjectProperty("title", "Preferred DERP")
+	PreferredDERPRow.SetObjectProperty("visible", false)
+	PreferredDERPRow.AddSuffix(PreferredDERP)
+
+	PreferredDERP.SetObjectProperty("label", "Never")
+
+	PreferredDERPLatencyRow.SetObjectProperty("title", "Preferred DERP Latency")
+	PreferredDERPLatencyRow.SetObjectProperty("visible", false)
+	PreferredDERPLatencyRow.AddSuffix(PreferredDERPLatency)
+
+	PreferredDERPLatency.SetObjectProperty("label", "Never")
 
 	MiscGroup.SetObjectProperty("title", "Misc.")
 	MiscGroup.Add(ExitNodeRow)
@@ -266,6 +297,12 @@ func NewPeerPage() *PeerPage {
 		IPv4:                    IPv4,
 		IPv6Row:                 IPv6Row,
 		IPv6:                    IPv6,
+		HairPinningRow:          HairPinningRow,
+		HairPinning:             HairPinning,
+		PreferredDERPRow:        PreferredDERPRow,
+		PreferredDERP:           PreferredDERP,
+		PreferredDERPLatencyRow: PreferredDERPLatencyRow,
+		PreferredDERPLatency:    PreferredDERPLatency,
 		MiscGroup:               MiscGroup,
 		ExitNodeRow:             ExitNodeRow,
 		ExitNodeSwitch:          ExitNodeSwitch,

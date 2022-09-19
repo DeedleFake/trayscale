@@ -116,7 +116,7 @@ var (
 
 func (p Property) Value() string {
 	switch p.Name {
-	case "width-request", "height-request", "default-width", "default-height", "content", "stack", "spacing", "margin-top", "margin-bottom":
+	case "width-request", "height-request", "default-width", "default-height", "content", "stack", "spacing", "margin-top", "margin-bottom", "header-suffix":
 		return p.RawValue
 	case "show-start-title-buttons", "show-end-title-buttons", "primary", "vexpand", "hexpand":
 		b, err := strconv.ParseBool(p.RawValue)

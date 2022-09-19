@@ -91,16 +91,14 @@ type PeerPage struct {
 	NetCheckButton          *gtk.Button
 	LastNetCheckRow         *adw.ActionRow
 	LastNetCheck            *gtk.Label
-	GlobalIPv4Row           *adw.ActionRow
-	GlobalIPv4              *gtk.Label
-	GlobalIPv6Row           *adw.ActionRow
-	GlobalIPv6              *gtk.Label
 	UDPRow                  *adw.ActionRow
 	UDP                     *gtk.Image
 	IPv4Row                 *adw.ActionRow
-	IPv4                    *gtk.Image
+	IPv4Icon                *gtk.Image
+	IPv4Addr                *gtk.Label
 	IPv6Row                 *adw.ActionRow
-	IPv6                    *gtk.Image
+	IPv6Icon                *gtk.Image
+	IPv6Addr                *gtk.Label
 	UPnPRow                 *adw.ActionRow
 	UPnP                    *gtk.Image
 	PMPRow                  *adw.ActionRow
@@ -144,16 +142,14 @@ func NewPeerPage() *PeerPage {
 	NetCheckButton := gtk.NewButton()
 	LastNetCheckRow := adw.NewActionRow()
 	LastNetCheck := gtk.NewLabel("")
-	GlobalIPv4Row := adw.NewActionRow()
-	GlobalIPv4 := gtk.NewLabel("")
-	GlobalIPv6Row := adw.NewActionRow()
-	GlobalIPv6 := gtk.NewLabel("")
 	UDPRow := adw.NewActionRow()
 	UDP := gtk.NewImage()
 	IPv4Row := adw.NewActionRow()
-	IPv4 := gtk.NewImage()
+	IPv4Icon := gtk.NewImage()
+	IPv4Addr := gtk.NewLabel("")
 	IPv6Row := adw.NewActionRow()
-	IPv6 := gtk.NewImage()
+	IPv6Icon := gtk.NewImage()
+	IPv6Addr := gtk.NewLabel("")
 	UPnPRow := adw.NewActionRow()
 	UPnP := gtk.NewImage()
 	PMPRow := adw.NewActionRow()
@@ -214,8 +210,6 @@ func NewPeerPage() *PeerPage {
 	NetCheckGroup.SetObjectProperty("header-suffix", NetCheckButton)
 	NetCheckGroup.SetObjectProperty("title", "Network Check")
 	NetCheckGroup.Add(LastNetCheckRow)
-	NetCheckGroup.Add(GlobalIPv4Row)
-	NetCheckGroup.Add(GlobalIPv6Row)
 	NetCheckGroup.Add(UDPRow)
 	NetCheckGroup.Add(IPv4Row)
 	NetCheckGroup.Add(IPv6Row)
@@ -233,25 +227,19 @@ func NewPeerPage() *PeerPage {
 
 	LastNetCheck.SetObjectProperty("label", "Never")
 
-	GlobalIPv4Row.SetObjectProperty("title", "Global IPv4 address")
-	GlobalIPv4Row.SetObjectProperty("visible", false)
-	GlobalIPv4Row.AddSuffix(GlobalIPv4)
-
-	GlobalIPv6Row.SetObjectProperty("title", "Global IPv6 address")
-	GlobalIPv6Row.SetObjectProperty("visible", false)
-	GlobalIPv6Row.AddSuffix(GlobalIPv6)
-
 	UDPRow.SetObjectProperty("title", "UDP")
 	UDPRow.SetObjectProperty("visible", false)
 	UDPRow.AddSuffix(UDP)
 
 	IPv4Row.SetObjectProperty("title", "IPv4")
 	IPv4Row.SetObjectProperty("visible", false)
-	IPv4Row.AddSuffix(IPv4)
+	IPv4Row.AddSuffix(IPv4Icon)
+	IPv4Row.AddSuffix(IPv4Addr)
 
 	IPv6Row.SetObjectProperty("title", "IPv6")
 	IPv6Row.SetObjectProperty("visible", false)
-	IPv6Row.AddSuffix(IPv6)
+	IPv6Row.AddSuffix(IPv6Icon)
+	IPv6Row.AddSuffix(IPv6Addr)
 
 	UPnPRow.SetObjectProperty("title", "UPnP")
 	UPnPRow.SetObjectProperty("visible", false)
@@ -331,16 +319,14 @@ func NewPeerPage() *PeerPage {
 		NetCheckButton:          NetCheckButton,
 		LastNetCheckRow:         LastNetCheckRow,
 		LastNetCheck:            LastNetCheck,
-		GlobalIPv4Row:           GlobalIPv4Row,
-		GlobalIPv4:              GlobalIPv4,
-		GlobalIPv6Row:           GlobalIPv6Row,
-		GlobalIPv6:              GlobalIPv6,
 		UDPRow:                  UDPRow,
 		UDP:                     UDP,
 		IPv4Row:                 IPv4Row,
-		IPv4:                    IPv4,
+		IPv4Icon:                IPv4Icon,
+		IPv4Addr:                IPv4Addr,
 		IPv6Row:                 IPv6Row,
-		IPv6:                    IPv6,
+		IPv6Icon:                IPv6Icon,
+		IPv6Addr:                IPv6Addr,
 		UPnPRow:                 UPnPRow,
 		UPnP:                    UPnP,
 		PMPRow:                  PMPRow,

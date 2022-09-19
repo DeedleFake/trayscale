@@ -62,24 +62,6 @@
                   </object>
                 </child>
                 <child>
-                  <object class="AdwActionRow" id="GlobalIPv4Row">
-                    <property name="title">Global IPv4 address</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkLabel" id="GlobalIPv4"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="GlobalIPv6Row">
-                    <property name="title">Global IPv6 address</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkLabel" id="GlobalIPv6"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
                   <object class="AdwActionRow" id="UDPRow">
                     <property name="title">UDP</property>
                     <property name="visible">False</property>
@@ -93,7 +75,10 @@
                     <property name="title">IPv4</property>
                     <property name="visible">False</property>
                     <child>
-                      <object class="GtkImage" id="IPv4"/>
+                      <object class="GtkImage" id="IPv4Icon"/>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="IPv4Addr"/>
                     </child>
                   </object>
                 </child>
@@ -102,7 +87,10 @@
                     <property name="title">IPv6</property>
                     <property name="visible">False</property>
                     <child>
-                      <object class="GtkImage" id="IPv6"/>
+                      <object class="GtkImage" id="IPv6Icon"/>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="IPv6Addr"/>
                     </child>
                   </object>
                 </child>

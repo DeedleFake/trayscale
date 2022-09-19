@@ -152,12 +152,15 @@ func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
 	return nil
 }
 
-func (c *Client) NetCheck(ctx context.Context) (*netcheck.Report, *tailcfg.DERPMap, error) {
+func (c *Client) NetCheck(ctx context.Context, full bool) (*netcheck.Report, *tailcfg.DERPMap, error) {
 	dm, err := localClient.CurrentDERPMap(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("current DERP map: %w", err)
 	}
 
+	if full {
+		netcheckClient.MakeNextReportFull()
+	}
 	r, err := netcheckClient.GetReport(ctx, dm)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get netcheck report: %w", err)

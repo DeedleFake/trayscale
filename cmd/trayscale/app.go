@@ -399,6 +399,10 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		}
 
 		page.container.LastNetCheck.SetText(formatTime(time.Now()))
+		page.container.GlobalIPv4Row.SetVisible(true)
+		page.container.GlobalIPv4.SetText(r.GlobalV4)
+		page.container.GlobalIPv6Row.SetVisible(true)
+		page.container.GlobalIPv6.SetText(r.GlobalV6)
 		page.container.UDPRow.SetVisible(true)
 		page.container.UDP.SetFromIconName(boolIcon(r.UDP))
 		page.container.IPv4Row.SetVisible(true)

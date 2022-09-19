@@ -62,6 +62,24 @@
                   </object>
                 </child>
                 <child>
+                  <object class="AdwActionRow" id="GlobalIPv4Row">
+                    <property name="title">Global IPv4 address</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkLabel" id="GlobalIPv4"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="GlobalIPv6Row">
+                    <property name="title">Global IPv6 address</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkLabel" id="GlobalIPv6"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
                   <object class="AdwActionRow" id="UDPRow">
                     <property name="title">UDP</property>
                     <property name="visible">False</property>

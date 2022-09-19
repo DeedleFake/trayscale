@@ -101,8 +101,7 @@ type PeerPage struct {
 	HairPinning             *gtk.Image
 	PreferredDERPRow        *adw.ActionRow
 	PreferredDERP           *gtk.Label
-	PreferredDERPLatencyRow *adw.ActionRow
-	PreferredDERPLatency    *gtk.Label
+	DERPLatencies           *adw.ExpanderRow
 	MiscGroup               *adw.PreferencesGroup
 	ExitNodeRow             *adw.ActionRow
 	ExitNodeSwitch          *gtk.Switch
@@ -145,8 +144,7 @@ func NewPeerPage() *PeerPage {
 	HairPinning := gtk.NewImage()
 	PreferredDERPRow := adw.NewActionRow()
 	PreferredDERP := gtk.NewLabel("")
-	PreferredDERPLatencyRow := adw.NewActionRow()
-	PreferredDERPLatency := gtk.NewLabel("")
+	DERPLatencies := adw.NewExpanderRow()
 	MiscGroup := adw.NewPreferencesGroup()
 	ExitNodeRow := adw.NewActionRow()
 	ExitNodeSwitch := gtk.NewSwitch()
@@ -201,7 +199,7 @@ func NewPeerPage() *PeerPage {
 	NetCheckGroup.Add(IPv6Row)
 	NetCheckGroup.Add(HairPinningRow)
 	NetCheckGroup.Add(PreferredDERPRow)
-	NetCheckGroup.Add(PreferredDERPLatencyRow)
+	NetCheckGroup.Add(DERPLatencies)
 
 	NetCheckButton.SetObjectProperty("icon-name", "view-refresh-symbolic")
 
@@ -232,11 +230,8 @@ func NewPeerPage() *PeerPage {
 
 	PreferredDERP.SetObjectProperty("label", "Never")
 
-	PreferredDERPLatencyRow.SetObjectProperty("title", "Preferred DERP Latency")
-	PreferredDERPLatencyRow.SetObjectProperty("visible", false)
-	PreferredDERPLatencyRow.AddSuffix(PreferredDERPLatency)
-
-	PreferredDERPLatency.SetObjectProperty("label", "Never")
+	DERPLatencies.SetObjectProperty("title", "DERP Latencies")
+	DERPLatencies.SetObjectProperty("visible", false)
 
 	MiscGroup.SetObjectProperty("title", "Misc.")
 	MiscGroup.Add(ExitNodeRow)
@@ -301,8 +296,7 @@ func NewPeerPage() *PeerPage {
 		HairPinning:             HairPinning,
 		PreferredDERPRow:        PreferredDERPRow,
 		PreferredDERP:           PreferredDERP,
-		PreferredDERPLatencyRow: PreferredDERPLatencyRow,
-		PreferredDERPLatency:    PreferredDERPLatency,
+		DERPLatencies:           DERPLatencies,
 		MiscGroup:               MiscGroup,
 		ExitNodeRow:             ExitNodeRow,
 		ExitNodeSwitch:          ExitNodeSwitch,

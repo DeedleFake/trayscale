@@ -10,6 +10,7 @@ import (
 
 	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/version"
+	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
 	"deedles.dev/trayscale/tailscale"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -389,6 +390,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		return true
 	})
 
+	var latencyRows []gtk.Widgetter
 	page.container.NetCheckButton.ConnectClicked(func() {
 		r, dm, err := a.TS.NetCheck(context.TODO())
 		if err != nil {
@@ -407,8 +409,21 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		page.container.HairPinning.SetFromIconName(optBoolIcon(r.HairPinning))
 		page.container.PreferredDERPRow.SetVisible(true)
 		page.container.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
-		page.container.PreferredDERPLatencyRow.SetVisible(true)
-		page.container.PreferredDERPLatency.SetText(r.RegionLatency[r.PreferredDERP].String())
+
+		page.container.DERPLatencies.SetVisible(true)
+		for _, row := range latencyRows {
+			page.container.DERPLatencies.Remove(row)
+		}
+		latencyRows = latencyRows[:0]
+		latencies := xmaps.Entries(r.RegionLatency)
+		slices.SortFunc(latencies, func(e1, e2 xmaps.Entry[int, time.Duration]) bool { return e1.Val < e2.Val })
+		for _, lat := range latencies {
+			row := adw.NewActionRow()
+			row.SetTitle(dm.Regions[lat.Key].RegionName)
+			row.AddSuffix(gtk.NewLabel(lat.Val.String()))
+			page.container.DERPLatencies.AddRow(row)
+			latencyRows = append(latencyRows, row)
+		}
 	})
 
 	return &page

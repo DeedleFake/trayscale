@@ -109,14 +109,9 @@
                   </object>
                 </child>
                 <child>
-                  <object class="AdwActionRow" id="PreferredDERPLatencyRow">
-                    <property name="title">Preferred DERP Latency</property>
+                  <object class="AdwExpanderRow" id="DERPLatencies">
+                    <property name="title">DERP Latencies</property>
                     <property name="visible">False</property>
-                    <child>
-                      <object class="GtkLabel" id="PreferredDERPLatency">
-                        <property name="label">Never</property>
-                      </object>
-                    </child>
                   </object>
                 </child>
               </object>

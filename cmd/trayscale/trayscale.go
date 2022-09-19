@@ -12,6 +12,7 @@ import (
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/tailscale"
 	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/types/opt"
 )
 
 const (
@@ -72,6 +73,21 @@ func peerIcon(peer *ipnstate.PeerStatus) string {
 	}
 
 	return "folder-remote-symbolic"
+}
+
+func boolIcon(v bool) string {
+	if v {
+		return "emblem-ok-symbolic"
+	}
+	return "window-close-symbolic"
+}
+
+func optBoolIcon(v opt.Bool) string {
+	b, ok := v.Get()
+	if !ok {
+		return "dialog-question-symbolic"
+	}
+	return boolIcon(b)
 }
 
 func main() {

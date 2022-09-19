@@ -1,9 +1,12 @@
 {{- $id := or .ID "parent" -}}
+{{- $used := newValueSet -}}
 
 {{range .Properties -}}
-	{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{.Value}})
+	{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{$used.Add .Value}})
 {{end -}}
 {{range $i, $c := .Children -}}
 	{{- $cid := or .Object.ID (printf "%v%v" $id $i) -}}
-	{{$id}}.{{$.Type.AddChild .Type $cid}}
+	{{if not ($used.Has $cid) -}}
+		{{$id}}.{{$.Type.AddChild .Type $cid}}
+	{{end -}}
 {{end}}

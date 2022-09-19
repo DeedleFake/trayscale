@@ -43,6 +43,113 @@
               </object>
             </child>
             <child>
+              <object class="AdwPreferencesGroup" id="NetCheckGroup">
+                <property name="header-suffix">NetCheckButton</property>
+                <property name="title">Network Check</property>
+                <child>
+                  <object class="GtkButton" id="NetCheckButton">
+                    <property name="icon-name">view-refresh-symbolic</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="LastNetCheckRow">
+                    <property name="title">Last run</property>
+                    <child>
+                      <object class="GtkLabel" id="LastNetCheck">
+                        <property name="label">Never</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="UDPRow">
+                    <property name="title">UDP</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="UDP"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="IPv4Row">
+                    <property name="title">IPv4</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="IPv4Icon"/>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="IPv4Addr"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="IPv6Row">
+                    <property name="title">IPv6</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="IPv6Icon"/>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="IPv6Addr"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="UPnPRow">
+                    <property name="title">UPnP</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="UPnP"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="PMPRow">
+                    <property name="title">NAT port mapping protocol</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="PMP"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="PCPRow">
+                    <property name="title">Port control protocol</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="PCP"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="HairPinningRow">
+                    <property name="title">Hair pinning</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="HairPinning"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="PreferredDERPRow">
+                    <property name="title">Preferred DERP</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkLabel" id="PreferredDERP">
+                        <property name="label">Never</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwExpanderRow" id="DERPLatencies">
+                    <property name="title">DERP Latencies</property>
+                    <property name="visible">False</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
               <object class="AdwPreferencesGroup" id="MiscGroup">
                 <property name="title">Misc.</property>
                 <child>

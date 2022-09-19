@@ -67,7 +67,6 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 	parent.SetObjectProperty("default-height", 600)
 	parent.SetObjectProperty("default-width", 800)
 	parent.SetObjectProperty("title", "Trayscale")
-	parent.SetContent(ToastOverlay)
 
 	return &MainWindow{
 		ApplicationWindow: parent,
@@ -88,6 +87,29 @@ type PeerPage struct {
 	AdvertiseExitNodeSwitch *gtk.Switch
 	AllowLANAccessRow       *adw.ActionRow
 	AllowLANAccessSwitch    *gtk.Switch
+	NetCheckGroup           *adw.PreferencesGroup
+	NetCheckButton          *gtk.Button
+	LastNetCheckRow         *adw.ActionRow
+	LastNetCheck            *gtk.Label
+	UDPRow                  *adw.ActionRow
+	UDP                     *gtk.Image
+	IPv4Row                 *adw.ActionRow
+	IPv4Icon                *gtk.Image
+	IPv4Addr                *gtk.Label
+	IPv6Row                 *adw.ActionRow
+	IPv6Icon                *gtk.Image
+	IPv6Addr                *gtk.Label
+	UPnPRow                 *adw.ActionRow
+	UPnP                    *gtk.Image
+	PMPRow                  *adw.ActionRow
+	PMP                     *gtk.Image
+	PCPRow                  *adw.ActionRow
+	PCP                     *gtk.Image
+	HairPinningRow          *adw.ActionRow
+	HairPinning             *gtk.Image
+	PreferredDERPRow        *adw.ActionRow
+	PreferredDERP           *gtk.Label
+	DERPLatencies           *adw.ExpanderRow
 	MiscGroup               *adw.PreferencesGroup
 	ExitNodeRow             *adw.ActionRow
 	ExitNodeSwitch          *gtk.Switch
@@ -116,6 +138,29 @@ func NewPeerPage() *PeerPage {
 	AdvertiseExitNodeSwitch := gtk.NewSwitch()
 	AllowLANAccessRow := adw.NewActionRow()
 	AllowLANAccessSwitch := gtk.NewSwitch()
+	NetCheckGroup := adw.NewPreferencesGroup()
+	NetCheckButton := gtk.NewButton()
+	LastNetCheckRow := adw.NewActionRow()
+	LastNetCheck := gtk.NewLabel("")
+	UDPRow := adw.NewActionRow()
+	UDP := gtk.NewImage()
+	IPv4Row := adw.NewActionRow()
+	IPv4Icon := gtk.NewImage()
+	IPv4Addr := gtk.NewLabel("")
+	IPv6Row := adw.NewActionRow()
+	IPv6Icon := gtk.NewImage()
+	IPv6Addr := gtk.NewLabel("")
+	UPnPRow := adw.NewActionRow()
+	UPnP := gtk.NewImage()
+	PMPRow := adw.NewActionRow()
+	PMP := gtk.NewImage()
+	PCPRow := adw.NewActionRow()
+	PCP := gtk.NewImage()
+	HairPinningRow := adw.NewActionRow()
+	HairPinning := gtk.NewImage()
+	PreferredDERPRow := adw.NewActionRow()
+	PreferredDERP := gtk.NewLabel("")
+	DERPLatencies := adw.NewExpanderRow()
 	MiscGroup := adw.NewPreferencesGroup()
 	ExitNodeRow := adw.NewActionRow()
 	ExitNodeSwitch := gtk.NewSwitch()
@@ -141,6 +186,7 @@ func NewPeerPage() *PeerPage {
 	parent00.SetObjectProperty("spacing", 12)
 	parent00.Append(IPGroup)
 	parent00.Append(OptionsGroup)
+	parent00.Append(NetCheckGroup)
 	parent00.Append(MiscGroup)
 
 	IPGroup.SetObjectProperty("title", "Tailscale IPs")
@@ -160,6 +206,65 @@ func NewPeerPage() *PeerPage {
 
 	AllowLANAccessSwitch.SetObjectProperty("margin-bottom", 12)
 	AllowLANAccessSwitch.SetObjectProperty("margin-top", 12)
+
+	NetCheckGroup.SetObjectProperty("header-suffix", NetCheckButton)
+	NetCheckGroup.SetObjectProperty("title", "Network Check")
+	NetCheckGroup.Add(LastNetCheckRow)
+	NetCheckGroup.Add(UDPRow)
+	NetCheckGroup.Add(IPv4Row)
+	NetCheckGroup.Add(IPv6Row)
+	NetCheckGroup.Add(UPnPRow)
+	NetCheckGroup.Add(PMPRow)
+	NetCheckGroup.Add(PCPRow)
+	NetCheckGroup.Add(HairPinningRow)
+	NetCheckGroup.Add(PreferredDERPRow)
+	NetCheckGroup.Add(DERPLatencies)
+
+	NetCheckButton.SetObjectProperty("icon-name", "view-refresh-symbolic")
+
+	LastNetCheckRow.SetObjectProperty("title", "Last run")
+	LastNetCheckRow.AddSuffix(LastNetCheck)
+
+	LastNetCheck.SetObjectProperty("label", "Never")
+
+	UDPRow.SetObjectProperty("title", "UDP")
+	UDPRow.SetObjectProperty("visible", false)
+	UDPRow.AddSuffix(UDP)
+
+	IPv4Row.SetObjectProperty("title", "IPv4")
+	IPv4Row.SetObjectProperty("visible", false)
+	IPv4Row.AddSuffix(IPv4Icon)
+	IPv4Row.AddSuffix(IPv4Addr)
+
+	IPv6Row.SetObjectProperty("title", "IPv6")
+	IPv6Row.SetObjectProperty("visible", false)
+	IPv6Row.AddSuffix(IPv6Icon)
+	IPv6Row.AddSuffix(IPv6Addr)
+
+	UPnPRow.SetObjectProperty("title", "UPnP")
+	UPnPRow.SetObjectProperty("visible", false)
+	UPnPRow.AddSuffix(UPnP)
+
+	PMPRow.SetObjectProperty("title", "NAT port mapping protocol")
+	PMPRow.SetObjectProperty("visible", false)
+	PMPRow.AddSuffix(PMP)
+
+	PCPRow.SetObjectProperty("title", "Port control protocol")
+	PCPRow.SetObjectProperty("visible", false)
+	PCPRow.AddSuffix(PCP)
+
+	HairPinningRow.SetObjectProperty("title", "Hair pinning")
+	HairPinningRow.SetObjectProperty("visible", false)
+	HairPinningRow.AddSuffix(HairPinning)
+
+	PreferredDERPRow.SetObjectProperty("title", "Preferred DERP")
+	PreferredDERPRow.SetObjectProperty("visible", false)
+	PreferredDERPRow.AddSuffix(PreferredDERP)
+
+	PreferredDERP.SetObjectProperty("label", "Never")
+
+	DERPLatencies.SetObjectProperty("title", "DERP Latencies")
+	DERPLatencies.SetObjectProperty("visible", false)
 
 	MiscGroup.SetObjectProperty("title", "Misc.")
 	MiscGroup.Add(ExitNodeRow)
@@ -210,6 +315,29 @@ func NewPeerPage() *PeerPage {
 		AdvertiseExitNodeSwitch: AdvertiseExitNodeSwitch,
 		AllowLANAccessRow:       AllowLANAccessRow,
 		AllowLANAccessSwitch:    AllowLANAccessSwitch,
+		NetCheckGroup:           NetCheckGroup,
+		NetCheckButton:          NetCheckButton,
+		LastNetCheckRow:         LastNetCheckRow,
+		LastNetCheck:            LastNetCheck,
+		UDPRow:                  UDPRow,
+		UDP:                     UDP,
+		IPv4Row:                 IPv4Row,
+		IPv4Icon:                IPv4Icon,
+		IPv4Addr:                IPv4Addr,
+		IPv6Row:                 IPv6Row,
+		IPv6Icon:                IPv6Icon,
+		IPv6Addr:                IPv6Addr,
+		UPnPRow:                 UPnPRow,
+		UPnP:                    UPnP,
+		PMPRow:                  PMPRow,
+		PMP:                     PMP,
+		PCPRow:                  PCPRow,
+		PCP:                     PCP,
+		HairPinningRow:          HairPinningRow,
+		HairPinning:             HairPinning,
+		PreferredDERPRow:        PreferredDERPRow,
+		PreferredDERP:           PreferredDERP,
+		DERPLatencies:           DERPLatencies,
 		MiscGroup:               MiscGroup,
 		ExitNodeRow:             ExitNodeRow,
 		ExitNodeSwitch:          ExitNodeSwitch,

@@ -4,6 +4,8 @@ import (
 	"embed"
 	_ "embed"
 	"text/template"
+
+	"deedles.dev/trayscale/internal/set"
 )
 
 var (
@@ -27,6 +29,9 @@ func init() {
 				}
 			}
 			return false
+		},
+		"newValueSet": func() set.Set[string] {
+			return make(set.Set[string])
 		},
 	})
 	tmpl = template.Must(tmpl.ParseFS(tmplFS, "*.tmpl"))

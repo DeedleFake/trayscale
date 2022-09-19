@@ -10,6 +10,7 @@ import (
 
 	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/version"
+	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
 	"deedles.dev/trayscale/tailscale"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -141,6 +142,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 		page.container.AdvertiseExitNodeSwitch.SetState(prefs.AdvertisesExitNode())
 		page.container.AllowLANAccessSwitch.SetState(prefs.ExitNodeAllowLANAccess)
 	}
+	page.container.NetCheckGroup.SetVisible(self)
 
 	page.container.MiscGroup.SetVisible(!self)
 	page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
@@ -152,12 +154,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 	page.container.LastSeenRow.SetVisible(!peer.Online)
 	page.container.LastWrite.SetText(formatTime(peer.LastWrite))
 	page.container.LastHandshake.SetText(formatTime(peer.LastHandshake))
-
-	var onlineIcon string
-	if peer.Online {
-		onlineIcon = "emblem-ok-symbolic"
-	}
-	page.container.Online.SetFromIconName(onlineIcon)
+	page.container.Online.SetFromIconName(boolIcon(peer.Online))
 }
 
 func (a *App) notify(status bool) {
@@ -391,6 +388,54 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		}
 		a.poll <- struct{}{}
 		return true
+	})
+
+	var latencyRows []gtk.Widgetter
+	page.container.NetCheckButton.ConnectClicked(func() {
+		r, dm, err := a.TS.NetCheck(context.TODO(), true)
+		if err != nil {
+			log.Printf("Error: netcheck: %v", err)
+			return
+		}
+
+		page.container.LastNetCheck.SetText(formatTime(time.Now()))
+		page.container.UDPRow.SetVisible(true)
+		page.container.UDP.SetFromIconName(boolIcon(r.UDP))
+		page.container.IPv4Row.SetVisible(true)
+		page.container.IPv4Icon.SetVisible(!r.IPv4)
+		page.container.IPv4Icon.SetFromIconName(boolIcon(r.IPv4))
+		page.container.IPv4Addr.SetVisible(r.IPv4)
+		page.container.IPv4Addr.SetText(r.GlobalV4)
+		page.container.IPv6Row.SetVisible(true)
+		page.container.IPv6Icon.SetVisible(!r.IPv6)
+		page.container.IPv6Icon.SetFromIconName(boolIcon(r.IPv6))
+		page.container.IPv6Addr.SetVisible(r.IPv6)
+		page.container.IPv6Addr.SetText(r.GlobalV6)
+		page.container.UPnPRow.SetVisible(true)
+		page.container.UPnP.SetFromIconName(optBoolIcon(r.UPnP))
+		page.container.PMPRow.SetVisible(true)
+		page.container.PMP.SetFromIconName(optBoolIcon(r.PMP))
+		page.container.PCPRow.SetVisible(true)
+		page.container.PCP.SetFromIconName(optBoolIcon(r.PCP))
+		page.container.HairPinningRow.SetVisible(true)
+		page.container.HairPinning.SetFromIconName(optBoolIcon(r.HairPinning))
+		page.container.PreferredDERPRow.SetVisible(true)
+		page.container.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
+
+		page.container.DERPLatencies.SetVisible(true)
+		for _, row := range latencyRows {
+			page.container.DERPLatencies.Remove(row)
+		}
+		latencyRows = latencyRows[:0]
+		latencies := xmaps.Entries(r.RegionLatency)
+		slices.SortFunc(latencies, func(e1, e2 xmaps.Entry[int, time.Duration]) bool { return e1.Val < e2.Val })
+		for _, lat := range latencies {
+			row := adw.NewActionRow()
+			row.SetTitle(dm.Regions[lat.Key].RegionName)
+			row.AddSuffix(gtk.NewLabel(lat.Val.String()))
+			page.container.DERPLatencies.AddRow(row)
+			latencyRows = append(latencyRows, row)
+		}
 	})
 
 	return &page

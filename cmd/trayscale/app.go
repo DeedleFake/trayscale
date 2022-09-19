@@ -392,7 +392,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 
 	var latencyRows []gtk.Widgetter
 	page.container.NetCheckButton.ConnectClicked(func() {
-		r, dm, err := a.TS.NetCheck(context.TODO())
+		r, dm, err := a.TS.NetCheck(context.TODO(), true)
 		if err != nil {
 			log.Printf("Error: netcheck: %v", err)
 			return

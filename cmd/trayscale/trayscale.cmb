@@ -39,12 +39,12 @@
 	(2,24,"GtkImage","Online",23,None,None,None,None,None),
 	(2,25,"AdwActionRow","LastHandshakeRow",9,None,None,None,5,None),
 	(2,26,"GtkLabel","LastHandshake",25,None,None,None,None,None),
-	(2,27,"AdwPreferencesGroup","OptionsGroup",7,None,None,None,2,None),
+	(2,27,"AdwPreferencesGroup","OptionsGroup",7,None,None,None,1,None),
 	(2,28,"AdwActionRow","AdvertiseExitNodeRow",27,None,None,None,None,None),
 	(2,29,"GtkSwitch","AdvertiseExitNodeSwitch",28,None,None,None,None,None),
 	(2,30,"AdwActionRow","AllowLANAccessRow",27,None,None,None,1,None),
 	(2,31,"GtkSwitch","AllowLANAccessSwitch",30,None,None,None,None,None),
-	(2,32,"AdwPreferencesGroup","NetCheckGroup",7,None,None,None,1,None),
+	(2,32,"AdwPreferencesGroup","NetCheckGroup",7,None,None,None,2,None),
 	(2,33,"GtkButton","NetCheckButton",32,None,None,None,None,None)
   </object>
   <object_property>

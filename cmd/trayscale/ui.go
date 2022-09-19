@@ -82,13 +82,13 @@ type PeerPage struct {
 	*adw.StatusPage
 
 	IPGroup                 *adw.PreferencesGroup
-	NetCheckGroup           *adw.PreferencesGroup
-	NetCheckButton          *gtk.Button
 	OptionsGroup            *adw.PreferencesGroup
 	AdvertiseExitNodeRow    *adw.ActionRow
 	AdvertiseExitNodeSwitch *gtk.Switch
 	AllowLANAccessRow       *adw.ActionRow
 	AllowLANAccessSwitch    *gtk.Switch
+	NetCheckGroup           *adw.PreferencesGroup
+	NetCheckButton          *gtk.Button
 	MiscGroup               *adw.PreferencesGroup
 	ExitNodeRow             *adw.ActionRow
 	ExitNodeSwitch          *gtk.Switch
@@ -112,13 +112,13 @@ func NewPeerPage() *PeerPage {
 	parent0 := adw.NewClamp()
 	parent00 := gtk.NewBox(0, 0)
 	IPGroup := adw.NewPreferencesGroup()
-	NetCheckGroup := adw.NewPreferencesGroup()
-	NetCheckButton := gtk.NewButton()
 	OptionsGroup := adw.NewPreferencesGroup()
 	AdvertiseExitNodeRow := adw.NewActionRow()
 	AdvertiseExitNodeSwitch := gtk.NewSwitch()
 	AllowLANAccessRow := adw.NewActionRow()
 	AllowLANAccessSwitch := gtk.NewSwitch()
+	NetCheckGroup := adw.NewPreferencesGroup()
+	NetCheckButton := gtk.NewButton()
 	MiscGroup := adw.NewPreferencesGroup()
 	ExitNodeRow := adw.NewActionRow()
 	ExitNodeSwitch := gtk.NewSwitch()
@@ -143,16 +143,11 @@ func NewPeerPage() *PeerPage {
 	parent00.SetObjectProperty("orientation", 1)
 	parent00.SetObjectProperty("spacing", 12)
 	parent00.Append(IPGroup)
-	parent00.Append(NetCheckGroup)
 	parent00.Append(OptionsGroup)
+	parent00.Append(NetCheckGroup)
 	parent00.Append(MiscGroup)
 
 	IPGroup.SetObjectProperty("title", "Tailscale IPs")
-
-	NetCheckGroup.SetObjectProperty("header-suffix", NetCheckButton)
-	NetCheckGroup.SetObjectProperty("title", "Network Check")
-
-	NetCheckButton.SetObjectProperty("icon-name", "view-refresh-symbolic")
 
 	OptionsGroup.SetObjectProperty("title", "Options")
 	OptionsGroup.Add(AdvertiseExitNodeRow)
@@ -169,6 +164,11 @@ func NewPeerPage() *PeerPage {
 
 	AllowLANAccessSwitch.SetObjectProperty("margin-bottom", 12)
 	AllowLANAccessSwitch.SetObjectProperty("margin-top", 12)
+
+	NetCheckGroup.SetObjectProperty("header-suffix", NetCheckButton)
+	NetCheckGroup.SetObjectProperty("title", "Network Check")
+
+	NetCheckButton.SetObjectProperty("icon-name", "view-refresh-symbolic")
 
 	MiscGroup.SetObjectProperty("title", "Misc.")
 	MiscGroup.Add(ExitNodeRow)
@@ -214,13 +214,13 @@ func NewPeerPage() *PeerPage {
 		StatusPage: parent,
 
 		IPGroup:                 IPGroup,
-		NetCheckGroup:           NetCheckGroup,
-		NetCheckButton:          NetCheckButton,
 		OptionsGroup:            OptionsGroup,
 		AdvertiseExitNodeRow:    AdvertiseExitNodeRow,
 		AdvertiseExitNodeSwitch: AdvertiseExitNodeSwitch,
 		AllowLANAccessRow:       AllowLANAccessRow,
 		AllowLANAccessSwitch:    AllowLANAccessSwitch,
+		NetCheckGroup:           NetCheckGroup,
+		NetCheckButton:          NetCheckButton,
 		MiscGroup:               MiscGroup,
 		ExitNodeRow:             ExitNodeRow,
 		ExitNodeSwitch:          ExitNodeSwitch,

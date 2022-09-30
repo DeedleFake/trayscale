@@ -220,6 +220,7 @@ func NewPeerPage() *PeerPage {
 	NetCheckGroup.Add(PreferredDERPRow)
 	NetCheckGroup.Add(DERPLatencies)
 
+	NetCheckButton.SetObjectProperty("has-frame", "False")
 	NetCheckButton.SetObjectProperty("icon-name", "view-refresh-symbolic")
 
 	LastNetCheckRow.SetObjectProperty("title", "Last run")

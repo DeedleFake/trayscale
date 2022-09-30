@@ -110,6 +110,7 @@
 	(2,31,"GtkWidget","margin-top","12",None,None,None,None,None),
 	(2,32,"AdwPreferencesGroup","header-suffix","33",None,None,None,None,None),
 	(2,32,"AdwPreferencesGroup","title","Network Check",None,None,None,None,None),
+	(2,33,"GtkButton","has-frame","False",None,None,None,None,None),
 	(2,33,"GtkButton","icon-name","view-refresh-symbolic",None,None,None,None,None),
 	(2,34,"AdwPreferencesRow","title","UDP",None,None,None,None,None),
 	(2,34,"GtkWidget","visible","False",None,None,None,None,None),

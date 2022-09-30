@@ -48,6 +48,7 @@
                 <property name="title">Network Check</property>
                 <child>
                   <object class="GtkButton" id="NetCheckButton">
+                    <property name="has-frame">False</property>
                     <property name="icon-name">view-refresh-symbolic</property>
                   </object>
                 </child>

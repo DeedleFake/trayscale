@@ -20,6 +20,7 @@
                 <property name="title">Options</property>
                 <child>
                   <object class="AdwActionRow" id="AdvertiseExitNodeRow">
+                    <property name="activatable-widget">AdvertiseExitNodeSwitch</property>
                     <property name="title">Advertise exit node</property>
                     <child>
                       <object class="GtkSwitch" id="AdvertiseExitNodeSwitch">
@@ -31,6 +32,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="AllowLANAccessRow">
+                    <property name="activatable-widget">AllowLANAccessSwitch</property>
                     <property name="title">Allow LAN access</property>
                     <child>
                       <object class="GtkSwitch" id="AllowLANAccessSwitch">
@@ -155,6 +157,7 @@
                 <property name="title">Misc.</property>
                 <child>
                   <object class="AdwActionRow" id="ExitNodeRow">
+                    <property name="activatable-widget">ExitNodeSwitch</property>
                     <property name="icon-name">security-high-symbolic</property>
                     <property name="title">Use as exit node</property>
                     <child>

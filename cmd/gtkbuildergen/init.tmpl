@@ -2,7 +2,7 @@
 {{- $used := newValueSet -}}
 
 {{range .Properties -}}
-	{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{$used.Add .Value}})
+	{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{if .Track}}{{$used.Add .Value}}{{else}}{{.Value}}{{end}})
 {{end -}}
 {{range $i, $c := .Children -}}
 	{{- $cid := or .Object.ID (printf "%v%v" $id $i) -}}

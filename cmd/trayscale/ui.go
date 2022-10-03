@@ -195,12 +195,14 @@ func NewPeerPage() *PeerPage {
 	OptionsGroup.Add(AdvertiseExitNodeRow)
 	OptionsGroup.Add(AllowLANAccessRow)
 
+	AdvertiseExitNodeRow.SetObjectProperty("activatable-widget", AdvertiseExitNodeSwitch)
 	AdvertiseExitNodeRow.SetObjectProperty("title", "Advertise exit node")
 	AdvertiseExitNodeRow.AddSuffix(AdvertiseExitNodeSwitch)
 
 	AdvertiseExitNodeSwitch.SetObjectProperty("margin-bottom", 12)
 	AdvertiseExitNodeSwitch.SetObjectProperty("margin-top", 12)
 
+	AllowLANAccessRow.SetObjectProperty("activatable-widget", AllowLANAccessSwitch)
 	AllowLANAccessRow.SetObjectProperty("title", "Allow LAN access")
 	AllowLANAccessRow.AddSuffix(AllowLANAccessSwitch)
 
@@ -220,6 +222,7 @@ func NewPeerPage() *PeerPage {
 	NetCheckGroup.Add(PreferredDERPRow)
 	NetCheckGroup.Add(DERPLatencies)
 
+	NetCheckButton.SetObjectProperty("has-frame", false)
 	NetCheckButton.SetObjectProperty("icon-name", "view-refresh-symbolic")
 
 	LastNetCheckRow.SetObjectProperty("title", "Last run")
@@ -276,6 +279,7 @@ func NewPeerPage() *PeerPage {
 	MiscGroup.Add(RxBytesRow)
 	MiscGroup.Add(TxBytesRow)
 
+	ExitNodeRow.SetObjectProperty("activatable-widget", ExitNodeSwitch)
 	ExitNodeRow.SetObjectProperty("icon-name", "security-high-symbolic")
 	ExitNodeRow.SetObjectProperty("title", "Use as exit node")
 	ExitNodeRow.AddSuffix(ExitNodeSwitch)

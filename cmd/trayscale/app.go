@@ -133,6 +133,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 		iprow.SetTitle(ipstr)
 		iprow.SetObjectProperty("title-selectable", true)
 		iprow.AddSuffix(copyButton)
+		iprow.SetActivatableWidget(copyButton)
 
 		page.container.IPGroup.Add(iprow)
 		page.addrRows = append(page.addrRows, iprow)

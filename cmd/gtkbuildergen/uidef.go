@@ -116,7 +116,7 @@ var (
 
 func (p Property) Value() string {
 	switch p.Name {
-	case "width-request", "height-request", "default-width", "default-height", "content", "stack", "spacing", "margin-top", "margin-bottom", "header-suffix":
+	case "width-request", "height-request", "default-width", "default-height", "content", "stack", "spacing", "margin-top", "margin-bottom", "header-suffix", "activatable-widget":
 		return p.RawValue
 	case "show-start-title-buttons", "show-end-title-buttons", "primary", "vexpand", "hexpand", "visible", "has-frame":
 		b, err := strconv.ParseBool(p.RawValue)
@@ -131,6 +131,10 @@ func (p Property) Value() string {
 	default:
 		return strconv.Quote(p.RawValue)
 	}
+}
+
+func (p Property) Track() bool {
+	return p.Name != "activatable-widget"
 }
 
 type Child struct {

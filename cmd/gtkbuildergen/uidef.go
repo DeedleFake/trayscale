@@ -57,6 +57,7 @@ type Object struct {
 
 	Properties []Property `xml:"property"`
 	Children   []Child    `xml:"child"`
+	Bindings   []Binding  `xml:"binding"`
 }
 
 func (obj Object) Type() Class {
@@ -116,7 +117,7 @@ var (
 
 func (p Property) Value() string {
 	switch p.Name {
-	case "width-request", "height-request", "default-width", "default-height", "content", "stack", "spacing", "margin-top", "margin-bottom", "header-suffix", "activatable-widget":
+	case "width-request", "height-request", "default-width", "default-height", "content", "stack", "spacing", "margin-top", "margin-bottom", "header-suffix", "activatable-widget", "menu-model":
 		return p.RawValue
 	case "show-start-title-buttons", "show-end-title-buttons", "primary", "vexpand", "hexpand", "visible", "has-frame":
 		b, err := strconv.ParseBool(p.RawValue)
@@ -364,4 +365,19 @@ func (v *Value) UnmarshalText(text []byte) error {
 
 	v.Val = str
 	return nil
+}
+
+type Binding struct {
+	XMLName xml.Name `xml:"binding"`
+
+	Name string `xml:"name,attr"`
+
+	Lookup Lookup `xml:"lookup"`
+}
+
+type Lookup struct {
+	XMLName xml.Name `xml:"lookup"`
+
+	Name  string `xml:"name,attr"`
+	Value string `xml:",chardata"`
 }

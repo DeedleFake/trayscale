@@ -12,7 +12,7 @@
     <child>
       <object class="AdwToastOverlay" id="ToastOverlay">
         <child>
-          <object class="AdwLeaflet">
+          <object class="AdwLeaflet" id="Leaflet">
             <child>
               <object class="GtkBox">
                 <property name="orientation">vertical</property>
@@ -27,8 +27,14 @@
                       <object class="GtkMenuButton" id="MainMenuButton">
                         <property name="icon-name">open-menu-symbolic</property>
                         <property name="primary">True</property>
+                        <!-- Custom fragments -->
+                        <property name="menu-model">MainMenu</property>
                       </object>
                     </child>
+                    <!-- Custom fragments -->
+                    <binding name="show-end-title-buttons">
+                      <lookup name="folded">Leaflet</lookup>
+                    </binding>
                   </object>
                 </child>
                 <child>
@@ -60,6 +66,7 @@
                 </child>
               </object>
             </child>
+            <!-- Custom fragments -->
           </object>
         </child>
       </object>

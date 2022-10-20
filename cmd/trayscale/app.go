@@ -273,9 +273,6 @@ func (a *App) init(ctx context.Context) {
 
 		a.win = NewMainWindow(&a.app.Application)
 
-		// Workaround for Cambalache limitations.
-		a.win.MainMenuButton.SetMenuModel(MainMenu)
-
 		a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
 			if s == a.win.StatusSwitch.State() {
 				return false

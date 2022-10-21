@@ -12,53 +12,74 @@ type MainWindow struct {
 	*adw.ApplicationWindow
 
 	ToastOverlay   *adw.ToastOverlay
+	Leaflet        *adw.Leaflet
 	StatusSwitch   *gtk.Switch
 	MainMenuButton *gtk.MenuButton
+	BackButton     *gtk.Button
 	PeersStack     *gtk.Stack
 }
 
 func NewMainWindow(app *gtk.Application) *MainWindow {
 	ToastOverlay := adw.NewToastOverlay()
-	ToastOverlay0 := adw.NewLeaflet()
-	ToastOverlay00 := gtk.NewBox(0, 0)
-	ToastOverlay000 := adw.NewHeaderBar()
+	Leaflet := adw.NewLeaflet()
+	Leaflet0 := gtk.NewBox(0, 0)
+	Leaflet00 := adw.NewHeaderBar()
 	StatusSwitch := gtk.NewSwitch()
 	MainMenuButton := gtk.NewMenuButton()
-	ToastOverlay001 := gtk.NewStackSidebar()
-	ToastOverlay01 := gtk.NewBox(0, 0)
-	ToastOverlay010 := adw.NewHeaderBar()
-	ToastOverlay0100 := gtk.NewBox(0, 0)
+	Leaflet01 := gtk.NewStackSidebar()
+	Leaflet1 := gtk.NewBox(0, 0)
+	Leaflet10 := adw.NewHeaderBar()
+	Leaflet100 := gtk.NewBox(0, 0)
+	BackButton := gtk.NewButton()
 	PeersStack := gtk.NewStack()
 	parent := adw.NewApplicationWindow(app)
 
-	ToastOverlay.SetChild(ToastOverlay0)
+	ToastOverlay.SetChild(Leaflet)
 
-	ToastOverlay0.Append(ToastOverlay00)
-	ToastOverlay0.Append(ToastOverlay01)
+	Leaflet.SetObjectProperty("can-navigate-back", true)
+	Leaflet.Append(Leaflet0)
+	Leaflet.Append(Leaflet1)
 
-	ToastOverlay00.SetObjectProperty("orientation", 1)
-	ToastOverlay00.SetObjectProperty("width-request", 360)
-	ToastOverlay00.Append(ToastOverlay000)
-	ToastOverlay00.Append(ToastOverlay001)
+	Leaflet0.SetObjectProperty("orientation", 1)
+	Leaflet0.SetObjectProperty("width-request", 360)
+	Leaflet0.Append(Leaflet00)
+	Leaflet0.Append(Leaflet01)
 
-	ToastOverlay000.SetObjectProperty("show-end-title-buttons", false)
-	ToastOverlay000.PackStart(StatusSwitch)
-	ToastOverlay000.PackEnd(MainMenuButton)
+	Leaflet00.SetObjectProperty("show-end-title-buttons", false)
+	Leaflet.NotifyProperty("folded", func() {
+		Leaflet00.SetObjectProperty("show-end-title-buttons", Leaflet.ObjectProperty("folded"))
+	})
+	Leaflet00.SetObjectProperty("show-end-title-buttons", Leaflet.ObjectProperty("folded"))
+	Leaflet00.PackStart(StatusSwitch)
+	Leaflet00.PackEnd(MainMenuButton)
 
 	MainMenuButton.SetObjectProperty("icon-name", "open-menu-symbolic")
 	MainMenuButton.SetObjectProperty("primary", true)
+	MainMenuButton.SetObjectProperty("menu-model", MainMenu)
 
-	ToastOverlay001.SetObjectProperty("stack", PeersStack)
-	ToastOverlay001.SetObjectProperty("vexpand", true)
-	ToastOverlay001.SetObjectProperty("width-request", 270)
+	Leaflet01.SetObjectProperty("stack", PeersStack)
+	Leaflet01.SetObjectProperty("vexpand", true)
+	Leaflet01.SetObjectProperty("width-request", 270)
 
-	ToastOverlay01.SetObjectProperty("hexpand", true)
-	ToastOverlay01.SetObjectProperty("orientation", 1)
-	ToastOverlay01.Append(ToastOverlay010)
-	ToastOverlay01.Append(PeersStack)
+	Leaflet1.SetObjectProperty("hexpand", true)
+	Leaflet1.SetObjectProperty("orientation", 1)
+	Leaflet1.Append(Leaflet10)
+	Leaflet1.Append(PeersStack)
 
-	ToastOverlay010.SetObjectProperty("show-start-title-buttons", false)
-	ToastOverlay010.SetTitleWidget(ToastOverlay0100)
+	Leaflet10.SetObjectProperty("show-start-title-buttons", false)
+	Leaflet.NotifyProperty("folded", func() {
+		Leaflet10.SetObjectProperty("show-start-title-buttons", Leaflet.ObjectProperty("folded"))
+	})
+	Leaflet10.SetObjectProperty("show-start-title-buttons", Leaflet.ObjectProperty("folded"))
+	Leaflet10.SetTitleWidget(Leaflet100)
+	Leaflet10.PackStart(BackButton)
+
+	BackButton.SetObjectProperty("has-frame", false)
+	BackButton.SetObjectProperty("icon-name", "go-previous-symbolic")
+	Leaflet.NotifyProperty("folded", func() {
+		BackButton.SetObjectProperty("visible", Leaflet.ObjectProperty("folded"))
+	})
+	BackButton.SetObjectProperty("visible", Leaflet.ObjectProperty("folded"))
 
 	PeersStack.SetObjectProperty("transition-type", 7)
 	PeersStack.SetObjectProperty("vexpand", true)
@@ -72,8 +93,10 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 		ApplicationWindow: parent,
 
 		ToastOverlay:   ToastOverlay,
+		Leaflet:        Leaflet,
 		StatusSwitch:   StatusSwitch,
 		MainMenuButton: MainMenuButton,
+		BackButton:     BackButton,
 		PeersStack:     PeersStack,
 	}
 }

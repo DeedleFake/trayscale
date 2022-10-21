@@ -273,9 +273,6 @@ func (a *App) init(ctx context.Context) {
 
 		a.win = NewMainWindow(&a.app.Application)
 
-		// Workaround for Cambalache limitations.
-		a.win.MainMenuButton.SetMenuModel(MainMenu)
-
 		a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
 			if s == a.win.StatusSwitch.State() {
 				return false
@@ -294,6 +291,16 @@ func (a *App) init(ctx context.Context) {
 			}
 			a.poll <- struct{}{}
 			return true
+		})
+
+		a.win.PeersStack.NotifyProperty("visible-child", func() {
+			if a.win.PeersStack.VisibleChild() != nil {
+				a.win.Leaflet.Navigate(adw.NavigationDirectionForward)
+			}
+		})
+
+		a.win.BackButton.ConnectClicked(func() {
+			a.win.Leaflet.Navigate(adw.NavigationDirectionBack)
 		})
 
 		a.win.ConnectCloseRequest(func() bool {

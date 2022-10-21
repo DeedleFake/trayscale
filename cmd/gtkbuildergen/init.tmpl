@@ -4,6 +4,12 @@
 {{range .Properties -}}
 	{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{if .Track}}{{$used.Add .Value}}{{else}}{{.Value}}{{end}})
 {{end -}}
+{{range .Bindings -}}
+	{{.Lookup.Value}}.NotifyProperty({{.Lookup.Name | printf "%q"}}, func() {
+		{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{.Lookup.Value}}.ObjectProperty({{.Lookup.Name | printf "%q"}}))
+	})
+	{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{.Lookup.Value}}.ObjectProperty({{.Lookup.Name | printf "%q"}}))
+{{end -}}
 {{range $i, $c := .Children -}}
 	{{- $cid := or .Object.ID (printf "%v%v" $id $i) -}}
 	{{if not ($used.Has $cid) -}}

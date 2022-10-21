@@ -13,6 +13,7 @@
       <object class="AdwToastOverlay" id="ToastOverlay">
         <child>
           <object class="AdwLeaflet" id="Leaflet">
+            <property name="can-navigate-back">True</property>
             <child>
               <object class="GtkBox">
                 <property name="orientation">vertical</property>
@@ -56,6 +57,20 @@
                     <child type="title">
                       <object class="GtkBox"/>
                     </child>
+                    <child type="start">
+                      <object class="GtkButton" id="BackButton">
+                        <property name="has-frame">False</property>
+                        <property name="icon-name">go-previous-symbolic</property>
+                        <!-- Custom fragments -->
+                        <binding name="visible">
+                          <lookup name="folded">Leaflet</lookup>
+                        </binding>
+                      </object>
+                    </child>
+                    <!-- Custom fragments -->
+                    <binding name="show-start-title-buttons">
+                      <lookup name="folded">Leaflet</lookup>
+                    </binding>
                   </object>
                 </child>
                 <child>

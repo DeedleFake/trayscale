@@ -15,6 +15,7 @@ type MainWindow struct {
 	Leaflet        *adw.Leaflet
 	StatusSwitch   *gtk.Switch
 	MainMenuButton *gtk.MenuButton
+	BackButton     *gtk.Button
 	PeersStack     *gtk.Stack
 }
 
@@ -29,11 +30,13 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 	Leaflet1 := gtk.NewBox(0, 0)
 	Leaflet10 := adw.NewHeaderBar()
 	Leaflet100 := gtk.NewBox(0, 0)
+	BackButton := gtk.NewButton()
 	PeersStack := gtk.NewStack()
 	parent := adw.NewApplicationWindow(app)
 
 	ToastOverlay.SetChild(Leaflet)
 
+	Leaflet.SetObjectProperty("can-navigate-back", true)
 	Leaflet.Append(Leaflet0)
 	Leaflet.Append(Leaflet1)
 
@@ -46,6 +49,7 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 	Leaflet.NotifyProperty("folded", func() {
 		Leaflet00.SetObjectProperty("show-end-title-buttons", Leaflet.ObjectProperty("folded"))
 	})
+	Leaflet00.SetObjectProperty("show-end-title-buttons", Leaflet.ObjectProperty("folded"))
 	Leaflet00.PackStart(StatusSwitch)
 	Leaflet00.PackEnd(MainMenuButton)
 
@@ -63,7 +67,19 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 	Leaflet1.Append(PeersStack)
 
 	Leaflet10.SetObjectProperty("show-start-title-buttons", false)
+	Leaflet.NotifyProperty("folded", func() {
+		Leaflet10.SetObjectProperty("show-start-title-buttons", Leaflet.ObjectProperty("folded"))
+	})
+	Leaflet10.SetObjectProperty("show-start-title-buttons", Leaflet.ObjectProperty("folded"))
 	Leaflet10.SetTitleWidget(Leaflet100)
+	Leaflet10.PackStart(BackButton)
+
+	BackButton.SetObjectProperty("has-frame", false)
+	BackButton.SetObjectProperty("icon-name", "go-previous-symbolic")
+	Leaflet.NotifyProperty("folded", func() {
+		BackButton.SetObjectProperty("visible", Leaflet.ObjectProperty("folded"))
+	})
+	BackButton.SetObjectProperty("visible", Leaflet.ObjectProperty("folded"))
 
 	PeersStack.SetObjectProperty("transition-type", 7)
 	PeersStack.SetObjectProperty("vexpand", true)
@@ -80,6 +96,7 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 		Leaflet:        Leaflet,
 		StatusSwitch:   StatusSwitch,
 		MainMenuButton: MainMenuButton,
+		BackButton:     BackButton,
 		PeersStack:     PeersStack,
 	}
 }

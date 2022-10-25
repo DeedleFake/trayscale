@@ -21,6 +21,7 @@ import (
 	"golang.org/x/exp/slices"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/net/tsaddr"
 	"tailscale.com/types/key"
 )
 
@@ -144,6 +145,43 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 		page.container.AdvertiseExitNodeSwitch.SetState(prefs.AdvertisesExitNode())
 		page.container.AllowLANAccessSwitch.SetState(prefs.ExitNodeAllowLANAccess)
 	}
+
+	page.container.AdvertiseRouteButton.SetVisible(self)
+	for _, row := range page.routeRows {
+		page.container.AdvertisedRoutesGroup.Remove(row)
+	}
+	page.routeRows = page.routeRows[:0]
+	var routes []netip.Prefix
+	switch {
+	case self:
+		routes = prefs.AdvertiseRoutes
+	case peer.PrimaryRoutes != nil:
+		routes = peer.PrimaryRoutes.AsSlice()
+	}
+	routes = xslices.Subtract(routes, tsaddr.ExitRoutes())
+	slices.SortFunc(routes, func(p1, p2 netip.Prefix) bool { return p1.Addr().Less(p2.Addr()) })
+	for _, ip := range routes {
+		str := ip.String()
+
+		row := adw.NewActionRow()
+		row.SetTitle(str)
+		row.SetObjectProperty("title-selectable", true)
+
+		if self {
+			removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
+			removeButton.SetMarginTop(12)
+			removeButton.SetMarginBottom(12)
+			removeButton.SetHasFrame(false)
+			removeButton.SetTooltipText("Remove")
+			// TODO: Click sugnal handler.
+
+			row.AddSuffix(removeButton)
+		}
+
+		page.container.AdvertisedRoutesGroup.Add(row)
+		page.routeRows = append(page.routeRows, row)
+	}
+
 	page.container.NetCheckGroup.SetVisible(self)
 
 	page.container.MiscGroup.SetVisible(!self)
@@ -342,7 +380,8 @@ type peerPage struct {
 	page      *gtk.StackPage
 	container *PeerPage
 
-	addrRows []*adw.ActionRow
+	addrRows  []*adw.ActionRow
+	routeRows []*adw.ActionRow
 }
 
 func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {

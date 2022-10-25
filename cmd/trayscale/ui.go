@@ -110,6 +110,8 @@ type PeerPage struct {
 	AdvertiseExitNodeSwitch *gtk.Switch
 	AllowLANAccessRow       *adw.ActionRow
 	AllowLANAccessSwitch    *gtk.Switch
+	AdvertisedRoutesGroup   *adw.PreferencesGroup
+	AdvertiseRouteButton    *gtk.Button
 	NetCheckGroup           *adw.PreferencesGroup
 	NetCheckButton          *gtk.Button
 	LastNetCheckRow         *adw.ActionRow
@@ -161,6 +163,8 @@ func NewPeerPage() *PeerPage {
 	AdvertiseExitNodeSwitch := gtk.NewSwitch()
 	AllowLANAccessRow := adw.NewActionRow()
 	AllowLANAccessSwitch := gtk.NewSwitch()
+	AdvertisedRoutesGroup := adw.NewPreferencesGroup()
+	AdvertiseRouteButton := gtk.NewButton()
 	NetCheckGroup := adw.NewPreferencesGroup()
 	NetCheckButton := gtk.NewButton()
 	LastNetCheckRow := adw.NewActionRow()
@@ -209,6 +213,7 @@ func NewPeerPage() *PeerPage {
 	parent00.SetObjectProperty("spacing", 12)
 	parent00.Append(IPGroup)
 	parent00.Append(OptionsGroup)
+	parent00.Append(AdvertisedRoutesGroup)
 	parent00.Append(NetCheckGroup)
 	parent00.Append(MiscGroup)
 
@@ -231,6 +236,12 @@ func NewPeerPage() *PeerPage {
 
 	AllowLANAccessSwitch.SetObjectProperty("margin-bottom", 12)
 	AllowLANAccessSwitch.SetObjectProperty("margin-top", 12)
+
+	AdvertisedRoutesGroup.SetObjectProperty("header-suffix", AdvertiseRouteButton)
+	AdvertisedRoutesGroup.SetObjectProperty("title", "Advertised Routes")
+
+	AdvertiseRouteButton.SetObjectProperty("has-frame", false)
+	AdvertiseRouteButton.SetObjectProperty("icon-name", "list-add-symbolic")
 
 	NetCheckGroup.SetObjectProperty("header-suffix", NetCheckButton)
 	NetCheckGroup.SetObjectProperty("title", "Network Check")
@@ -342,6 +353,8 @@ func NewPeerPage() *PeerPage {
 		AdvertiseExitNodeSwitch: AdvertiseExitNodeSwitch,
 		AllowLANAccessRow:       AllowLANAccessRow,
 		AllowLANAccessSwitch:    AllowLANAccessSwitch,
+		AdvertisedRoutesGroup:   AdvertisedRoutesGroup,
+		AdvertiseRouteButton:    AdvertiseRouteButton,
 		NetCheckGroup:           NetCheckGroup,
 		NetCheckButton:          NetCheckButton,
 		LastNetCheckRow:         LastNetCheckRow,

@@ -380,6 +380,12 @@ func (a *App) Run(ctx context.Context) {
 
 	a.init(ctx)
 
+	err := a.app.Register(ctx)
+	if err != nil {
+		log.Printf("Error: register application: %v", err)
+		return
+	}
+
 	mk.Chan(&a.poll, 1)
 	go a.poller(ctx)
 

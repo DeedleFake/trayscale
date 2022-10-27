@@ -189,6 +189,13 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 		page.container.AdvertisedRoutesGroup.Add(row)
 		page.routeRows = append(page.routeRows, row)
 	}
+	if len(routes) == 0 {
+		row := adw.NewActionRow()
+		row.SetTitle("No advertised routes.")
+
+		page.container.AdvertisedRoutesGroup.Add(row)
+		page.routeRows = append(page.routeRows, row)
+	}
 
 	page.container.NetCheckGroup.SetVisible(self)
 

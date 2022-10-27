@@ -17,3 +17,16 @@ func Partition[E any, S ~[]E](s S, pred func(E) bool) (t, f S) {
 
 	return t, f
 }
+
+// Filter removes any elements from s for which keep(element) is
+// false.
+func Filter[E any, S ~[]E](s S, keep func(E) bool) S {
+	to := 0
+	for _, v := range s {
+		if keep(v) {
+			s[to] = v
+			to++
+		}
+	}
+	return s[:to]
+}

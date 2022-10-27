@@ -3,6 +3,7 @@ package tailscale
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"os/exec"
 	"strings"
 
@@ -124,6 +125,26 @@ func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
 
 	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
 		Prefs:              prefs,
+		AdvertiseRoutesSet: true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) AdvertiseRoutes(ctx context.Context, routes []netip.Prefix) error {
+	prefs, err := c.Prefs(ctx)
+	if err != nil {
+		return fmt.Errorf("get prefs: %w", err)
+	}
+	exit := prefs.AdvertisesExitNode()
+	prefs.AdvertiseRoutes = routes
+	prefs.SetAdvertiseExitNode(exit)
+
+	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:              *prefs,
 		AdvertiseRoutesSet: true,
 	})
 	if err != nil {

@@ -45,6 +45,18 @@
               </object>
             </child>
             <child>
+              <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
+                <property name="header-suffix">AdvertiseRouteButton</property>
+                <property name="title">Advertised Routes</property>
+                <child>
+                  <object class="GtkButton" id="AdvertiseRouteButton">
+                    <property name="has-frame">False</property>
+                    <property name="icon-name">list-add-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
               <object class="AdwPreferencesGroup" id="NetCheckGroup">
                 <property name="header-suffix">NetCheckButton</property>
                 <property name="title">Network Check</property>

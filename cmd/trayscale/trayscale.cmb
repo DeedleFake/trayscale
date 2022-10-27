@@ -23,7 +23,7 @@
 	(2,5,"AdwClamp",None,3,None,None,None,None,None),
 	(2,7,"GtkBox",None,5,None,None,None,None,None),
 	(2,8,"AdwPreferencesGroup","IPGroup",7,None,None,None,None,None),
-	(2,9,"AdwPreferencesGroup","MiscGroup",7,None,None,None,3,None),
+	(2,9,"AdwPreferencesGroup","MiscGroup",7,None,None,None,4,None),
 	(2,11,"AdwActionRow","ExitNodeRow",9,None,None,None,None,None),
 	(2,12,"AdwActionRow","RxBytesRow",9,None,None,None,6,None),
 	(2,13,"AdwActionRow","TxBytesRow",9,None,None,None,7,None),
@@ -45,7 +45,7 @@
 	(2,29,"GtkSwitch","AdvertiseExitNodeSwitch",28,None,None,None,None,None),
 	(2,30,"AdwActionRow","AllowLANAccessRow",27,None,None,None,1,None),
 	(2,31,"GtkSwitch","AllowLANAccessSwitch",30,None,None,None,None,None),
-	(2,32,"AdwPreferencesGroup","NetCheckGroup",7,None,None,None,2,None),
+	(2,32,"AdwPreferencesGroup","NetCheckGroup",7,None,None,None,3,None),
 	(2,33,"GtkButton","NetCheckButton",32,None,None,None,None,None),
 	(2,34,"AdwActionRow","UDPRow",32,None,None,None,4,None),
 	(2,36,"AdwActionRow","IPv4Row",32,None,None,None,5,None),
@@ -67,7 +67,9 @@
 	(2,56,"AdwActionRow","PCPRow",32,None,None,None,9,None),
 	(2,57,"GtkImage","PCP",56,None,None,None,None,None),
 	(2,62,"GtkLabel","IPv4Addr",36,None,None,None,1,None),
-	(2,63,"GtkLabel","IPv6Addr",38,None,None,None,1,None)
+	(2,63,"GtkLabel","IPv6Addr",38,None,None,None,1,None),
+	(2,64,"AdwPreferencesGroup","AdvertisedRoutesGroup",7,None,None,None,2,None),
+	(2,65,"GtkButton","AdvertiseRouteButton",64,None,None,None,None,None)
   </object>
   <object_property>
 	(1,1,"AdwApplicationWindow","content","4",None,None,None,None,None),
@@ -139,6 +141,10 @@
 	(2,54,"AdwPreferencesRow","title","NAT port mapping protocol",None,None,None,None,None),
 	(2,54,"GtkWidget","visible","False",None,None,None,None,None),
 	(2,56,"AdwPreferencesRow","title","Port control protocol",None,None,None,None,None),
-	(2,56,"GtkWidget","visible","False",None,None,None,None,None)
+	(2,56,"GtkWidget","visible","False",None,None,None,None,None),
+	(2,64,"AdwPreferencesGroup","header-suffix","65",None,None,None,None,None),
+	(2,64,"AdwPreferencesGroup","title","Advertised Routes",None,None,None,None,None),
+	(2,65,"GtkButton","has-frame","False",None,None,None,None,None),
+	(2,65,"GtkButton","icon-name","list-add-symbolic",None,None,None,None,None)
   </object_property>
 </cambalache-project>

@@ -6,8 +6,8 @@ require (
 	deedles.dev/mk v0.1.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220417101956-dcc3707dc307
 	github.com/diamondburned/gotk4/pkg v0.0.0-20220925114733-8c5529b9df15
-	golang.org/x/exp v0.0.0-20221019170559-20944726eadf
-	tailscale.com v1.32.0
+	golang.org/x/exp v0.0.0-20221026153819-32f3d567a233
+	tailscale.com v1.32.2
 )
 
 require (
@@ -22,7 +22,7 @@ require (
 	github.com/josharian/native v1.0.0 // indirect
 	github.com/jsimonetti/rtnetlink v1.2.3 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
-	github.com/klauspost/compress v1.15.11 // indirect
+	github.com/klauspost/compress v1.15.12 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mdlayher/netlink v1.6.2 // indirect
 	github.com/mdlayher/socket v0.2.3 // indirect

@@ -18,14 +18,15 @@ func Partition[E any, S ~[]E](s S, pred func(E) bool) (t, f S) {
 	return t, f
 }
 
-// Filter creates a new slice containing only the values in s for
-// which keep(value) returns true.
+// Filter removes any elements from s for which keep(element) is
+// false.
 func Filter[E any, S ~[]E](s S, keep func(E) bool) S {
-	r := make(S, 0, len(s))
+	to := 0
 	for _, v := range s {
 		if keep(v) {
-			r = append(r, v)
+			s[to] = v
+			to++
 		}
 	}
-	return r
+	return s[:to]
 }

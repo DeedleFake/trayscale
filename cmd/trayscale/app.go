@@ -21,7 +21,6 @@ import (
 	"golang.org/x/exp/slices"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
-	"tailscale.com/net/tsaddr"
 	"tailscale.com/types/key"
 )
 
@@ -158,9 +157,10 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 	case peer.PrimaryRoutes != nil:
 		routes = peer.PrimaryRoutes.AsSlice()
 	}
-	routes = xslices.Subtract(routes, tsaddr.ExitRoutes())
-	slices.SortFunc(routes, func(p1, p2 netip.Prefix) bool { return p1.Addr().Less(p2.Addr()) })
-	for _, ip := range routes {
+	routes = xslices.Filter(routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
+	slices.SortFunc(routes, func(p1, p2 netip.Prefix) bool { return p1.Addr().Less(p2.Addr()) || p1.Bits() < p2.Bits() })
+	for i, ip := range routes {
+		i := i // Here we go again, golang/go#56010.
 		str := ip.String()
 
 		row := adw.NewActionRow()
@@ -173,7 +173,15 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 			removeButton.SetMarginBottom(12)
 			removeButton.SetHasFrame(false)
 			removeButton.SetTooltipText("Remove")
-			// TODO: Click sugnal handler.
+			removeButton.ConnectClicked(func() {
+				routes := slices.Delete(routes, i, i+1)
+				err := a.TS.AdvertiseRoutes(context.TODO(), routes)
+				if err != nil {
+					log.Printf("Error: advertise routes: %v", err)
+					return
+				}
+				a.poll <- struct{}{}
+			})
 
 			row.AddSuffix(removeButton)
 		}
@@ -376,6 +384,37 @@ func (a *App) Run(ctx context.Context) {
 	a.app.Run(os.Args)
 }
 
+func (a *App) prompt(prompt string, res func(val string)) {
+	input := gtk.NewText()
+	input.SetPlaceholderText(prompt)
+	input.SetSizeRequest(200, 30)
+
+	dialog := gtk.NewMessageDialog(
+		&a.win.Window,
+		gtk.DialogModal|gtk.DialogDestroyWithParent|gtk.DialogUseHeaderBar,
+		gtk.MessageQuestion,
+		gtk.ButtonsNone,
+	)
+	dialog.ContentArea().Append(input)
+	dialog.AddButton("Cancel", 1)
+	dialog.AddButton("Add", 0)
+
+	input.ConnectActivate(func() {
+		dialog.Response(0)
+	})
+
+	dialog.ConnectResponse(func(id int) {
+		defer dialog.Close()
+
+		switch id {
+		case 0:
+			res(input.Buffer().Text())
+		}
+	})
+
+	dialog.Show()
+}
+
 type peerPage struct {
 	page      *gtk.StackPage
 	container *PeerPage
@@ -436,6 +475,33 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		}
 		a.poll <- struct{}{}
 		return true
+	})
+
+	page.container.AdvertiseRouteButton.ConnectClicked(func() {
+		a.prompt("IP prefix to advertise", func(val string) {
+			p, err := netip.ParsePrefix(val)
+			if err != nil {
+				log.Printf("Error: parse prefix: %v", err)
+				return
+			}
+
+			prefs, err := a.TS.Prefs(context.TODO())
+			if err != nil {
+				log.Printf("Error: get prefs: %v", err)
+				return
+			}
+
+			err = a.TS.AdvertiseRoutes(
+				context.TODO(),
+				append(prefs.AdvertiseRoutes, p),
+			)
+			if err != nil {
+				log.Printf("Error: advertise routes: %v", err)
+				return
+			}
+
+			a.poll <- struct{}{}
+		})
 	})
 
 	var latencyRows []gtk.Widgetter

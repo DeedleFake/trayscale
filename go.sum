@@ -4,6 +4,8 @@ filippo.io/edwards25519 v1.0.0 h1:0wAIcmJUqRdI8IJ/3eGi5/HwXZWPujYXXlkrQogz0Ek=
 filippo.io/edwards25519 v1.0.0/go.mod h1:N1IkdkCkiLB6tki+MYJoSx2JTY9NUlxZE7eHn5EwJns=
 filippo.io/mkcert v1.4.3 h1:axpnmtrZMM8u5Hf4N3UXxboGemMOV+Tn+e+pkHM6E3o=
 github.com/BurntSushi/toml v1.1.0 h1:ksErzDEI1khOiGPgpwuI7x2ebx/uXQNw7xJpn9Eq1+I=
+github.com/DeedleFake/gotk4/pkg v0.0.4 h1:eQi0jNL2OVauYCicDnIMrB/N9lflgmkAw0nHJEtii+k=
+github.com/DeedleFake/gotk4/pkg v0.0.4/go.mod h1:DdFIIgGetfZf4ZQJkdQTYNcrIBPO8DEvVNIJgzGjWEE=
 github.com/Microsoft/go-winio v0.6.0 h1:slsWYD/zyx7lCXoZVlvQrj0hPTM1HI4+v1sIda2yDvg=
 github.com/Microsoft/go-winio v0.6.0/go.mod h1:cTAf44im0RAYeL23bpB+fzCyDH2MJiz2BO69KH/soAE=
 github.com/akutz/memconn v0.1.0 h1:NawI0TORU4hcOMsMr11g7vwlCdkYeLKXBcxWu2W/P8A=
@@ -15,8 +17,6 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220417101956-dcc3707dc307 h1:7SvMQLBSty7Y+0gMBYi20JE4+rM+VbLWhZGMVKK3VQg=
 github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220417101956-dcc3707dc307/go.mod h1:ltZ0ffX+lhfOw+HlN3pROJ1fVJwo2hbFbLsRjlUtrlg=
-github.com/diamondburned/gotk4/pkg v0.0.0-20221218002743-6628c95a768a h1:u0xG33nL6iqhJBZN7pPTPuFLmcDr5IVzG4F8Y5PpjkY=
-github.com/diamondburned/gotk4/pkg v0.0.0-20221218002743-6628c95a768a/go.mod h1:DdFIIgGetfZf4ZQJkdQTYNcrIBPO8DEvVNIJgzGjWEE=
 github.com/frankban/quicktest v1.14.0 h1:+cqqvzZV87b4adx/5ayVOaYZ2CrvM4ejQvUdBzPPUss=
 github.com/fxamacker/cbor/v2 v2.4.0 h1:ri0ArlOR+5XunOP8CRUowT0pSJOwhW098ZCUyskZD88=
 github.com/fxamacker/cbor/v2 v2.4.0/go.mod h1:TA1xS00nchWmaBnEIxPSE5oHLuJBAVvqrtAnWBwBCVo=

@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	deedles.dev/mk v0.1.0
-	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230105075138-e92a3b568c9e
-	github.com/diamondburned/gotk4/pkg v0.0.5-0.20230105054822-f46414fdaa94
+	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220417101956-dcc3707dc307
+	github.com/diamondburned/gotk4/pkg v0.0.4
 	golang.org/x/exp v0.0.0-20230127140709-cafedaf64729
 	tailscale.com v1.36.0
 )
@@ -43,5 +43,3 @@ require (
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
-
-replace github.com/diamondburned/gotk4/pkg => github.com/DeedleFake/gotk4/pkg v0.0.4

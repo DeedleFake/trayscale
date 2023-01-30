@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"io"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -91,18 +93,8 @@ func optBoolIcon(v opt.Bool) string {
 }
 
 func main() {
-	if prof, ok := os.LookupEnv("PPROF"); ok {
-		file, err := os.Create(prof)
-		if err != nil {
-			panic(err)
-		}
-		defer file.Close()
-
-		err = pprof.StartCPUProfile(file)
-		if err != nil {
-			panic(err)
-		}
-		defer pprof.StopCPUProfile()
+	if addr, ok := os.LookupEnv("PPROF_ADDR"); ok {
+		go func() { log.Println(http.ListenAndServe(addr, nil)) }()
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)

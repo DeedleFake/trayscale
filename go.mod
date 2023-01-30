@@ -6,7 +6,7 @@ require (
 	deedles.dev/mk v0.1.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220417101956-dcc3707dc307
 	github.com/diamondburned/gotk4/pkg v0.0.4
-	golang.org/x/exp v0.0.0-20230127140709-cafedaf64729
+	golang.org/x/exp v0.0.0-20230129154200-a960b3787bd2
 	tailscale.com v1.36.0
 )
 

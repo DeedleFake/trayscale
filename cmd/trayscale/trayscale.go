@@ -22,6 +22,15 @@ const (
 	prefShowWindowAtStart = "showWindowAtStart"
 )
 
+type enum[T any] struct {
+	Index int
+	Val   T
+}
+
+func enumerate[T any](i int, v T) enum[T] {
+	return enum[T]{i, v}
+}
+
 func formatTime(t time.Time) string {
 	if t.IsZero() {
 		return ""

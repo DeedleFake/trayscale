@@ -49,9 +49,25 @@ type rowManagerParent interface {
 	Remove(gtk.Widgetter)
 }
 
+type rowAdder interface {
+	AddRow(gtk.Widgetter)
+	Remove(gtk.Widgetter)
+}
+
+type rowAdderParent struct {
+	rowAdder
+}
+
+func (r rowAdderParent) Add(w gtk.Widgetter) {
+	r.AddRow(w)
+}
+
 type simpleActionRow[T gtk.Widgetter] struct {
 	action T
 	row    *adw.ActionRow
 }
 
-type buttonRow = simpleActionRow[*gtk.Button]
+type (
+	buttonRow = simpleActionRow[*gtk.Button]
+	labelRow  = simpleActionRow[*gtk.Label]
+)

@@ -535,7 +535,26 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		})
 	})
 
-	var latencyRows []gtk.Widgetter
+	latencyRows := rowManager[*labelRow, xmaps.Entry[string, time.Duration]]{
+		Parent: rowAdderParent{page.container.DERPLatencies},
+		Create: func() *labelRow {
+			row := adw.NewActionRow()
+
+			label := gtk.NewLabel("")
+			row.AddSuffix(label)
+
+			return &labelRow{
+				action: label,
+				row:    row,
+			}
+		},
+		Set: func(row *labelRow, lat xmaps.Entry[string, time.Duration]) {
+			row.row.SetTitle(lat.Key)
+			row.action.SetText(lat.Val.String())
+		},
+		Get: func(row *labelRow) gtk.Widgetter { return row.row },
+	}
+
 	page.container.NetCheckButton.ConnectClicked(func() {
 		r, dm, err := a.TS.NetCheck(context.TODO(), true)
 		if err != nil {
@@ -568,19 +587,16 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		page.container.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
 
 		page.container.DERPLatencies.SetVisible(true)
-		for _, row := range latencyRows {
-			page.container.DERPLatencies.Remove(row)
-		}
-		latencyRows = latencyRows[:0]
 		latencies := xmaps.Entries(r.RegionLatency)
 		slices.SortFunc(latencies, func(e1, e2 xmaps.Entry[int, time.Duration]) bool { return e1.Val < e2.Val })
+		namedLats := make([]xmaps.Entry[string, time.Duration], 0, len(latencies))
 		for _, lat := range latencies {
-			row := adw.NewActionRow()
-			row.SetTitle(dm.Regions[lat.Key].RegionName)
-			row.AddSuffix(gtk.NewLabel(lat.Val.String()))
-			page.container.DERPLatencies.AddRow(row)
-			latencyRows = append(latencyRows, row)
+			namedLats = append(namedLats, xmaps.Entry[string, time.Duration]{
+				Key: dm.Regions[lat.Key].RegionName,
+				Val: lat.Val,
+			})
 		}
+		latencyRows.Update(namedLats)
 	})
 
 	return &page

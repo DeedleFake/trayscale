@@ -415,7 +415,6 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 
 		row.row.SetTitle(ipstr)
 	}
-	page.addrRows.Get = func(row *buttonRow) gtk.Widgetter { return row.row }
 
 	page.routeRows.Parent = page.container.AdvertisedRoutesGroup
 	page.routeRows.Create = func() *buttonRow {
@@ -457,7 +456,6 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 
 		row.row.SetTitle(str)
 	}
-	page.routeRows.Get = func(row *buttonRow) gtk.Widgetter { return row.row }
 
 	page.container.ExitNodeSwitch.ConnectStateSet(func(s bool) bool {
 		if s == page.container.ExitNodeSwitch.State() {
@@ -552,7 +550,6 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 			row.row.SetTitle(lat.Key)
 			row.action.SetText(lat.Val.String())
 		},
-		Get: func(row *labelRow) gtk.Widgetter { return row.row },
 	}
 
 	page.container.NetCheckButton.ConnectClicked(func() {

@@ -6,11 +6,10 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type rowManager[Row, Data any] struct {
+type rowManager[Row rowwer, Data any] struct {
 	Parent rowManagerParent
 	Create func() Row
 	Set    func(Row, Data)
-	Get    func(Row) gtk.Widgetter
 
 	rows []Row
 }
@@ -22,7 +21,7 @@ func (m *rowManager[Row, Data]) resize(size int) {
 
 	if size < len(m.rows) {
 		for _, r := range m.rows[size:] {
-			m.Parent.Remove(m.Get(r))
+			m.Parent.Remove(r.Row())
 		}
 		m.rows = m.rows[:size]
 		return
@@ -31,7 +30,7 @@ func (m *rowManager[Row, Data]) resize(size int) {
 	m.rows = slices.Grow(m.rows, size-cap(m.rows))
 	for len(m.rows) < size {
 		row := m.Create()
-		m.Parent.Add(m.Get(row))
+		m.Parent.Add(row.Row())
 		m.rows = append(m.rows, row)
 	}
 }
@@ -62,9 +61,17 @@ func (r rowAdderParent) Add(w gtk.Widgetter) {
 	r.AddRow(w)
 }
 
+type rowwer interface {
+	Row() gtk.Widgetter
+}
+
 type simpleActionRow[T gtk.Widgetter] struct {
 	action T
 	row    *adw.ActionRow
+}
+
+func (row simpleActionRow[T]) Row() gtk.Widgetter {
+	return row.row
 }
 
 type (

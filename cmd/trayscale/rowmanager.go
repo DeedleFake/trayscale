@@ -2,46 +2,44 @@ package main
 
 import (
 	"deedles.dev/trayscale/internal/xslices"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/slices"
 )
 
-type rowManager[Row rowwer, Data any] struct {
+type rowManager[Data any] struct {
 	Parent rowManagerParent
-	Create func() Row
-	Set    func(Row, Data)
+	New    func(Data) row[Data]
 
-	rows []Row
+	rows []row[Data]
 }
 
-func (m *rowManager[Row, Data]) resize(size int) {
-	if size == len(m.rows) {
+func (m *rowManager[Data]) resize(size int) {
+	if size >= cap(m.rows) {
+		m.rows = slices.Grow(m.rows, size-cap(m.rows))
 		return
 	}
 
 	if size < len(m.rows) {
 		for _, r := range m.rows[size:] {
-			m.Parent.Remove(r.Row())
+			m.Parent.Remove(r.Widget())
 		}
 		xslices.Clear(m.rows[size:])
 		m.rows = m.rows[:size]
-		return
-	}
-
-	m.rows = slices.Grow(m.rows, size-cap(m.rows))
-	for len(m.rows) < size {
-		row := m.Create()
-		m.Parent.Add(row.Row())
-		m.rows = append(m.rows, row)
 	}
 }
 
-func (m *rowManager[Row, Data]) Update(data []Data) {
+func (m *rowManager[Data]) Update(data []Data) {
 	m.resize(len(data))
 
 	for i, d := range data {
-		m.Set(m.rows[i], d)
+		if i < len(m.rows) {
+			m.rows[i].Update(d)
+			continue
+		}
+
+		row := m.New(d)
+		m.Parent.Add(row.Widget())
+		m.rows = append(m.rows, row)
 	}
 }
 
@@ -63,20 +61,20 @@ func (r rowAdderParent) Add(w gtk.Widgetter) {
 	r.AddRow(w)
 }
 
-type rowwer interface {
-	Row() gtk.Widgetter
+type row[Data any] interface {
+	Update(Data)
+	Widget() gtk.Widgetter
 }
 
-type simpleActionRow[T gtk.Widgetter] struct {
-	action T
-	row    *adw.ActionRow
+type simpleRow[Data any] struct {
+	W gtk.Widgetter
+	U func(Data)
 }
 
-func (row simpleActionRow[T]) Row() gtk.Widgetter {
-	return row.row
+func (row *simpleRow[Data]) Update(data Data) {
+	row.U(data)
 }
 
-type (
-	buttonRow = simpleActionRow[*gtk.Button]
-	labelRow  = simpleActionRow[*gtk.Label]
-)
+func (row *simpleRow[Data]) Widget() gtk.Widgetter {
+	return row.W
+}

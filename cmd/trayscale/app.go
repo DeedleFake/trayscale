@@ -131,6 +131,9 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 	}
 	eroutes := make([]enum[netip.Prefix], 0, len(page.routes))
 	for i, r := range page.routes {
+		if !page.self {
+			i = -1
+		}
 		eroutes = append(eroutes, enumerate(i, r))
 	}
 	page.routeRows.Update(eroutes)
@@ -375,8 +378,48 @@ type peerPage struct {
 	self   bool
 	routes []netip.Prefix
 
-	addrRows  rowManager[*buttonRow, netip.Addr]
-	routeRows rowManager[*buttonRow, enum[netip.Prefix]]
+	addrRows  rowManager[netip.Addr]
+	routeRows rowManager[enum[netip.Prefix]]
+}
+
+type addrRow struct {
+	ip netip.Addr
+
+	w *adw.ActionRow
+	c *gtk.Button
+}
+
+func (row *addrRow) Update(ip netip.Addr) {
+	row.ip = ip
+	row.w.SetTitle(ip.String())
+}
+
+func (row *addrRow) Widget() gtk.Widgetter {
+	return row.w
+}
+
+type routeRow struct {
+	route enum[netip.Prefix]
+
+	w *adw.ActionRow
+	r *gtk.Button
+}
+
+func (row *routeRow) Update(route enum[netip.Prefix]) {
+	row.route = route
+
+	if !route.Val.IsValid() {
+		row.r.SetVisible(false)
+		row.w.SetTitle("No advertised routes.")
+		return
+	}
+
+	row.r.SetVisible(route.Index >= 0)
+	row.w.SetTitle(route.Val.String())
+}
+
+func (row *routeRow) Widget() gtk.Widgetter {
+	return row.w
 }
 
 func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
@@ -385,67 +428,53 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	}
 
 	page.addrRows.Parent = page.container.IPGroup
-	page.addrRows.Create = func() *buttonRow {
-		copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
-		copyButton.SetMarginTop(12) // Why is this necessary?
-		copyButton.SetMarginBottom(12)
-		copyButton.SetHasFrame(false)
-		copyButton.SetTooltipText("Copy to Clipboard")
+	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {
+		row := addrRow{
+			ip: ip,
 
-		iprow := adw.NewActionRow()
-		iprow.SetObjectProperty("title-selectable", true)
-		iprow.AddSuffix(copyButton)
-		iprow.SetActivatableWidget(copyButton)
-
-		return &buttonRow{
-			action: copyButton,
-			row:    iprow,
+			w: adw.NewActionRow(),
+			c: gtk.NewButtonFromIconName("edit-copy-symbolic"),
 		}
-	}
-	page.addrRows.Set = func(row *buttonRow, ip netip.Addr) {
-		ipstr := ip.String()
 
-		row.action.ConnectClicked(func() {
-			row.action.Clipboard().Set(glib.NewValue(ipstr))
+		row.c.SetMarginTop(12) // Why is this necessary?
+		row.c.SetMarginBottom(12)
+		row.c.SetHasFrame(false)
+		row.c.SetTooltipText("Copy to Clipboard")
+		row.c.ConnectClicked(func() {
+			row.c.Clipboard().Set(glib.NewValue(row.ip.String()))
 
 			t := adw.NewToast("Copied to clipboard")
 			t.SetTimeout(3)
 			a.win.ToastOverlay.AddToast(t)
 		})
 
-		row.row.SetTitle(ipstr)
+		row.w.SetObjectProperty("title-selectable", true)
+		row.w.AddSuffix(row.c)
+		row.w.SetActivatableWidget(row.c)
+		row.w.SetTitle(ip.String())
+
+		return &row
 	}
 
 	page.routeRows.Parent = page.container.AdvertisedRoutesGroup
-	page.routeRows.Create = func() *buttonRow {
-		row := adw.NewActionRow()
-		row.SetObjectProperty("title-selectable", true)
+	page.routeRows.New = func(route enum[netip.Prefix]) row[enum[netip.Prefix]] {
+		row := routeRow{
+			route: route,
 
-		removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
-		removeButton.SetMarginTop(12)
-		removeButton.SetMarginBottom(12)
-		removeButton.SetHasFrame(false)
-		removeButton.SetTooltipText("Remove")
-
-		row.AddSuffix(removeButton)
-
-		return &buttonRow{
-			action: removeButton,
-			row:    row,
-		}
-	}
-	page.routeRows.Set = func(row *buttonRow, route enum[netip.Prefix]) {
-		if !route.Val.IsValid() {
-			row.action.SetVisible(false)
-			row.row.SetTitle("No advertised routes.")
-			return
+			w: adw.NewActionRow(),
+			r: gtk.NewButtonFromIconName("list-remove-symbolic"),
 		}
 
-		str := route.Val.String()
+		row.w.SetObjectProperty("title-selectable", true)
+		row.w.AddSuffix(row.r)
+		row.w.SetTitle(route.Val.String())
 
-		row.action.SetVisible(page.self)
-		row.action.ConnectClicked(func() {
-			routes := slices.Delete(page.routes, route.Index, route.Index+1)
+		row.r.SetMarginTop(12)
+		row.r.SetMarginBottom(12)
+		row.r.SetHasFrame(false)
+		row.r.SetTooltipText("Remove")
+		row.r.ConnectClicked(func() {
+			routes := slices.Delete(page.routes, row.route.Index, row.route.Index+1)
 			err := a.TS.AdvertiseRoutes(context.TODO(), routes)
 			if err != nil {
 				log.Printf("Error: advertise routes: %v", err)
@@ -454,7 +483,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 			a.poll <- struct{}{}
 		})
 
-		row.row.SetTitle(str)
+		return &row
 	}
 
 	page.container.ExitNodeSwitch.ConnectStateSet(func(s bool) bool {
@@ -533,22 +562,23 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		})
 	})
 
-	latencyRows := rowManager[*labelRow, xmaps.Entry[string, time.Duration]]{
+	type latencyEntry = xmaps.Entry[string, time.Duration]
+	latencyRows := rowManager[latencyEntry]{
 		Parent: rowAdderParent{page.container.DERPLatencies},
-		Create: func() *labelRow {
-			row := adw.NewActionRow()
+		New: func(lat latencyEntry) row[latencyEntry] {
+			label := gtk.NewLabel(lat.Val.String())
 
-			label := gtk.NewLabel("")
+			row := adw.NewActionRow()
+			row.SetTitle(lat.Key)
 			row.AddSuffix(label)
 
-			return &labelRow{
-				action: label,
-				row:    row,
+			return &simpleRow[latencyEntry]{
+				W: row,
+				U: func(lat latencyEntry) {
+					label.SetText(lat.Val.String())
+					row.SetTitle(lat.Key)
+				},
 			}
-		},
-		Set: func(row *labelRow, lat xmaps.Entry[string, time.Duration]) {
-			row.row.SetTitle(lat.Key)
-			row.action.SetText(lat.Val.String())
 		},
 	}
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/slices"
@@ -23,6 +24,7 @@ func (m *rowManager[Row, Data]) resize(size int) {
 		for _, r := range m.rows[size:] {
 			m.Parent.Remove(r.Row())
 		}
+		xslices.Clear(m.rows[size:])
 		m.rows = m.rows[:size]
 		return
 	}

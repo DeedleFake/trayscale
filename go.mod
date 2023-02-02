@@ -6,7 +6,7 @@ require (
 	deedles.dev/mk v0.1.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220417101956-dcc3707dc307
 	github.com/diamondburned/gotk4/pkg v0.0.4
-	golang.org/x/exp v0.0.0-20230131013936-aae9b4e6329d
+	golang.org/x/exp v0.0.0-20230202163644-54bba9f4231b
 	tailscale.com v1.36.0
 )
 
@@ -43,3 +43,5 @@ require (
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
+
+replace go4.org/unsafe/assume-no-moving-gc => ./internal/empty

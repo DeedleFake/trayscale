@@ -30,3 +30,13 @@ func Filter[E any, S ~[]E](s S, keep func(E) bool) S {
 	}
 	return s[:to]
 }
+
+// Clear sets every element of s to the zero value of E.
+//
+// TODO: Replace with clear() builtin when Go 1.21 comes out?
+func Clear[E any](s []E) {
+	var z E
+	for i := range s {
+		s[i] = z
+	}
+}

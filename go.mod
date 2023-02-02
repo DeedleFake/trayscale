@@ -43,3 +43,5 @@ require (
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
+
+replace go4.org/unsafe/assume-no-moving-gc => ./internal/empty

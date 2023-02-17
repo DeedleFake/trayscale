@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/netip"
 	"os"
 	"strconv"
@@ -19,6 +18,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
+	"golang.org/x/exp/slog"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
@@ -56,7 +56,7 @@ func (a *App) poller(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Printf("Error: Tailscale status: %v", err)
+			slog.Error("get Tailscale status", err)
 			continue
 		}
 
@@ -65,7 +65,7 @@ func (a *App) poller(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Printf("Error: Tailscale prefs: %v", err)
+			slog.Error("get Tailscale prefs", err)
 			continue
 		}
 
@@ -281,7 +281,7 @@ func (a *App) init(ctx context.Context) {
 
 			err := f(ctx)
 			if err != nil {
-				log.Printf("Error: set Tailscale status: %v", err)
+				slog.Error("set Tailscale status", err)
 				a.win.StatusSwitch.SetActive(!s)
 				return true
 			}
@@ -325,7 +325,7 @@ func (a *App) Run(ctx context.Context) {
 
 	err := a.app.Register(ctx)
 	if err != nil {
-		log.Printf("Error: register application: %v", err)
+		slog.Error("register application", err)
 		return
 	}
 
@@ -477,7 +477,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 			routes := slices.Delete(page.routes, row.route.Index, row.route.Index+1)
 			err := a.TS.AdvertiseRoutes(context.TODO(), routes)
 			if err != nil {
-				log.Printf("Error: advertise routes: %v", err)
+				slog.Error("advertise routes", err)
 				return
 			}
 			a.poll <- struct{}{}
@@ -497,7 +497,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		}
 		err := a.TS.ExitNode(context.TODO(), node)
 		if err != nil {
-			log.Printf("Error: set exit node: %v", err)
+			slog.Error("set exit node", err)
 			page.container.ExitNodeSwitch.SetActive(!s)
 			return true
 		}
@@ -512,7 +512,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 
 		err := a.TS.AdvertiseExitNode(context.TODO(), s)
 		if err != nil {
-			log.Printf("Error: advertise exit node: %v", err)
+			slog.Error("advertise exit node", err)
 			page.container.AdvertiseExitNodeSwitch.SetActive(!s)
 			return true
 		}
@@ -527,7 +527,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 
 		err := a.TS.AllowLANAccess(context.TODO(), s)
 		if err != nil {
-			log.Printf("Error: advertise exit node: %v", err)
+			slog.Error("allow LAN access", err)
 			page.container.AllowLANAccessSwitch.SetActive(!s)
 			return true
 		}
@@ -539,13 +539,13 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		a.prompt("IP prefix to advertise", func(val string) {
 			p, err := netip.ParsePrefix(val)
 			if err != nil {
-				log.Printf("Error: parse prefix: %v", err)
+				slog.Error("parse prefix", err)
 				return
 			}
 
 			prefs, err := a.TS.Prefs(context.TODO())
 			if err != nil {
-				log.Printf("Error: get prefs: %v", err)
+				slog.Error("get prefs", err)
 				return
 			}
 
@@ -554,7 +554,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 				append(prefs.AdvertiseRoutes, p),
 			)
 			if err != nil {
-				log.Printf("Error: advertise routes: %v", err)
+				slog.Error("advertise routes", err)
 				return
 			}
 
@@ -585,7 +585,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	page.container.NetCheckButton.ConnectClicked(func() {
 		r, dm, err := a.TS.NetCheck(context.TODO(), true)
 		if err != nil {
-			log.Printf("Error: netcheck: %v", err)
+			slog.Error("netcheck", err)
 			return
 		}
 

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"io"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -13,6 +12,7 @@ import (
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/tailscale"
+	"golang.org/x/exp/slog"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/opt"
 )
@@ -103,7 +103,7 @@ func optBoolIcon(v opt.Bool) string {
 
 func main() {
 	if addr, ok := os.LookupEnv("PPROF_ADDR"); ok {
-		go func() { log.Println(http.ListenAndServe(addr, nil)) }()
+		go func() { slog.Error("start pprof HTTP server", http.ListenAndServe(addr, nil)) }()
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)

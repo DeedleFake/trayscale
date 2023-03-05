@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	appID                 = "dev.deedles-trayscale"
+	appID                 = "dev.deedles.Trayscale"
 	prefShowWindowAtStart = "showWindowAtStart"
 )
 

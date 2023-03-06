@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+	<id>dev.deedles.Trayscale</id>
+
+	<name>Trayscale</name>
+	<summary>An unofficial GUI wrapper around the Tailscale CLI.</summary>
+
+	<metadata_license>MIT</metadata_license>
+	<project_license>MIT</project_license>
+
+	<supports>
+		<control>pointing</control>
+		<control>keyboard</control>
+		<control>touch</control>
+	</supports>
+
+	<description>
+		<p>
+			Trayscale is an unofficial GUI wrapper around the Tailscale CLI client, particularly for use on Linux, as no official Linux GUI client exists. Despite the name, it does not provide a tray icon, as support for them has been removed in Gtk4. If support can ever be brought back, however, a tray icon would be nice.
+		</p>
+		<p>
+			Trayscale interfaces with the Tailscale daemon, <code>tailscaled</code>, to perform many of its operations. In order for this to work, the daemon must have been configured with the current user as the &quot;operator&quot;. To do this, run <code>sudo tailscale up --operator=$USER</code> from the command-line at least once manually.
+		</p>
+	</description>
+
+	<launchable type="desktop-id">dev.deedles.Trayscale.desktop</launchable>
+	<screenshots>
+		<screenshot type="default">
+			<image>https://user-images.githubusercontent.com/326750/188052311-2267af08-82a1-422f-b6ad-bc2cd4de0ac5.png</image>
+		</screenshot>
+	</screenshots>
+
+	<url type="homepage">https://github.com/DeedleFake/trayscale</url>
+	<url type="bugtracker">https://github.com/DeedleFake/trayscale/issues</url>
+	<update_contact>deedlefake_AT_proton.me</update_contact>
+	<provides>
+		<binary>trayscale</binary>
+	</provides>
+	<content_rating type="oars-1.1" />
+
+	<releases>
+		<release version="0.7.12" date="2023-03-06" />
+		<release version="0.7.11" date="2023-03-06" />
+		<release version="0.7.10" date="2023-03-05" />
+	</releases>
+</component>
+
+<!-- vim: set ts=2 sw=2 noet: -->

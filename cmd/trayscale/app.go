@@ -88,7 +88,7 @@ func (a *App) showAboutDialog() {
 	dialog.SetComments("A simple, unofficial GUI wrapper for the Tailscale CLI client.")
 	dialog.SetCopyright("Copyright (c) 2022 DeedleFake")
 	dialog.SetLicense(readAssetString("LICENSE"))
-	dialog.SetLogoIconName("com.tailscale-tailscale")
+	dialog.SetLogoIconName("dev.deedles.Trayscale")
 	dialog.SetProgramName("Trayscale")
 	if v, ok := version.Get(); ok {
 		dialog.SetVersion(v)
@@ -159,7 +159,7 @@ func (a *App) notify(status bool) {
 		body = "Tailscale is connected."
 	}
 
-	icon, iconerr := gio.NewIconForString("com.tailscale-tailscale")
+	icon, iconerr := gio.NewIconForString("dev.deedles.Trayscale")
 
 	n := gio.NewNotification("Tailscale Status")
 	n.SetBody(body)

@@ -4,15 +4,7 @@
 
 	<name>Trayscale</name>
 	<summary>An unofficial GUI wrapper around the Tailscale CLI.</summary>
-
-	<metadata_license>MIT</metadata_license>
-	<project_license>MIT</project_license>
-
-	<supports>
-		<control>pointing</control>
-		<control>keyboard</control>
-		<control>touch</control>
-	</supports>
+	<developer_name>DeedleFake</developer_name>
 
 	<description>
 		<p>
@@ -23,6 +15,15 @@
 		</p>
 	</description>
 
+	<metadata_license>MIT</metadata_license>
+	<project_license>MIT</project_license>
+
+	<supports>
+		<control>pointing</control>
+		<control>keyboard</control>
+		<control>touch</control>
+	</supports>
+
 	<launchable type="desktop-id">dev.deedles.Trayscale.desktop</launchable>
 	<screenshots>
 		<screenshot type="default">
@@ -32,16 +33,17 @@
 
 	<url type="homepage">https://github.com/DeedleFake/trayscale</url>
 	<url type="bugtracker">https://github.com/DeedleFake/trayscale/issues</url>
-	<update_contact>deedlefake_AT_proton.me</update_contact>
+	<url type="donation">https://buymeacoffee.com/DeedleFake</url>
+
 	<provides>
 		<binary>trayscale</binary>
 	</provides>
 	<content_rating type="oars-1.1" />
 
 	<releases>
-		<release version="0.7.12" date="2023-03-06" />
-		<release version="0.7.11" date="2023-03-06" />
-		<release version="0.7.10" date="2023-03-05" />
+		<release version="v0.7.12" date="2023-03-06" />
+		<release version="v0.7.11" date="2023-03-06" />
+		<release version="v0.7.10" date="2023-03-05" />
 	</releases>
 </component>
 

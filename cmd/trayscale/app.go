@@ -237,8 +237,6 @@ func (a *App) update(status *ipnstate.Status, prefs *ipn.Prefs) {
 	a.updatePeers(status, prefs)
 }
 
-// init initializes the App, loading the builder XML, creating a
-// window, and so on.
 func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
 	mk.Map(&a.peerPages, 0)
@@ -273,6 +271,9 @@ func (a *App) init(ctx context.Context) {
 			if s == a.win.StatusSwitch.State() {
 				return false
 			}
+
+			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
 
 			f := a.TS.Stop
 			if s {

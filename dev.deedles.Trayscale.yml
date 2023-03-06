@@ -30,10 +30,10 @@ modules:
     buildsystem: simple
     build-commands:
       - $GOROOT/bin/go build -v -trimpath -ldflags="-X 'deedles.dev/trayscale/internal/version.version=v0.7.10'" ./cmd/trayscale
-      - install -Dm0755 trayscale /app/bin/trayscale
-      - install -Dm0644 dev.deedles.Trayscale.png /app/share/icons/hicolor/256x256/apps/dev.deedles.Trayscale.png
-      - install -Dm0644 dev.deedles.Trayscale.desktop /app/share/applications/dev.deedles.Trayscale.desktop
-      - install -Dm0755 tailscale.sh /app/bin/tailscale
+      - install -Dm0755 trayscale $FLATPAK_DEST/bin/trayscale
+      - install -Dm0644 dev.deedles.Trayscale.png $FLATPAK_DEST/share/icons/hicolor/256x256/apps/dev.deedles.Trayscale.png
+      - install -Dm0644 dev.deedles.Trayscale.desktop $FLATPAK_DEST/share/applications/dev.deedles.Trayscale.desktop
+      - install -Dm0755 tailscale.sh $FLATPAK_DEST/bin/tailscale
     sources:
       - type: git
         url: https://github.com/DeedleFake/trayscale
@@ -41,4 +41,4 @@ modules:
       - type: script
         dest-filename: tailscale.sh
         commands:
-          - flatpak-spawn --host tailscale $@
+          - flatpak-spawn --host tailscale "$@"

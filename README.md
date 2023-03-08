@@ -18,9 +18,13 @@ Trayscale makes calls to the Tailscale CLI for some operations. In order for thi
 Installation
 ------------
 
+<a href='https://flathub.org/apps/details/dev.deedles.Trayscale'><img width='240' alt='Download on Flathub' src='https://flathub.org/assets/badges/flathub-badge-en.svg'/></a>
+
+Note that the above config note about the current user being designated as an "operator" still applies to the Flatpak version of this app. However, the `tailscale` binary is bundled into the Flatpak and thus does _not_ need to be in your `$PATH`.
+
 ### AUR
 
-If you are on an Arch Linux or a derivative, [Trayscale is available from the AUR](https://aur.archlinux.org/packages/trayscale).
+If you are on Arch Linux or a derivative, [Trayscale is available from the AUR](https://aur.archlinux.org/packages/trayscale).
 
 ### Manual
 

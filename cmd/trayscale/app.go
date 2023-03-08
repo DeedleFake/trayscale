@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
-	"deedles.dev/trayscale/tailscale"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -31,7 +31,7 @@ import (
 type App struct {
 	// TS is the Tailscale Client instance to use for interaction with
 	// Tailscale.
-	TS *tailscale.Client
+	TS *tsutil.Client
 
 	poll   chan struct{}
 	online bool

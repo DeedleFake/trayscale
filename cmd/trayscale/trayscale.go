@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"deedles.dev/trayscale"
-	"deedles.dev/trayscale/tailscale"
+	"deedles.dev/trayscale/internal/tsutil"
 	"golang.org/x/exp/slog"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/opt"
@@ -109,7 +109,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	ts := tailscale.Client{
+	ts := tsutil.Client{
 		Command: "tailscale",
 	}
 

@@ -312,7 +312,7 @@ func (a *App) init(ctx context.Context) {
 	})
 
 	go systray.Run(func() {
-		systray.SetIcon(statusIconActive)
+		systray.SetIcon(statusIconInactive)
 		systray.SetTitle("Trayscale")
 
 		showWindow := systray.AddMenuItem("Show", "").ClickedCh

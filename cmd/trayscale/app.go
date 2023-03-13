@@ -311,29 +311,31 @@ func (a *App) init(ctx context.Context) {
 		a.win.Show()
 	})
 
-	go systray.Run(func() {
-		systray.SetIcon(statusIconInactive)
-		systray.SetTitle("Trayscale")
+	go systray.Run(func() { a.initTray(ctx) }, nil)
+}
 
-		showWindow := systray.AddMenuItem("Show", "").ClickedCh
-		systray.AddSeparator()
-		quit := systray.AddMenuItem("Quit", "").ClickedCh
+func (a *App) initTray(ctx context.Context) {
+	systray.SetIcon(statusIconInactive)
+	systray.SetTitle("Trayscale")
 
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-showWindow:
-				glib.IdleAdd(func() {
-					if a.app != nil {
-						a.app.Activate()
-					}
-				})
-			case <-quit:
-				a.Quit()
-			}
+	showWindow := systray.AddMenuItem("Show", "").ClickedCh
+	systray.AddSeparator()
+	quit := systray.AddMenuItem("Quit", "").ClickedCh
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-showWindow:
+			glib.IdleAdd(func() {
+				if a.app != nil {
+					a.app.Activate()
+				}
+			})
+		case <-quit:
+			a.Quit()
 		}
-	}, nil)
+	}
 }
 
 // Quit exits the app completely, causing Run to return.

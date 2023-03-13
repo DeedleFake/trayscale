@@ -50,6 +50,7 @@ type App struct {
 func (a *App) poller(ctx context.Context) {
 	const ticklen = 5 * time.Second
 	check := time.NewTicker(ticklen)
+	defer check.Stop()
 
 	for {
 		status, err := a.TS.Status(ctx)

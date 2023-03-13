@@ -8,7 +8,7 @@
 
 	<description>
 		<p>
-			Trayscale is an unofficial GUI wrapper around the Tailscale CLI client, particularly for use on Linux, as no official Linux GUI client exists. Despite the name, it does not provide a tray icon, as support for them has been removed in Gtk4. If support can ever be brought back, however, a tray icon would be nice.
+			Trayscale is an unofficial GUI wrapper around the Tailscale CLI client, particularly for use on Linux, as no official Linux GUI client exists. It provides a basic system tray icon and a fairly comprehensive UI with support for many of Trayscale's features.
 		</p>
 		<p>
 			Trayscale interfaces with the Tailscale daemon, <code>tailscaled</code>, to perform many of its operations. In order for this to work, the daemon must have been configured with the current user as the &quot;operator&quot;. To do this, run <code>sudo tailscale up --operator=$USER</code> from the command-line at least once manually.
@@ -41,6 +41,14 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.8.0" date="2023-03-12">
+			<description>
+				<p>Reintroduce system tray support.</p>
+			</description>
+			<issues>
+				<issue url="https://github.com/DeedleFake/trayscale/issues/30">#30</issue>
+			</issues>
+		</release>
 		<release version="v0.7.12" date="2023-03-06" />
 		<release version="v0.7.11" date="2023-03-06" />
 		<release version="v0.7.10" date="2023-03-05" />

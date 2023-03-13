@@ -12,6 +12,7 @@ import (
 	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
+	"fyne.io/systray"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -228,6 +229,7 @@ func (a *App) update(status *ipnstate.Status, prefs *ipn.Prefs) {
 	if a.online != online {
 		a.online = online
 		a.notify(online) // TODO: Notify on startup if not connected?
+		systray.SetIcon(statusIcon(online))
 	}
 	if a.win == nil {
 		return
@@ -245,73 +247,102 @@ func (a *App) init(ctx context.Context) {
 		a.app.Hold()
 	})
 
-	a.app.ConnectActivate(func() {
-		if a.win != nil {
-			a.win.Present()
-			return
+	a.app.ConnectActivate(func() { a.onAppActivate(ctx) })
+
+	go systray.Run(func() { a.initTray(ctx) }, nil)
+}
+
+func (a *App) onAppActivate(ctx context.Context) {
+	if a.win != nil {
+		a.win.Present()
+		return
+	}
+
+	aboutAction := gio.NewSimpleAction("about", nil)
+	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })
+	a.app.AddAction(aboutAction)
+
+	quitAction := gio.NewSimpleAction("quit", nil)
+	quitAction.ConnectActivate(func(p *glib.Variant) { a.Quit() })
+	a.app.AddAction(quitAction)
+	a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
+
+	a.statusPage = adw.NewStatusPage()
+	a.statusPage.SetTitle("Not Connected")
+	a.statusPage.SetIconName("network-offline-symbolic")
+	a.statusPage.SetDescription("Tailscale is not connected")
+
+	a.win = NewMainWindow(&a.app.Application)
+
+	a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
+		if s == a.win.StatusSwitch.State() {
+			return false
 		}
 
-		aboutAction := gio.NewSimpleAction("about", nil)
-		aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })
-		a.app.AddAction(aboutAction)
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
 
-		quitAction := gio.NewSimpleAction("quit", nil)
-		quitAction.ConnectActivate(func(p *glib.Variant) { a.Quit() })
-		a.app.AddAction(quitAction)
-		a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
+		f := a.TS.Stop
+		if s {
+			f = a.TS.Start
+		}
 
-		a.statusPage = adw.NewStatusPage()
-		a.statusPage.SetTitle("Not Connected")
-		a.statusPage.SetIconName("network-offline-symbolic")
-		a.statusPage.SetDescription("Tailscale is not connected")
-
-		a.win = NewMainWindow(&a.app.Application)
-
-		a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
-			if s == a.win.StatusSwitch.State() {
-				return false
-			}
-
-			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-
-			f := a.TS.Stop
-			if s {
-				f = a.TS.Start
-			}
-
-			err := f(ctx)
-			if err != nil {
-				slog.Error("set Tailscale status", err)
-				a.win.StatusSwitch.SetActive(!s)
-				return true
-			}
-			a.poll <- struct{}{}
+		err := f(ctx)
+		if err != nil {
+			slog.Error("set Tailscale status", err)
+			a.win.StatusSwitch.SetActive(!s)
 			return true
-		})
-
-		a.win.PeersStack.NotifyProperty("visible-child", func() {
-			if a.win.PeersStack.VisibleChild() != nil {
-				a.win.Leaflet.Navigate(adw.NavigationDirectionForward)
-			}
-		})
-
-		a.win.BackButton.ConnectClicked(func() {
-			a.win.Leaflet.Navigate(adw.NavigationDirectionBack)
-		})
-
-		a.win.ConnectCloseRequest(func() bool {
-			maps.Clear(a.peerPages)
-			a.win = nil
-			return false
-		})
+		}
 		a.poll <- struct{}{}
-		a.win.Show()
+		return true
 	})
+
+	a.win.PeersStack.NotifyProperty("visible-child", func() {
+		if a.win.PeersStack.VisibleChild() != nil {
+			a.win.Leaflet.Navigate(adw.NavigationDirectionForward)
+		}
+	})
+
+	a.win.BackButton.ConnectClicked(func() {
+		a.win.Leaflet.Navigate(adw.NavigationDirectionBack)
+	})
+
+	a.win.ConnectCloseRequest(func() bool {
+		maps.Clear(a.peerPages)
+		a.win = nil
+		return false
+	})
+	a.poll <- struct{}{}
+	a.win.Show()
+}
+
+func (a *App) initTray(ctx context.Context) {
+	systray.SetIcon(statusIconInactive)
+	systray.SetTitle("Trayscale")
+
+	showWindow := systray.AddMenuItem("Show", "").ClickedCh
+	systray.AddSeparator()
+	quit := systray.AddMenuItem("Quit", "").ClickedCh
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-showWindow:
+			glib.IdleAdd(func() {
+				if a.app != nil {
+					a.app.Activate()
+				}
+			})
+		case <-quit:
+			a.Quit()
+		}
+	}
 }
 
 // Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
+	systray.Quit()
 	a.app.Quit()
 }
 

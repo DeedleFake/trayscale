@@ -4,9 +4,10 @@ go 1.18
 
 require (
 	deedles.dev/mk v0.1.0
-	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20220417101956-dcc3707dc307
-	github.com/diamondburned/gotk4/pkg v0.0.4
-	golang.org/x/exp v0.0.0-20230304125523-9ff063c70017
+	fyne.io/systray v1.10.0
+	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307040502-bfe82926e1be
+	github.com/diamondburned/gotk4/pkg v0.0.5-0.20230105054822-f46414fdaa94
+	golang.org/x/exp v0.0.0-20230310171629-522b1b587ee0
 	tailscale.com v1.36.2
 )
 
@@ -16,6 +17,7 @@ require (
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20210105120005-909beea2cc74 // indirect
 	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
+	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
@@ -29,6 +31,7 @@ require (
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/tailscale/goupnp v1.0.1-0.20210804011211-c64d0f06ea05 // indirect
 	github.com/tcnksm/go-httpstat v0.2.0 // indirect
+	github.com/tevino/abool v1.2.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go4.org/mem v0.0.0-20220726221520-4f986261bf13 // indirect
 	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35 // indirect
@@ -39,7 +42,7 @@ require (
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.6.0 // indirect
+	golang.org/x/tools v0.7.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )

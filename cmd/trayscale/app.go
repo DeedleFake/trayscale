@@ -12,6 +12,7 @@ import (
 	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
+	"fyne.io/systray"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -228,6 +229,7 @@ func (a *App) update(status *ipnstate.Status, prefs *ipn.Prefs) {
 	if a.online != online {
 		a.online = online
 		a.notify(online) // TODO: Notify on startup if not connected?
+		systray.SetIcon(statusIcon(online))
 	}
 	if a.win == nil {
 		return
@@ -308,10 +310,35 @@ func (a *App) init(ctx context.Context) {
 		a.poll <- struct{}{}
 		a.win.Show()
 	})
+
+	go systray.Run(func() {
+		systray.SetIcon(statusIconActive)
+		systray.SetTitle("Trayscale")
+
+		showWindow := systray.AddMenuItem("Show", "").ClickedCh
+		systray.AddSeparator()
+		quit := systray.AddMenuItem("Quit", "").ClickedCh
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-showWindow:
+				glib.IdleAdd(func() {
+					if a.app != nil {
+						a.app.Activate()
+					}
+				})
+			case <-quit:
+				a.Quit()
+			}
+		}
+	}, nil)
 }
 
 // Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
+	systray.Quit()
 	a.app.Quit()
 }
 

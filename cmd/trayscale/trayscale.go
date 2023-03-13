@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"io"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -12,15 +12,40 @@ import (
 	"time"
 
 	"deedles.dev/trayscale"
-	"deedles.dev/trayscale/tailscale"
+	"deedles.dev/trayscale/internal/tsutil"
+	"golang.org/x/exp/slog"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/opt"
 )
 
 const (
-	appID                 = "dev.deedles-trayscale"
+	appID                 = "dev.deedles.Trayscale"
 	prefShowWindowAtStart = "showWindowAtStart"
 )
+
+var (
+	//go:embed status-icon-active.png
+	statusIconActive []byte
+
+	//go:embed status-icon-inactive.png
+	statusIconInactive []byte
+)
+
+func statusIcon(online bool) []byte {
+	if online {
+		return statusIconActive
+	}
+	return statusIconInactive
+}
+
+type enum[T any] struct {
+	Index int
+	Val   T
+}
+
+func enumerate[T any](i int, v T) enum[T] {
+	return enum[T]{i, v}
+}
 
 func formatTime(t time.Time) string {
 	if t.IsZero() {
@@ -94,13 +119,13 @@ func optBoolIcon(v opt.Bool) string {
 
 func main() {
 	if addr, ok := os.LookupEnv("PPROF_ADDR"); ok {
-		go func() { log.Println(http.ListenAndServe(addr, nil)) }()
+		go func() { slog.Error("start pprof HTTP server", http.ListenAndServe(addr, nil)) }()
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	ts := tailscale.Client{
+	ts := tsutil.Client{
 		Command: "tailscale",
 	}
 

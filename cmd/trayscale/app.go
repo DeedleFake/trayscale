@@ -2,23 +2,24 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/netip"
 	"os"
 	"strconv"
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
-	"deedles.dev/trayscale/tailscale"
+	"fyne.io/systray"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
+	"golang.org/x/exp/slog"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
@@ -31,7 +32,7 @@ import (
 type App struct {
 	// TS is the Tailscale Client instance to use for interaction with
 	// Tailscale.
-	TS *tailscale.Client
+	TS *tsutil.Client
 
 	poll   chan struct{}
 	online bool
@@ -56,7 +57,7 @@ func (a *App) poller(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Printf("Error: Tailscale status: %v", err)
+			slog.Error("get Tailscale status", err)
 			continue
 		}
 
@@ -65,7 +66,7 @@ func (a *App) poller(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Printf("Error: Tailscale prefs: %v", err)
+			slog.Error("get Tailscale prefs", err)
 			continue
 		}
 
@@ -88,7 +89,7 @@ func (a *App) showAboutDialog() {
 	dialog.SetComments("A simple, unofficial GUI wrapper for the Tailscale CLI client.")
 	dialog.SetCopyright("Copyright (c) 2022 DeedleFake")
 	dialog.SetLicense(readAssetString("LICENSE"))
-	dialog.SetLogoIconName("com.tailscale-tailscale")
+	dialog.SetLogoIconName("dev.deedles.Trayscale")
 	dialog.SetProgramName("Trayscale")
 	if v, ok := version.Get(); ok {
 		dialog.SetVersion(v)
@@ -100,106 +101,47 @@ func (a *App) showAboutDialog() {
 	a.app.AddWindow(&dialog.Window)
 }
 
-func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *ipn.Prefs, self bool) {
+func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *ipn.Prefs) {
 	page.page.SetIconName(peerIcon(peer))
-	page.page.SetTitle(peerName(peer, self))
+	page.page.SetTitle(peerName(peer, page.self))
 
 	page.container.SetTitle(peer.HostName)
 	page.container.SetDescription(peer.DNSName)
 
-	for _, row := range page.addrRows {
-		page.container.IPGroup.Remove(row)
-	}
-	page.addrRows = page.addrRows[:0]
-
 	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Less)
-	for _, ip := range peer.TailscaleIPs {
-		ipstr := ip.String()
+	page.addrRows.Update(peer.TailscaleIPs)
 
-		copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
-		copyButton.SetMarginTop(12) // Why is this necessary?
-		copyButton.SetMarginBottom(12)
-		copyButton.SetHasFrame(false)
-		copyButton.SetTooltipText("Copy to Clipboard")
-		copyButton.ConnectClicked(func() {
-			copyButton.Clipboard().Set(glib.NewValue(ipstr))
-
-			t := adw.NewToast("Copied to clipboard")
-			t.SetTimeout(3)
-			a.win.ToastOverlay.AddToast(t)
-		})
-
-		iprow := adw.NewActionRow()
-		iprow.SetTitle(ipstr)
-		iprow.SetObjectProperty("title-selectable", true)
-		iprow.AddSuffix(copyButton)
-		iprow.SetActivatableWidget(copyButton)
-
-		page.container.IPGroup.Add(iprow)
-		page.addrRows = append(page.addrRows, iprow)
-	}
-
-	page.container.OptionsGroup.SetVisible(self)
-	if self {
+	page.container.OptionsGroup.SetVisible(page.self)
+	if page.self {
 		page.container.AdvertiseExitNodeSwitch.SetState(prefs.AdvertisesExitNode())
 		page.container.AllowLANAccessSwitch.SetState(prefs.ExitNodeAllowLANAccess)
 	}
 
-	page.container.AdvertiseRouteButton.SetVisible(self)
-	for _, row := range page.routeRows {
-		page.container.AdvertisedRoutesGroup.Remove(row)
-	}
-	page.routeRows = page.routeRows[:0]
-	var routes []netip.Prefix
+	page.container.AdvertiseRouteButton.SetVisible(page.self)
+
 	switch {
-	case self:
-		routes = prefs.AdvertiseRoutes
+	case page.self:
+		page.routes = prefs.AdvertiseRoutes
 	case peer.PrimaryRoutes != nil:
-		routes = peer.PrimaryRoutes.AsSlice()
+		page.routes = peer.PrimaryRoutes.AsSlice()
 	}
-	routes = xslices.Filter(routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
-	slices.SortFunc(routes, func(p1, p2 netip.Prefix) bool { return p1.Addr().Less(p2.Addr()) || p1.Bits() < p2.Bits() })
-	for i, ip := range routes {
-		i := i // Here we go again, golang/go#56010.
-		str := ip.String()
-
-		row := adw.NewActionRow()
-		row.SetTitle(str)
-		row.SetObjectProperty("title-selectable", true)
-
-		if self {
-			removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
-			removeButton.SetMarginTop(12)
-			removeButton.SetMarginBottom(12)
-			removeButton.SetHasFrame(false)
-			removeButton.SetTooltipText("Remove")
-			removeButton.ConnectClicked(func() {
-				routes := slices.Delete(routes, i, i+1)
-				err := a.TS.AdvertiseRoutes(context.TODO(), routes)
-				if err != nil {
-					log.Printf("Error: advertise routes: %v", err)
-					return
-				}
-				a.poll <- struct{}{}
-			})
-
-			row.AddSuffix(removeButton)
+	page.routes = xslices.Filter(page.routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
+	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) bool { return p1.Addr().Less(p2.Addr()) || p1.Bits() < p2.Bits() })
+	if len(page.routes) == 0 {
+		page.routes = append(page.routes, netip.Prefix{})
+	}
+	eroutes := make([]enum[netip.Prefix], 0, len(page.routes))
+	for i, r := range page.routes {
+		if !page.self {
+			i = -1
 		}
-
-		page.container.AdvertisedRoutesGroup.Add(row)
-		page.routeRows = append(page.routeRows, row)
+		eroutes = append(eroutes, enumerate(i, r))
 	}
-	if len(routes) == 0 {
-		row := adw.NewActionRow()
-		row.SetTitle("No advertised routes.")
+	page.routeRows.Update(eroutes)
 
-		page.container.AdvertisedRoutesGroup.Add(row)
-		page.routeRows = append(page.routeRows, row)
-	}
+	page.container.NetCheckGroup.SetVisible(page.self)
 
-	page.container.NetCheckGroup.SetVisible(self)
-
-	page.container.MiscGroup.SetVisible(!self)
+	page.container.MiscGroup.SetVisible(!page.self)
 	page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
 	page.container.ExitNodeSwitch.SetState(peer.ExitNode)
 	page.container.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
@@ -218,7 +160,7 @@ func (a *App) notify(status bool) {
 		body = "Tailscale is connected."
 	}
 
-	icon, iconerr := gio.NewIconForString("com.tailscale-tailscale")
+	icon, iconerr := gio.NewIconForString("dev.deedles.Trayscale")
 
 	n := gio.NewNotification("Tailscale Status")
 	n.SetBody(body)
@@ -265,13 +207,15 @@ func (a *App) updatePeers(status *ipnstate.Status, prefs *ipn.Prefs) {
 		ps := peerMap[p]
 		pw := a.newPeerPage(ps)
 		pw.page = w.AddTitled(pw.container, p.String(), peerName(ps, p == status.Self.PublicKey))
-		a.updatePeerPage(pw, ps, prefs, p == status.Self.PublicKey)
+		pw.self = p == status.Self.PublicKey
+		a.updatePeerPage(pw, ps, prefs)
 		a.peerPages[p] = pw
 	}
 
 	for _, p := range u {
 		page := a.peerPages[p]
-		a.updatePeerPage(page, peerMap[p], prefs, p == status.Self.PublicKey)
+		page.self = p == status.Self.PublicKey
+		a.updatePeerPage(page, peerMap[p], prefs)
 	}
 
 	if w.Pages().NItems() == 0 {
@@ -285,6 +229,7 @@ func (a *App) update(status *ipnstate.Status, prefs *ipn.Prefs) {
 	if a.online != online {
 		a.online = online
 		a.notify(online) // TODO: Notify on startup if not connected?
+		systray.SetIcon(statusIcon(online))
 	}
 	if a.win == nil {
 		return
@@ -294,8 +239,6 @@ func (a *App) update(status *ipnstate.Status, prefs *ipn.Prefs) {
 	a.updatePeers(status, prefs)
 }
 
-// init initializes the App, loading the builder XML, creating a
-// window, and so on.
 func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
 	mk.Map(&a.peerPages, 0)
@@ -304,70 +247,102 @@ func (a *App) init(ctx context.Context) {
 		a.app.Hold()
 	})
 
-	a.app.ConnectActivate(func() {
-		if a.win != nil {
-			a.win.Present()
-			return
+	a.app.ConnectActivate(func() { a.onAppActivate(ctx) })
+
+	go systray.Run(func() { a.initTray(ctx) }, nil)
+}
+
+func (a *App) onAppActivate(ctx context.Context) {
+	if a.win != nil {
+		a.win.Present()
+		return
+	}
+
+	aboutAction := gio.NewSimpleAction("about", nil)
+	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })
+	a.app.AddAction(aboutAction)
+
+	quitAction := gio.NewSimpleAction("quit", nil)
+	quitAction.ConnectActivate(func(p *glib.Variant) { a.Quit() })
+	a.app.AddAction(quitAction)
+	a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
+
+	a.statusPage = adw.NewStatusPage()
+	a.statusPage.SetTitle("Not Connected")
+	a.statusPage.SetIconName("network-offline-symbolic")
+	a.statusPage.SetDescription("Tailscale is not connected")
+
+	a.win = NewMainWindow(&a.app.Application)
+
+	a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
+		if s == a.win.StatusSwitch.State() {
+			return false
 		}
 
-		aboutAction := gio.NewSimpleAction("about", nil)
-		aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })
-		a.app.AddAction(aboutAction)
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
 
-		quitAction := gio.NewSimpleAction("quit", nil)
-		quitAction.ConnectActivate(func(p *glib.Variant) { a.Quit() })
-		a.app.AddAction(quitAction)
-		a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
+		f := a.TS.Stop
+		if s {
+			f = a.TS.Start
+		}
 
-		a.statusPage = adw.NewStatusPage()
-		a.statusPage.SetTitle("Not Connected")
-		a.statusPage.SetIconName("network-offline-symbolic")
-		a.statusPage.SetDescription("Tailscale is not connected")
-
-		a.win = NewMainWindow(&a.app.Application)
-
-		a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
-			if s == a.win.StatusSwitch.State() {
-				return false
-			}
-
-			f := a.TS.Stop
-			if s {
-				f = a.TS.Start
-			}
-
-			err := f(ctx)
-			if err != nil {
-				log.Printf("Error: set Tailscale status: %v", err)
-				a.win.StatusSwitch.SetActive(!s)
-				return true
-			}
-			a.poll <- struct{}{}
+		err := f(ctx)
+		if err != nil {
+			slog.Error("set Tailscale status", err)
+			a.win.StatusSwitch.SetActive(!s)
 			return true
-		})
-
-		a.win.PeersStack.NotifyProperty("visible-child", func() {
-			if a.win.PeersStack.VisibleChild() != nil {
-				a.win.Leaflet.Navigate(adw.NavigationDirectionForward)
-			}
-		})
-
-		a.win.BackButton.ConnectClicked(func() {
-			a.win.Leaflet.Navigate(adw.NavigationDirectionBack)
-		})
-
-		a.win.ConnectCloseRequest(func() bool {
-			maps.Clear(a.peerPages)
-			a.win = nil
-			return false
-		})
+		}
 		a.poll <- struct{}{}
-		a.win.Show()
+		return true
 	})
+
+	a.win.PeersStack.NotifyProperty("visible-child", func() {
+		if a.win.PeersStack.VisibleChild() != nil {
+			a.win.Leaflet.Navigate(adw.NavigationDirectionForward)
+		}
+	})
+
+	a.win.BackButton.ConnectClicked(func() {
+		a.win.Leaflet.Navigate(adw.NavigationDirectionBack)
+	})
+
+	a.win.ConnectCloseRequest(func() bool {
+		maps.Clear(a.peerPages)
+		a.win = nil
+		return false
+	})
+	a.poll <- struct{}{}
+	a.win.Show()
+}
+
+func (a *App) initTray(ctx context.Context) {
+	systray.SetIcon(statusIconInactive)
+	systray.SetTitle("Trayscale")
+
+	showWindow := systray.AddMenuItem("Show", "").ClickedCh
+	systray.AddSeparator()
+	quit := systray.AddMenuItem("Quit", "").ClickedCh
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-showWindow:
+			glib.IdleAdd(func() {
+				if a.app != nil {
+					a.app.Activate()
+				}
+			})
+		case <-quit:
+			a.Quit()
+		}
+	}
 }
 
 // Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
+	systray.Quit()
 	a.app.Quit()
 }
 
@@ -379,6 +354,12 @@ func (a *App) Run(ctx context.Context) {
 	defer cancel()
 
 	a.init(ctx)
+
+	err := a.app.Register(ctx)
+	if err != nil {
+		slog.Error("register application", err)
+		return
+	}
 
 	mk.Chan(&a.poll, 1)
 	go a.poller(ctx)
@@ -426,13 +407,115 @@ type peerPage struct {
 	page      *gtk.StackPage
 	container *PeerPage
 
-	addrRows  []*adw.ActionRow
-	routeRows []*adw.ActionRow
+	self   bool
+	routes []netip.Prefix
+
+	addrRows  rowManager[netip.Addr]
+	routeRows rowManager[enum[netip.Prefix]]
+}
+
+type addrRow struct {
+	ip netip.Addr
+
+	w *adw.ActionRow
+	c *gtk.Button
+}
+
+func (row *addrRow) Update(ip netip.Addr) {
+	row.ip = ip
+	row.w.SetTitle(ip.String())
+}
+
+func (row *addrRow) Widget() gtk.Widgetter {
+	return row.w
+}
+
+type routeRow struct {
+	route enum[netip.Prefix]
+
+	w *adw.ActionRow
+	r *gtk.Button
+}
+
+func (row *routeRow) Update(route enum[netip.Prefix]) {
+	row.route = route
+
+	if !route.Val.IsValid() {
+		row.r.SetVisible(false)
+		row.w.SetTitle("No advertised routes.")
+		return
+	}
+
+	row.r.SetVisible(route.Index >= 0)
+	row.w.SetTitle(route.Val.String())
+}
+
+func (row *routeRow) Widget() gtk.Widgetter {
+	return row.w
 }
 
 func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	page := peerPage{
 		container: NewPeerPage(),
+	}
+
+	page.addrRows.Parent = page.container.IPGroup
+	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {
+		row := addrRow{
+			ip: ip,
+
+			w: adw.NewActionRow(),
+			c: gtk.NewButtonFromIconName("edit-copy-symbolic"),
+		}
+
+		row.c.SetMarginTop(12) // Why is this necessary?
+		row.c.SetMarginBottom(12)
+		row.c.SetHasFrame(false)
+		row.c.SetTooltipText("Copy to Clipboard")
+		row.c.ConnectClicked(func() {
+			row.c.Clipboard().Set(glib.NewValue(row.ip.String()))
+
+			t := adw.NewToast("Copied to clipboard")
+			t.SetTimeout(3)
+			a.win.ToastOverlay.AddToast(t)
+		})
+
+		row.w.SetObjectProperty("title-selectable", true)
+		row.w.AddSuffix(row.c)
+		row.w.SetActivatableWidget(row.c)
+		row.w.SetTitle(ip.String())
+
+		return &row
+	}
+
+	page.routeRows.Parent = page.container.AdvertisedRoutesGroup
+	page.routeRows.New = func(route enum[netip.Prefix]) row[enum[netip.Prefix]] {
+		row := routeRow{
+			route: route,
+
+			w: adw.NewActionRow(),
+			r: gtk.NewButtonFromIconName("list-remove-symbolic"),
+		}
+
+		row.w.SetObjectProperty("title-selectable", true)
+		row.w.AddSuffix(row.r)
+		row.w.SetTitle(route.Val.String())
+
+		row.r.SetMarginTop(12)
+		row.r.SetMarginBottom(12)
+		row.r.SetHasFrame(false)
+		row.r.SetTooltipText("Remove")
+		row.r.ConnectClicked(func() {
+			routes := slices.Delete(page.routes, row.route.Index, row.route.Index+1)
+			err := a.TS.AdvertiseRoutes(context.TODO(), routes)
+			if err != nil {
+				slog.Error("advertise routes", err)
+				return
+			}
+			a.poll <- struct{}{}
+		})
+
+		return &row
 	}
 
 	page.container.ExitNodeSwitch.ConnectStateSet(func(s bool) bool {
@@ -446,7 +529,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		}
 		err := a.TS.ExitNode(context.TODO(), node)
 		if err != nil {
-			log.Printf("Error: set exit node: %v", err)
+			slog.Error("set exit node", err)
 			page.container.ExitNodeSwitch.SetActive(!s)
 			return true
 		}
@@ -461,7 +544,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 
 		err := a.TS.AdvertiseExitNode(context.TODO(), s)
 		if err != nil {
-			log.Printf("Error: advertise exit node: %v", err)
+			slog.Error("advertise exit node", err)
 			page.container.AdvertiseExitNodeSwitch.SetActive(!s)
 			return true
 		}
@@ -476,7 +559,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 
 		err := a.TS.AllowLANAccess(context.TODO(), s)
 		if err != nil {
-			log.Printf("Error: advertise exit node: %v", err)
+			slog.Error("allow LAN access", err)
 			page.container.AllowLANAccessSwitch.SetActive(!s)
 			return true
 		}
@@ -488,13 +571,13 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		a.prompt("IP prefix to advertise", func(val string) {
 			p, err := netip.ParsePrefix(val)
 			if err != nil {
-				log.Printf("Error: parse prefix: %v", err)
+				slog.Error("parse prefix", err)
 				return
 			}
 
 			prefs, err := a.TS.Prefs(context.TODO())
 			if err != nil {
-				log.Printf("Error: get prefs: %v", err)
+				slog.Error("get prefs", err)
 				return
 			}
 
@@ -503,7 +586,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 				append(prefs.AdvertiseRoutes, p),
 			)
 			if err != nil {
-				log.Printf("Error: advertise routes: %v", err)
+				slog.Error("advertise routes", err)
 				return
 			}
 
@@ -511,11 +594,30 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		})
 	})
 
-	var latencyRows []gtk.Widgetter
+	type latencyEntry = xmaps.Entry[string, time.Duration]
+	latencyRows := rowManager[latencyEntry]{
+		Parent: rowAdderParent{page.container.DERPLatencies},
+		New: func(lat latencyEntry) row[latencyEntry] {
+			label := gtk.NewLabel(lat.Val.String())
+
+			row := adw.NewActionRow()
+			row.SetTitle(lat.Key)
+			row.AddSuffix(label)
+
+			return &simpleRow[latencyEntry]{
+				W: row,
+				U: func(lat latencyEntry) {
+					label.SetText(lat.Val.String())
+					row.SetTitle(lat.Key)
+				},
+			}
+		},
+	}
+
 	page.container.NetCheckButton.ConnectClicked(func() {
 		r, dm, err := a.TS.NetCheck(context.TODO(), true)
 		if err != nil {
-			log.Printf("Error: netcheck: %v", err)
+			slog.Error("netcheck", err)
 			return
 		}
 
@@ -544,19 +646,16 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		page.container.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
 
 		page.container.DERPLatencies.SetVisible(true)
-		for _, row := range latencyRows {
-			page.container.DERPLatencies.Remove(row)
-		}
-		latencyRows = latencyRows[:0]
 		latencies := xmaps.Entries(r.RegionLatency)
 		slices.SortFunc(latencies, func(e1, e2 xmaps.Entry[int, time.Duration]) bool { return e1.Val < e2.Val })
+		namedLats := make([]xmaps.Entry[string, time.Duration], 0, len(latencies))
 		for _, lat := range latencies {
-			row := adw.NewActionRow()
-			row.SetTitle(dm.Regions[lat.Key].RegionName)
-			row.AddSuffix(gtk.NewLabel(lat.Val.String()))
-			page.container.DERPLatencies.AddRow(row)
-			latencyRows = append(latencyRows, row)
+			namedLats = append(namedLats, xmaps.Entry[string, time.Duration]{
+				Key: dm.Regions[lat.Key].RegionName,
+				Val: lat.Val,
+			})
 		}
+		latencyRows.Update(namedLats)
 	})
 
 	return &page

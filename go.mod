@@ -46,3 +46,5 @@ require (
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
+
+replace github.com/godbus/dbus/v5 => github.com/DeedleFake/dbus/v5 v5.0.0-20230315214936-7984ae13c5bc

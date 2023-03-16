@@ -2,19 +2,15 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"io"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
 
-	_ "embed"
-
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/tsutil"
-	"golang.org/x/exp/slog"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/opt"
 )
@@ -119,9 +115,7 @@ func optBoolIcon(v opt.Bool) string {
 }
 
 func main() {
-	if addr, ok := os.LookupEnv("PPROF_ADDR"); ok {
-		go func() { slog.Error("start pprof HTTP server", http.ListenAndServe(addr, nil)) }()
-	}
+	pprof()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()

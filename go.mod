@@ -7,8 +7,8 @@ require (
 	fyne.io/systray v1.10.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307040502-bfe82926e1be
 	github.com/diamondburned/gotk4/pkg v0.0.5-0.20230105054822-f46414fdaa94
-	golang.org/x/exp v0.0.0-20230310171629-522b1b587ee0
-	tailscale.com v1.36.2
+	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0
+	tailscale.com v1.38.1
 )
 
 require (
@@ -22,9 +22,9 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.1.0 // indirect
-	github.com/josharian/native v1.1.0 // indirect
+	github.com/josharian/native v1.1.1-0.20230202152459-5c7d0dd6ab86 // indirect
 	github.com/jsimonetti/rtnetlink v1.3.1 // indirect
-	github.com/klauspost/compress v1.16.0 // indirect
+	github.com/klauspost/compress v1.16.3 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mdlayher/netlink v1.7.1 // indirect
 	github.com/mdlayher/socket v0.4.0 // indirect
@@ -46,5 +46,3 @@ require (
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
-
-replace github.com/godbus/dbus/v5 => github.com/DeedleFake/dbus/v5 v5.0.0-20230315214936-7984ae13c5bc

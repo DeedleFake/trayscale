@@ -12,7 +12,13 @@ import (
 )
 
 func pprof() {
-	if addr, ok := os.LookupEnv("PPROF_ADDR"); ok {
-		go func() { slog.Error("start pprof HTTP server", http.ListenAndServe(addr, nil)) }()
-	}
+	go func() {
+		addr := os.Getenv("PPROF_ADDR")
+		if addr == "" {
+			addr = ":6060"
+		}
+
+		slog.Info("start pprof HTTP server", "addr", addr)
+		slog.Error("start pprof HTTP server", http.ListenAndServe(addr, nil))
+	}()
 }

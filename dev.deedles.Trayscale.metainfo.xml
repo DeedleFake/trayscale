@@ -41,6 +41,14 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.8.1" date="2023-03-16">
+			<description>
+				<ul>
+					<li>Update Tailscale to v1.38.1.</li>
+					<li>Minor fixes in other areas.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.8.0" date="2023-03-12">
 			<description>
 				<p>Reintroduce system tray support.</p>

@@ -6,7 +6,7 @@ require (
 	deedles.dev/mk v0.1.0
 	fyne.io/systray v1.10.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307040502-bfe82926e1be
-	github.com/diamondburned/gotk4/pkg v0.0.5-0.20230105054822-f46414fdaa94
+	github.com/diamondburned/gotk4/pkg v0.0.5
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0
 	tailscale.com v1.38.1
 )

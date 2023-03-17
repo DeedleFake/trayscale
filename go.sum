@@ -17,8 +17,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307040502-bfe82926e1be h1:XzG9azkbXwZwL7afxavVy8kl7+6VQ92eHtH0maDg5xQ=
 github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307040502-bfe82926e1be/go.mod h1:f+Kv3QPlRGEW0nv0oyEZ4qhCcOY9qhxKnmPmrzmBkLo=
-github.com/diamondburned/gotk4/pkg v0.0.5-0.20230105054822-f46414fdaa94 h1:9d996ZV4Baq/M+I75K9IEqi9ON+65xPYUFYsPKiQgPg=
-github.com/diamondburned/gotk4/pkg v0.0.5-0.20230105054822-f46414fdaa94/go.mod h1:DdFIIgGetfZf4ZQJkdQTYNcrIBPO8DEvVNIJgzGjWEE=
+github.com/diamondburned/gotk4/pkg v0.0.5 h1:1NOpwNttT63zJdRItwf79ZyX6Bw2bkv8+YjfZCUevcc=
+github.com/diamondburned/gotk4/pkg v0.0.5/go.mod h1:Jr5xzUuGyLsoMtE9LzE/Lay1gD0ONiFWAmQ0+Z6KLeA=
 github.com/frankban/quicktest v1.14.0 h1:+cqqvzZV87b4adx/5ayVOaYZ2CrvM4ejQvUdBzPPUss=
 github.com/fxamacker/cbor/v2 v2.4.0 h1:ri0ArlOR+5XunOP8CRUowT0pSJOwhW098ZCUyskZD88=
 github.com/fxamacker/cbor/v2 v2.4.0/go.mod h1:TA1xS00nchWmaBnEIxPSE5oHLuJBAVvqrtAnWBwBCVo=

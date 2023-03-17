@@ -244,11 +244,27 @@ func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
 	mk.Map(&a.peerPages, 0)
 
+	var hideWindow bool
+	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, "Hide window on initial start", "")
+	a.app.ConnectHandleLocalOptions(func(options *glib.VariantDict) int {
+		if options.Contains("hide-window") {
+			hideWindow = true
+		}
+
+		return -1
+	})
+
 	a.app.ConnectStartup(func() {
 		a.app.Hold()
 	})
 
-	a.app.ConnectActivate(func() { a.onAppActivate(ctx) })
+	a.app.ConnectActivate(func() {
+		if hideWindow {
+			hideWindow = false
+			return
+		}
+		a.onAppActivate(ctx)
+	})
 
 	go systray.Run(func() { a.initTray(ctx) }, nil)
 }

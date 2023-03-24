@@ -7,12 +7,14 @@ require (
 	fyne.io/systray v1.10.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307040502-bfe82926e1be
 	github.com/diamondburned/gotk4/pkg v0.0.5
-	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0
-	tailscale.com v1.38.1
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+	honnef.co/go/tools v0.4.3
+	tailscale.com v1.38.2
 )
 
 require (
 	filippo.io/edwards25519 v1.0.0 // indirect
+	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20210105120005-909beea2cc74 // indirect
@@ -37,6 +39,7 @@ require (
 	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230221090011-e4bae7ad2296 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20230321023759-10a507213a29 // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect

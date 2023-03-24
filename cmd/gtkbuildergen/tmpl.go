@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	_ "embed"
 	"text/template"
 
 	"deedles.dev/trayscale/internal/set"

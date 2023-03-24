@@ -1,0 +1,19 @@
+name: Go Check
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  go-lint:
+    name: Lint Go Code
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/setup-go@v4.0.0
+    - name: Setup Staticcheck
+      run: go install -v honnef.co/go/tools/cmd/staticcheck
+    - name: go vet
+      run: go vet -v ./...
+    - name: staticcheck
+      run: staticcheck -f stylish ./...

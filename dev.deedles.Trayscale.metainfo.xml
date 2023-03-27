@@ -46,6 +46,7 @@
 				<ul>
 					<li>Update to Libadwaita 1.2.</li>
 					<li>Use Libadwaita about window.</li>
+					<li>Use Libadwaita message dialog as a prompt.</li>
 				</ul>
 			</description>
 		</release>

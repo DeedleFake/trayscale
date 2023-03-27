@@ -5,7 +5,7 @@ go 1.18
 require (
 	deedles.dev/mk v0.1.0
 	fyne.io/systray v1.10.0
-	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307040502-bfe82926e1be
+	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307050941-20a05fa3a9df
 	github.com/diamondburned/gotk4/pkg v0.0.5
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	honnef.co/go/tools v0.4.3

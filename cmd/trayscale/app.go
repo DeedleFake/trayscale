@@ -85,13 +85,15 @@ func (a *App) poller(ctx context.Context) {
 
 // showAboutDialog shows the app's about dialog.
 func (a *App) showAboutDialog() {
-	dialog := gtk.NewAboutDialog()
-	dialog.SetAuthors([]string{"DeedleFake"})
-	dialog.SetComments("A simple, unofficial GUI wrapper for the Tailscale CLI client.")
-	dialog.SetCopyright("Copyright (c) 2022 DeedleFake")
+	dialog := adw.NewAboutWindow()
+	dialog.SetDevelopers([]string{"DeedleFake"})
+	dialog.SetCopyright("Copyright (c) 2023 DeedleFake")
 	dialog.SetLicense(readAssetString("LICENSE"))
-	dialog.SetLogoIconName("dev.deedles.Trayscale")
-	dialog.SetProgramName("Trayscale")
+	dialog.SetLicenseType(gtk.LicenseCustom)
+	dialog.SetApplicationIcon("dev.deedles.Trayscale")
+	dialog.SetApplicationName("Trayscale")
+	dialog.SetWebsite("https://github.com/DeedleFake/trayscale")
+	dialog.SetIssueURL("https://github.com/DeedleFake/trayscale/issues")
 	if v, ok := version.Get(); ok {
 		dialog.SetVersion(v)
 	}
@@ -99,7 +101,7 @@ func (a *App) showAboutDialog() {
 	dialog.SetModal(true)
 	dialog.Show()
 
-	a.app.AddWindow(&dialog.Window)
+	a.app.AddWindow(&dialog.Window.Window)
 }
 
 func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *ipn.Prefs) {

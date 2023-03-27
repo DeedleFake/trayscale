@@ -391,32 +391,26 @@ func (a *App) Run(ctx context.Context) {
 	a.app.Run(os.Args)
 }
 
-func (a *App) prompt(prompt string, res func(val string)) {
+func (a *App) prompt(heading, body string, res func(val string)) {
 	input := gtk.NewText()
-	input.SetPlaceholderText(prompt)
-	input.SetSizeRequest(200, 30)
 
-	dialog := gtk.NewMessageDialog(
-		&a.win.Window,
-		gtk.DialogModal|gtk.DialogDestroyWithParent|gtk.DialogUseHeaderBar,
-		gtk.MessageQuestion,
-		gtk.ButtonsNone,
-	)
-	dialog.ContentArea().Append(input)
-	dialog.AddButton("Cancel", 1)
-	dialog.AddButton("Add", 0)
+	dialog := adw.NewMessageDialog(&a.win.Window, heading, body)
+	dialog.SetExtraChild(input)
+	dialog.AddResponse("cancel", "_Cancel")
+	dialog.SetCloseResponse("cancel")
+	dialog.AddResponse("add", "_Add")
+	dialog.SetResponseAppearance("add", adw.ResponseSuggested)
+	dialog.SetDefaultResponse("add")
 
-	input.ConnectActivate(func() {
-		dialog.Response(0)
-	})
-
-	dialog.ConnectResponse(func(id int) {
-		defer dialog.Close()
-
-		switch id {
-		case 0:
+	dialog.ConnectResponse(func(response string) {
+		switch response {
+		case "add":
 			res(input.Buffer().Text())
 		}
+	})
+	input.ConnectActivate(func() {
+		defer dialog.Close()
+		res(input.Buffer().Text())
 	})
 
 	dialog.Show()
@@ -587,7 +581,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	})
 
 	page.container.AdvertiseRouteButton.ConnectClicked(func() {
-		a.prompt("IP prefix to advertise", func(val string) {
+		a.prompt("Add IP", "IP prefix to advertise", func(val string) {
 			p, err := netip.ParsePrefix(val)
 			if err != nil {
 				slog.Error("parse prefix", err)

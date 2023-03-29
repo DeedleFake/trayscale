@@ -2,8 +2,10 @@ package tsutil
 
 import (
 	"context"
+	"sync"
 	"time"
 
+	"deedles.dev/mk"
 	"golang.org/x/exp/slog"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -11,26 +13,38 @@ import (
 
 // A Poller gets the latest Tailscale status at regular intervals or
 // when manually triggered.
+//
+// A zero-value of a Poller is ready to use.
+//
+// It is a race condition to change any exported fields of Poller
+// while Run is running.
 type Poller struct {
+	// TS is the Client to use to interact with Tailscale.
+	//
+	// If it is nil, a default client will be used.
+	TS *Client
+
 	// If non-nil, New will be called when a new status is received from
-	// Tailscale. It should not be changed while Run is running.
+	// Tailscale.
 	New func(Status)
 
-	ts *Client
-
+	once sync.Once
 	poll chan struct{}
 	get  chan Status
 }
 
-// NewPoller returns a new Poller that uses the given Client to
-// interact with Tailscale.
-func NewPoller(ts *Client) *Poller {
-	return &Poller{
-		ts: ts,
+func (p *Poller) init() {
+	p.once.Do(func() {
+		mk.Chan(&p.poll, 0)
+		mk.Chan(&p.get, 0)
+	})
+}
 
-		poll: make(chan struct{}),
-		get:  make(chan Status),
+func (p *Poller) client() *Client {
+	if p.TS == nil {
+		return &defaultClient
 	}
+	return p.TS
 }
 
 // Run runs the poller. It blocks until polling is done, which is
@@ -39,12 +53,14 @@ func NewPoller(ts *Client) *Poller {
 // The behavior of two calls to Run running concurrently is undefined.
 // Don't do it.
 func (p *Poller) Run(ctx context.Context) {
+	p.init()
+
 	const ticklen = 5 * time.Second
 	check := time.NewTicker(ticklen)
 	defer check.Stop()
 
 	for {
-		status, err := p.ts.Status(ctx)
+		status, err := p.client().Status(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -53,7 +69,7 @@ func (p *Poller) Run(ctx context.Context) {
 			continue
 		}
 
-		prefs, err := p.ts.Prefs(ctx)
+		prefs, err := p.client().Prefs(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -91,6 +107,8 @@ func (p *Poller) Run(ctx context.Context) {
 // Do not close the returned channel. Doing so will result in
 // undefined behavior.
 func (p *Poller) Poll() chan<- struct{} {
+	p.init()
+
 	return p.poll
 }
 
@@ -98,6 +116,8 @@ func (p *Poller) Poll() chan<- struct{} {
 // a new Status is in the process of being fetched, it will wait for
 // that to finish and then yield that.
 func (p *Poller) Get() <-chan Status {
+	p.init()
+
 	return p.get
 }
 

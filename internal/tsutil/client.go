@@ -21,6 +21,8 @@ var (
 			// Do nothing.
 		},
 	}
+
+	defaultClient Client
 )
 
 // Client is a client for Tailscale's services. Some functionality is

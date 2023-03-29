@@ -344,8 +344,10 @@ func (a *App) Run(ctx context.Context) {
 		return
 	}
 
-	a.poller = tsutil.NewPoller(a.TS)
-	a.poller.New = func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) }
+	a.poller = &tsutil.Poller{
+		TS:  a.TS,
+		New: func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+	}
 	go a.poller.Run(ctx)
 
 	go func() {

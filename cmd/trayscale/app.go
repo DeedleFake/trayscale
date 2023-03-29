@@ -116,7 +116,9 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 	page.container.OptionsGroup.SetVisible(page.self)
 	if page.self {
 		page.container.AdvertiseExitNodeSwitch.SetState(prefs.AdvertisesExitNode())
+		page.container.AdvertiseExitNodeSwitch.SetActive(prefs.AdvertisesExitNode())
 		page.container.AllowLANAccessSwitch.SetState(prefs.ExitNodeAllowLANAccess)
+		page.container.AllowLANAccessSwitch.SetActive(prefs.ExitNodeAllowLANAccess)
 	}
 
 	page.container.AdvertiseRouteButton.SetVisible(page.self)
@@ -146,6 +148,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 	page.container.MiscGroup.SetVisible(!page.self)
 	page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
 	page.container.ExitNodeSwitch.SetState(peer.ExitNode)
+	page.container.ExitNodeSwitch.SetActive(peer.ExitNode)
 	page.container.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
 	page.container.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
 	page.container.Created.SetText(formatTime(peer.Created))
@@ -238,6 +241,7 @@ func (a *App) update(status *ipnstate.Status, prefs *ipn.Prefs) {
 	}
 
 	a.win.StatusSwitch.SetState(online)
+	a.win.StatusSwitch.SetActive(online)
 	a.updatePeers(status, prefs)
 }
 

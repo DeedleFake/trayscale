@@ -41,6 +41,14 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.8.5" date="2023-03-28">
+			<description>
+				<ul>
+					<li>Fix switch state management for newer versions of Gtk4.</li>
+					<li>Update GNOME runtime to version 44.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.8.4" date="2023-03-27">
 			<description>
 				<ul>

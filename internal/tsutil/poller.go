@@ -81,7 +81,7 @@ func (p *Poller) Run(ctx context.Context) {
 		s := Status{Status: status, Prefs: prefs}
 		if p.New != nil {
 			// TODO: Only call this if the status changed from the previous
-			// poll.
+			// poll? Is that remotely feasible?
 			p.New(s)
 		}
 

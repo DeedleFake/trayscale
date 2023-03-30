@@ -37,8 +37,9 @@ type App struct {
 	poller *tsutil.Poller
 	online bool
 
-	app *adw.Application
-	win *MainWindow
+	app      *adw.Application
+	win      *MainWindow
+	settings *gio.Settings
 
 	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
@@ -51,7 +52,7 @@ func (a *App) showAboutDialog() {
 	dialog.SetCopyright("Copyright (c) 2023 DeedleFake")
 	dialog.SetLicense(readAssetString("LICENSE"))
 	dialog.SetLicenseType(gtk.LicenseCustom)
-	dialog.SetApplicationIcon("dev.deedles.Trayscale")
+	dialog.SetApplicationIcon(appID)
 	dialog.SetApplicationName("Trayscale")
 	dialog.SetWebsite("https://github.com/DeedleFake/trayscale")
 	dialog.SetIssueURL("https://github.com/DeedleFake/trayscale/issues")
@@ -126,7 +127,7 @@ func (a *App) notify(status bool) {
 		body = "Tailscale is connected."
 	}
 
-	icon, iconerr := gio.NewIconForString("dev.deedles.Trayscale")
+	icon, iconerr := gio.NewIconForString(appID)
 
 	n := gio.NewNotification("Tailscale Status")
 	n.SetBody(body)
@@ -232,7 +233,20 @@ func (a *App) init(ctx context.Context) {
 		a.onAppActivate(ctx)
 	})
 
-	go systray.Run(func() { a.initTray(ctx) }, nil)
+	a.settings = gio.NewSettings(appID)
+	a.settings.ConnectChanged(func(key string) {
+		switch key {
+		case "tray-icon":
+			if a.settings.Boolean("tray-icon") {
+				go startSystray(func() { a.initTray(ctx) })
+				return
+			}
+			stopSystray()
+		}
+	})
+	if a.settings.Boolean("tray-icon") {
+		go startSystray(func() { a.initTray(ctx) })
+	}
 }
 
 func (a *App) onAppActivate(ctx context.Context) {
@@ -300,7 +314,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 }
 
 func (a *App) initTray(ctx context.Context) {
-	systray.SetIcon(statusIconInactive)
+	systray.SetIcon(statusIcon(a.online))
 	systray.SetTitle("Trayscale")
 
 	showWindow := systray.AddMenuItem("Show", "").ClickedCh
@@ -325,7 +339,7 @@ func (a *App) initTray(ctx context.Context) {
 
 // Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
-	systray.Quit()
+	stopSystray()
 	a.app.Quit()
 }
 
@@ -639,4 +653,26 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	})
 
 	return &page
+}
+
+var systrayExit = make(chan func(), 1)
+
+func startSystray(onStart func()) {
+	start, stop := systray.RunWithExternalLoop(onStart, nil)
+	select {
+	case f := <-systrayExit:
+		f()
+	default:
+	}
+
+	start()
+	systrayExit <- stop
+}
+
+func stopSystray() {
+	select {
+	case f := <-systrayExit:
+		f()
+	default:
+	}
 }

@@ -14,6 +14,7 @@ import (
 	"deedles.dev/trayscale/internal/xslices"
 	"fyne.io/systray"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -280,6 +281,39 @@ init:
 	}
 }
 
+func (a *App) startTS(ctx context.Context) error {
+	status := <-a.poller.Get()
+	if status.NeedsAuth() {
+		Confirmation{
+			Heading: "Login Required",
+			Body:    "Open a browser to authenticate with Tailscale?",
+			Accept:  "_Open Browser",
+			Reject:  "_Cancel",
+		}.Show(a, func(accept bool) {
+			if accept {
+				gtk.ShowURI(&a.win.Window, status.Status.AuthURL, gdk.CURRENT_TIME)
+			}
+		})
+		return nil
+	}
+
+	err := a.TS.Start(ctx)
+	if err != nil {
+		return err
+	}
+	a.poller.Poll() <- struct{}{}
+	return nil
+}
+
+func (a *App) stopTS(ctx context.Context) error {
+	err := a.TS.Stop(ctx)
+	if err != nil {
+		return err
+	}
+	a.poller.Poll() <- struct{}{}
+	return nil
+}
+
 func (a *App) onAppActivate(ctx context.Context) {
 	if a.win != nil {
 		a.win.Present()
@@ -311,12 +345,9 @@ func (a *App) onAppActivate(ctx context.Context) {
 			return false
 		}
 
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-
-		f := a.TS.Stop
+		f := a.stopTS
 		if s {
-			f = a.TS.Start
+			f = a.startTS
 		}
 
 		err := f(ctx)
@@ -325,7 +356,6 @@ func (a *App) onAppActivate(ctx context.Context) {
 			a.win.StatusSwitch.SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
 		return true
 	})
 

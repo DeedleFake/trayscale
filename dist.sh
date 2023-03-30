@@ -19,7 +19,7 @@ _usage() {
 _build() {
 	version="$1"
 	if [ -z "$version" ]; then
-		version="$(git describe --tags)"
+		version="$(git describe --tags --always)"
 	fi
 
 	echo "Building $version"

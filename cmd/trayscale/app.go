@@ -345,6 +345,11 @@ func (a *App) onAppActivate(ctx context.Context) {
 			return false
 		}
 
+		// TODO: Handle this, and other switches, asynchrounously instead
+		// of freezing the entire UI.
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
 		f := a.stopTS
 		if s {
 			f = a.startTS

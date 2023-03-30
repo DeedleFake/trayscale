@@ -5,28 +5,53 @@
 # Trayscale manually, you can read through the installation section of
 # this script to see where various files are put.
 
-usage() {
-	echo "Usage: $0 <destination directory>"
+_usage() {
+	echo "Usage: $0 <build | install> [options]"
+	echo
+	echo "Modes:"
+	echo "  build: build the binary with embedded version information"
+	echo "    Usage: build [version]"
+	echo "  install: install the binary and other files into a directory tree"
+	echo "    Usage: install <destination directory>"
 	exit 2
 }
 
-version="$(git describe --tags)"
-dstdir="$1"
+_build() {
+	version="$1"
+	if [ -z "$version" ]; then
+		version="$(git describe --tags)"
+	fi
 
-if [ -z "$dstdir" ]; then
-	usage
-fi
+	echo "Building $version"
+	go build -v -trimpath -ldflags="-X 'deedles.dev/trayscale/internal/version.version=$version'" -o trayscale ./cmd/trayscale
+}
 
-echo "Building $version"
-go build -v -trimpath -ldflags="-X 'deedles.dev/trayscale/internal/version.version=$version'" -o trayscale ./cmd/trayscale
-echo
+_install() {
+	dstdir="$1"
+	if [ -z "$dstdir" ]; then
+		_usage
+	fi
 
-echo "Installing to $dstdir"
-install -D trayscale "$dstdir/bin/trayscale"
-install -Dm644 dev.deedles.Trayscale.png "$dstdir/share/icons/hicolor/256x256/apps/dev.deedles.Trayscale.png"
-install -Dm644 dev.deedles.Trayscale.desktop "$dstdir/share/applications/dev.deedles.Trayscale.desktop"
-install -Dm644 dev.deedles.Trayscale.metainfo.xml "$dstdir/share/metainfo/dev.deedles.Trayscale.metainfo.xml"
-install -Dm644 dev.deedles.Trayscale.gschema.xml "$dstdir/share/glib-2.0/schemas/dev.deedles.Trayscale.gschema.xml"
-echo
+	echo "Installing to $dstdir"
+	install -D trayscale "$dstdir/bin/trayscale"
+	install -Dm644 dev.deedles.Trayscale.png "$dstdir/share/icons/hicolor/256x256/apps/dev.deedles.Trayscale.png"
+	install -Dm644 dev.deedles.Trayscale.desktop "$dstdir/share/applications/dev.deedles.Trayscale.desktop"
+	install -Dm644 dev.deedles.Trayscale.metainfo.xml "$dstdir/share/metainfo/dev.deedles.Trayscale.metainfo.xml"
+	install -Dm644 dev.deedles.Trayscale.gschema.xml "$dstdir/share/glib-2.0/schemas/dev.deedles.Trayscale.gschema.xml"
+}
 
-echo "Done."
+case "$1" in
+	build)
+		_build "$2"
+		;;
+	install)
+		_install "$2"
+		;;
+	--help)
+		_usage
+		;;
+	*)
+		echo "Error: Unknown mode $1"
+		_usage
+		;;
+esac

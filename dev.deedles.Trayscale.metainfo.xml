@@ -45,6 +45,8 @@
 			<description>
 				<ul>
 					<li>Clean up internal data flow somewhat.</li>
+					<li>Add GSettings schema file.</li>
+					<li>Add preferences window.</li>
 				</ul>
 			</description>
 		</release>

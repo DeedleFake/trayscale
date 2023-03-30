@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<schemalist>
+	<schema path="/dev/deedles/Trayscale/" id="dev.deedles.Trayscale">
+		<key name="tray-icon" type="b">
+			<default>true</default>
+			<summary>Display an icon in the system tray</summary>
+			<description>
+				If enabled, an icon will be placed into the system tray to, for
+				example, display the current Tailscale connection status.
+			</description>
+		</key>
+	</schema>
+</schemalist>
+
+<!-- vim: set ts=2 sw=2 noet: -->

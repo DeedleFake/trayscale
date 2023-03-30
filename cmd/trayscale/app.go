@@ -46,6 +46,11 @@ type App struct {
 }
 
 func (a *App) showPreferences() {
+	if a.settings == nil {
+		a.toast("Settings schema not found")
+		return
+	}
+
 	win := NewPreferencesWindow()
 	a.settings.Bind("tray-icon", win.UseTrayIcon.Object, "active", gio.SettingsBindDefault)
 	win.SetTransientFor(&a.win.Window)
@@ -147,6 +152,13 @@ func (a *App) notify(status bool) {
 	a.app.SendNotification("tailscale-status", n)
 }
 
+func (a *App) toast(msg string) *adw.Toast {
+	toast := adw.NewToast(msg)
+	toast.SetTimeout(3)
+	a.win.ToastOverlay.AddToast(toast)
+	return toast
+}
+
 func (a *App) updatePeers(s tsutil.Status) {
 	const statusPageName = "status"
 
@@ -242,6 +254,14 @@ func (a *App) init(ctx context.Context) {
 		a.onAppActivate(ctx)
 	})
 
+	a.initSettings(ctx)
+}
+
+func (a *App) initSettings(ctx context.Context) {
+	if !slices.Contains(gio.SettingsListSchemas(), appID) {
+		goto init
+	}
+
 	a.settings = gio.NewSettings(appID)
 	a.settings.ConnectChanged(func(key string) {
 		switch key {
@@ -253,7 +273,9 @@ func (a *App) init(ctx context.Context) {
 			stopSystray()
 		}
 	})
-	if a.settings.Boolean("tray-icon") {
+
+init:
+	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
 		go startSystray(func() { a.initTray(ctx) })
 	}
 }
@@ -481,10 +503,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 		row.c.SetTooltipText("Copy to Clipboard")
 		row.c.ConnectClicked(func() {
 			row.c.Clipboard().Set(glib.NewValue(row.ip.String()))
-
-			t := adw.NewToast("Copied to clipboard")
-			t.SetTimeout(3)
-			a.win.ToastOverlay.AddToast(t)
+			a.toast("Copied to clipboard")
 		})
 
 		row.w.SetObjectProperty("title-selectable", true)

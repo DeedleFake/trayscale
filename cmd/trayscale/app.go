@@ -34,7 +34,7 @@ type App struct {
 	// Tailscale.
 	TS *tsutil.Client
 
-	poll   chan struct{}
+	poller *tsutil.Poller
 	online bool
 
 	app *adw.Application
@@ -42,45 +42,6 @@ type App struct {
 
 	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
-}
-
-// poller runs a loop that continues until ctx is cancelled. The loop
-// polls Tailscale at regular intervals to determine the network's
-// status, updating the App's state with the result.
-func (a *App) poller(ctx context.Context) {
-	const ticklen = 5 * time.Second
-	check := time.NewTicker(ticklen)
-	defer check.Stop()
-
-	for {
-		status, err := a.TS.Status(ctx)
-		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			slog.Error("get Tailscale status", err)
-			continue
-		}
-
-		prefs, err := a.TS.Prefs(ctx)
-		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			slog.Error("get Tailscale prefs", err)
-			continue
-		}
-
-		glib.IdleAdd(func() { a.update(status, prefs) })
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-check.C:
-		case <-a.poll:
-			check.Reset(ticklen)
-		}
-	}
 }
 
 // showAboutDialog shows the app's about dialog.
@@ -176,7 +137,7 @@ func (a *App) notify(status bool) {
 	a.app.SendNotification("tailscale-status", n)
 }
 
-func (a *App) updatePeers(status *ipnstate.Status, prefs *ipn.Prefs) {
+func (a *App) updatePeers(s tsutil.Status) {
 	const statusPageName = "status"
 
 	w := a.win.PeersStack
@@ -184,15 +145,15 @@ func (a *App) updatePeers(status *ipnstate.Status, prefs *ipn.Prefs) {
 	var peerMap map[key.NodePublic]*ipnstate.PeerStatus
 	var peers []key.NodePublic
 
-	if status != nil {
+	if s.Online() {
 		if c := w.ChildByName(statusPageName); c != nil {
 			w.Remove(c)
 		}
 
-		peerMap = status.Peer
+		peerMap = s.Status.Peer
 
-		peers = slices.Insert(status.Peers(), 0, status.Self.PublicKey) // Add this manually to guarantee ordering.
-		peerMap[status.Self.PublicKey] = status.Self
+		peers = slices.Insert(s.Status.Peers(), 0, s.Status.Self.PublicKey) // Add this manually to guarantee ordering.
+		peerMap[s.Status.Self.PublicKey] = s.Status.Self
 	}
 
 	u, n := xslices.Partition(peers, func(peer key.NodePublic) bool {
@@ -211,16 +172,16 @@ func (a *App) updatePeers(status *ipnstate.Status, prefs *ipn.Prefs) {
 	for _, p := range n {
 		ps := peerMap[p]
 		pw := a.newPeerPage(ps)
-		pw.page = w.AddTitled(pw.container, p.String(), peerName(ps, p == status.Self.PublicKey))
-		pw.self = p == status.Self.PublicKey
-		a.updatePeerPage(pw, ps, prefs)
+		pw.page = w.AddTitled(pw.container, p.String(), peerName(ps, p == s.Status.Self.PublicKey))
+		pw.self = p == s.Status.Self.PublicKey
+		a.updatePeerPage(pw, ps, s.Prefs)
 		a.peerPages[p] = pw
 	}
 
 	for _, p := range u {
 		page := a.peerPages[p]
-		page.self = p == status.Self.PublicKey
-		a.updatePeerPage(page, peerMap[p], prefs)
+		page.self = p == s.Status.Self.PublicKey
+		a.updatePeerPage(page, peerMap[p], s.Prefs)
 	}
 
 	if w.Pages().NItems() == 0 {
@@ -229,8 +190,8 @@ func (a *App) updatePeers(status *ipnstate.Status, prefs *ipn.Prefs) {
 	}
 }
 
-func (a *App) update(status *ipnstate.Status, prefs *ipn.Prefs) {
-	online := status != nil
+func (a *App) update(s tsutil.Status) {
+	online := s.Online()
 	if a.online != online {
 		a.online = online
 		a.notify(online) // TODO: Notify on startup if not connected?
@@ -242,7 +203,7 @@ func (a *App) update(status *ipnstate.Status, prefs *ipn.Prefs) {
 
 	a.win.StatusSwitch.SetState(online)
 	a.win.StatusSwitch.SetActive(online)
-	a.updatePeers(status, prefs)
+	a.updatePeers(s)
 }
 
 func (a *App) init(ctx context.Context) {
@@ -315,7 +276,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 			a.win.StatusSwitch.SetActive(!s)
 			return true
 		}
-		a.poll <- struct{}{}
+		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
@@ -334,7 +295,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.win = nil
 		return false
 	})
-	a.poll <- struct{}{}
+	a.poller.Poll() <- struct{}{}
 	a.win.Show()
 }
 
@@ -383,8 +344,11 @@ func (a *App) Run(ctx context.Context) {
 		return
 	}
 
-	mk.Chan(&a.poll, 1)
-	go a.poller(ctx)
+	a.poller = &tsutil.Poller{
+		TS:  a.TS,
+		New: func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+	}
+	go a.poller.Run(ctx)
 
 	go func() {
 		<-ctx.Done()
@@ -528,7 +492,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 				slog.Error("advertise routes", err)
 				return
 			}
-			a.poll <- struct{}{}
+			a.poller.Poll() <- struct{}{}
 		})
 
 		return &row
@@ -549,7 +513,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 			page.container.ExitNodeSwitch.SetActive(!s)
 			return true
 		}
-		a.poll <- struct{}{}
+		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
@@ -564,7 +528,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 			page.container.AdvertiseExitNodeSwitch.SetActive(!s)
 			return true
 		}
-		a.poll <- struct{}{}
+		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
@@ -579,7 +543,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 			page.container.AllowLANAccessSwitch.SetActive(!s)
 			return true
 		}
-		a.poll <- struct{}{}
+		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
@@ -606,7 +570,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 				return
 			}
 
-			a.poll <- struct{}{}
+			a.poller.Poll() <- struct{}{}
 		})
 	})
 

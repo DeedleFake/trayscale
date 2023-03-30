@@ -17,11 +17,11 @@ if [ -z "$dstdir" ]; then
 	usage
 fi
 
-echo "Building..."
+echo "Building $version"
 go build -v -trimpath -ldflags="-X 'deedles.dev/trayscale/internal/version.version=$version'" -o trayscale ./cmd/trayscale
 echo
 
-echo "Installing..."
+echo "Installing to $dstdir"
 install -D trayscale "$dstdir/bin/trayscale"
 install -Dm644 dev.deedles.Trayscale.png "$dstdir/share/icons/hicolor/256x256/apps/dev.deedles.Trayscale.png"
 install -Dm644 dev.deedles.Trayscale.desktop "$dstdir/share/applications/dev.deedles.Trayscale.desktop"

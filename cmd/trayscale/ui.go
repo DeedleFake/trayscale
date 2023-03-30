@@ -398,14 +398,56 @@ func NewPeerPage() *PeerPage {
 	}
 }
 
+type PreferencesWindow struct {
+	*adw.PreferencesWindow
+
+	UseTrayIconRow *adw.ActionRow
+	UseTrayIcon    *gtk.Switch
+}
+
+func NewPreferencesWindow() *PreferencesWindow {
+	parent0 := adw.NewPreferencesPage()
+	parent00 := adw.NewPreferencesGroup()
+	UseTrayIconRow := adw.NewActionRow()
+	UseTrayIcon := gtk.NewSwitch()
+	parent := adw.NewPreferencesWindow()
+
+	parent0.Add(parent00)
+
+	parent00.SetObjectProperty("title", "General")
+	parent00.Add(UseTrayIconRow)
+
+	UseTrayIconRow.SetObjectProperty("activatable-widget", UseTrayIcon)
+	UseTrayIconRow.SetObjectProperty("subtitle", "If enabled, an icon will be added to the system tray")
+	UseTrayIconRow.SetObjectProperty("title", "Use Tray Icon")
+	UseTrayIconRow.AddSuffix(UseTrayIcon)
+
+	UseTrayIcon.SetObjectProperty("margin-bottom", 12)
+	UseTrayIcon.SetObjectProperty("margin-top", 12)
+
+	parent.Add(parent0)
+
+	return &PreferencesWindow{
+		PreferencesWindow: parent,
+
+		UseTrayIconRow: UseTrayIconRow,
+		UseTrayIcon:    UseTrayIcon,
+	}
+}
+
 var MainMenu = gio.NewMenu()
 
 func init() {
 	s0 := gio.NewMenu()
-	s0i0 := gio.NewMenuItem("_About", "app.about")
+	s0i0 := gio.NewMenuItem("_Preferences", "app.preferences")
 	s0.AppendItem(s0i0)
-	s0i1 := gio.NewMenuItem("_Quit", "app.quit")
-	s0.AppendItem(s0i1)
 
 	MainMenu.AppendSection("", s0)
+	s1 := gio.NewMenu()
+	s1i0 := gio.NewMenuItem("_About", "app.about")
+	s1.AppendItem(s1i0)
+	s1i1 := gio.NewMenuItem("_Quit", "app.quit")
+	s1.AppendItem(s1i1)
+
+	MainMenu.AppendSection("", s1)
 }

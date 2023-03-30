@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!-- Created with Cambalache 0.11.3 -->
 <interface>
-  <requires lib="gtk" version="4.6"/>
-  <requires lib="libadwaita" version="1.1"/>
+  <requires lib="gtk" version="4.10"/>
+  <requires lib="libadwaita" version="1.3"/>
   <template class="PeerPage" parent="AdwStatusPage">
     <child>
       <object class="AdwClamp">

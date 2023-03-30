@@ -25,7 +25,7 @@ import (
 	"tailscale.com/types/key"
 )
 
-//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen -out ui.go mainwindow.ui peerpage.ui menu.ui
+//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen -out ui.go mainwindow.ui peerpage.ui preferences.ui menu.ui
 
 // App is the main type for the app, containing all of the state
 // necessary to run it.
@@ -43,6 +43,15 @@ type App struct {
 
 	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
+}
+
+func (a *App) showPreferences() {
+	win := NewPreferencesWindow()
+	a.settings.Bind("tray-icon", win.UseTrayIcon.Object, "active", gio.SettingsBindDefault)
+	win.SetTransientFor(&a.win.Window)
+	win.Show()
+
+	a.app.AddWindow(&win.Window.Window)
 }
 
 // showAboutDialog shows the app's about dialog.
@@ -254,6 +263,10 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.win.Present()
 		return
 	}
+
+	preferencesAction := gio.NewSimpleAction("preferences", nil)
+	preferencesAction.ConnectActivate(func(p *glib.Variant) { a.showPreferences() })
+	a.app.AddAction(preferencesAction)
 
 	aboutAction := gio.NewSimpleAction("about", nil)
 	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })

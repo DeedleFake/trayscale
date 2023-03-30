@@ -239,7 +239,7 @@ func (class Class) AddChild(t, name string) string {
 			return fmt.Sprintf("AddSuffix(%v)", name)
 		}
 
-	case "AdwPreferencesGroup":
+	case "AdwPreferencesGroup", "AdwPreferencesPage", "AdwPreferencesWindow":
 		return fmt.Sprintf("Add(%v)", name)
 	}
 

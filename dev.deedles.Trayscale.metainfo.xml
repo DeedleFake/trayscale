@@ -41,6 +41,15 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.9.0" date="2023-03-29">
+			<description>
+				<ul>
+					<li>Clean up internal data flow somewhat.</li>
+					<li>Add GSettings schema file.</li>
+					<li>Add preferences window.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.8.5" date="2023-03-28">
 			<description>
 				<ul>

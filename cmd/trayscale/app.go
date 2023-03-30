@@ -59,8 +59,8 @@ func (a *App) showPreferences() {
 	a.app.AddWindow(&win.Window.Window)
 }
 
-// showAboutDialog shows the app's about dialog.
-func (a *App) showAboutDialog() {
+// showAbout shows the app's about dialog.
+func (a *App) showAbout() {
 	dialog := adw.NewAboutWindow()
 	dialog.SetDevelopers([]string{"DeedleFake"})
 	dialog.SetCopyright("Copyright (c) 2023 DeedleFake")
@@ -291,7 +291,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.app.AddAction(preferencesAction)
 
 	aboutAction := gio.NewSimpleAction("about", nil)
-	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })
+	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAbout() })
 	a.app.AddAction(aboutAction)
 
 	quitAction := gio.NewSimpleAction("quit", nil)

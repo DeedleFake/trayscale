@@ -9,7 +9,7 @@ require (
 	github.com/diamondburned/gotk4/pkg v0.0.5
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	honnef.co/go/tools v0.4.3
-	tailscale.com v1.38.2
+	tailscale.com v1.38.3
 )
 
 require (

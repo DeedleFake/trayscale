@@ -131,5 +131,9 @@ type Status struct {
 // Online returns true if s indicates that the local node is online
 // and connected to the tailnet.
 func (s Status) Online() bool {
-	return s.Status != nil
+	return (s.Status != nil) && (s.Status.BackendState == ipn.Running.String())
+}
+
+func (s Status) NeedsAuth() bool {
+	return (s.Status != nil) && (s.Status.BackendState == ipn.NeedsLogin.String())
 }

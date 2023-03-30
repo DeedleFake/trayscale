@@ -14,6 +14,7 @@ import (
 	"deedles.dev/trayscale/internal/xslices"
 	"fyne.io/systray"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -59,8 +60,8 @@ func (a *App) showPreferences() {
 	a.app.AddWindow(&win.Window.Window)
 }
 
-// showAboutDialog shows the app's about dialog.
-func (a *App) showAboutDialog() {
+// showAbout shows the app's about dialog.
+func (a *App) showAbout() {
 	dialog := adw.NewAboutWindow()
 	dialog.SetDevelopers([]string{"DeedleFake"})
 	dialog.SetCopyright("Copyright (c) 2023 DeedleFake")
@@ -280,6 +281,39 @@ init:
 	}
 }
 
+func (a *App) startTS(ctx context.Context) error {
+	status := <-a.poller.Get()
+	if status.NeedsAuth() {
+		Confirmation{
+			Heading: "Login Required",
+			Body:    "Open a browser to authenticate with Tailscale?",
+			Accept:  "_Open Browser",
+			Reject:  "_Cancel",
+		}.Show(a, func(accept bool) {
+			if accept {
+				gtk.ShowURI(&a.win.Window, status.Status.AuthURL, gdk.CURRENT_TIME)
+			}
+		})
+		return nil
+	}
+
+	err := a.TS.Start(ctx)
+	if err != nil {
+		return err
+	}
+	a.poller.Poll() <- struct{}{}
+	return nil
+}
+
+func (a *App) stopTS(ctx context.Context) error {
+	err := a.TS.Stop(ctx)
+	if err != nil {
+		return err
+	}
+	a.poller.Poll() <- struct{}{}
+	return nil
+}
+
 func (a *App) onAppActivate(ctx context.Context) {
 	if a.win != nil {
 		a.win.Present()
@@ -291,7 +325,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.app.AddAction(preferencesAction)
 
 	aboutAction := gio.NewSimpleAction("about", nil)
-	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAboutDialog() })
+	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAbout() })
 	a.app.AddAction(aboutAction)
 
 	quitAction := gio.NewSimpleAction("quit", nil)
@@ -311,12 +345,14 @@ func (a *App) onAppActivate(ctx context.Context) {
 			return false
 		}
 
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		// TODO: Handle this, and other switches, asynchrounously instead
+		// of freezing the entire UI.
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
-		f := a.TS.Stop
+		f := a.stopTS
 		if s {
-			f = a.TS.Start
+			f = a.startTS
 		}
 
 		err := f(ctx)
@@ -325,7 +361,6 @@ func (a *App) onAppActivate(ctx context.Context) {
 			a.win.StatusSwitch.SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
@@ -405,31 +440,6 @@ func (a *App) Run(ctx context.Context) {
 	}()
 
 	a.app.Run(os.Args)
-}
-
-func (a *App) prompt(heading, body string, res func(val string)) {
-	input := gtk.NewText()
-
-	dialog := adw.NewMessageDialog(&a.win.Window, heading, body)
-	dialog.SetExtraChild(input)
-	dialog.AddResponse("cancel", "_Cancel")
-	dialog.SetCloseResponse("cancel")
-	dialog.AddResponse("add", "_Add")
-	dialog.SetResponseAppearance("add", adw.ResponseSuggested)
-	dialog.SetDefaultResponse("add")
-
-	dialog.ConnectResponse(func(response string) {
-		switch response {
-		case "add":
-			res(input.Buffer().Text())
-		}
-	})
-	input.ConnectActivate(func() {
-		defer dialog.Close()
-		res(input.Buffer().Text())
-	})
-
-	dialog.Show()
 }
 
 type peerPage struct {
@@ -594,7 +604,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	})
 
 	page.container.AdvertiseRouteButton.ConnectClicked(func() {
-		a.prompt("Add IP", "IP prefix to advertise", func(val string) {
+		Prompt{"Add IP", "IP prefix to advertise"}.Show(a, func(val string) {
 			p, err := netip.ParsePrefix(val)
 			if err != nil {
 				slog.Error("parse prefix", err)
@@ -685,26 +695,4 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	})
 
 	return &page
-}
-
-var systrayExit = make(chan func(), 1)
-
-func startSystray(onStart func()) {
-	start, stop := systray.RunWithExternalLoop(onStart, nil)
-	select {
-	case f := <-systrayExit:
-		f()
-	default:
-	}
-
-	start()
-	systrayExit <- stop
-}
-
-func stopSystray() {
-	select {
-	case f := <-systrayExit:
-		f()
-	default:
-	}
 }

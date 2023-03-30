@@ -59,10 +59,6 @@ func (c *Client) Status(ctx context.Context) (*ipnstate.Status, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tailscale status: %w", err)
 	}
-	if st.BackendState != ipn.Running.String() {
-		return nil, nil
-	}
-
 	return st, nil
 }
 

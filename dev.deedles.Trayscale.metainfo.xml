@@ -41,6 +41,13 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.9.3" date="2023-03-30">
+			<description>
+				<ul>
+					<li>Ask the user to log in via a browser when necessary.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.9.2" date="2023-03-30">
 			<description>
 				<ul>

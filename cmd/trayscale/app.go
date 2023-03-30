@@ -407,31 +407,6 @@ func (a *App) Run(ctx context.Context) {
 	a.app.Run(os.Args)
 }
 
-func (a *App) prompt(heading, body string, res func(val string)) {
-	input := gtk.NewText()
-
-	dialog := adw.NewMessageDialog(&a.win.Window, heading, body)
-	dialog.SetExtraChild(input)
-	dialog.AddResponse("cancel", "_Cancel")
-	dialog.SetCloseResponse("cancel")
-	dialog.AddResponse("add", "_Add")
-	dialog.SetResponseAppearance("add", adw.ResponseSuggested)
-	dialog.SetDefaultResponse("add")
-
-	dialog.ConnectResponse(func(response string) {
-		switch response {
-		case "add":
-			res(input.Buffer().Text())
-		}
-	})
-	input.ConnectActivate(func() {
-		defer dialog.Close()
-		res(input.Buffer().Text())
-	})
-
-	dialog.Show()
-}
-
 type peerPage struct {
 	page      *gtk.StackPage
 	container *PeerPage
@@ -594,7 +569,7 @@ func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
 	})
 
 	page.container.AdvertiseRouteButton.ConnectClicked(func() {
-		a.prompt("Add IP", "IP prefix to advertise", func(val string) {
+		Prompt{"Add IP", "IP prefix to advertise"}.Show(a, func(val string) {
 			p, err := netip.ParsePrefix(val)
 			if err != nil {
 				slog.Error("parse prefix", err)

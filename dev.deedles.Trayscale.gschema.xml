@@ -2,7 +2,7 @@
 
 <schemalist>
 	<schema path="/dev/deedles/Trayscale/" id="dev.deedles.Trayscale">
-		<key name="use-tray-icon" type="b">
+		<key name="tray-icon" type="b">
 			<default>true</default>
 			<summary>Display an icon in the system tray</summary>
 			<description>

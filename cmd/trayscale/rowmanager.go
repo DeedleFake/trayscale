@@ -2,9 +2,33 @@ package main
 
 import (
 	"deedles.dev/trayscale/internal/xslices"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"golang.org/x/exp/slices"
 )
+
+type ListModel[T any] struct {
+	*gio.ListStore
+	from func(T) *glib.Object
+	to   func(*glib.Object) T
+}
+
+func NewListModel[T any](from func(T) *glib.Object, to func(*glib.Object) T) *ListModel[T] {
+	return &ListModel[T]{
+		ListStore: gio.NewListStore(from(*new(T)).Type()),
+		from:      from,
+		to:        to,
+	}
+}
+
+func (m *ListModel[T]) Update(data []T) {
+	objects := make([]*glib.Object, 0, len(data))
+	for _, d := range data {
+		objects = append(objects, m.from(d))
+	}
+	m.Splice(0, m.NItems(), objects)
+}
 
 type rowManager[Data any] struct {
 	Parent rowManagerParent

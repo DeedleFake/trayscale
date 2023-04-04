@@ -21,7 +21,6 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
-	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
@@ -80,9 +79,9 @@ func (a *App) showAbout() {
 	a.app.AddWindow(&dialog.Window.Window)
 }
 
-func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *ipn.Prefs) {
+func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status tsutil.Status) {
 	page.page.SetIconName(peerIcon(peer))
-	page.page.SetTitle(peerName(peer, page.self))
+	page.page.SetTitle(peerName(status, peer, page.self))
 
 	page.container.SetTitle(peer.HostName)
 	page.container.SetDescription(peer.DNSName)
@@ -92,17 +91,17 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, prefs *i
 
 	page.container.OptionsGroup.SetVisible(page.self)
 	if page.self {
-		page.container.AdvertiseExitNodeSwitch.SetState(prefs.AdvertisesExitNode())
-		page.container.AdvertiseExitNodeSwitch.SetActive(prefs.AdvertisesExitNode())
-		page.container.AllowLANAccessSwitch.SetState(prefs.ExitNodeAllowLANAccess)
-		page.container.AllowLANAccessSwitch.SetActive(prefs.ExitNodeAllowLANAccess)
+		page.container.AdvertiseExitNodeSwitch.SetState(status.Prefs.AdvertisesExitNode())
+		page.container.AdvertiseExitNodeSwitch.SetActive(status.Prefs.AdvertisesExitNode())
+		page.container.AllowLANAccessSwitch.SetState(status.Prefs.ExitNodeAllowLANAccess)
+		page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
 	}
 
 	page.container.AdvertiseRouteButton.SetVisible(page.self)
 
 	switch {
 	case page.self:
-		page.routes = prefs.AdvertiseRoutes
+		page.routes = status.Prefs.AdvertiseRoutes
 	case peer.PrimaryRoutes != nil:
 		page.routes = peer.PrimaryRoutes.AsSlice()
 	}
@@ -160,7 +159,7 @@ func (a *App) toast(msg string) *adw.Toast {
 	return toast
 }
 
-func (a *App) updatePeers(s tsutil.Status) {
+func (a *App) updatePeers(status tsutil.Status) {
 	const statusPageName = "status"
 
 	w := a.win.PeersStack
@@ -168,18 +167,18 @@ func (a *App) updatePeers(s tsutil.Status) {
 	var peerMap map[key.NodePublic]*ipnstate.PeerStatus
 	var peers []key.NodePublic
 
-	if s.Online() {
+	if status.Online() {
 		if c := w.ChildByName(statusPageName); c != nil {
 			w.Remove(c)
 		}
 
-		peerMap = s.Status.Peer
+		peerMap = status.Status.Peer
 
-		peers = slices.Insert(s.Status.Peers(), 0, s.Status.Self.PublicKey) // Add this manually to guarantee ordering.
-		peerMap[s.Status.Self.PublicKey] = s.Status.Self
+		peers = slices.Insert(status.Status.Peers(), 0, status.Status.Self.PublicKey) // Add this manually to guarantee ordering.
+		peerMap[status.Status.Self.PublicKey] = status.Status.Self
 	}
 
-	u, n := xslices.Partition(peers, func(peer key.NodePublic) bool {
+	oldPeers, newPeers := xslices.Partition(peers, func(peer key.NodePublic) bool {
 		_, ok := a.peerPages[peer]
 		return ok
 	})
@@ -192,19 +191,23 @@ func (a *App) updatePeers(s tsutil.Status) {
 		}
 	}
 
-	for _, p := range n {
-		ps := peerMap[p]
-		pw := a.newPeerPage(ps)
-		pw.page = w.AddTitled(pw.container, p.String(), peerName(ps, p == s.Status.Self.PublicKey))
-		pw.self = p == s.Status.Self.PublicKey
-		a.updatePeerPage(pw, ps, s.Prefs)
-		a.peerPages[p] = pw
+	for _, p := range newPeers {
+		peerStatus := peerMap[p]
+		peerPage := a.newPeerPage(status, peerStatus)
+		peerPage.page = w.AddTitled(
+			peerPage.container,
+			p.String(),
+			peerName(status, peerStatus, p == status.Status.Self.PublicKey),
+		)
+		peerPage.self = p == status.Status.Self.PublicKey
+		a.updatePeerPage(peerPage, peerStatus, status)
+		a.peerPages[p] = peerPage
 	}
 
-	for _, p := range u {
+	for _, p := range oldPeers {
 		page := a.peerPages[p]
-		page.self = p == s.Status.Self.PublicKey
-		a.updatePeerPage(page, peerMap[p], s.Prefs)
+		page.self = p == status.Status.Self.PublicKey
+		a.updatePeerPage(page, peerMap[p], status)
 	}
 
 	if w.Pages().NItems() == 0 {
@@ -493,7 +496,7 @@ func (row *routeRow) Widget() gtk.Widgetter {
 	return row.w
 }
 
-func (a *App) newPeerPage(peer *ipnstate.PeerStatus) *peerPage {
+func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peerPage {
 	page := peerPage{
 		container: NewPeerPage(),
 	}

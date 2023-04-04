@@ -7,8 +7,7 @@ Trayscale is an unofficial GUI wrapper around the Tailscale CLI client, particul
 
 _Disclaimer: This project is in an alpha state. If it bricks your machine, it's not my fault. Use at your own risk._
 
-![image](https://user-images.githubusercontent.com/326750/188052311-2267af08-82a1-422f-b6ad-bc2cd4de0ac5.png)
-
+![screenshot](https://user-images.githubusercontent.com/326750/229931274-731da0dc-61c6-42a0-aefa-1f4649fbcffe.png)
 
 Tailscale Config
 ----------------

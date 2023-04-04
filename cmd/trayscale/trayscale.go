@@ -69,9 +69,9 @@ func readAssetString(file string) string {
 	return str.String()
 }
 
-func peerName(peer *ipnstate.PeerStatus, self bool) string {
+func peerName(status tsutil.Status, peer *ipnstate.PeerStatus, self bool) string {
 	const maxNameLength = 30
-	name := peer.HostName
+	name := tsutil.DNSOrQuoteHostname(status.Status, peer)
 	if len(name) > maxNameLength {
 		name = name[:maxNameLength-3] + "..."
 	}

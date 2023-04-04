@@ -8,6 +8,7 @@ require (
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307050941-20a05fa3a9df
 	github.com/diamondburned/gotk4/pkg v0.0.5
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+	golang.org/x/net v0.8.0
 	honnef.co/go/tools v0.4.3
 	tailscale.com v1.38.3
 )
@@ -40,10 +41,10 @@ require (
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230221090011-e4bae7ad2296 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20230321023759-10a507213a29 // indirect
-	golang.org/x/mod v0.9.0 // indirect
-	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/sys v0.7.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.7.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect

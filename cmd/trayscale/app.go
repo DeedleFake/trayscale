@@ -562,6 +562,14 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			return false
 		}
 
+		if s {
+			err := a.TS.AdvertiseExitNode(context.TODO(), false)
+			if err != nil {
+				slog.Error("disable exit node advertisement", "err", err)
+				// Continue anyways.
+			}
+		}
+
 		var node *ipnstate.PeerStatus
 		if s {
 			node = peer
@@ -579,6 +587,14 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	page.container.AdvertiseExitNodeSwitch.ConnectStateSet(func(s bool) bool {
 		if s == page.container.AdvertiseExitNodeSwitch.State() {
 			return false
+		}
+
+		if s {
+			err := a.TS.ExitNode(context.TODO(), nil)
+			if err != nil {
+				slog.Error("disable existing exit node", "err", err)
+				// Continue anyways.
+			}
 		}
 
 		err := a.TS.AdvertiseExitNode(context.TODO(), s)

@@ -65,7 +65,7 @@ func (p *Poller) Run(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			slog.Error("get Tailscale status", err)
+			slog.Error("get Tailscale status", "err", err)
 			continue
 		}
 
@@ -74,7 +74,7 @@ func (p *Poller) Run(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			slog.Error("get Tailscale prefs", err)
+			slog.Error("get Tailscale prefs", "err", err)
 			continue
 		}
 

@@ -360,7 +360,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 		err := f(ctx)
 		if err != nil {
-			slog.Error("set Tailscale status", err)
+			slog.Error("set Tailscale status", "err", err)
 			a.win.StatusSwitch.SetActive(!s)
 			return true
 		}
@@ -427,7 +427,7 @@ func (a *App) Run(ctx context.Context) {
 
 	err := a.app.Register(ctx)
 	if err != nil {
-		slog.Error("register application", err)
+		slog.Error("register application", "err", err)
 		return
 	}
 
@@ -548,7 +548,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			routes := slices.Delete(page.routes, row.route.Index, row.route.Index+1)
 			err := a.TS.AdvertiseRoutes(context.TODO(), routes)
 			if err != nil {
-				slog.Error("advertise routes", err)
+				slog.Error("advertise routes", "err", err)
 				return
 			}
 			a.poller.Poll() <- struct{}{}
@@ -568,7 +568,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		}
 		err := a.TS.ExitNode(context.TODO(), node)
 		if err != nil {
-			slog.Error("set exit node", err)
+			slog.Error("set exit node", "err", err)
 			page.container.ExitNodeSwitch.SetActive(!s)
 			return true
 		}
@@ -583,7 +583,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 
 		err := a.TS.AdvertiseExitNode(context.TODO(), s)
 		if err != nil {
-			slog.Error("advertise exit node", err)
+			slog.Error("advertise exit node", "err", err)
 			page.container.AdvertiseExitNodeSwitch.SetActive(!s)
 			return true
 		}
@@ -598,7 +598,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 
 		err := a.TS.AllowLANAccess(context.TODO(), s)
 		if err != nil {
-			slog.Error("allow LAN access", err)
+			slog.Error("allow LAN access", "err", err)
 			page.container.AllowLANAccessSwitch.SetActive(!s)
 			return true
 		}
@@ -610,13 +610,13 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		Prompt{"Add IP", "IP prefix to advertise"}.Show(a, func(val string) {
 			p, err := netip.ParsePrefix(val)
 			if err != nil {
-				slog.Error("parse prefix", err)
+				slog.Error("parse prefix", "err", err)
 				return
 			}
 
 			prefs, err := a.TS.Prefs(context.TODO())
 			if err != nil {
-				slog.Error("get prefs", err)
+				slog.Error("get prefs", "err", err)
 				return
 			}
 
@@ -625,7 +625,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 				append(prefs.AdvertiseRoutes, p),
 			)
 			if err != nil {
-				slog.Error("advertise routes", err)
+				slog.Error("advertise routes", "err", err)
 				return
 			}
 
@@ -656,7 +656,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	page.container.NetCheckButton.ConnectClicked(func() {
 		r, dm, err := a.TS.NetCheck(context.TODO(), true)
 		if err != nil {
-			slog.Error("netcheck", err)
+			slog.Error("netcheck", "err", err)
 			return
 		}
 

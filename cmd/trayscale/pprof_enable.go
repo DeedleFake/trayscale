@@ -19,6 +19,6 @@ func pprof() {
 		}
 
 		slog.Info("start pprof HTTP server", "addr", addr)
-		slog.Error("start pprof HTTP server", http.ListenAndServe(addr, nil))
+		slog.Error("start pprof HTTP server", "err", http.ListenAndServe(addr, nil))
 	}()
 }

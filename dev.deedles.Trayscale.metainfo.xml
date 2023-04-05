@@ -41,6 +41,14 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.9.5" date="2023-04-05">
+			<description>
+				<ul>
+					<li>Fix a logging error.</li>
+					<li>Disable existing exit node settings when new ones are set elsewhere instead of just failing mysteriously.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.9.4" date="2023-04-04">
 			<description>
 				<ul>

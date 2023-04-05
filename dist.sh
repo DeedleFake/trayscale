@@ -33,11 +33,11 @@ _install() {
 	fi
 
 	echo "Installing to $dstdir"
-	install -D trayscale "$dstdir/bin/trayscale"
-	install -Dm644 dev.deedles.Trayscale.png "$dstdir/share/icons/hicolor/256x256/apps/dev.deedles.Trayscale.png"
-	install -Dm644 dev.deedles.Trayscale.desktop "$dstdir/share/applications/dev.deedles.Trayscale.desktop"
-	install -Dm644 dev.deedles.Trayscale.metainfo.xml "$dstdir/share/metainfo/dev.deedles.Trayscale.metainfo.xml"
-	install -Dm644 dev.deedles.Trayscale.gschema.xml "$dstdir/share/glib-2.0/schemas/dev.deedles.Trayscale.gschema.xml"
+	install -D -t "$dstdir/bin" trayscale
+	install -Dm644 -t "$dstdir/share/icons/hicolor/256x256/apps" dev.deedles.Trayscale.png
+	install -Dm644 -t "$dstdir/share/applications" dev.deedles.Trayscale.desktop
+	install -Dm644 -t "$dstdir/share/metainfo" dev.deedles.Trayscale.metainfo.xml
+	install -Dm644 -t "$dstdir/share/glib-2.0/schemas" dev.deedles.Trayscale.gschema.xml
 }
 
 case "$1" in

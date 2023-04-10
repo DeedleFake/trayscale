@@ -99,6 +99,9 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 		page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
 	}
 
+	page.container.FilesGroup.SetVisible(page.self)
+	page.container.SendFileRow.SetVisible(!page.self)
+
 	page.container.AdvertiseRouteButton.SetVisible(page.self)
 
 	switch {
@@ -330,31 +333,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.app.AddAction(preferencesAction)
 
 	aboutAction := gio.NewSimpleAction("about", nil)
-	//aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAbout() })
-	aboutAction.ConnectActivate(func(p *glib.Variant) {
-		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionSave, "", "")
-		fc.ConnectResponse(func(id int) {
-			switch gtk.ResponseType(id) {
-			case gtk.ResponseAccept:
-				file := fc.File()
-				slog := slog.With("path", file.Path())
-
-				s, err := file.Replace(context.TODO(), "", false, gio.FileCreateNone)
-				if err != nil {
-					slog.Error("create file", "err", err)
-					return
-				}
-				defer s.Close(context.TODO())
-
-				w := NewGWriter(context.TODO(), s)
-				_, err = io.Copy(w, strings.NewReader("This is a test."))
-				if err != nil {
-					slog.Error("write file", "err", err)
-				}
-			}
-		})
-		fc.Show()
-	})
+	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAbout() })
 	a.app.AddAction(aboutAction)
 
 	quitAction := gio.NewSimpleAction("quit", nil)
@@ -526,6 +505,38 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	page := peerPage{
 		container: NewPeerPage(),
 	}
+
+	actions := gio.NewSimpleActionGroup()
+	page.container.InsertActionGroup("peer", actions)
+
+	sendFileAction := gio.NewSimpleAction("sendfile", nil)
+	sendFileAction.ConnectActivate(func(p *glib.Variant) {
+		slog.Info("send file", "peer", peer.ID)
+
+		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionSave, "", "")
+		fc.ConnectResponse(func(id int) {
+			switch gtk.ResponseType(id) {
+			case gtk.ResponseAccept:
+				file := fc.File()
+				slog := slog.With("path", file.Path())
+
+				s, err := file.Replace(context.TODO(), "", false, gio.FileCreateNone)
+				if err != nil {
+					slog.Error("create file", "err", err)
+					return
+				}
+				defer s.Close(context.TODO())
+
+				w := NewGWriter(context.TODO(), s)
+				_, err = io.Copy(w, strings.NewReader("This is a test."))
+				if err != nil {
+					slog.Error("write file", "err", err)
+				}
+			}
+		})
+		fc.Show()
+	})
+	actions.AddAction(sendFileAction)
 
 	page.addrRows.Parent = page.container.IPGroup
 	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {

@@ -45,6 +45,23 @@
               </object>
             </child>
             <child>
+              <object class="AdwPreferencesGroup" id="FilesGroup">
+                <property name="title">Files</property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow" id="SendFileRow">
+                <property name="action-name">peer.sendfile</property>
+                <property name="subtitle">Drop a file here or click to select</property>
+                <property name="title">Send a file to this machine</property>
+                <child>
+                  <object class="GtkImage" id="SendFileImage">
+                    <property name="icon-name">document-send-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
               <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
                 <property name="header-suffix">AdvertiseRouteButton</property>
                 <property name="title">Advertised Routes</property>

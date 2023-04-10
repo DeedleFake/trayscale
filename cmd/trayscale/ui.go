@@ -110,6 +110,9 @@ type PeerPage struct {
 	AdvertiseExitNodeSwitch *gtk.Switch
 	AllowLANAccessRow       *adw.ActionRow
 	AllowLANAccessSwitch    *gtk.Switch
+	FilesGroup              *adw.PreferencesGroup
+	SendFileRow             *adw.ActionRow
+	SendFileImage           *gtk.Image
 	AdvertisedRoutesGroup   *adw.PreferencesGroup
 	AdvertiseRouteButton    *gtk.Button
 	NetCheckGroup           *adw.PreferencesGroup
@@ -163,6 +166,9 @@ func NewPeerPage() *PeerPage {
 	AdvertiseExitNodeSwitch := gtk.NewSwitch()
 	AllowLANAccessRow := adw.NewActionRow()
 	AllowLANAccessSwitch := gtk.NewSwitch()
+	FilesGroup := adw.NewPreferencesGroup()
+	SendFileRow := adw.NewActionRow()
+	SendFileImage := gtk.NewImage()
 	AdvertisedRoutesGroup := adw.NewPreferencesGroup()
 	AdvertiseRouteButton := gtk.NewButton()
 	NetCheckGroup := adw.NewPreferencesGroup()
@@ -213,6 +219,8 @@ func NewPeerPage() *PeerPage {
 	parent00.SetObjectProperty("spacing", 12)
 	parent00.Append(IPGroup)
 	parent00.Append(OptionsGroup)
+	parent00.Append(FilesGroup)
+	parent00.Append(SendFileRow)
 	parent00.Append(AdvertisedRoutesGroup)
 	parent00.Append(NetCheckGroup)
 	parent00.Append(MiscGroup)
@@ -236,6 +244,15 @@ func NewPeerPage() *PeerPage {
 
 	AllowLANAccessSwitch.SetObjectProperty("margin-bottom", 12)
 	AllowLANAccessSwitch.SetObjectProperty("margin-top", 12)
+
+	FilesGroup.SetObjectProperty("title", "Files")
+
+	SendFileRow.SetObjectProperty("action-name", "peer.sendfile")
+	SendFileRow.SetObjectProperty("subtitle", "Drop a file here or click to select")
+	SendFileRow.SetObjectProperty("title", "Send a file to this machine")
+	SendFileRow.AddSuffix(SendFileImage)
+
+	SendFileImage.SetObjectProperty("icon-name", "document-send-symbolic")
 
 	AdvertisedRoutesGroup.SetObjectProperty("header-suffix", AdvertiseRouteButton)
 	AdvertisedRoutesGroup.SetObjectProperty("title", "Advertised Routes")
@@ -353,6 +370,9 @@ func NewPeerPage() *PeerPage {
 		AdvertiseExitNodeSwitch: AdvertiseExitNodeSwitch,
 		AllowLANAccessRow:       AllowLANAccessRow,
 		AllowLANAccessSwitch:    AllowLANAccessSwitch,
+		FilesGroup:              FilesGroup,
+		SendFileRow:             SendFileRow,
+		SendFileImage:           SendFileImage,
 		AdvertisedRoutesGroup:   AdvertisedRoutesGroup,
 		AdvertiseRouteButton:    AdvertiseRouteButton,
 		NetCheckGroup:           NetCheckGroup,

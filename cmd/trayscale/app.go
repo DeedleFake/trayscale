@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"io"
 	"net/netip"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"deedles.dev/mk"
@@ -328,7 +330,31 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.app.AddAction(preferencesAction)
 
 	aboutAction := gio.NewSimpleAction("about", nil)
-	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAbout() })
+	//aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAbout() })
+	aboutAction.ConnectActivate(func(p *glib.Variant) {
+		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionSave, "", "")
+		fc.ConnectResponse(func(id int) {
+			switch gtk.ResponseType(id) {
+			case gtk.ResponseAccept:
+				file := fc.File()
+				slog := slog.With("path", file.Path())
+
+				s, err := file.Replace(context.TODO(), "", false, gio.FileCreateNone)
+				if err != nil {
+					slog.Error("create file", "err", err)
+					return
+				}
+				defer s.Close(context.TODO())
+
+				w := NewGWriter(context.TODO(), s)
+				_, err = io.Copy(w, strings.NewReader("This is a test."))
+				if err != nil {
+					slog.Error("write file", "err", err)
+				}
+			}
+		})
+		fc.Show()
+	})
 	a.app.AddAction(aboutAction)
 
 	quitAction := gio.NewSimpleAction("quit", nil)

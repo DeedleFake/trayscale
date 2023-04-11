@@ -255,7 +255,6 @@ func NewPeerPage() *PeerPage {
 	SendFileGroup.Add(SendFileRow)
 
 	SendFileRow.SetObjectProperty("action-name", "peer.sendfile")
-	SendFileRow.SetObjectProperty("subtitle", "Drop a file here or click to select")
 	SendFileRow.SetObjectProperty("title", "Send a file to remote machine")
 	SendFileRow.AddSuffix(SendFileImage)
 

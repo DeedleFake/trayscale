@@ -54,7 +54,6 @@
                 <child>
                   <object class="AdwActionRow" id="SendFileRow">
                     <property name="action-name">peer.sendfile</property>
-                    <property name="subtitle">Drop a file here or click to select</property>
                     <property name="title">Send a file to remote machine</property>
                     <child>
                       <object class="GtkImage" id="SendFileImage">

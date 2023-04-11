@@ -199,12 +199,12 @@ func (a *App) updatePeers(status tsutil.Status) {
 	for _, p := range newPeers {
 		peerStatus := peerMap[p]
 		peerPage := a.newPeerPage(status, peerStatus)
+		peerPage.self = p == status.Status.Self.PublicKey
 		peerPage.page = w.AddTitled(
 			peerPage.container,
 			p.String(),
-			peerName(status, peerStatus, p == status.Status.Self.PublicKey),
+			peerName(status, peerStatus, peerPage.self),
 		)
-		peerPage.self = p == status.Status.Self.PublicKey
 		a.updatePeerPage(peerPage, peerStatus, status)
 		a.peerPages[p] = peerPage
 	}

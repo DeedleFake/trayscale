@@ -17,21 +17,55 @@ var (
 func init() {
 	tmpl = template.New("")
 	tmpl.Funcs(map[string]any{
-		"requires": func(ui []Interface) []Requires {
-			// TODO: Return better values.
-			return ui[0].Requires
-		},
-		"hasMenus": func(ui []Interface) bool {
+		"requires": func(ui []Interface) (r []string) {
 			for _, i := range ui {
-				if len(i.Menus) != 0 {
-					return true
+				for _, req := range i.Requires {
+					r = append(r, req.Import())
 				}
 			}
-			return false
+
+			for _, i := range ui {
+				if len(i.Menus) != 0 {
+					r = append(r, "github.com/diamondburned/gotk4/pkg/gio/v2")
+					break
+				}
+			}
+
+		outer:
+			for _, i := range ui {
+				for _, t := range i.Templates {
+					if _, ok := findDeepProperty(t, "actions"); ok {
+						r = append(r, "github.com/diamondburned/gotk4/pkg/gdk/v4")
+						break outer
+					}
+				}
+				for _, obj := range i.Objects {
+					if _, ok := findDeepProperty(obj, "actions"); ok {
+						r = append(r, "github.com/diamondburned/gotk4/pkg/gdk/v4")
+						break outer
+					}
+				}
+			}
+
+			return r
 		},
 		"newValueSet": func() set.Set[string] {
 			return make(set.Set[string])
 		},
 	})
 	tmpl = template.Must(tmpl.ParseFS(tmplFS, "*.tmpl"))
+}
+
+func findDeepProperty(obj Object, name string) (Property, bool) {
+	if p := obj.FindProperty(name); p != (Property{}) {
+		return p, true
+	}
+
+	for _, c := range obj.Children {
+		if p, ok := findDeepProperty(c.Object, name); ok {
+			return p, ok
+		}
+	}
+
+	return Property{}, false
 }

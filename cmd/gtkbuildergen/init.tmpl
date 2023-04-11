@@ -2,7 +2,9 @@
 {{- $used := newValueSet -}}
 
 {{range .Properties -}}
-	{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{if .Track}}{{$used.Add .Value}}{{else}}{{.Value}}{{end}})
+	{{if not .Ignore -}}
+		{{$id}}.SetObjectProperty({{.Name | printf "%q"}}, {{if .Track}}{{$used.Add .Value}}{{else}}{{.Value}}{{end}})
+	{{end -}}
 {{end -}}
 {{range .Bindings -}}
 	{{.Lookup.Value}}.NotifyProperty({{.Lookup.Name | printf "%q"}}, func() {
@@ -12,7 +14,7 @@
 {{end -}}
 {{range $i, $c := .Children -}}
 	{{- $cid := or .Object.ID (printf "%v%v" $id $i) -}}
-	{{if not ($used.Has $cid) -}}
+	{{if and (ne (.Object.FindProperty "skip").RawValue "true") (not ($used.Has $cid)) -}}
 		{{$id}}.{{$.Type.AddChild .Type $cid}}
 	{{end -}}
 {{end}}

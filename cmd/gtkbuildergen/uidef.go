@@ -71,6 +71,15 @@ func (t Object) NamedChildren() (children []Object) {
 	return t.namedChildren(children)
 }
 
+func (t Object) FindProperty(name string) Property {
+	for _, p := range t.Properties {
+		if p.Name == name {
+			return p
+		}
+	}
+	return Property{}
+}
+
 func (t Object) namedChildren(children []Object) []Object {
 	for _, c := range t.Children {
 		if c.Object.ID != "" {
@@ -129,6 +138,8 @@ func (p Property) Value() string {
 		return strconv.FormatInt(int64(stackTransitionTypeMap[strings.ToLower(p.RawValue)]), 10)
 	case "orientation":
 		return strconv.FormatInt(int64(orientationMap[strings.ToLower(p.RawValue)]), 10)
+	case "actions":
+		return fmt.Sprintf("gdk.Action%v", strings.Title(p.RawValue))
 	default:
 		return strconv.Quote(p.RawValue)
 	}
@@ -136,6 +147,10 @@ func (p Property) Value() string {
 
 func (p Property) Track() bool {
 	return p.Name != "activatable-widget"
+}
+
+func (p Property) Ignore() bool {
+	return p.Name == "skip"
 }
 
 type Child struct {
@@ -263,6 +278,11 @@ func (f Func) Args() Args {
 		return Args{
 			{"text", "string"},
 		}
+	case "gtk.NewDropTarget":
+		return Args{
+			{"typ", "glib.Type"},
+			{"actions", "gdk.DragAction"},
+		}
 	default:
 		return nil
 	}
@@ -300,7 +320,7 @@ type Arg struct {
 
 func (arg Arg) Default() string {
 	switch arg.Type {
-	case "gtk.Orientation", "int":
+	case "gtk.Orientation", "int", "glib.Type", "gdk.DragAction":
 		return "0"
 	case "string":
 		return "\"\""

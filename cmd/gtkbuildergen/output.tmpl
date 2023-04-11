@@ -4,10 +4,7 @@ package {{.Package}}
 
 import (
 	{{range .UI | requires -}}
-		{{.Import | printf "%q"}}
-	{{end -}}
-	{{if .UI | hasMenus -}}
-		"github.com/diamondburned/gotk4/pkg/gio/v2"
+		{{. | printf "%q"}}
 	{{end -}}
 )
 

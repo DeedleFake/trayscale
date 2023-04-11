@@ -4,6 +4,7 @@ package main
 
 import (
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
@@ -111,6 +112,7 @@ type PeerPage struct {
 	AllowLANAccessRow       *adw.ActionRow
 	AllowLANAccessSwitch    *gtk.Switch
 	FilesGroup              *adw.PreferencesGroup
+	SendFileGroup           *adw.PreferencesGroup
 	SendFileRow             *adw.ActionRow
 	SendFileImage           *gtk.Image
 	AdvertisedRoutesGroup   *adw.PreferencesGroup
@@ -155,6 +157,7 @@ type PeerPage struct {
 	RxBytes                 *gtk.Label
 	TxBytesRow              *adw.ActionRow
 	TxBytes                 *gtk.Label
+	DropTarget              *gtk.DropTarget
 }
 
 func NewPeerPage() *PeerPage {
@@ -167,6 +170,7 @@ func NewPeerPage() *PeerPage {
 	AllowLANAccessRow := adw.NewActionRow()
 	AllowLANAccessSwitch := gtk.NewSwitch()
 	FilesGroup := adw.NewPreferencesGroup()
+	SendFileGroup := adw.NewPreferencesGroup()
 	SendFileRow := adw.NewActionRow()
 	SendFileImage := gtk.NewImage()
 	AdvertisedRoutesGroup := adw.NewPreferencesGroup()
@@ -211,6 +215,7 @@ func NewPeerPage() *PeerPage {
 	RxBytes := gtk.NewLabel("")
 	TxBytesRow := adw.NewActionRow()
 	TxBytes := gtk.NewLabel("")
+	DropTarget := gtk.NewDropTarget(0, 0)
 	parent := adw.NewStatusPage()
 
 	parent0.SetChild(parent00)
@@ -220,7 +225,7 @@ func NewPeerPage() *PeerPage {
 	parent00.Append(IPGroup)
 	parent00.Append(OptionsGroup)
 	parent00.Append(FilesGroup)
-	parent00.Append(SendFileRow)
+	parent00.Append(SendFileGroup)
 	parent00.Append(AdvertisedRoutesGroup)
 	parent00.Append(NetCheckGroup)
 	parent00.Append(MiscGroup)
@@ -247,9 +252,11 @@ func NewPeerPage() *PeerPage {
 
 	FilesGroup.SetObjectProperty("title", "Files")
 
+	SendFileGroup.Add(SendFileRow)
+
 	SendFileRow.SetObjectProperty("action-name", "peer.sendfile")
 	SendFileRow.SetObjectProperty("subtitle", "Drop a file here or click to select")
-	SendFileRow.SetObjectProperty("title", "Send a file to this machine")
+	SendFileRow.SetObjectProperty("title", "Send a file to remote machine")
 	SendFileRow.AddSuffix(SendFileImage)
 
 	SendFileImage.SetObjectProperty("icon-name", "document-send-symbolic")
@@ -359,6 +366,8 @@ func NewPeerPage() *PeerPage {
 	TxBytesRow.SetObjectProperty("title", "Bytes sent")
 	TxBytesRow.AddSuffix(TxBytes)
 
+	DropTarget.SetObjectProperty("actions", gdk.ActionCopy)
+
 	parent.SetChild(parent0)
 
 	return &PeerPage{
@@ -371,6 +380,7 @@ func NewPeerPage() *PeerPage {
 		AllowLANAccessRow:       AllowLANAccessRow,
 		AllowLANAccessSwitch:    AllowLANAccessSwitch,
 		FilesGroup:              FilesGroup,
+		SendFileGroup:           SendFileGroup,
 		SendFileRow:             SendFileRow,
 		SendFileImage:           SendFileImage,
 		AdvertisedRoutesGroup:   AdvertisedRoutesGroup,
@@ -415,6 +425,7 @@ func NewPeerPage() *PeerPage {
 		RxBytes:                 RxBytes,
 		TxBytesRow:              TxBytesRow,
 		TxBytes:                 TxBytes,
+		DropTarget:              DropTarget,
 	}
 }
 

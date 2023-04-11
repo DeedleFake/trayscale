@@ -538,6 +538,12 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	})
 	actions.AddAction(sendFileAction)
 
+	page.container.AddController(page.container.DropTarget)
+	page.container.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
+	page.container.DropTarget.ConnectDrop(func(val glib.Value, x, y float64) bool {
+		return true
+	})
+
 	page.addrRows.Parent = page.container.IPGroup
 	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {
 		row := addrRow{

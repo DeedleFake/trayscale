@@ -50,13 +50,17 @@
               </object>
             </child>
             <child>
-              <object class="AdwActionRow" id="SendFileRow">
-                <property name="action-name">peer.sendfile</property>
-                <property name="subtitle">Drop a file here or click to select</property>
-                <property name="title">Send a file to this machine</property>
+              <object class="AdwPreferencesGroup" id="SendFileGroup">
                 <child>
-                  <object class="GtkImage" id="SendFileImage">
-                    <property name="icon-name">document-send-symbolic</property>
+                  <object class="AdwActionRow" id="SendFileRow">
+                    <property name="action-name">peer.sendfile</property>
+                    <property name="subtitle">Drop a file here or click to select</property>
+                    <property name="title">Send a file to remote machine</property>
+                    <child>
+                      <object class="GtkImage" id="SendFileImage">
+                        <property name="icon-name">document-send-symbolic</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>
@@ -257,6 +261,13 @@
             </child>
           </object>
         </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkDropTarget" id="DropTarget">
+        <property name="actions">copy</property>
+        <!-- Custom fragments -->
+        <property name="skip">true</property>
       </object>
     </child>
   </template>

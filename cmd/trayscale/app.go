@@ -82,6 +82,9 @@ func (a *App) showAbout() {
 }
 
 func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.self = peer.PublicKey == status.Status.Self.PublicKey
+	// TODO: Disconnect drag-and-drop when this changes to true.
+
 	page.page.SetIconName(peerIcon(peer))
 	page.page.SetTitle(peerName(status, peer, page.self))
 
@@ -199,7 +202,6 @@ func (a *App) updatePeers(status tsutil.Status) {
 	for _, p := range newPeers {
 		peerStatus := peerMap[p]
 		peerPage := a.newPeerPage(status, peerStatus)
-		peerPage.self = p == status.Status.Self.PublicKey
 		peerPage.page = w.AddTitled(
 			peerPage.container,
 			p.String(),
@@ -211,7 +213,6 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 	for _, p := range oldPeers {
 		page := a.peerPages[p]
-		page.self = p == status.Status.Self.PublicKey
 		a.updatePeerPage(page, peerMap[p], status)
 	}
 
@@ -504,6 +505,7 @@ func (row *routeRow) Widget() gtk.Widgetter {
 func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peerPage {
 	page := peerPage{
 		container: NewPeerPage(),
+		self:      peer.PublicKey == status.Status.Self.PublicKey,
 	}
 
 	actions := gio.NewSimpleActionGroup()
@@ -538,11 +540,13 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	})
 	actions.AddAction(sendFileAction)
 
-	//page.container.AddController(page.container.DropTarget)
-	//page.container.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
-	//page.container.DropTarget.ConnectDrop(func(val glib.Value, x, y float64) bool {
-	//	return true
-	//})
+	if !page.self {
+		page.container.AddController(page.container.DropTarget)
+		page.container.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
+		page.container.DropTarget.ConnectDrop(func(val glib.Value, x, y float64) bool {
+			return true
+		})
+	}
 
 	page.addrRows.Parent = page.container.IPGroup
 	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {

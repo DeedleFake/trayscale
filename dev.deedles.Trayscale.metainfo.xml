@@ -41,6 +41,13 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.9.6" date="2023-04-27">
+			<description>
+				<ul>
+					<li>Update Tailscale to v1.40.0.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.9.5" date="2023-04-05">
 			<description>
 				<ul>

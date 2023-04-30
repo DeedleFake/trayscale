@@ -11,7 +11,7 @@ import (
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/tsutil"
-	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 	"tailscale.com/types/opt"
 )
 
@@ -69,9 +69,13 @@ func readAssetString(file string) string {
 	return str.String()
 }
 
-func peerName(status tsutil.Status, peer *ipnstate.PeerStatus, self bool) string {
+func peerName(status tsutil.Status, peer *tailcfg.Node, self bool) string {
+	if peer.ComputedName == "" {
+		peer.InitDisplayNames("")
+	}
+
 	const maxNameLength = 30
-	name := tsutil.DNSOrQuoteHostname(status.Status, peer)
+	name := peer.DisplayName(true)
 	if len(name) > maxNameLength {
 		name = name[:maxNameLength-3] + "..."
 	}
@@ -88,7 +92,7 @@ func peerName(status tsutil.Status, peer *ipnstate.PeerStatus, self bool) string
 	return name
 }
 
-func peerIcon(peer *ipnstate.PeerStatus) string {
+func peerIcon(peer *tailcfg.Node) string {
 	if peer.ExitNode {
 		return "network-workgroup-symbolic"
 	}

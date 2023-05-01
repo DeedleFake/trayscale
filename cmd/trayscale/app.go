@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/netip"
 	"os"
-	"strconv"
 	"time"
 
 	"deedles.dev/mk"
@@ -83,11 +82,11 @@ func (a *App) updatePeerPage(page *peerPage, peer *tailcfg.Node, status tsutil.S
 	page.page.SetIconName(peerIcon(peer))
 	page.page.SetTitle(peerName(status, peer, page.self))
 
-	page.container.SetTitle(peer.HostName)
-	page.container.SetDescription(peer.DNSName)
+	page.container.SetTitle(peer.Hostinfo.Hostname())
+	page.container.SetDescription(peer.Name)
 
-	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Less)
-	page.addrRows.Update(peer.TailscaleIPs)
+	slices.SortFunc(peer.Addresses, netipPrefixLess)
+	page.addrRows.Update(peer.Addresses)
 
 	page.container.OptionsGroup.SetVisible(page.self)
 	if page.self {
@@ -101,12 +100,12 @@ func (a *App) updatePeerPage(page *peerPage, peer *tailcfg.Node, status tsutil.S
 
 	switch {
 	case page.self:
-		page.routes = status.Prefs.AdvertiseRoutes()
+		page.routes = status.Prefs.AdvertiseRoutes().AppendTo(page.routes[:0])
 	case peer.PrimaryRoutes != nil:
-		page.routes = peer.PrimaryRoutes.AsSlice()
+		page.routes = peer.PrimaryRoutes
 	}
 	page.routes = xslices.Filter(page.routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
-	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) bool { return p1.Addr().Less(p2.Addr()) || p1.Bits() < p2.Bits() })
+	slices.SortFunc(page.routes, netipPrefixLess)
 	if len(page.routes) == 0 {
 		page.routes = append(page.routes, netip.Prefix{})
 	}
@@ -122,17 +121,17 @@ func (a *App) updatePeerPage(page *peerPage, peer *tailcfg.Node, status tsutil.S
 	page.container.NetCheckGroup.SetVisible(page.self)
 
 	page.container.MiscGroup.SetVisible(!page.self)
-	page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
-	page.container.ExitNodeSwitch.SetState(peer.ExitNode)
-	page.container.ExitNodeSwitch.SetActive(peer.ExitNode)
-	page.container.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
-	page.container.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
+	//page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
+	//page.container.ExitNodeSwitch.SetState(peer.ExitNode)
+	//page.container.ExitNodeSwitch.SetActive(peer.ExitNode)
+	//page.container.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
+	//page.container.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
 	page.container.Created.SetText(formatTime(peer.Created))
-	page.container.LastSeen.SetText(formatTime(peer.LastSeen))
-	page.container.LastSeenRow.SetVisible(!peer.Online)
-	page.container.LastWrite.SetText(formatTime(peer.LastWrite))
-	page.container.LastHandshake.SetText(formatTime(peer.LastHandshake))
-	page.container.Online.SetFromIconName(boolIcon(peer.Online))
+	page.container.LastSeen.SetText(formatTime(*peer.LastSeen))
+	page.container.LastSeenRow.SetVisible((peer.Online == nil) || !*peer.Online)
+	//page.container.LastWrite.SetText(formatTime(peer.LastWrite))
+	//page.container.LastHandshake.SetText(formatTime(peer.LastHandshake))
+	page.container.Online.SetFromIconName(optBoolIcon(pbool(peer.Online)))
 }
 
 func (a *App) notify(status bool) {
@@ -449,7 +448,7 @@ type peerPage struct {
 	self   bool
 	routes []netip.Prefix
 
-	addrRows  rowManager[netip.Addr]
+	addrRows  rowManager[netip.Prefix]
 	routeRows rowManager[enum[netip.Prefix]]
 }
 
@@ -499,9 +498,9 @@ func (a *App) newPeerPage(status tsutil.Status, peer *tailcfg.Node) *peerPage {
 	}
 
 	page.addrRows.Parent = page.container.IPGroup
-	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {
+	page.addrRows.New = func(ip netip.Prefix) row[netip.Prefix] {
 		row := addrRow{
-			ip: ip,
+			ip: ip.Addr(),
 
 			w: adw.NewActionRow(),
 			c: gtk.NewButtonFromIconName("edit-copy-symbolic"),

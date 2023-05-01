@@ -4,8 +4,10 @@ import (
 	"context"
 	_ "embed"
 	"io"
+	"net/netip"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,6 +118,19 @@ func optBoolIcon(v opt.Bool) string {
 		return "dialog-question-symbolic"
 	}
 	return boolIcon(b)
+}
+
+func netipPrefixLess(p1, p2 netip.Prefix) bool {
+	return p1.Addr().Less(p2.Addr()) || p1.Bits() < p2.Bits()
+}
+
+func pbool(v *bool) opt.Bool {
+	if v == nil {
+		return ""
+	}
+
+	s := strconv.FormatBool(*v)
+	return opt.Bool(s)
 }
 
 func main() {

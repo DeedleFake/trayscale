@@ -262,7 +262,8 @@ func (a *App) init(ctx context.Context) {
 }
 
 func (a *App) initSettings(ctx context.Context) {
-	if !slices.Contains(gio.SettingsListSchemas(), appID) {
+	nonreloc, reloc := gio.SettingsSchemaSourceGetDefault().ListSchemas(true)
+	if !slices.Contains(nonreloc, appID) && !slices.Contains(reloc, appID) {
 		goto init
 	}
 

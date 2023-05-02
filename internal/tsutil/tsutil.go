@@ -12,7 +12,10 @@ import (
 // DNSOrQuoteHostname returns a nicely printable version of a peer's name. The function is copied from
 // https://github.com/tailscale/tailscale/blob/b0ed863d55d6b51569ce5c6bd0b7021338ce6a82/cmd/tailscale/cli/status.go#L285
 func DNSOrQuoteHostname(st *ipnstate.Status, ps *ipnstate.PeerStatus) string {
-	baseName := dnsname.TrimSuffix(ps.DNSName, st.MagicDNSSuffix)
+	baseName := ps.DNSName
+	if st.CurrentTailnet != nil {
+		baseName = dnsname.TrimSuffix(baseName, st.CurrentTailnet.MagicDNSSuffix)
+	}
 	if baseName != "" {
 		if strings.HasPrefix(baseName, "xn-") {
 			if u, err := idna.ToUnicode(baseName); err == nil {

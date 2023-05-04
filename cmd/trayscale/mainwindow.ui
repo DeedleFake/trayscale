@@ -21,8 +21,16 @@
                 <child>
                   <object class="AdwHeaderBar">
                     <property name="show-end-title-buttons">False</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">dev.deedles.Trayscale</property>
+                      </object>
+                    </child>
                     <child type="start">
                       <object class="GtkSwitch" id="StatusSwitch"/>
+                    </child>
+                    <child type="title">
+                      <object class="GtkDropDown" id="ProfilesDropDown"/>
                     </child>
                     <child type="end">
                       <object class="GtkMenuButton" id="MainMenuButton">

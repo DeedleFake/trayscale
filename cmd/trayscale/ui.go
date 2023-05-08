@@ -401,8 +401,10 @@ func NewPeerPage() *PeerPage {
 type PreferencesWindow struct {
 	*adw.PreferencesWindow
 
-	UseTrayIconRow *adw.ActionRow
-	UseTrayIcon    *gtk.Switch
+	UseTrayIconRow     *adw.ActionRow
+	UseTrayIcon        *gtk.Switch
+	PollingIntervalRow *adw.ActionRow
+	PollingInterval    *gtk.SpinButton
 }
 
 func NewPreferencesWindow() *PreferencesWindow {
@@ -410,12 +412,15 @@ func NewPreferencesWindow() *PreferencesWindow {
 	parent00 := adw.NewPreferencesGroup()
 	UseTrayIconRow := adw.NewActionRow()
 	UseTrayIcon := gtk.NewSwitch()
+	PollingIntervalRow := adw.NewActionRow()
+	PollingInterval := gtk.NewSpinButton(nil, 0, 0)
 	parent := adw.NewPreferencesWindow()
 
 	parent0.Add(parent00)
 
 	parent00.SetObjectProperty("title", "General")
 	parent00.Add(UseTrayIconRow)
+	parent00.Add(PollingIntervalRow)
 
 	UseTrayIconRow.SetObjectProperty("activatable-widget", UseTrayIcon)
 	UseTrayIconRow.SetObjectProperty("subtitle", "If enabled, an icon will be added to the system tray")
@@ -425,13 +430,23 @@ func NewPreferencesWindow() *PreferencesWindow {
 	UseTrayIcon.SetObjectProperty("margin-bottom", 12)
 	UseTrayIcon.SetObjectProperty("margin-top", 12)
 
+	PollingIntervalRow.SetObjectProperty("subtitle", "Interval, in seconds, at which to poll the Tailscale daemon")
+	PollingIntervalRow.SetObjectProperty("title", "Polling Interval")
+	PollingIntervalRow.AddSuffix(PollingInterval)
+
+	PollingInterval.SetObjectProperty("adjustment", "PollingIntervalAdjustment")
+	PollingInterval.SetObjectProperty("margin-bottom", 12)
+	PollingInterval.SetObjectProperty("margin-top", 12)
+
 	parent.Add(parent0)
 
 	return &PreferencesWindow{
 		PreferencesWindow: parent,
 
-		UseTrayIconRow: UseTrayIconRow,
-		UseTrayIcon:    UseTrayIcon,
+		UseTrayIconRow:     UseTrayIconRow,
+		UseTrayIcon:        UseTrayIcon,
+		PollingIntervalRow: PollingIntervalRow,
+		PollingInterval:    PollingInterval,
 	}
 }
 

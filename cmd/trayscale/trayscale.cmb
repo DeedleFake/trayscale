@@ -75,7 +75,10 @@
 	(3,2,"AdwPreferencesPage",None,1,None,None,None,None,None),
 	(3,3,"AdwPreferencesGroup",None,2,None,None,None,None,None),
 	(3,4,"AdwActionRow","UseTrayIconRow",3,None,None,None,None,None),
-	(3,5,"GtkSwitch","UseTrayIcon",4,None,None,None,None,None)
+	(3,5,"GtkSwitch","UseTrayIcon",4,None,None,None,None,None),
+	(3,6,"AdwActionRow","PollingIntervalRow",3,None,None,None,1,None),
+	(3,7,"GtkSpinButton","PollingInterval",6,None,None,None,None,None),
+	(3,8,"GtkAdjustment","PollingIntervalAdjustment",None,None,None,None,None,None)
   </object>
   <object_property>
 	(1,1,"AdwApplicationWindow","content","4",None,None,None,None,None),
@@ -157,6 +160,14 @@
 	(3,4,"AdwActionRow","subtitle","If enabled, an icon will be added to the system tray",None,None,None,None,None),
 	(3,4,"AdwPreferencesRow","title","Use Tray Icon",None,None,None,None,None),
 	(3,5,"GtkWidget","margin-bottom","12",None,None,None,None,None),
-	(3,5,"GtkWidget","margin-top","12",None,None,None,None,None)
+	(3,5,"GtkWidget","margin-top","12",None,None,None,None,None),
+	(3,6,"AdwActionRow","subtitle","Interval, in seconds, at which to poll the Tailscale daemon",None,None,None,None,None),
+	(3,6,"AdwPreferencesRow","title","Polling Interval",None,None,None,None,None),
+	(3,7,"GtkSpinButton","adjustment","8",None,None,None,None,None),
+	(3,7,"GtkWidget","margin-bottom","12",None,None,None,None,None),
+	(3,7,"GtkWidget","margin-top","12",None,None,None,None,None),
+	(3,8,"GtkAdjustment","lower","0.5",None,None,None,None,None),
+	(3,8,"GtkAdjustment","upper","100.0",None,None,None,None,None),
+	(3,8,"GtkAdjustment","value","5.0",None,None,None,None,None)
   </object_property>
 </cambalache-project>

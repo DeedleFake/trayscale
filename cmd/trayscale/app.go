@@ -53,6 +53,7 @@ func (a *App) showPreferences() {
 
 	win := NewPreferencesWindow()
 	a.settings.Bind("tray-icon", win.UseTrayIcon.Object, "active", gio.SettingsBindDefault)
+	//a.settings.Bind("polling-interval", win.PollingInterval.Object)
 	win.SetTransientFor(&a.win.Window)
 	win.Show()
 

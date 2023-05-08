@@ -263,6 +263,12 @@ func (f Func) Args() Args {
 		return Args{
 			{"text", "string"},
 		}
+	case "gtk.NewSpinButton":
+		return Args{
+			{"adjustment", "*gtk.Adjustment"},
+			{"climbRate", "float64"},
+			{"digits", "uint"},
+		}
 	default:
 		return nil
 	}
@@ -300,10 +306,12 @@ type Arg struct {
 
 func (arg Arg) Default() string {
 	switch arg.Type {
-	case "gtk.Orientation", "int":
+	case "gtk.Orientation", "int", "float64", "uint":
 		return "0"
 	case "string":
 		return "\"\""
+	case "*gtk.Adjustment":
+		return "nil"
 	default:
 		panic(fmt.Errorf("unexpected arg type %q: %q", arg.Type, arg.Name))
 	}

@@ -35,6 +35,14 @@ func statusIcon(online bool) []byte {
 	return statusIconInactive
 }
 
+func connectionStatusText(online bool) string {
+	if online {
+		return "Connected"
+	}
+
+	return "Disconnected"
+}
+
 type enum[T any] struct {
 	Index int
 	Val   T

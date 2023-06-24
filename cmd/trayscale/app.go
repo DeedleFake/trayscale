@@ -43,6 +43,9 @@ type App struct {
 
 	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
+
+	// TODO: build a management layer over all tray menu items
+	connectionStatusMenuItem *systray.MenuItem
 }
 
 func (a *App) showPreferences() {
@@ -222,6 +225,7 @@ func (a *App) update(s tsutil.Status) {
 		a.online = online
 		a.notify(online) // TODO: Notify on startup if not connected?
 		systray.SetIcon(statusIcon(online))
+		a.connectionStatusMenuItem.SetTitle(connectionStatusText(online))
 	}
 	if a.win == nil {
 		return
@@ -391,6 +395,9 @@ func (a *App) initTray(ctx context.Context) {
 	systray.SetIcon(statusIcon(a.online))
 	systray.SetTitle("Trayscale")
 
+	a.connectionStatusMenuItem = systray.AddMenuItem(connectionStatusText(a.online), "")
+	a.connectionStatusMenuItem.Disable()
+	systray.AddSeparator()
 	showWindow := systray.AddMenuItem("Show", "").ClickedCh
 	systray.AddSeparator()
 	quit := systray.AddMenuItem("Quit", "").ClickedCh

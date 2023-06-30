@@ -12,7 +12,6 @@ import (
 	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
-	"fyne.io/systray"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -40,6 +39,7 @@ type App struct {
 	app      *adw.Application
 	win      *MainWindow
 	settings *gio.Settings
+	tray     *tray
 
 	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
@@ -221,7 +221,7 @@ func (a *App) update(s tsutil.Status) {
 	if a.online != online {
 		a.online = online
 		a.notify(online) // TODO: Notify on startup if not connected?
-		systray.SetIcon(statusIcon(online))
+		a.tray.SetIcon(online)
 	}
 	if a.win == nil {
 		return
@@ -388,24 +388,19 @@ func (a *App) onAppActivate(ctx context.Context) {
 }
 
 func (a *App) initTray(ctx context.Context) {
-	systray.SetIcon(statusIcon(a.online))
-	systray.SetTitle("Trayscale")
-
-	showWindow := systray.AddMenuItem("Show", "").ClickedCh
-	systray.AddSeparator()
-	quit := systray.AddMenuItem("Quit", "").ClickedCh
+	a.tray = initTray(a.online)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-showWindow:
+		case <-a.tray.NotfiyShow():
 			glib.IdleAdd(func() {
 				if a.app != nil {
 					a.app.Activate()
 				}
 			})
-		case <-quit:
+		case <-a.tray.NotfiyQuit():
 			a.Quit()
 		}
 	}

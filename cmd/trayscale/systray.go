@@ -31,7 +31,7 @@ func (t *tray) NotfiyShow() <-chan struct{} {
 	return t.showItem.ClickedCh
 }
 
-func (t *tray) SetIcon(online bool) {
+func (t *tray) SetOnlineStatus(online bool) {
 	if t == nil {
 		return
 	}

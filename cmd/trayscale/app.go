@@ -221,7 +221,7 @@ func (a *App) update(s tsutil.Status) {
 	if a.online != online {
 		a.online = online
 		a.notify(online) // TODO: Notify on startup if not connected?
-		a.tray.SetIcon(online)
+		a.tray.SetOnlineStatus(online)
 	}
 	if a.win == nil {
 		return

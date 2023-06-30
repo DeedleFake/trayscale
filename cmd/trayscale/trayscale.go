@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"io"
 	"os"
 	"os/signal"
@@ -19,21 +18,6 @@ const (
 	appID                 = "dev.deedles.Trayscale"
 	prefShowWindowAtStart = "showWindowAtStart"
 )
-
-var (
-	//go:embed status-icon-active.png
-	statusIconActive []byte
-
-	//go:embed status-icon-inactive.png
-	statusIconInactive []byte
-)
-
-func statusIcon(online bool) []byte {
-	if online {
-		return statusIconActive
-	}
-	return statusIconInactive
-}
 
 type enum[T any] struct {
 	Index int

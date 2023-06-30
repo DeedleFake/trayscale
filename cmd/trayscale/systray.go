@@ -1,6 +1,8 @@
 package main
 
 import (
+	_ "embed"
+
 	"fyne.io/systray"
 )
 
@@ -37,6 +39,21 @@ func (t *tray) SetOnlineStatus(online bool) {
 	}
 
 	systray.SetIcon(statusIcon(online))
+}
+
+var (
+	//go:embed status-icon-active.png
+	statusIconActive []byte
+
+	//go:embed status-icon-inactive.png
+	statusIconInactive []byte
+)
+
+func statusIcon(online bool) []byte {
+	if online {
+		return statusIconActive
+	}
+	return statusIconInactive
 }
 
 var systrayExit = make(chan func(), 1)

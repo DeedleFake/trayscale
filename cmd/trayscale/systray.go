@@ -25,11 +25,11 @@ func initTray(online bool) *tray {
 	}
 }
 
-func (t *tray) NotfiyQuit() <-chan struct{} {
+func (t *tray) QuitChan() <-chan struct{} {
 	return t.quitItem.ClickedCh
 }
 
-func (t *tray) NotfiyShow() <-chan struct{} {
+func (t *tray) ShowChan() <-chan struct{} {
 	return t.showItem.ClickedCh
 }
 

@@ -394,13 +394,13 @@ func (a *App) initTray(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-a.tray.NotfiyShow():
+		case <-a.tray.ShowChan():
 			glib.IdleAdd(func() {
 				if a.app != nil {
 					a.app.Activate()
 				}
 			})
-		case <-a.tray.NotfiyQuit():
+		case <-a.tray.QuitChan():
 			a.Quit()
 		}
 	}

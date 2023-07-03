@@ -389,21 +389,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 func (a *App) initTray(ctx context.Context) {
 	a.tray = initTray(a.online)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-a.tray.ShowChan():
-			glib.IdleAdd(func() {
-				if a.app != nil {
-					a.app.Activate()
-				}
-			})
-		case <-a.tray.QuitChan():
-			a.Quit()
-		}
-	}
+	a.tray.Run(ctx, a)
 }
 
 // Quit exits the app completely, causing Run to return.

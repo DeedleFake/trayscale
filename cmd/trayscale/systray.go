@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 
 	"fyne.io/systray"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 )
 
 type tray struct {
@@ -22,6 +24,23 @@ func initTray(online bool) *tray {
 	return &tray{
 		showItem: showWindow,
 		quitItem: quit,
+	}
+}
+
+func (t *tray) Run(ctx context.Context, a *App) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.ShowChan():
+			glib.IdleAdd(func() {
+				if a.app != nil {
+					a.app.Activate()
+				}
+			})
+		case <-t.QuitChan():
+			a.Quit()
+		}
 	}
 }
 

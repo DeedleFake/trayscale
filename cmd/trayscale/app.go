@@ -388,7 +388,9 @@ func (a *App) onAppActivate(ctx context.Context) {
 }
 
 func (a *App) initTray(ctx context.Context) {
-	a.tray = initTray(a.online)
+	if a.tray == nil {
+		a.tray = initTray(a.online)
+	}
 
 	for {
 		select {

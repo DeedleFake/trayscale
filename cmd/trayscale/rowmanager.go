@@ -3,7 +3,6 @@ package main
 import (
 	"slices"
 
-	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
@@ -24,7 +23,7 @@ func (m *rowManager[Data]) resize(size int) {
 		for _, r := range m.rows[size:] {
 			m.Parent.Remove(r.Widget())
 		}
-		xslices.Clear(m.rows[size:])
+		clear(m.rows[size:])
 		m.rows = m.rows[:size]
 	}
 }

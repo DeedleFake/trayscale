@@ -2,13 +2,12 @@ package tsutil
 
 import (
 	"context"
+	"fmt"
 	"sync"
-	"time"
 
 	"deedles.dev/mk"
-	"golang.org/x/exp/slog"
 	"tailscale.com/ipn"
-	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/types/netmap"
 )
 
 // A Poller gets the latest Tailscale status at regular intervals or
@@ -29,13 +28,11 @@ type Poller struct {
 	New func(Status)
 
 	once sync.Once
-	poll chan struct{}
 	get  chan Status
 }
 
 func (p *Poller) init() {
 	p.once.Do(func() {
-		mk.Chan(&p.poll, 0)
 		mk.Chan(&p.get, 0)
 	})
 }
@@ -52,64 +49,50 @@ func (p *Poller) client() *Client {
 //
 // The behavior of two calls to Run running concurrently is undefined.
 // Don't do it.
-func (p *Poller) Run(ctx context.Context) {
+func (p *Poller) Run(ctx context.Context) error {
 	p.init()
 
-	const ticklen = 5 * time.Second
-	check := time.NewTicker(ticklen)
-	defer check.Stop()
+	w, err := p.TS.Watch(ctx)
+	if err != nil {
+		return fmt.Errorf("watch: %w", err)
+	}
+	defer w.Close()
 
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+
+	status := make(chan *ipn.Notify)
+	go func() {
+		for {
+			n, err := w.Next()
+			if err != nil {
+				cancel(fmt.Errorf("next notification: %w", err))
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case status <- &n:
+			}
+		}
+	}()
+
+	var latest Status
+	var get chan Status
 	for {
-		status, err := p.client().Status(ctx)
-		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			slog.Error("get Tailscale status", "err", err)
-			continue
-		}
-
-		prefs, err := p.client().Prefs(ctx)
-		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			slog.Error("get Tailscale prefs", "err", err)
-			continue
-		}
-
-		s := Status{Status: status, Prefs: prefs}
-		if p.New != nil {
-			// TODO: Only call this if the status changed from the previous
-			// poll? Is that remotely feasible?
-			p.New(s)
-		}
-
-	send:
 		select {
 		case <-ctx.Done():
-			return
-		case <-check.C:
-		case <-p.poll:
-			check.Reset(ticklen)
-		case p.get <- s:
-			goto send // I've never used a goto before.
+			return context.Cause(ctx)
+		case s := <-status:
+			latest.update(s)
+			if p.New != nil {
+				p.New(latest)
+			}
+			get = p.get
+		case get <- latest:
 		}
 	}
-}
-
-// Poll returns a channel that, when sent to, causes a new status to
-// be fetched from Tailscale. A send to the channel does not resolve
-// until the poller begins to fetch the status, meaning that a send to
-// Poll followed immediately by a receive from Get will always result
-// in the new Status.
-//
-// Do not close the returned channel. Doing so will result in
-// undefined behavior.
-func (p *Poller) Poll() chan<- struct{} {
-	p.init()
-
-	return p.poll
 }
 
 // Get returns a channel that will yield the latest Status fetched. If
@@ -124,16 +107,29 @@ func (p *Poller) Get() <-chan Status {
 // Status is a type that wraps various status-related types that
 // Tailscale provides.
 type Status struct {
-	Status *ipnstate.Status
-	Prefs  *ipn.Prefs
+	State  ipn.State
+	Prefs  ipn.PrefsView
+	NetMap netmap.NetworkMap
+}
+
+func (s *Status) update(n *ipn.Notify) {
+	if n.State != nil {
+		s.State = *n.State
+	}
+	if (n.Prefs != nil) && n.Prefs.Valid() {
+		s.Prefs = *n.Prefs
+	}
+	if n.NetMap != nil {
+		s.NetMap = *n.NetMap
+	}
 }
 
 // Online returns true if s indicates that the local node is online
 // and connected to the tailnet.
 func (s Status) Online() bool {
-	return (s.Status != nil) && (s.Status.BackendState == ipn.Running.String())
+	return s.State == ipn.Running
 }
 
 func (s Status) NeedsAuth() bool {
-	return (s.Status != nil) && (s.Status.BackendState == ipn.NeedsLogin.String())
+	return s.State == ipn.NeedsLogin
 }

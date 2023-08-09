@@ -51,6 +51,11 @@ func (c *Client) run(ctx context.Context, args ...string) (string, error) {
 	return out.String(), err
 }
 
+// Watch returns an IPNBusWatcher to get notifications from the Tailscale daemon.
+func (c *Client) Watch(ctx context.Context) (*tailscale.IPNBusWatcher, error) {
+	return localClient.WatchIPNBus(ctx, ipn.NotifyInitialState|ipn.NotifyInitialPrefs)
+}
+
 // Status returns the status of the connection to the Tailscale
 // network. If the network is not currently connected, it returns
 // nil, nil.
@@ -81,7 +86,7 @@ func (c *Client) Stop(ctx context.Context) error {
 
 // ExitNode uses the specified peer as an exit node, or unsets
 // an existing exit node if peer is nil.
-func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
+func (c *Client) ExitNode(ctx context.Context, peer *tailcfg.Node) error {
 	if peer == nil {
 		var prefs ipn.Prefs
 		prefs.ClearExitNode()
@@ -102,7 +107,7 @@ func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error 
 	}
 
 	var prefs ipn.Prefs
-	prefs.SetExitNodeIP(peer.TailscaleIPs[0].String(), status)
+	prefs.SetExitNodeIP(peer.Addresses[0].String(), status)
 	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
 		Prefs:         prefs,
 		ExitNodeIDSet: true,

@@ -3,14 +3,16 @@ package main
 import (
 	"context"
 	"io"
+	"net/netip"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/tsutil"
-	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 	"tailscale.com/types/opt"
 )
 
@@ -53,9 +55,13 @@ func readAssetString(file string) string {
 	return str.String()
 }
 
-func peerName(status tsutil.Status, peer *ipnstate.PeerStatus, self bool) string {
+func peerName(status tsutil.Status, peer *tailcfg.Node, self bool) string {
+	if peer.ComputedName == "" {
+		peer.InitDisplayNames("")
+	}
+
 	const maxNameLength = 30
-	name := tsutil.DNSOrQuoteHostname(status.Status, peer)
+	name := peer.DisplayName(true)
 	if len(name) > maxNameLength {
 		name = name[:maxNameLength-3] + "..."
 	}
@@ -72,7 +78,7 @@ func peerName(status tsutil.Status, peer *ipnstate.PeerStatus, self bool) string
 	return name
 }
 
-func peerIcon(peer *ipnstate.PeerStatus) string {
+func peerIcon(peer *tailcfg.Node) string {
 	if peer.ExitNode {
 		return "network-workgroup-symbolic"
 	}
@@ -96,6 +102,19 @@ func optBoolIcon(v opt.Bool) string {
 		return "dialog-question-symbolic"
 	}
 	return boolIcon(b)
+}
+
+func netipPrefixLess(p1, p2 netip.Prefix) bool {
+	return p1.Addr().Less(p2.Addr()) || p1.Bits() < p2.Bits()
+}
+
+func pbool(v *bool) opt.Bool {
+	if v == nil {
+		return ""
+	}
+
+	s := strconv.FormatBool(*v)
+	return opt.Bool(s)
 }
 
 func main() {

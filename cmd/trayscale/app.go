@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/netip"
 	"os"
-	"strconv"
 	"time"
 
 	"deedles.dev/mk"
@@ -20,7 +19,7 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
-	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 	"tailscale.com/types/key"
 )
 
@@ -79,34 +78,34 @@ func (a *App) showAbout() {
 	a.app.AddWindow(&dialog.Window.Window)
 }
 
-func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status tsutil.Status) {
+func (a *App) updatePeerPage(page *peerPage, peer *tailcfg.Node, status tsutil.Status) {
 	page.page.SetIconName(peerIcon(peer))
 	page.page.SetTitle(peerName(status, peer, page.self))
 
-	page.container.SetTitle(peer.HostName)
-	page.container.SetDescription(peer.DNSName)
+	page.container.SetTitle(peer.Hostinfo.Hostname())
+	page.container.SetDescription(peer.Name)
 
-	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Less)
-	page.addrRows.Update(peer.TailscaleIPs)
+	slices.SortFunc(peer.Addresses, netipPrefixLess)
+	page.addrRows.Update(peer.Addresses)
 
 	page.container.OptionsGroup.SetVisible(page.self)
 	if page.self {
 		page.container.AdvertiseExitNodeSwitch.SetState(status.Prefs.AdvertisesExitNode())
 		page.container.AdvertiseExitNodeSwitch.SetActive(status.Prefs.AdvertisesExitNode())
-		page.container.AllowLANAccessSwitch.SetState(status.Prefs.ExitNodeAllowLANAccess)
-		page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
+		page.container.AllowLANAccessSwitch.SetState(status.Prefs.ExitNodeAllowLANAccess())
+		page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess())
 	}
 
 	page.container.AdvertiseRouteButton.SetVisible(page.self)
 
 	switch {
 	case page.self:
-		page.routes = status.Prefs.AdvertiseRoutes
+		page.routes = status.Prefs.AdvertiseRoutes().AppendTo(page.routes[:0])
 	case peer.PrimaryRoutes != nil:
-		page.routes = peer.PrimaryRoutes.AsSlice()
+		page.routes = peer.PrimaryRoutes
 	}
 	page.routes = xslices.Filter(page.routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
-	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) bool { return p1.Addr().Less(p2.Addr()) || p1.Bits() < p2.Bits() })
+	slices.SortFunc(page.routes, netipPrefixLess)
 	if len(page.routes) == 0 {
 		page.routes = append(page.routes, netip.Prefix{})
 	}
@@ -122,17 +121,17 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	page.container.NetCheckGroup.SetVisible(page.self)
 
 	page.container.MiscGroup.SetVisible(!page.self)
-	page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
-	page.container.ExitNodeSwitch.SetState(peer.ExitNode)
-	page.container.ExitNodeSwitch.SetActive(peer.ExitNode)
-	page.container.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
-	page.container.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
+	//page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
+	//page.container.ExitNodeSwitch.SetState(peer.ExitNode)
+	//page.container.ExitNodeSwitch.SetActive(peer.ExitNode)
+	//page.container.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
+	//page.container.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
 	page.container.Created.SetText(formatTime(peer.Created))
-	page.container.LastSeen.SetText(formatTime(peer.LastSeen))
-	page.container.LastSeenRow.SetVisible(!peer.Online)
-	page.container.LastWrite.SetText(formatTime(peer.LastWrite))
-	page.container.LastHandshake.SetText(formatTime(peer.LastHandshake))
-	page.container.Online.SetFromIconName(boolIcon(peer.Online))
+	page.container.LastSeen.SetText(formatTime(*peer.LastSeen))
+	page.container.LastSeenRow.SetVisible((peer.Online == nil) || !*peer.Online)
+	//page.container.LastWrite.SetText(formatTime(peer.LastWrite))
+	//page.container.LastHandshake.SetText(formatTime(peer.LastHandshake))
+	page.container.Online.SetFromIconName(optBoolIcon(pbool(peer.Online)))
 }
 
 func (a *App) notify(status bool) {
@@ -164,7 +163,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 	w := a.win.PeersStack
 
-	var peerMap map[key.NodePublic]*ipnstate.PeerStatus
+	var peerMap map[key.NodePublic]*tailcfg.Node
 	var peers []key.NodePublic
 
 	if status.Online() {
@@ -305,7 +304,6 @@ func (a *App) startTS(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	a.poller.Poll() <- struct{}{}
 	return nil
 }
 
@@ -314,7 +312,6 @@ func (a *App) stopTS(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	a.poller.Poll() <- struct{}{}
 	return nil
 }
 
@@ -383,7 +380,6 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.win = nil
 		return false
 	})
-	a.poller.Poll() <- struct{}{}
 	a.win.Show()
 }
 
@@ -450,7 +446,7 @@ type peerPage struct {
 	self   bool
 	routes []netip.Prefix
 
-	addrRows  rowManager[netip.Addr]
+	addrRows  rowManager[netip.Prefix]
 	routeRows rowManager[enum[netip.Prefix]]
 }
 
@@ -494,15 +490,15 @@ func (row *routeRow) Widget() gtk.Widgetter {
 	return row.w
 }
 
-func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peerPage {
+func (a *App) newPeerPage(status tsutil.Status, peer *tailcfg.Node) *peerPage {
 	page := peerPage{
 		container: NewPeerPage(),
 	}
 
 	page.addrRows.Parent = page.container.IPGroup
-	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {
+	page.addrRows.New = func(ip netip.Prefix) row[netip.Prefix] {
 		row := addrRow{
-			ip: ip,
+			ip: ip.Addr(),
 
 			w: adw.NewActionRow(),
 			c: gtk.NewButtonFromIconName("edit-copy-symbolic"),
@@ -549,7 +545,6 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 				slog.Error("advertise routes", "err", err)
 				return
 			}
-			a.poller.Poll() <- struct{}{}
 		})
 
 		return &row
@@ -568,7 +563,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			}
 		}
 
-		var node *ipnstate.PeerStatus
+		var node *tailcfg.Node
 		if s {
 			node = peer
 		}
@@ -578,7 +573,6 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			page.container.ExitNodeSwitch.SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
@@ -601,7 +595,6 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			page.container.AdvertiseExitNodeSwitch.SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
@@ -616,7 +609,6 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			page.container.AllowLANAccessSwitch.SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
@@ -642,8 +634,6 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 				slog.Error("advertise routes", "err", err)
 				return
 			}
-
-			a.poller.Poll() <- struct{}{}
 		})
 	})
 

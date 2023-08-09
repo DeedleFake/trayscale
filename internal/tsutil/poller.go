@@ -2,11 +2,11 @@ package tsutil
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
 
 	"deedles.dev/mk"
-	"golang.org/x/exp/slog"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 )

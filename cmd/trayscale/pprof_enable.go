@@ -4,11 +4,10 @@
 package main
 
 import (
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-
-	"golang.org/x/exp/slog"
 )
 
 func pprof() {

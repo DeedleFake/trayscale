@@ -12,6 +12,7 @@ import (
 	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
+	"deedles.dev/trayscale/internal/xcmp"
 	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -85,7 +86,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	page.container.SetTitle(peer.HostName)
 	page.container.SetDescription(peer.DNSName)
 
-	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Less)
+	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
 	page.addrRows.Update(peer.TailscaleIPs)
 
 	page.container.OptionsGroup.SetVisible(page.self)
@@ -105,7 +106,9 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 		page.routes = peer.PrimaryRoutes.AsSlice()
 	}
 	page.routes = xslices.Filter(page.routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
-	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) bool { return p1.Addr().Less(p2.Addr()) || p1.Bits() < p2.Bits() })
+	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) int {
+		return xcmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())
+	})
 	if len(page.routes) == 0 {
 		page.routes = append(page.routes, netip.Prefix{})
 	}
@@ -699,7 +702,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 
 		page.container.DERPLatencies.SetVisible(true)
 		latencies := xmaps.Entries(r.RegionLatency)
-		slices.SortFunc(latencies, func(e1, e2 xmaps.Entry[int, time.Duration]) bool { return e1.Val < e2.Val })
+		slices.SortFunc(latencies, func(e1, e2 xmaps.Entry[int, time.Duration]) int { return int(e1.Val - e2.Val) })
 		namedLats := make([]xmaps.Entry[string, time.Duration], 0, len(latencies))
 		for _, lat := range latencies {
 			namedLats = append(namedLats, xmaps.Entry[string, time.Duration]{

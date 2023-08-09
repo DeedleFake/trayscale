@@ -1,9 +1,10 @@
 package main
 
 import (
+	"slices"
+
 	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"golang.org/x/exp/slices"
 )
 
 type rowManager[Data any] struct {

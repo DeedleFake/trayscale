@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"time"
 
@@ -17,9 +19,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
-	"golang.org/x/exp/slog"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
@@ -379,7 +378,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 
 	a.win.ConnectCloseRequest(func() bool {
-		maps.Clear(a.peerPages)
+		clear(a.peerPages)
 		a.win = nil
 		return false
 	})

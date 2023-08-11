@@ -171,6 +171,27 @@ func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
 	return nil
 }
 
+// SetControlURL changes the URL of the control plane server used by
+// the daemon. If controlURL is empty, the default Tailscale server is
+// used.
+func (c *Client) SetControlURL(ctx context.Context, controlURL string) error {
+	prefs := ipn.Prefs{
+		ControlURL: controlURL,
+	}
+
+	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:         prefs,
+		ControlURLSet: true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+
+	// TODO: Restart the daemon?
+
+	return nil
+}
+
 func (c *Client) NetCheck(ctx context.Context, full bool) (*netcheck.Report, *tailcfg.DERPMap, error) {
 	dm, err := localClient.CurrentDERPMap(ctx)
 	if err != nil {

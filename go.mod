@@ -9,7 +9,7 @@ require (
 	github.com/diamondburned/gotk4/pkg v0.0.5
 	golang.org/x/net v0.14.0
 	honnef.co/go/tools v0.4.3
-	tailscale.com v1.1.1-0.20230728201153-52212f432342
+	tailscale.com v1.46.1
 )
 
 require (
@@ -43,8 +43,8 @@ require (
 	go4.org/netipx v0.0.0-20230728184502-ec4c8b891b28 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
-	golang.org/x/exp v0.0.0-20230809150735-7b3493d9a819 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20230809150735-7b3493d9a819 // indirect
+	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20230811145659-89c5cff77bcb // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.11.0 // indirect

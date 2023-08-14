@@ -35,7 +35,9 @@ var mainWindowType = coreglib.RegisterSubclass[*MainWindow](
 )
 
 func NewMainWindow(app *gtk.Application) *MainWindow {
-	return mainWindowType.NewWithProperties(map[string]any{
+	win := mainWindowType.NewWithProperties(map[string]any{
 		"application": app,
 	})
+	win.InitTemplate()
+	return win
 }

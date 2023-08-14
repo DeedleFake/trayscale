@@ -26,5 +26,7 @@ var preferencesWindowType = coreglib.RegisterSubclass[*PreferencesWindow](
 )
 
 func NewPreferencesWindow() *PreferencesWindow {
-	return preferencesWindowType.New()
+	win := preferencesWindowType.New()
+	win.InitTemplate()
+	return win
 }

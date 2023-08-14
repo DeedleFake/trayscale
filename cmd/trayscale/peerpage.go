@@ -74,5 +74,7 @@ var peerPageType = coreglib.RegisterSubclass[*PeerPage](
 )
 
 func NewPeerPage() *PeerPage {
-	return peerPageType.New()
+	page := peerPageType.New()
+	page.InitTemplate()
+	return page
 }

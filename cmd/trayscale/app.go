@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"log/slog"
 	"net/netip"
 	"os"
@@ -23,8 +24,6 @@ import (
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
-
-//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen -out ui.go mainwindow.ui peerpage.ui preferences.ui menu.ui
 
 // App is the main type for the app, containing all of the state
 // necessary to run it.

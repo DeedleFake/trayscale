@@ -3,236 +3,240 @@
 <interface>
   <requires lib="gtk" version="4.10"/>
   <requires lib="libadwaita" version="1.3"/>
-  <template class="PeerPage" parent="AdwStatusPage">
+  <template class="PeerPage" parent="GtkWidget">
     <child>
-      <object class="AdwClamp">
+      <object class="AdwStatusPage" id="Page">
         <child>
-          <object class="GtkBox">
-            <property name="orientation">vertical</property>
-            <property name="spacing">12</property>
+          <object class="AdwClamp">
             <child>
-              <object class="AdwPreferencesGroup" id="IPGroup">
-                <property name="title">Tailscale IPs</property>
-              </object>
-            </child>
-            <child>
-              <object class="AdwPreferencesGroup" id="OptionsGroup">
-                <property name="title">Options</property>
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="spacing">12</property>
                 <child>
-                  <object class="AdwActionRow" id="AdvertiseExitNodeRow">
-                    <property name="activatable-widget">AdvertiseExitNodeSwitch</property>
-                    <property name="title">Advertise exit node</property>
+                  <object class="AdwPreferencesGroup" id="IPGroup">
+                    <property name="title">Tailscale IPs</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwPreferencesGroup" id="OptionsGroup">
+                    <property name="title">Options</property>
                     <child>
-                      <object class="GtkSwitch" id="AdvertiseExitNodeSwitch">
-                        <property name="margin-bottom">12</property>
-                        <property name="margin-top">12</property>
+                      <object class="AdwActionRow" id="AdvertiseExitNodeRow">
+                        <property name="activatable-widget">AdvertiseExitNodeSwitch</property>
+                        <property name="title">Advertise exit node</property>
+                        <child>
+                          <object class="GtkSwitch" id="AdvertiseExitNodeSwitch">
+                            <property name="margin-bottom">12</property>
+                            <property name="margin-top">12</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="AllowLANAccessRow">
+                        <property name="activatable-widget">AllowLANAccessSwitch</property>
+                        <property name="title">Allow LAN access</property>
+                        <child>
+                          <object class="GtkSwitch" id="AllowLANAccessSwitch">
+                            <property name="margin-bottom">12</property>
+                            <property name="margin-top">12</property>
+                          </object>
+                        </child>
                       </object>
                     </child>
                   </object>
                 </child>
                 <child>
-                  <object class="AdwActionRow" id="AllowLANAccessRow">
-                    <property name="activatable-widget">AllowLANAccessSwitch</property>
-                    <property name="title">Allow LAN access</property>
+                  <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
+                    <property name="header-suffix">AdvertiseRouteButton</property>
+                    <property name="title">Advertised Routes</property>
                     <child>
-                      <object class="GtkSwitch" id="AllowLANAccessSwitch">
-                        <property name="margin-bottom">12</property>
-                        <property name="margin-top">12</property>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
-                <property name="header-suffix">AdvertiseRouteButton</property>
-                <property name="title">Advertised Routes</property>
-                <child>
-                  <object class="GtkButton" id="AdvertiseRouteButton">
-                    <property name="has-frame">False</property>
-                    <property name="icon-name">list-add-symbolic</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwPreferencesGroup" id="NetCheckGroup">
-                <property name="header-suffix">NetCheckButton</property>
-                <property name="title">Network Check</property>
-                <child>
-                  <object class="GtkButton" id="NetCheckButton">
-                    <property name="has-frame">False</property>
-                    <property name="icon-name">view-refresh-symbolic</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="LastNetCheckRow">
-                    <property name="title">Last run</property>
-                    <child>
-                      <object class="GtkLabel" id="LastNetCheck">
-                        <property name="label">Never</property>
+                      <object class="GtkButton" id="AdvertiseRouteButton">
+                        <property name="has-frame">False</property>
+                        <property name="icon-name">list-add-symbolic</property>
                       </object>
                     </child>
                   </object>
                 </child>
                 <child>
-                  <object class="AdwActionRow" id="UDPRow">
-                    <property name="title">UDP</property>
-                    <property name="visible">False</property>
+                  <object class="AdwPreferencesGroup" id="NetCheckGroup">
+                    <property name="header-suffix">NetCheckButton</property>
+                    <property name="title">Network Check</property>
                     <child>
-                      <object class="GtkImage" id="UDP"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="IPv4Row">
-                    <property name="title">IPv4</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkImage" id="IPv4Icon"/>
+                      <object class="GtkButton" id="NetCheckButton">
+                        <property name="has-frame">False</property>
+                        <property name="icon-name">view-refresh-symbolic</property>
+                      </object>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="IPv4Addr"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="IPv6Row">
-                    <property name="title">IPv6</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkImage" id="IPv6Icon"/>
+                      <object class="AdwActionRow" id="LastNetCheckRow">
+                        <property name="title">Last run</property>
+                        <child>
+                          <object class="GtkLabel" id="LastNetCheck">
+                            <property name="label">Never</property>
+                          </object>
+                        </child>
+                      </object>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="IPv6Addr"/>
+                      <object class="AdwActionRow" id="UDPRow">
+                        <property name="title">UDP</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="UDP"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="UPnPRow">
-                    <property name="title">UPnP</property>
-                    <property name="visible">False</property>
                     <child>
-                      <object class="GtkImage" id="UPnP"/>
+                      <object class="AdwActionRow" id="IPv4Row">
+                        <property name="title">IPv4</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="IPv4Icon"/>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="IPv4Addr"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="PMPRow">
-                    <property name="title">NAT port mapping protocol</property>
-                    <property name="visible">False</property>
                     <child>
-                      <object class="GtkImage" id="PMP"/>
+                      <object class="AdwActionRow" id="IPv6Row">
+                        <property name="title">IPv6</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="IPv6Icon"/>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="IPv6Addr"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="PCPRow">
-                    <property name="title">Port control protocol</property>
-                    <property name="visible">False</property>
                     <child>
-                      <object class="GtkImage" id="PCP"/>
+                      <object class="AdwActionRow" id="UPnPRow">
+                        <property name="title">UPnP</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="UPnP"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="HairPinningRow">
-                    <property name="title">Hair pinning</property>
-                    <property name="visible">False</property>
                     <child>
-                      <object class="GtkImage" id="HairPinning"/>
+                      <object class="AdwActionRow" id="PMPRow">
+                        <property name="title">NAT port mapping protocol</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="PMP"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="PreferredDERPRow">
-                    <property name="title">Preferred DERP</property>
-                    <property name="visible">False</property>
                     <child>
-                      <object class="GtkLabel" id="PreferredDERP">
-                        <property name="label">Never</property>
+                      <object class="AdwActionRow" id="PCPRow">
+                        <property name="title">Port control protocol</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="PCP"/>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="HairPinningRow">
+                        <property name="title">Hair pinning</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="HairPinning"/>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="PreferredDERPRow">
+                        <property name="title">Preferred DERP</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkLabel" id="PreferredDERP">
+                            <property name="label">Never</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwExpanderRow" id="DERPLatencies">
+                        <property name="title">DERP Latencies</property>
+                        <property name="visible">False</property>
                       </object>
                     </child>
                   </object>
                 </child>
                 <child>
-                  <object class="AdwExpanderRow" id="DERPLatencies">
-                    <property name="title">DERP Latencies</property>
-                    <property name="visible">False</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwPreferencesGroup" id="MiscGroup">
-                <property name="title">Misc.</property>
-                <child>
-                  <object class="AdwActionRow" id="ExitNodeRow">
-                    <property name="activatable-widget">ExitNodeSwitch</property>
-                    <property name="icon-name">security-high-symbolic</property>
-                    <property name="title">Use as exit node</property>
+                  <object class="AdwPreferencesGroup" id="MiscGroup">
+                    <property name="title">Misc.</property>
                     <child>
-                      <object class="GtkSwitch" id="ExitNodeSwitch">
-                        <property name="margin-bottom">12</property>
-                        <property name="margin-top">12</property>
+                      <object class="AdwActionRow" id="ExitNodeRow">
+                        <property name="activatable-widget">ExitNodeSwitch</property>
+                        <property name="icon-name">security-high-symbolic</property>
+                        <property name="title">Use as exit node</property>
+                        <child>
+                          <object class="GtkSwitch" id="ExitNodeSwitch">
+                            <property name="margin-bottom">12</property>
+                            <property name="margin-top">12</property>
+                          </object>
+                        </child>
                       </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="OnlineRow">
-                    <property name="title">Online</property>
                     <child>
-                      <object class="GtkImage" id="Online"/>
+                      <object class="AdwActionRow" id="OnlineRow">
+                        <property name="title">Online</property>
+                        <child>
+                          <object class="GtkImage" id="Online"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="LastSeenRow">
-                    <property name="title">Last seen</property>
                     <child>
-                      <object class="GtkLabel" id="LastSeen"/>
+                      <object class="AdwActionRow" id="LastSeenRow">
+                        <property name="title">Last seen</property>
+                        <child>
+                          <object class="GtkLabel" id="LastSeen"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="CreatedRow">
-                    <property name="title">Created at</property>
                     <child>
-                      <object class="GtkLabel" id="Created"/>
+                      <object class="AdwActionRow" id="CreatedRow">
+                        <property name="title">Created at</property>
+                        <child>
+                          <object class="GtkLabel" id="Created"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="LastWriteRow">
-                    <property name="title">Last write</property>
                     <child>
-                      <object class="GtkLabel" id="LastWrite"/>
+                      <object class="AdwActionRow" id="LastWriteRow">
+                        <property name="title">Last write</property>
+                        <child>
+                          <object class="GtkLabel" id="LastWrite"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="LastHandshakeRow">
-                    <property name="title">Last handshake</property>
                     <child>
-                      <object class="GtkLabel" id="LastHandshake"/>
+                      <object class="AdwActionRow" id="LastHandshakeRow">
+                        <property name="title">Last handshake</property>
+                        <child>
+                          <object class="GtkLabel" id="LastHandshake"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="RxBytesRow">
-                    <property name="title">Bytes received</property>
                     <child>
-                      <object class="GtkLabel" id="RxBytes"/>
+                      <object class="AdwActionRow" id="RxBytesRow">
+                        <property name="title">Bytes received</property>
+                        <child>
+                          <object class="GtkLabel" id="RxBytes"/>
+                        </child>
+                      </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="TxBytesRow">
-                    <property name="title">Bytes sent</property>
                     <child>
-                      <object class="GtkLabel" id="TxBytes"/>
+                      <object class="AdwActionRow" id="TxBytesRow">
+                        <property name="title">Bytes sent</property>
+                        <child>
+                          <object class="GtkLabel" id="TxBytes"/>
+                        </child>
+                      </object>
                     </child>
                   </object>
                 </child>

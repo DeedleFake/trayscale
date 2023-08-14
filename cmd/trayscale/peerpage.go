@@ -13,8 +13,9 @@ import (
 var peerPageXML []byte
 
 type PeerPage struct {
-	adw.StatusPage
+	gtk.Widget
 
+	Page                    *adw.StatusPage
 	IPGroup                 *adw.PreferencesGroup
 	OptionsGroup            *adw.PreferencesGroup
 	AdvertiseExitNodeRow    *adw.ActionRow
@@ -67,6 +68,7 @@ type PeerPage struct {
 
 var peerPageType = coreglib.RegisterSubclass[*PeerPage](
 	coreglib.WithClassInit(func(class *gtk.WidgetClass) {
+		class.SetLayoutManagerType(gtk.GTypeBinLayout)
 		class.SetTemplate(glib.NewBytesWithGo(peerPageXML))
 	}),
 )

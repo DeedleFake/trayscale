@@ -82,8 +82,8 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	page.page.SetIconName(peerIcon(peer))
 	page.page.SetTitle(peerName(status, peer, page.self))
 
-	page.container.SetTitle(peer.HostName)
-	page.container.SetDescription(peer.DNSName)
+	page.container.Page.SetTitle(peer.HostName)
+	page.container.Page.SetDescription(peer.DNSName)
 
 	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
 	page.addrRows.Update(peer.TailscaleIPs)

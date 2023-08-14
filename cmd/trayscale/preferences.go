@@ -15,7 +15,8 @@ var preferencesXML []byte
 type PreferencesWindow struct {
 	adw.PreferencesWindow
 
-	UseTrayIcon *gtk.Switch
+	UseTrayIconRow *adw.ActionRow
+	UseTrayIcon    *gtk.Switch
 }
 
 var preferencesWindowType = coreglib.RegisterSubclass[*PreferencesWindow](

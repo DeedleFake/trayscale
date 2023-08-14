@@ -9,17 +9,23 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
-//go:embed mainwindow.ui
-var mainWindowXML []byte
+var (
+	//go:embed mainwindow.ui
+	mainWindowXML []byte
+
+	//go:embed menu.ui
+	menuXML []byte
+)
 
 type MainWindow struct {
 	adw.ApplicationWindow
 
-	ToastOverlay *adw.ToastOverlay
-	PeersStack   *gtk.Stack
-	StatusSwitch *gtk.Switch
-	Leaflet      *adw.Leaflet
-	BackButton   *gtk.Button
+	ToastOverlay   *adw.ToastOverlay
+	Leaflet        *adw.Leaflet
+	StatusSwitch   *gtk.Switch
+	MainMenuButton *gtk.MenuButton
+	BackButton     *gtk.Button
+	PeersStack     *gtk.Stack
 }
 
 var mainWindowType = coreglib.RegisterSubclass[*MainWindow](

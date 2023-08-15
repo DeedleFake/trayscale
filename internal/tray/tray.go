@@ -1,45 +1,10 @@
-package main
+package tray
 
 import (
 	_ "embed"
 
 	"fyne.io/systray"
 )
-
-type tray struct {
-	showItem *systray.MenuItem
-	quitItem *systray.MenuItem
-}
-
-func initTray(online bool) *tray {
-	systray.SetIcon(statusIcon(online))
-	systray.SetTitle("Trayscale")
-
-	showWindow := systray.AddMenuItem("Show", "")
-	systray.AddSeparator()
-	quit := systray.AddMenuItem("Quit", "")
-
-	return &tray{
-		showItem: showWindow,
-		quitItem: quit,
-	}
-}
-
-func (t *tray) QuitChan() <-chan struct{} {
-	return t.quitItem.ClickedCh
-}
-
-func (t *tray) ShowChan() <-chan struct{} {
-	return t.showItem.ClickedCh
-}
-
-func (t *tray) SetOnlineStatus(online bool) {
-	if t == nil {
-		return
-	}
-
-	systray.SetIcon(statusIcon(online))
-}
 
 var (
 	//go:embed status-icon-active.png
@@ -56,9 +21,44 @@ func statusIcon(online bool) []byte {
 	return statusIconInactive
 }
 
+type Tray struct {
+	showItem *systray.MenuItem
+	quitItem *systray.MenuItem
+}
+
+func New(online bool) *Tray {
+	systray.SetIcon(statusIcon(online))
+	systray.SetTitle("Trayscale")
+
+	showWindow := systray.AddMenuItem("Show", "")
+	systray.AddSeparator()
+	quit := systray.AddMenuItem("Quit", "")
+
+	return &Tray{
+		showItem: showWindow,
+		quitItem: quit,
+	}
+}
+
+func (t *Tray) QuitChan() <-chan struct{} {
+	return t.quitItem.ClickedCh
+}
+
+func (t *Tray) ShowChan() <-chan struct{} {
+	return t.showItem.ClickedCh
+}
+
+func (t *Tray) SetOnlineStatus(online bool) {
+	if t == nil {
+		return
+	}
+
+	systray.SetIcon(statusIcon(online))
+}
+
 var systrayExit = make(chan func(), 1)
 
-func startSystray(onStart func()) {
+func Start(onStart func()) {
 	start, stop := systray.RunWithExternalLoop(onStart, nil)
 	select {
 	case f := <-systrayExit:
@@ -70,7 +70,7 @@ func startSystray(onStart func()) {
 	systrayExit <- stop
 }
 
-func stopSystray() {
+func Stop() {
 	select {
 	case f := <-systrayExit:
 		f()

@@ -18,12 +18,13 @@ var (
 type MainWindow struct {
 	*adw.ApplicationWindow `gtk:"MainWindow"`
 
-	ToastOverlay   *adw.ToastOverlay
-	Leaflet        *adw.Leaflet
-	StatusSwitch   *gtk.Switch
-	MainMenuButton *gtk.MenuButton
-	BackButton     *gtk.Button
-	PeersStack     *gtk.Stack
+	ToastOverlay     *adw.ToastOverlay
+	Leaflet          *adw.Leaflet
+	StatusSwitch     *gtk.Switch
+	MainMenuButton   *gtk.MenuButton
+	BackButton       *gtk.Button
+	PeersStack       *gtk.Stack
+	ProfilesComboBox *gtk.ComboBox
 }
 
 func NewMainWindow(app *gtk.Application) *MainWindow {

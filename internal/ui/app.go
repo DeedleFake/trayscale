@@ -17,6 +17,7 @@ import (
 	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -394,6 +395,12 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.win.BackButton.ConnectClicked(func() {
 		a.win.Leaflet.Navigate(adw.NavigationDirectionBack)
 	})
+
+	profilesModel := gtk.NewListStore([]coreglib.Type{coreglib.TypeString, coreglib.TypeString})
+	profilesModel.Set(profilesModel.Append(), []int{0, 1}, []coreglib.Value{*coreglib.NewValue("test"), *coreglib.NewValue("This is a test.")})
+	a.win.ProfilesComboBox.SetModel(profilesModel)
+	a.win.ProfilesComboBox.SetIDColumn(0)
+	a.win.ProfilesComboBox.SetEntryTextColumn(1)
 
 	a.win.ConnectCloseRequest(func() bool {
 		clear(a.peerPages)

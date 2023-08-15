@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Created with Cambalache 0.11.3 -->
+<!-- Created with Cambalache 0.12.1 -->
 <interface>
   <requires lib="gtk" version="4.10"/>
   <requires lib="libadwaita" version="1.3"/>
@@ -11,7 +11,7 @@
             <property name="title">General</property>
             <child>
               <object class="AdwActionRow" id="UseTrayIconRow">
-                <property name="activatable-widget">UseTrayIcon</property>
+                <property name="activatable-widget">11</property>
                 <property name="subtitle">If enabled, an icon will be added to the system tray</property>
                 <property name="title">Use Tray Icon</property>
                 <child>
@@ -28,9 +28,27 @@
                 <property name="title">Polling Interval</property>
                 <child>
                   <object class="GtkSpinButton" id="PollingInterval">
-                    <property name="adjustment">PollingIntervalAdjustment</property>
+                    <property name="adjustment">14</property>
                     <property name="margin-bottom">12</property>
                     <property name="margin-top">12</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title">Advanced</property>
+                <child>
+                  <object class="AdwActionRow" id="ControlServerRow">
+                    <property name="activatable-widget">5</property>
+                    <property name="subtitle">If not empty, uses the provided control plane server instead of the default Tailscale server</property>
+                    <property name="title">Control Plane Server</property>
+                    <child>
+                      <object class="GtkEntry" id="ControlServer">
+                        <property name="margin-bottom">12</property>
+                        <property name="margin-top">12</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>

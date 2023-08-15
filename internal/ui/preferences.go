@@ -18,6 +18,8 @@ type PreferencesWindow struct {
 	PollingIntervalRow        *adw.ActionRow
 	PollingInterval           *gtk.SpinButton
 	PollingIntervalAdjustment *gtk.Adjustment
+	ControlPlaneRow           *adw.ActionRow
+	ControlPlane              *gtk.Entry
 }
 
 func NewPreferencesWindow() *PreferencesWindow {

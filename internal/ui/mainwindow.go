@@ -4,21 +4,19 @@ import (
 	_ "embed"
 
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 var (
 	//go:embed mainwindow.ui
-	mainWindowXML []byte
+	mainWindowXML string
 
 	//go:embed menu.ui
-	menuXML []byte
+	menuXML string
 )
 
 type MainWindow struct {
-	adw.ApplicationWindow
+	*adw.ApplicationWindow `gtk:"MainWindow"`
 
 	ToastOverlay   *adw.ToastOverlay
 	Leaflet        *adw.Leaflet
@@ -28,16 +26,6 @@ type MainWindow struct {
 	PeersStack     *gtk.Stack
 }
 
-var mainWindowType = coreglib.RegisterSubclass[*MainWindow](
-	coreglib.WithClassInit(func(class *gtk.WidgetClass) {
-		class.SetTemplate(glib.NewBytesWithGo(mainWindowXML))
-	}),
-)
-
 func NewMainWindow(app *gtk.Application) *MainWindow {
-	win := mainWindowType.NewWithProperties(map[string]any{
-		"application": app,
-	})
-	win.InitTemplate()
-	return win
+	return newFromBuilder[MainWindow](menuXML, mainWindowXML)
 }

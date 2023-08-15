@@ -4,18 +4,15 @@ import (
 	_ "embed"
 
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 //go:embed peerpage.ui
-var peerPageXML []byte
+var peerPageXML string
 
 type PeerPage struct {
-	gtk.Widget
+	*adw.StatusPage `gtk:"PeerPage"`
 
-	Page                    *adw.StatusPage
 	IPGroup                 *adw.PreferencesGroup
 	OptionsGroup            *adw.PreferencesGroup
 	AdvertiseExitNodeRow    *adw.ActionRow
@@ -66,15 +63,6 @@ type PeerPage struct {
 	TxBytes                 *gtk.Label
 }
 
-var peerPageType = coreglib.RegisterSubclass[*PeerPage](
-	coreglib.WithClassInit(func(class *gtk.WidgetClass) {
-		class.SetLayoutManagerType(gtk.GTypeBinLayout)
-		class.SetTemplate(glib.NewBytesWithGo(peerPageXML))
-	}),
-)
-
 func NewPeerPage() *PeerPage {
-	page := peerPageType.New()
-	page.InitTemplate()
-	return page
+	return newFromBuilder[PeerPage](peerPageXML)
 }

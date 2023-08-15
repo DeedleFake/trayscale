@@ -3,7 +3,7 @@
 <interface>
   <requires lib="gtk" version="4.10"/>
   <requires lib="libadwaita" version="1.3"/>
-  <template class="PreferencesWindow" parent="AdwPreferencesWindow">
+  <object class="AdwPreferencesWindow" id="PreferencesWindow">
     <child>
       <object class="AdwPreferencesPage">
         <child>
@@ -26,5 +26,5 @@
         </child>
       </object>
     </child>
-  </template>
+  </object>
 </interface>

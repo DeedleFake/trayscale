@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Created with Cambalache 0.11.3 -->
+<!-- Created with Cambalache 0.12.1 -->
 <interface>
   <!-- interface-name mainwindow.ui -->
   <requires lib="gtk" version="4.10"/>
@@ -30,7 +30,7 @@
                       <object class="GtkSwitch" id="StatusSwitch"/>
                     </child>
                     <child type="title">
-                      <object class="GtkDropDown" id="ProfilesDropDown"/>
+                      <object class="GtkComboBox" id="ProfilesComboBox"/>
                     </child>
                     <child type="end">
                       <object class="GtkMenuButton" id="MainMenuButton">

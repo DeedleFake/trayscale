@@ -11,7 +11,7 @@ import (
 var preferencesXML string
 
 type PreferencesWindow struct {
-	adw.PreferencesWindow `gtk:"PreferencesWindow"`
+	*adw.PreferencesWindow `gtk:"PreferencesWindow"`
 
 	UseTrayIconRow *adw.ActionRow
 	UseTrayIcon    *gtk.Switch

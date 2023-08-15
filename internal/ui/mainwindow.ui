@@ -4,7 +4,7 @@
   <!-- interface-name mainwindow.ui -->
   <requires lib="gtk" version="4.10"/>
   <requires lib="libadwaita" version="1.3"/>
-  <template class="MainWindow" parent="AdwApplicationWindow">
+  <object class="AdwApplicationWindow" id="MainWindow">
     <property name="content">ToastOverlay</property>
     <property name="default-height">600</property>
     <property name="default-width">800</property>
@@ -94,5 +94,5 @@
         </child>
       </object>
     </child>
-  </template>
+  </object>
 </interface>

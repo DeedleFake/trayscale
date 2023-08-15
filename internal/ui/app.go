@@ -1,31 +1,34 @@
-package main
+package ui
 
 import (
 	"context"
+	"log/slog"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
+	"deedles.dev/trayscale/internal/xcmp"
 	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
-	"fyne.io/systray"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
-	"golang.org/x/exp/slog"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
 
-//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen -out ui.go mainwindow.ui peerpage.ui preferences.ui menu.ui
+const (
+	appID                 = "dev.deedles.Trayscale"
+	prefShowWindowAtStart = "showWindowAtStart"
+)
 
 // App is the main type for the app, containing all of the state
 // necessary to run it.
@@ -40,6 +43,7 @@ type App struct {
 	app      *adw.Application
 	win      *MainWindow
 	settings *gio.Settings
+	tray     *tray.Tray
 
 	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
@@ -53,6 +57,7 @@ func (a *App) showPreferences() {
 
 	win := NewPreferencesWindow()
 	a.settings.Bind("tray-icon", win.UseTrayIcon.Object, "active", gio.SettingsBindDefault)
+	a.settings.Bind("polling-interval", win.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
 	win.SetTransientFor(&a.win.Window)
 	win.Show()
 
@@ -86,7 +91,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	page.container.SetTitle(peer.HostName)
 	page.container.SetDescription(peer.DNSName)
 
-	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Less)
+	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
 	page.addrRows.Update(peer.TailscaleIPs)
 
 	page.container.OptionsGroup.SetVisible(page.self)
@@ -106,7 +111,9 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 		page.routes = peer.PrimaryRoutes.AsSlice()
 	}
 	page.routes = xslices.Filter(page.routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
-	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) bool { return p1.Addr().Less(p2.Addr()) || p1.Bits() < p2.Bits() })
+	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) int {
+		return xcmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())
+	})
 	if len(page.routes) == 0 {
 		page.routes = append(page.routes, netip.Prefix{})
 	}
@@ -221,7 +228,7 @@ func (a *App) update(s tsutil.Status) {
 	if a.online != online {
 		a.online = online
 		a.notify(online) // TODO: Notify on startup if not connected?
-		systray.SetIcon(statusIcon(online))
+		a.tray.SetOnlineStatus(online)
 	}
 	if a.win == nil {
 		return
@@ -272,17 +279,27 @@ func (a *App) initSettings(ctx context.Context) {
 		switch key {
 		case "tray-icon":
 			if a.settings.Boolean("tray-icon") {
-				go startSystray(func() { a.initTray(ctx) })
+				go tray.Start(func() { a.initTray(ctx) })
 				return
 			}
-			stopSystray()
+			tray.Stop()
+
+		case "polling-interval":
+			a.poller.SetInterval() <- a.getInterval()
 		}
 	})
 
 init:
 	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
-		go startSystray(func() { a.initTray(ctx) })
+		go tray.Start(func() { a.initTray(ctx) })
 	}
+}
+
+func (a *App) getInterval() time.Duration {
+	if a.settings == nil {
+		return 5 * time.Second
+	}
+	return time.Duration(a.settings.Double("polling-interval") * float64(time.Second))
 }
 
 func (a *App) startTS(ctx context.Context) error {
@@ -379,7 +396,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 
 	a.win.ConnectCloseRequest(func() bool {
-		maps.Clear(a.peerPages)
+		clear(a.peerPages)
 		a.win = nil
 		return false
 	})
@@ -388,24 +405,21 @@ func (a *App) onAppActivate(ctx context.Context) {
 }
 
 func (a *App) initTray(ctx context.Context) {
-	systray.SetIcon(statusIcon(a.online))
-	systray.SetTitle("Trayscale")
-
-	showWindow := systray.AddMenuItem("Show", "").ClickedCh
-	systray.AddSeparator()
-	quit := systray.AddMenuItem("Quit", "").ClickedCh
+	if a.tray == nil {
+		a.tray = tray.New(a.online)
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-showWindow:
+		case <-a.tray.ShowChan():
 			glib.IdleAdd(func() {
 				if a.app != nil {
 					a.app.Activate()
 				}
 			})
-		case <-quit:
+		case <-a.tray.QuitChan():
 			a.Quit()
 		}
 	}
@@ -413,7 +427,7 @@ func (a *App) initTray(ctx context.Context) {
 
 // Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
-	stopSystray()
+	tray.Stop()
 	a.app.Quit()
 }
 
@@ -433,8 +447,9 @@ func (a *App) Run(ctx context.Context) {
 	}
 
 	a.poller = &tsutil.Poller{
-		TS:  a.TS,
-		New: func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		TS:       a.TS,
+		Interval: a.getInterval(),
+		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
 
@@ -703,7 +718,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 
 		page.container.DERPLatencies.SetVisible(true)
 		latencies := xmaps.Entries(r.RegionLatency)
-		slices.SortFunc(latencies, func(e1, e2 xmaps.Entry[int, time.Duration]) bool { return e1.Val < e2.Val })
+		slices.SortFunc(latencies, func(e1, e2 xmaps.Entry[int, time.Duration]) int { return int(e1.Val - e2.Val) })
 		namedLats := make([]xmaps.Entry[string, time.Duration], 0, len(latencies))
 		for _, lat := range latencies {
 			namedLats = append(namedLats, xmaps.Entry[string, time.Duration]{

@@ -29,9 +29,9 @@ If you are on Arch Linux or a derivative, [Trayscale is available from the AUR](
 
 First, make sure that you have dependencies installed:
 
-* Go >= 1.18
+* Go >= 1.21
 * GTK >= 4.0
-* Libadwaita >= 1.0
+* Libadwaita >= 1.2
 
 The main Trayscale binary can be installed with `go install`:
 

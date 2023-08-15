@@ -1,4 +1,4 @@
-package main
+package ui
 
 import (
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"

@@ -24,6 +24,11 @@ type Poller struct {
 	// If it is nil, a default client will be used.
 	TS *Client
 
+	// Interval is the default interval to use for polling.
+	//
+	// If it is a zero, a non-zero default will be used.
+	Interval time.Duration
+
 	// If non-nil, New will be called when a new status is received from
 	// Tailscale.
 	New func(Status)
@@ -54,8 +59,13 @@ func (p *Poller) client() *Client {
 //
 // The behavior of two calls to Run running concurrently is undefined.
 // Don't do it.
-func (p *Poller) Run(ctx context.Context, interval time.Duration) {
+func (p *Poller) Run(ctx context.Context) {
 	p.init()
+
+	interval := p.Interval
+	if interval < 0 {
+		interval = 5 * time.Second
+	}
 
 	check := time.NewTicker(interval)
 	defer check.Stop()
@@ -125,10 +135,10 @@ func (p *Poller) Get() <-chan Status {
 	return p.get
 }
 
-// Interval returns a channel that modifies the polling interval of a
-// running poller. This will delay the next poll until the new
+// SetInterval returns a channel that modifies the polling interval of
+// a running poller. This will delay the next poll until the new
 // interval has elapsed.
-func (p *Poller) Interval() chan<- time.Duration {
+func (p *Poller) SetInterval() chan<- time.Duration {
 	p.init()
 
 	return p.interval

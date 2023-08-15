@@ -13,8 +13,11 @@ var preferencesXML string
 type PreferencesWindow struct {
 	*adw.PreferencesWindow `gtk:"PreferencesWindow"`
 
-	UseTrayIconRow *adw.ActionRow
-	UseTrayIcon    *gtk.Switch
+	UseTrayIconRow            *adw.ActionRow
+	UseTrayIcon               *gtk.Switch
+	PollingIntervalRow        *adw.ActionRow
+	PollingInterval           *gtk.SpinButton
+	PollingIntervalAdjustment *gtk.Adjustment
 }
 
 func NewPreferencesWindow() *PreferencesWindow {

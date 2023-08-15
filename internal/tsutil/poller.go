@@ -28,15 +28,17 @@ type Poller struct {
 	// Tailscale.
 	New func(Status)
 
-	once sync.Once
-	poll chan struct{}
-	get  chan Status
+	once     sync.Once
+	poll     chan struct{}
+	get      chan Status
+	interval chan time.Duration
 }
 
 func (p *Poller) init() {
 	p.once.Do(func() {
 		mk.Chan(&p.poll, 0)
 		mk.Chan(&p.get, 0)
+		mk.Chan(&p.interval, 0)
 	})
 }
 
@@ -52,11 +54,10 @@ func (p *Poller) client() *Client {
 //
 // The behavior of two calls to Run running concurrently is undefined.
 // Don't do it.
-func (p *Poller) Run(ctx context.Context) {
+func (p *Poller) Run(ctx context.Context, interval time.Duration) {
 	p.init()
 
-	const ticklen = 5 * time.Second
-	check := time.NewTicker(ticklen)
+	check := time.NewTicker(interval)
 	defer check.Stop()
 
 	for {
@@ -91,7 +92,10 @@ func (p *Poller) Run(ctx context.Context) {
 			return
 		case <-check.C:
 		case <-p.poll:
-			check.Reset(ticklen)
+			check.Reset(interval)
+		case interval = <-p.interval:
+			check.Reset(interval)
+			goto send
 		case p.get <- s:
 			goto send // I've never used a goto before.
 		}
@@ -119,6 +123,15 @@ func (p *Poller) Get() <-chan Status {
 	p.init()
 
 	return p.get
+}
+
+// Interval returns a channel that modifies the polling interval of a
+// running poller. This will delay the next poll until the new
+// interval has elapsed.
+func (p *Poller) Interval() chan<- time.Duration {
+	p.init()
+
+	return p.interval
 }
 
 // Status is a type that wraps various status-related types that

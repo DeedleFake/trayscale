@@ -41,7 +41,7 @@
                 <child>
                   <object class="AdwActionRow" id="ControlServerRow">
                     <property name="activatable-widget">5</property>
-                    <property name="subtitle">If not empty, uses the provided control plane server instead of the default Tailscale server</property>
+                    <property name="subtitle">URL of control plane server to use, or default if empty</property>
                     <property name="title">Control Plane Server</property>
                     <child>
                       <object class="GtkEntry" id="ControlServer">

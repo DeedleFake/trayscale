@@ -58,8 +58,12 @@ func (a *App) showPreferences() {
 	win := NewPreferencesWindow()
 	a.settings.Bind("tray-icon", win.UseTrayIcon.Object, "active", gio.SettingsBindDefault)
 	a.settings.Bind("polling-interval", win.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
-	a.settings.Bind("control-plane-server", win.ControlPlane.Object, "value", gio.SettingsBindDefault)
+	a.settings.Bind("control-plane-server", win.ControlServer.Object, "text", gio.SettingsBindGet)
 	win.SetTransientFor(&a.win.Window)
+	win.ConnectCloseRequest(func() bool {
+		a.settings.SetString("control-plane-server", win.ControlServer.Text())
+		return false
+	})
 	win.Show()
 
 	a.app.AddWindow(&win.Window.Window)
@@ -287,6 +291,14 @@ func (a *App) initSettings(ctx context.Context) {
 
 		case "polling-interval":
 			a.poller.SetInterval() <- a.getInterval()
+
+		case "control-plane-server":
+			url := a.settings.String("control-plane-server")
+			err := a.TS.SetControlURL(ctx, url)
+			if err != nil {
+				slog.Error("update control plane server URL", "err", err, "url", url)
+				return
+			}
 		}
 	})
 

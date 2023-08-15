@@ -194,7 +194,7 @@
 	(3,13,"GtkWidget","margin-top","12",None,None,None,None,None,None,None,None,None),
 	(3,15,"AdwPreferencesGroup","title","Advanced",None,None,None,None,None,None,None,None,None),
 	(3,16,"AdwActionRow","activatable-widget","11",None,None,None,None,None,None,None,None,None),
-	(3,16,"AdwActionRow","subtitle","If not empty, uses the provided control plane server instead of the default Tailscale server",None,None,None,None,None,None,None,None,None),
+	(3,16,"AdwActionRow","subtitle","URL of control plane server to use, or default if empty",None,None,None,None,None,None,None,None,None),
 	(3,16,"AdwPreferencesRow","title","Control Plane Server",None,None,None,None,None,None,None,None,None),
 	(3,17,"GtkWidget","margin-bottom","12",None,None,None,None,None,None,None,None,None),
 	(3,17,"GtkWidget","margin-top","12",None,None,None,None,None,None,None,None,None),
@@ -203,6 +203,7 @@
 	(3,19,"GtkSpinButton","adjustment","14",None,None,None,None,None,None,None,None,None),
 	(3,19,"GtkWidget","margin-bottom","12",None,None,None,None,None,None,None,None,None),
 	(3,19,"GtkWidget","margin-top","12",None,None,None,None,None,None,None,None,None),
+	(3,25,"GtkEntry","buffer","26",None,None,None,None,None,None,None,None,None),
 	(3,25,"GtkWidget","margin-bottom","12",None,None,None,None,None,None,None,None,None),
 	(3,25,"GtkWidget","margin-top","12",None,None,None,None,None,None,None,None,None)
   </object_property>

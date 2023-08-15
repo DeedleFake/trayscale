@@ -167,6 +167,7 @@
 	(3,7,"GtkWidget","margin-bottom","12",None,None,None,None,None),
 	(3,7,"GtkWidget","margin-top","12",None,None,None,None,None),
 	(3,8,"GtkAdjustment","lower","0.5",None,None,None,None,None),
+	(3,8,"GtkAdjustment","step-increment","1.0",None,None,None,None,None),
 	(3,8,"GtkAdjustment","upper","100.0",None,None,None,None,None),
 	(3,8,"GtkAdjustment","value","5.0",None,None,None,None,None)
   </object_property>

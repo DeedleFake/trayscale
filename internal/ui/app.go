@@ -57,7 +57,7 @@ func (a *App) showPreferences() {
 
 	win := NewPreferencesWindow()
 	a.settings.Bind("tray-icon", win.UseTrayIcon.Object, "active", gio.SettingsBindDefault)
-	//a.settings.Bind("polling-interval", win.PollingInterval.Object)
+	a.settings.Bind("polling-interval", win.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
 	win.SetTransientFor(&a.win.Window)
 	win.Show()
 
@@ -283,6 +283,9 @@ func (a *App) initSettings(ctx context.Context) {
 				return
 			}
 			tray.Stop()
+
+		case "polling-interval":
+			a.poller.SetInterval() <- a.getInterval()
 		}
 	})
 
@@ -290,6 +293,13 @@ init:
 	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
 		go tray.Start(func() { a.initTray(ctx) })
 	}
+}
+
+func (a *App) getInterval() time.Duration {
+	if a.settings == nil {
+		return 5 * time.Second
+	}
+	return time.Duration(a.settings.Double("polling-interval") * float64(time.Second))
 }
 
 func (a *App) startTS(ctx context.Context) error {
@@ -437,8 +447,9 @@ func (a *App) Run(ctx context.Context) {
 	}
 
 	a.poller = &tsutil.Poller{
-		TS:  a.TS,
-		New: func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		TS:       a.TS,
+		Interval: a.getInterval(),
+		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
 

@@ -3,7 +3,7 @@
 <interface>
   <requires lib="gtk" version="4.10"/>
   <requires lib="libadwaita" version="1.3"/>
-  <template class="PeerPage" parent="AdwStatusPage">
+  <object class="AdwStatusPage" id="PeerPage">
     <child>
       <object class="AdwClamp">
         <child>
@@ -48,24 +48,12 @@
               <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
                 <property name="header-suffix">AdvertiseRouteButton</property>
                 <property name="title">Advertised Routes</property>
-                <child>
-                  <object class="GtkButton" id="AdvertiseRouteButton">
-                    <property name="has-frame">False</property>
-                    <property name="icon-name">list-add-symbolic</property>
-                  </object>
-                </child>
               </object>
             </child>
             <child>
               <object class="AdwPreferencesGroup" id="NetCheckGroup">
                 <property name="header-suffix">NetCheckButton</property>
                 <property name="title">Network Check</property>
-                <child>
-                  <object class="GtkButton" id="NetCheckButton">
-                    <property name="has-frame">False</property>
-                    <property name="icon-name">view-refresh-symbolic</property>
-                  </object>
-                </child>
                 <child>
                   <object class="AdwActionRow" id="LastNetCheckRow">
                     <property name="title">Last run</property>
@@ -242,5 +230,13 @@
         </child>
       </object>
     </child>
-  </template>
+  </object>
+  <object class="GtkButton" id="NetCheckButton">
+    <property name="has-frame">False</property>
+    <property name="icon-name">view-refresh-symbolic</property>
+  </object>
+  <object class="GtkButton" id="AdvertiseRouteButton">
+    <property name="has-frame">False</property>
+    <property name="icon-name">list-add-symbolic</property>
+  </object>
 </interface>

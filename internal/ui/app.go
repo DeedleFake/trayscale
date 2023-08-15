@@ -1,4 +1,4 @@
-package main
+package ui
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/trayscale/internal/xcmp"
@@ -24,7 +25,10 @@ import (
 	"tailscale.com/types/key"
 )
 
-//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen -out ui.go mainwindow.ui peerpage.ui preferences.ui menu.ui
+const (
+	appID                 = "dev.deedles.Trayscale"
+	prefShowWindowAtStart = "showWindowAtStart"
+)
 
 // App is the main type for the app, containing all of the state
 // necessary to run it.
@@ -39,7 +43,7 @@ type App struct {
 	app      *adw.Application
 	win      *MainWindow
 	settings *gio.Settings
-	tray     *tray
+	tray     *tray.Tray
 
 	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
@@ -53,6 +57,7 @@ func (a *App) showPreferences() {
 
 	win := NewPreferencesWindow()
 	a.settings.Bind("tray-icon", win.UseTrayIcon.Object, "active", gio.SettingsBindDefault)
+	a.settings.Bind("polling-interval", win.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
 	win.SetTransientFor(&a.win.Window)
 	win.Show()
 
@@ -274,17 +279,27 @@ func (a *App) initSettings(ctx context.Context) {
 		switch key {
 		case "tray-icon":
 			if a.settings.Boolean("tray-icon") {
-				go startSystray(func() { a.initTray(ctx) })
+				go tray.Start(func() { a.initTray(ctx) })
 				return
 			}
-			stopSystray()
+			tray.Stop()
+
+		case "polling-interval":
+			a.poller.SetInterval() <- a.getInterval()
 		}
 	})
 
 init:
 	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
-		go startSystray(func() { a.initTray(ctx) })
+		go tray.Start(func() { a.initTray(ctx) })
 	}
+}
+
+func (a *App) getInterval() time.Duration {
+	if a.settings == nil {
+		return 5 * time.Second
+	}
+	return time.Duration(a.settings.Double("polling-interval") * float64(time.Second))
 }
 
 func (a *App) startTS(ctx context.Context) error {
@@ -391,7 +406,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray == nil {
-		a.tray = initTray(a.online)
+		a.tray = tray.New(a.online)
 	}
 
 	for {
@@ -412,7 +427,7 @@ func (a *App) initTray(ctx context.Context) {
 
 // Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
-	stopSystray()
+	tray.Stop()
 	a.app.Quit()
 }
 
@@ -432,8 +447,9 @@ func (a *App) Run(ctx context.Context) {
 	}
 
 	a.poller = &tsutil.Poller{
-		TS:  a.TS,
-		New: func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		TS:       a.TS,
+		Interval: a.getInterval(),
+		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
 

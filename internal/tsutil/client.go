@@ -187,7 +187,14 @@ func (c *Client) SetControlURL(ctx context.Context, controlURL string) error {
 		return fmt.Errorf("edit prefs: %w", err)
 	}
 
-	// TODO: Restart the daemon?
+	err = c.Stop(ctx)
+	if err != nil {
+		return fmt.Errorf("stop client: %w", err)
+	}
+	err = c.Start(ctx)
+	if err != nil {
+		return fmt.Errorf("start client: %w", err)
+	}
 
 	return nil
 }

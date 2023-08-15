@@ -27,5 +27,7 @@ type MainWindow struct {
 }
 
 func NewMainWindow(app *gtk.Application) *MainWindow {
-	return newFromBuilder[MainWindow](menuXML, mainWindowXML)
+	win := newFromBuilder[MainWindow](menuXML, mainWindowXML)
+	win.SetApplication(app)
+	return win
 }

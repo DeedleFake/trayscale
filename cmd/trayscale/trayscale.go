@@ -19,7 +19,7 @@ func main() {
 		Command: "tailscale",
 	}
 
-	a := ui.App{
+	a := ui.UI{
 		TS: &ts,
 	}
 	a.Run(ctx)

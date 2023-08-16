@@ -43,6 +43,7 @@ type App struct {
 
 	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
+	spinnum    int
 }
 
 func (a *App) showPreferences() {
@@ -95,6 +96,20 @@ func (a *App) notify(status bool) {
 	}
 
 	a.app.SendNotification("tailscale-status", n)
+}
+
+func (a *App) spin() {
+	glib.IdleAdd(func() {
+		a.spinnum++
+		a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+	})
+}
+
+func (a *App) stopSpin() {
+	glib.IdleAdd(func() {
+		a.spinnum--
+		a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+	})
 }
 
 func (a *App) toast(msg string) *adw.Toast {

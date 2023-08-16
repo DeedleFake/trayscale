@@ -64,6 +64,9 @@
                         </binding>
                       </object>
                     </child>
+                    <child type="end">
+                      <object class="GtkSpinner" id="WorkSpinner"/>
+                    </child>
                     <!-- Custom fragments -->
                     <binding name="show-start-title-buttons">
                       <lookup name="folded">Leaflet</lookup>

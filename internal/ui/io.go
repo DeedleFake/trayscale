@@ -10,6 +10,9 @@ import (
 )
 
 func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file *gio.File) {
+	a.spin()
+	defer a.stopSpin()
+
 	slog := slog.With("path", file.Path())
 	slog.Info("starting file push")
 
@@ -37,6 +40,9 @@ func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file *g
 }
 
 func (a *App) saveFile(ctx context.Context, name string, file *gio.File) {
+	a.spin()
+	defer a.stopSpin()
+
 	slog := slog.With("path", file.Path(), "filename", name)
 	slog.Info("starting file save")
 

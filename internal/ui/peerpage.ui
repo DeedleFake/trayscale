@@ -250,13 +250,6 @@
         </child>
       </object>
     </child>
-    <child>
-      <object class="GtkDropTarget" id="DropTarget">
-        <property name="actions">copy</property>
-        <!-- Custom fragments -->
-        <property name="skip">true</property>
-      </object>
-    </child>
   </object>
   <object class="GtkButton" id="NetCheckButton">
     <property name="has-frame">False</property>
@@ -265,5 +258,8 @@
   <object class="GtkButton" id="AdvertiseRouteButton">
     <property name="has-frame">False</property>
     <property name="icon-name">list-add-symbolic</property>
+  </object>
+  <object class="GtkDropTarget" id="DropTarget">
+    <property name="actions">copy</property>
   </object>
 </interface>

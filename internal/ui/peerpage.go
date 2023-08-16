@@ -63,6 +63,7 @@ type PeerPage struct {
 	TxBytes                 *gtk.Label
 	FilesGroup              *adw.PreferencesGroup
 	SendFileRow             *adw.ActionRow
+	DropTarget              *gtk.DropTarget
 }
 
 func NewPeerPage() *PeerPage {

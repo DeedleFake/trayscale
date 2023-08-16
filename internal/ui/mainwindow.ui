@@ -64,6 +64,9 @@
                         </binding>
                       </object>
                     </child>
+                    <child type="title">
+                      <object class="GtkBox"/>
+                    </child>
                     <child type="end">
                       <object class="GtkSpinner" id="WorkSpinner"/>
                     </child>

@@ -20,6 +20,7 @@
 	(1,17,"GtkSwitch","StatusSwitch",7,None,"start",None,None,None),
 	(1,18,"GtkButton","BackButton",9,None,"start",None,None,"&lt;binding name=\"visible\"&gt;\n	&lt;lookup name=\"folded\"&gt;Leaflet&lt;/lookup&gt;\n&lt;/binding&gt;"),
 	(1,19,"GtkSpinner","WorkSpinner",9,None,"end",None,1,None),
+	(1,20,"GtkBox",None,9,None,"title",None,None,None),
 	(2,3,"AdwStatusPage","PeerPage",None,None,None,None,None,None),
 	(2,73,"AdwClamp",None,3,None,None,None,1,None),
 	(2,74,"GtkBox",None,73,None,None,None,None,None),

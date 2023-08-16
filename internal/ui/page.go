@@ -44,6 +44,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	sendFileAction := gio.NewSimpleAction("sendfile", nil)
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
 		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionOpen, "", "")
+		fc.SetModal(true)
 		fc.SetSelectMultiple(true)
 		fc.ConnectResponse(func(id int) {
 			switch gtk.ResponseType(id) {
@@ -145,6 +146,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			row.s.SetTooltipText("Save")
 			row.s.ConnectClicked(func() {
 				fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionSave, "", "")
+				fc.SetModal(true)
 				fc.SetCurrentName(row.file.Name)
 				fc.ConnectResponse(func(id int) {
 					switch gtk.ResponseType(id) {

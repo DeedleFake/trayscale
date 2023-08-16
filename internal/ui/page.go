@@ -406,7 +406,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 		page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
 	}
 
-	page.container.FilesGroup.SetVisible(page.self && len(status.Files) > 0)
+	page.container.FilesGroup.SetVisible(page.self && (len(status.Files) > 0))
 	if page.self {
 		page.fileRows.Update(status.Files)
 	}

@@ -51,6 +51,7 @@
             </child>
             <child>
               <object class="AdwPreferencesGroup" id="SendFileGroup">
+                <property name="title">Files</property>
                 <child>
                   <object class="AdwActionRow" id="SendFileRow">
                     <property name="action-name">peer.sendfile</property>

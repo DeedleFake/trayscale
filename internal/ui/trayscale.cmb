@@ -119,6 +119,7 @@
 	(2,80,"GtkWidget","margin-bottom","12",None,None,None,None,None,None,None,None,None),
 	(2,80,"GtkWidget","margin-top","12",None,None,None,None,None,None,None,None,None),
 	(2,81,"AdwPreferencesGroup","title","Files",None,None,None,None,None,None,None,None,None),
+	(2,82,"AdwPreferencesGroup","title","Files",None,None,None,None,None,None,None,None,None),
 	(2,83,"AdwActionRow","activatable-widget","136",None,None,None,None,None,None,None,None,None),
 	(2,83,"AdwActionRow","icon-name","document-send-symbolic",None,None,None,None,None,None,None,None,None),
 	(2,83,"AdwPreferencesRow","title","Send a file to remote machine",None,None,None,None,None,None,None,None,None),

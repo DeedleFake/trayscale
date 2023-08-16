@@ -2,12 +2,10 @@ package ui
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"net/netip"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"deedles.dev/trayscale/internal/tsutil"
@@ -45,24 +43,31 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
 		slog.Info("send file", "peer", peer.ID)
 
-		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionSave, "", "")
+		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionOpen, "", "")
 		fc.ConnectResponse(func(id int) {
 			switch gtk.ResponseType(id) {
 			case gtk.ResponseAccept:
 				file := fc.File()
 				slog := slog.With("path", file.Path())
 
-				s, err := file.Replace(context.TODO(), "", false, gio.FileCreateNone)
+				s, err := file.Read(context.TODO())
 				if err != nil {
-					slog.Error("create file", "err", err)
+					slog.Error("open file", "err", err)
 					return
 				}
 				defer s.Close(context.TODO())
 
-				w := NewGWriter(context.TODO(), s)
-				_, err = io.Copy(w, strings.NewReader("This is a test."))
+				info, err := s.QueryInfo(context.TODO(), gio.FILE_ATTRIBUTE_STANDARD_SIZE)
 				if err != nil {
-					slog.Error("write file", "err", err)
+					slog.Error("query file info", "err", err)
+					return
+				}
+
+				r := NewGReader(context.TODO(), s)
+				err = a.TS.PushFile(context.TODO(), peer.ID, info.Size(), file.Basename(), r)
+				if err != nil {
+					slog.Error("push file", "err", err)
+					return
 				}
 			}
 		})

@@ -16,6 +16,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn/ipnstate"
 )
@@ -139,6 +140,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			row.w.AddSuffix(row.s)
 			row.w.AddSuffix(row.d)
 			row.w.SetTitle(file.Name)
+			row.w.SetSubtitle(bytesize.ByteSize(file.Size).String())
 
 			row.s.SetMarginTop(12)
 			row.s.SetMarginBottom(12)
@@ -460,6 +462,7 @@ type fileRow struct {
 func (row *fileRow) Update(file apitype.WaitingFile) {
 	row.file = file
 	row.w.SetTitle(file.Name)
+	row.w.SetSubtitle(bytesize.ByteSize(file.Size).String())
 }
 
 func (row *fileRow) Widget() gtk.Widgetter {

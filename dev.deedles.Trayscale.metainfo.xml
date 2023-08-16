@@ -41,6 +41,13 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.10.1" date="2023-08-16">
+			<description>
+				<ul>
+					<li>Show sizes of incoming files.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.10.0" date="2023-08-16">
 			<description>
 				<ul>

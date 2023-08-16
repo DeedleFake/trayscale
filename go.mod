@@ -7,6 +7,7 @@ require (
 	fyne.io/systray v1.10.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307050941-20a05fa3a9df
 	github.com/diamondburned/gotk4/pkg v0.0.5
+	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	golang.org/x/net v0.14.0
 	honnef.co/go/tools v0.4.3
 	tailscale.com v1.48.0

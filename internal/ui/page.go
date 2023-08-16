@@ -13,8 +13,10 @@ import (
 	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn/ipnstate"
 )
 
@@ -27,12 +29,45 @@ type peerPage struct {
 
 	addrRows  rowManager[netip.Addr]
 	routeRows rowManager[enum[netip.Prefix]]
+	fileRows  rowManager[apitype.WaitingFile]
 }
 
 func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peerPage {
 	page := peerPage{
 		container: NewPeerPage(),
+		self:      peer.PublicKey == status.Status.Self.PublicKey,
 	}
+
+	actions := gio.NewSimpleActionGroup()
+	page.container.InsertActionGroup("peer", actions)
+
+	sendFileAction := gio.NewSimpleAction("sendfile", nil)
+	sendFileAction.ConnectActivate(func(p *glib.Variant) {
+		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionOpen, "", "")
+		fc.SetModal(true)
+		fc.SetSelectMultiple(true)
+		fc.ConnectResponse(func(id int) {
+			switch gtk.ResponseType(id) {
+			case gtk.ResponseAccept:
+				files := fc.Files()
+				for i := uint(0); i < files.NItems(); i++ {
+					file := files.Item(i).Cast().(*gio.File)
+					go a.pushFile(context.TODO(), peer.ID, file)
+				}
+			}
+		})
+		fc.Show()
+	})
+	actions.AddAction(sendFileAction)
+
+	// TODO: https://github.com/diamondburned/gotk4/issues/107
+	//if !page.self {
+	//	page.container.AddController(page.container.DropTarget)
+	//	page.container.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
+	//	page.container.DropTarget.ConnectDrop(func(val glib.Value, x, y float64) bool {
+	//		return true
+	//	})
+	//}
 
 	page.addrRows.Parent = page.container.IPGroup
 	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {
@@ -88,6 +123,64 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		})
 
 		return &row
+	}
+
+	if page.self {
+		page.fileRows.Parent = page.container.FilesGroup
+		page.fileRows.New = func(file apitype.WaitingFile) row[apitype.WaitingFile] {
+			row := fileRow{
+				file: file,
+
+				w: adw.NewActionRow(),
+				s: gtk.NewButtonFromIconName("document-save-symbolic"),
+				d: gtk.NewButtonFromIconName("edit-delete-symbolic"),
+			}
+
+			row.w.AddSuffix(row.s)
+			row.w.AddSuffix(row.d)
+			row.w.SetTitle(file.Name)
+
+			row.s.SetMarginTop(12)
+			row.s.SetMarginBottom(12)
+			row.s.SetHasFrame(false)
+			row.s.SetTooltipText("Save")
+			row.s.ConnectClicked(func() {
+				fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionSave, "", "")
+				fc.SetModal(true)
+				fc.SetCurrentName(row.file.Name)
+				fc.ConnectResponse(func(id int) {
+					switch gtk.ResponseType(id) {
+					case gtk.ResponseAccept:
+						go a.saveFile(context.TODO(), row.file.Name, fc.File())
+					}
+				})
+				fc.Show()
+			})
+
+			row.d.SetMarginTop(12)
+			row.d.SetMarginBottom(12)
+			row.d.SetHasFrame(false)
+			row.d.SetTooltipText("Delete")
+			row.d.ConnectClicked(func() {
+				Confirmation{
+					Heading: "Delete file?",
+					Body:    "If you delete this file, you will no longer be able to save it to your local machine.",
+					Accept:  "_Delete",
+					Reject:  "_Cancel",
+				}.Show(a, func(accept bool) {
+					if accept {
+						err := a.TS.DeleteWaitingFile(context.TODO(), row.file.Name)
+						if err != nil {
+							slog.Error("delete file", "err", err)
+							return
+						}
+						a.poller.Poll() <- struct{}{}
+					}
+				})
+			})
+
+			return &row
+		}
 	}
 
 	page.container.ExitNodeSwitch.ConnectStateSet(func(s bool) bool {
@@ -250,6 +343,9 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 }
 
 func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.self = peer.PublicKey == status.Status.Self.PublicKey
+	// TODO: Disconnect drag-and-drop when this changes to true.
+
 	page.page.SetIconName(peerIcon(peer))
 	page.page.SetTitle(peerName(status, peer, page.self))
 
@@ -266,6 +362,12 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 		page.container.AllowLANAccessSwitch.SetState(status.Prefs.ExitNodeAllowLANAccess)
 		page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
 	}
+
+	if page.self {
+		page.fileRows.Update(status.Files)
+	}
+	page.container.FilesGroup.SetVisible(page.self && (len(status.Files) > 0))
+	page.container.SendFileGroup.SetVisible(!page.self)
 
 	page.container.AdvertiseRouteButton.SetVisible(page.self)
 
@@ -344,5 +446,22 @@ func (row *routeRow) Update(route enum[netip.Prefix]) {
 }
 
 func (row *routeRow) Widget() gtk.Widgetter {
+	return row.w
+}
+
+type fileRow struct {
+	file apitype.WaitingFile
+
+	w *adw.ActionRow
+	s *gtk.Button
+	d *gtk.Button
+}
+
+func (row *fileRow) Update(file apitype.WaitingFile) {
+	row.file = file
+	row.w.SetTitle(file.Name)
+}
+
+func (row *fileRow) Widget() gtk.Widgetter {
 	return row.w
 }

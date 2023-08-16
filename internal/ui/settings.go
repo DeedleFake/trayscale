@@ -8,7 +8,6 @@ import (
 
 	"deedles.dev/trayscale/internal/tray"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"tailscale.com/ipn"
 )
 
 func (a *App) initSettings(ctx context.Context) {
@@ -40,21 +39,6 @@ func (a *App) initSettings(ctx context.Context) {
 			a.poller.Poll() <- struct{}{}
 		}
 	})
-
-	if a.settings != nil {
-		url := a.settings.String("control-plane-server")
-		if url == "" {
-			url = ipn.DefaultControlURL
-		}
-		prefs, err := a.TS.Prefs(ctx)
-		if (err == nil) && (prefs.ControlURL != url) {
-			slog.Info("control URL differs", "client", prefs.ControlURL, "settings", url)
-			err := a.TS.SetControlURL(ctx, url)
-			if err != nil {
-				slog.Error("update control plane server URL", "err", err, "url", url)
-			}
-		}
-	}
 
 init:
 	if (a.settings == nil) || a.settings.Boolean("tray-icon") {

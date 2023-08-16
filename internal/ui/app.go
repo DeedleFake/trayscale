@@ -17,6 +17,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
@@ -173,6 +174,16 @@ func (a *App) update(s tsutil.Status) {
 	a.win.StatusSwitch.SetState(online)
 	a.win.StatusSwitch.SetActive(online)
 	a.updatePeers(s)
+
+	if a.settings != nil {
+		controlURL := a.settings.String("control-plane-server")
+		if controlURL == "" {
+			controlURL = ipn.DefaultControlURL
+		}
+		if controlURL != s.Prefs.ControlURL {
+			a.settings.SetString("control-plane-server", s.Prefs.ControlURL)
+		}
+	}
 }
 
 func (a *App) init(ctx context.Context) {

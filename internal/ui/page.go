@@ -207,7 +207,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			row.d.ConnectClicked(func() {
 				Confirmation{
 					Heading: "Delete file?",
-					Body:    "If you delete this file, you will no longer be able to save it.",
+					Body:    "If you delete this file, you will no longer be able to save it to your local machine.",
 					Accept:  "_Delete",
 					Reject:  "_Cancel",
 				}.Show(a, func(accept bool) {

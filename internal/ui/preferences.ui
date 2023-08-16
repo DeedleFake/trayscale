@@ -27,6 +27,7 @@
                 <property name="title">Polling Interval</property>
                 <child>
                   <object class="GtkSpinButton" id="PollingInterval">
+                    <property name="adjustment">PollingIntervalAdjustment</property>
                     <property name="margin-bottom">12</property>
                     <property name="margin-top">12</property>
                   </object>

@@ -181,7 +181,7 @@
 	(3,5,"GtkWidget","margin-top","12",None,None,None,None,None,None,None,None,None),
 	(3,6,"AdwActionRow","subtitle","Interval, in seconds, at which to poll the Tailscale daemon",None,None,None,None,None,None,None,None,None),
 	(3,6,"AdwPreferencesRow","title","Polling Interval",None,None,None,None,None,None,None,None,None),
-	(3,7,"GtkSpinButton","adjustment","13",None,None,None,None,None,None,None,None,None),
+	(3,7,"GtkSpinButton","adjustment","8",None,None,None,None,None,None,None,None,None),
 	(3,7,"GtkWidget","margin-bottom","12",None,None,None,None,None,None,None,None,None),
 	(3,7,"GtkWidget","margin-top","12",None,None,None,None,None,None,None,None,None),
 	(3,8,"GtkAdjustment","lower","0.5",None,None,None,None,None,None,None,None,None),

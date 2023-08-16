@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"tailscale.com/client/tailscale"
+	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/netcheck"
@@ -191,4 +192,10 @@ func (c *Client) NetCheck(ctx context.Context, full bool) (*netcheck.Report, *ta
 
 func (c *Client) PushFile(ctx context.Context, target tailcfg.StableNodeID, size int64, name string, r io.Reader) error {
 	return localClient.PushFile(ctx, target, size, name, r)
+}
+
+// WaitingFiles polls for any pending incoming files. It blocks for an
+// extended period of time.
+func (c *Client) WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
+	return localClient.AwaitWaitingFiles(ctx, 0)
 }

@@ -10,6 +10,14 @@
 				example, display the current Tailscale connection status.
 			</description>
 		</key>
+		<key name="polling-interval" type="d">
+			<default>5</default>
+			<summary>Interval at which to poll the Tailscale daemon</summary>
+			<description>
+				An interval, in seconds, at which to poll the Tailscale daemon
+				for status changes and other things.
+			</description>
+		</key>
 	</schema>
 </schemalist>
 

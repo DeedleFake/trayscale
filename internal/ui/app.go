@@ -1,28 +1,31 @@
-package main
+package ui
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"os"
+	"slices"
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/trayscale/internal/xslices"
-	"fyne.io/systray"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
-	"golang.org/x/exp/slog"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
 
-//go:generate go run deedles.dev/trayscale/cmd/gtkbuildergen -out ui.go mainwindow.ui peerpage.ui preferences.ui menu.ui
+const (
+	appID                 = "dev.deedles.Trayscale"
+	prefShowWindowAtStart = "showWindowAtStart"
+)
 
 // App is the main type for the app, containing all of the state
 // necessary to run it.
@@ -37,6 +40,7 @@ type App struct {
 	app      *adw.Application
 	win      *MainWindow
 	settings *gio.Settings
+	tray     *tray.Tray
 
 	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
@@ -50,6 +54,7 @@ func (a *App) showPreferences() {
 
 	win := NewPreferencesWindow()
 	a.settings.Bind("tray-icon", win.UseTrayIcon.Object, "active", gio.SettingsBindDefault)
+	a.settings.Bind("polling-interval", win.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
 	win.SetTransientFor(&a.win.Window)
 	win.Show()
 
@@ -74,6 +79,23 @@ func (a *App) showAbout() {
 	dialog.Show()
 
 	a.app.AddWindow(&dialog.Window.Window)
+}
+
+func (a *App) notify(status bool) {
+	body := "Tailscale is not connected."
+	if status {
+		body = "Tailscale is connected."
+	}
+
+	icon, iconerr := gio.NewIconForString(appID)
+
+	n := gio.NewNotification("Tailscale Status")
+	n.SetBody(body)
+	if iconerr == nil {
+		n.SetIcon(icon)
+	}
+
+	a.app.SendNotification("tailscale-status", n)
 }
 
 func (a *App) toast(msg string) *adw.Toast {
@@ -143,7 +165,7 @@ func (a *App) update(s tsutil.Status) {
 	if a.online != online {
 		a.online = online
 		a.notify(online) // TODO: Notify on startup if not connected?
-		systray.SetIcon(statusIcon(online))
+		a.tray.SetOnlineStatus(online)
 	}
 	if a.win == nil {
 		return
@@ -184,7 +206,8 @@ func (a *App) init(ctx context.Context) {
 }
 
 func (a *App) initSettings(ctx context.Context) {
-	if !slices.Contains(gio.SettingsListSchemas(), appID) {
+	nonreloc, reloc := gio.SettingsSchemaSourceGetDefault().ListSchemas(true)
+	if !slices.Contains(nonreloc, appID) && !slices.Contains(reloc, appID) {
 		goto init
 	}
 
@@ -193,17 +216,27 @@ func (a *App) initSettings(ctx context.Context) {
 		switch key {
 		case "tray-icon":
 			if a.settings.Boolean("tray-icon") {
-				go startSystray(func() { a.initTray(ctx) })
+				go tray.Start(func() { a.initTray(ctx) })
 				return
 			}
-			stopSystray()
+			tray.Stop()
+
+		case "polling-interval":
+			a.poller.SetInterval() <- a.getInterval()
 		}
 	})
 
 init:
 	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
-		go startSystray(func() { a.initTray(ctx) })
+		go tray.Start(func() { a.initTray(ctx) })
 	}
+}
+
+func (a *App) getInterval() time.Duration {
+	if a.settings == nil {
+		return 5 * time.Second
+	}
+	return time.Duration(a.settings.Double("polling-interval") * float64(time.Second))
 }
 
 func (a *App) startTS(ctx context.Context) error {
@@ -300,7 +333,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 
 	a.win.ConnectCloseRequest(func() bool {
-		maps.Clear(a.peerPages)
+		clear(a.peerPages)
 		a.win = nil
 		return false
 	})
@@ -309,24 +342,21 @@ func (a *App) onAppActivate(ctx context.Context) {
 }
 
 func (a *App) initTray(ctx context.Context) {
-	systray.SetIcon(statusIcon(a.online))
-	systray.SetTitle("Trayscale")
-
-	showWindow := systray.AddMenuItem("Show", "").ClickedCh
-	systray.AddSeparator()
-	quit := systray.AddMenuItem("Quit", "").ClickedCh
+	if a.tray == nil {
+		a.tray = tray.New(a.online)
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-showWindow:
+		case <-a.tray.ShowChan():
 			glib.IdleAdd(func() {
 				if a.app != nil {
 					a.app.Activate()
 				}
 			})
-		case <-quit:
+		case <-a.tray.QuitChan():
 			a.Quit()
 		}
 	}
@@ -334,7 +364,7 @@ func (a *App) initTray(ctx context.Context) {
 
 // Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
-	stopSystray()
+	tray.Stop()
 	a.app.Quit()
 }
 
@@ -354,8 +384,9 @@ func (a *App) Run(ctx context.Context) {
 	}
 
 	a.poller = &tsutil.Poller{
-		TS:  a.TS,
-		New: func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		TS:       a.TS,
+		Interval: a.getInterval(),
+		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
 
@@ -365,4 +396,22 @@ func (a *App) Run(ctx context.Context) {
 	}()
 
 	a.app.Run(os.Args)
+}
+
+type GStream interface {
+	Write(context.Context, []byte) (int, error)
+}
+
+type gwriter struct {
+	ctx context.Context
+	s   GStream
+}
+
+func NewGWriter(ctx context.Context, s GStream) io.Writer {
+	return gwriter{ctx, s}
+}
+
+func (w gwriter) Write(data []byte) (int, error) {
+	// TODO: Make this async and probably add a progress bar to the UI.
+	return w.s.Write(w.ctx, data)
 }

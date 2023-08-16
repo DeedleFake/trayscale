@@ -57,6 +57,8 @@ func (a *App) showPreferences() {
 	a.settings.Bind("control-plane-server", win.ControlServer.Object, "text", gio.SettingsBindGet)
 	win.SetTransientFor(&a.win.Window)
 	win.ConnectCloseRequest(func() bool {
+		// Anything that shouldn't update every time the value of the
+		// widget changes should cause an update here manually instead.
 		a.settings.SetString("control-plane-server", win.ControlServer.Text())
 		return false
 	})

@@ -62,6 +62,7 @@ type PeerPage struct {
 	TxBytesRow              *adw.ActionRow
 	TxBytes                 *gtk.Label
 	FilesGroup              *adw.PreferencesGroup
+	SendFileGroup           *adw.PreferencesGroup
 	SendFileRow             *adw.ActionRow
 	DropTarget              *gtk.DropTarget
 }

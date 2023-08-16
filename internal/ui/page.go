@@ -406,11 +406,11 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 		page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
 	}
 
-	page.container.FilesGroup.SetVisible(page.self && (len(status.Files) > 0))
 	if page.self {
 		page.fileRows.Update(status.Files)
 	}
-	page.container.SendFileRow.SetVisible(!page.self)
+	page.container.FilesGroup.SetVisible(page.self && (len(status.Files) > 0))
+	page.container.SendFileGroup.SetVisible(!page.self)
 
 	page.container.AdvertiseRouteButton.SetVisible(page.self)
 

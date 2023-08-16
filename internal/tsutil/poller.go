@@ -68,36 +68,6 @@ func (p *Poller) Run(ctx context.Context) {
 		interval = 5 * time.Second
 	}
 
-	// Terrible hack to work around the entire app freezing when there
-	// are no incoming files.
-	filesc := make(chan []apitype.WaitingFile, 1)
-	filetick := time.NewTicker(interval)
-	go func() {
-		defer filetick.Stop()
-
-		for {
-			files, err := p.client().WaitingFiles(ctx)
-			if err != nil {
-				if ctx.Err() != nil {
-					return
-				}
-				slog.Error("get waiting files", "err", err)
-				continue
-			}
-
-		send:
-			select {
-			case <-ctx.Done():
-				return
-			case <-filetick.C:
-				// Unfortunately, this means that files can be checked an
-				// entire interval before a poll happens.
-				goto send
-			case filesc <- files:
-			}
-		}
-	}()
-
 	check := time.NewTicker(interval)
 	defer check.Stop()
 
@@ -120,12 +90,13 @@ func (p *Poller) Run(ctx context.Context) {
 			continue
 		}
 
-		var files []apitype.WaitingFile
-		select {
-		case <-ctx.Done():
-			return
-		case files = <-filesc:
-		default:
+		files, err := p.client().WaitingFiles(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			slog.Error("get waiting files", "err", err)
+			continue
 		}
 
 		s := Status{Status: status, Prefs: prefs, Files: files}
@@ -142,10 +113,8 @@ func (p *Poller) Run(ctx context.Context) {
 		case <-check.C:
 		case <-p.poll:
 			check.Reset(interval)
-			filetick.Reset(interval)
 		case interval = <-p.interval:
 			check.Reset(interval)
-			filetick.Reset(interval)
 			goto send
 		case p.get <- s:
 			goto send // I've never used a goto before.

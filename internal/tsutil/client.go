@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"os/exec"
 	"strings"
+	"time"
 
 	"tailscale.com/client/tailscale"
 	"tailscale.com/client/tailscale/apitype"
@@ -205,5 +206,6 @@ func (c *Client) DeleteWaitingFile(ctx context.Context, name string) error {
 // WaitingFiles polls for any pending incoming files. It blocks for an
 // extended period of time.
 func (c *Client) WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
-	return localClient.AwaitWaitingFiles(ctx, 0)
+	// TODO: https://github.com/tailscale/tailscale/issues/8911
+	return localClient.AwaitWaitingFiles(ctx, time.Second)
 }

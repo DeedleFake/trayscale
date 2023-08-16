@@ -80,16 +80,10 @@
 	(3,7,"GtkSpinButton","PollingInterval",6,None,None,None,None,None),
 	(3,8,"GtkAdjustment","PollingIntervalAdjustment",None,None,None,None,None,None),
 	(3,10,"GtkSwitch","UseTrayIcon_2",9,None,None,None,None,None),
-	(3,11,"(external)","5",None,None,None,None,None,None),
 	(3,13,"GtkSwitch","UseTrayIcon_3",12,None,None,None,None,None),
-	(3,14,"(external)","8",None,None,None,None,None,None),
 	(3,15,"AdwPreferencesGroup",None,3,None,None,None,2,None),
 	(3,16,"AdwActionRow","ControlServerRow",15,None,None,None,None,None),
 	(3,19,"GtkSpinButton","PollingInterval_2",18,None,None,None,None,None),
-	(3,20,"(external)","10",None,None,None,None,None,None),
-	(3,21,"(external)","11",None,None,None,None,None,None),
-	(3,22,"(external)","13",None,None,None,None,None,None),
-	(3,23,"(external)","14",None,None,None,None,None,None),
 	(3,25,"GtkEntry","ControlServer",16,None,None,None,None,None)
   </object>
   <object_property>

@@ -3,6 +3,7 @@ package tsutil
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/netip"
 	"os/exec"
 	"strings"
@@ -186,4 +187,8 @@ func (c *Client) NetCheck(ctx context.Context, full bool) (*netcheck.Report, *ta
 	}
 
 	return r, dm, nil
+}
+
+func (c *Client) PushFile(ctx context.Context, target tailcfg.StableNodeID, size int64, name string, r io.Reader) error {
+	return localClient.PushFile(ctx, target, size, name, r)
 }

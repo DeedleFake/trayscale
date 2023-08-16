@@ -16,6 +16,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn/ipnstate"
 )
 
@@ -28,6 +29,7 @@ type peerPage struct {
 
 	addrRows  rowManager[netip.Addr]
 	routeRows rowManager[enum[netip.Prefix]]
+	fileRows  rowManager[apitype.WaitingFile]
 }
 
 func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peerPage {
@@ -138,6 +140,30 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		})
 
 		return &row
+	}
+
+	if page.self {
+		page.fileRows.Parent = page.container.FilesGroup
+		page.fileRows.New = func(file apitype.WaitingFile) row[apitype.WaitingFile] {
+			row := fileRow{
+				file: file,
+
+				w: adw.NewActionRow(),
+				c: gtk.NewButtonFromIconName("document-save-symbolic"),
+			}
+
+			row.w.SetObjectProperty("title-selectable", true)
+			row.w.AddSuffix(row.c)
+			row.w.SetTitle(file.Name)
+
+			row.c.SetMarginTop(12)
+			row.c.SetMarginBottom(12)
+			row.c.SetHasFrame(false)
+			row.c.SetTooltipText("Save")
+			row.c.ConnectClicked(func() {})
+
+			return &row
+		}
 	}
 
 	page.container.ExitNodeSwitch.ConnectStateSet(func(s bool) bool {
@@ -320,7 +346,10 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 		page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
 	}
 
-	page.container.FilesGroup.SetVisible(page.self)
+	page.container.FilesGroup.SetVisible(page.self && len(status.Files) > 0)
+	if page.self {
+		page.fileRows.Update(status.Files)
+	}
 	page.container.SendFileRow.SetVisible(!page.self)
 
 	page.container.AdvertiseRouteButton.SetVisible(page.self)
@@ -400,5 +429,21 @@ func (row *routeRow) Update(route enum[netip.Prefix]) {
 }
 
 func (row *routeRow) Widget() gtk.Widgetter {
+	return row.w
+}
+
+type fileRow struct {
+	file apitype.WaitingFile
+
+	w *adw.ActionRow
+	c *gtk.Button
+}
+
+func (row *fileRow) Update(file apitype.WaitingFile) {
+	row.file = file
+	row.w.SetTitle(file.Name)
+}
+
+func (row *fileRow) Widget() gtk.Widgetter {
 	return row.w
 }

@@ -237,6 +237,7 @@ func (a *App) initSettings(ctx context.Context) {
 				slog.Error("update control plane server URL", "err", err, "url", url)
 				return
 			}
+			a.poller.Poll() <- struct{}{}
 		}
 	})
 

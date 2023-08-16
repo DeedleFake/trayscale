@@ -175,25 +175,17 @@ func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
 // the daemon. If controlURL is empty, the default Tailscale server is
 // used.
 func (c *Client) SetControlURL(ctx context.Context, controlURL string) error {
-	prefs := ipn.Prefs{
-		ControlURL: controlURL,
+	prefs, err := c.Prefs(ctx)
+	if err != nil {
+		return fmt.Errorf("get prefs: %w", err)
 	}
+	prefs.ControlURL = controlURL
 
-	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-		Prefs:         prefs,
-		ControlURLSet: true,
+	err = localClient.Start(ctx, ipn.Options{
+		UpdatePrefs: prefs,
 	})
 	if err != nil {
-		return fmt.Errorf("edit prefs: %w", err)
-	}
-
-	err = c.Stop(ctx)
-	if err != nil {
-		return fmt.Errorf("stop client: %w", err)
-	}
-	err = c.Start(ctx)
-	if err != nil {
-		return fmt.Errorf("start client: %w", err)
+		return fmt.Errorf("start local client: %w", err)
 	}
 
 	return nil

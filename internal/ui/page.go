@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"net/netip"
 	"slices"
@@ -45,30 +44,14 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	sendFileAction := gio.NewSimpleAction("sendfile", nil)
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
 		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionOpen, "", "")
+		fc.SetSelectMultiple(true)
 		fc.ConnectResponse(func(id int) {
 			switch gtk.ResponseType(id) {
 			case gtk.ResponseAccept:
-				file := fc.File()
-				slog := slog.With("path", file.Path())
-
-				s, err := file.Read(context.TODO())
-				if err != nil {
-					slog.Error("open file", "err", err)
-					return
-				}
-				defer s.Close(context.TODO())
-
-				info, err := s.QueryInfo(context.TODO(), gio.FILE_ATTRIBUTE_STANDARD_SIZE)
-				if err != nil {
-					slog.Error("query file info", "err", err)
-					return
-				}
-
-				r := NewGReader(context.TODO(), s)
-				err = a.TS.PushFile(context.TODO(), peer.ID, info.Size(), file.Basename(), r)
-				if err != nil {
-					slog.Error("push file", "err", err)
-					return
+				files := fc.Files()
+				for i := uint(0); i < files.NItems(); i++ {
+					file := files.Item(i).Cast().(*gio.File)
+					go a.pushFile(context.TODO(), peer.ID, file)
 				}
 			}
 		})
@@ -162,39 +145,11 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			row.s.SetTooltipText("Save")
 			row.s.ConnectClicked(func() {
 				fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionSave, "", "")
+				fc.SetCurrentName(row.file.Name)
 				fc.ConnectResponse(func(id int) {
 					switch gtk.ResponseType(id) {
 					case gtk.ResponseAccept:
-						file := fc.File()
-						slog := slog.With("path", file.Path(), "filename", row.file.Name)
-
-						r, size, err := a.TS.GetWaitingFile(context.TODO(), row.file.Name)
-						if err != nil {
-							slog.Error("get file", "err", err)
-							return
-						}
-						defer r.Close()
-
-						s, err := file.Replace(context.TODO(), "", false, gio.FileCreateNone)
-						if err != nil {
-							slog.Error("create file", "err", err)
-							return
-						}
-
-						w := NewGWriter(context.TODO(), s)
-						_, err = io.CopyN(w, r, size)
-						if err != nil {
-							slog.Error("write file", "err", err)
-							return
-						}
-
-						err = a.TS.DeleteWaitingFile(context.TODO(), row.file.Name)
-						if err != nil {
-							slog.Error("delete file", "err", err)
-							return
-						}
-
-						a.poller.Poll() <- struct{}{}
+						go a.saveFile(context.TODO(), row.file.Name, fc.File())
 					}
 				})
 				fc.Show()

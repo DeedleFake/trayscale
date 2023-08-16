@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/netip"
 	"slices"
@@ -43,8 +44,6 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 
 	sendFileAction := gio.NewSimpleAction("sendfile", nil)
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
-		slog.Info("send file", "peer", peer.ID)
-
 		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionOpen, "", "")
 		fc.ConnectResponse(func(id int) {
 			switch gtk.ResponseType(id) {
@@ -149,18 +148,79 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 				file: file,
 
 				w: adw.NewActionRow(),
-				c: gtk.NewButtonFromIconName("document-save-symbolic"),
+				s: gtk.NewButtonFromIconName("document-save-symbolic"),
+				d: gtk.NewButtonFromIconName("edit-delete-symbolic"),
 			}
 
-			row.w.SetObjectProperty("title-selectable", true)
-			row.w.AddSuffix(row.c)
+			row.w.AddSuffix(row.s)
+			row.w.AddSuffix(row.d)
 			row.w.SetTitle(file.Name)
 
-			row.c.SetMarginTop(12)
-			row.c.SetMarginBottom(12)
-			row.c.SetHasFrame(false)
-			row.c.SetTooltipText("Save")
-			row.c.ConnectClicked(func() {})
+			row.s.SetMarginTop(12)
+			row.s.SetMarginBottom(12)
+			row.s.SetHasFrame(false)
+			row.s.SetTooltipText("Save")
+			row.s.ConnectClicked(func() {
+				fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionSave, "", "")
+				fc.ConnectResponse(func(id int) {
+					switch gtk.ResponseType(id) {
+					case gtk.ResponseAccept:
+						file := fc.File()
+						slog := slog.With("path", file.Path(), "filename", row.file.Name)
+
+						r, size, err := a.TS.GetWaitingFile(context.TODO(), row.file.Name)
+						if err != nil {
+							slog.Error("get file", "err", err)
+							return
+						}
+						defer r.Close()
+
+						s, err := file.Replace(context.TODO(), "", false, gio.FileCreateNone)
+						if err != nil {
+							slog.Error("create file", "err", err)
+							return
+						}
+
+						w := NewGWriter(context.TODO(), s)
+						_, err = io.CopyN(w, r, size)
+						if err != nil {
+							slog.Error("write file", "err", err)
+							return
+						}
+
+						err = a.TS.DeleteWaitingFile(context.TODO(), row.file.Name)
+						if err != nil {
+							slog.Error("delete file", "err", err)
+							return
+						}
+
+						a.poller.Poll() <- struct{}{}
+					}
+				})
+				fc.Show()
+			})
+
+			row.d.SetMarginTop(12)
+			row.d.SetMarginBottom(12)
+			row.d.SetHasFrame(false)
+			row.d.SetTooltipText("Delete")
+			row.d.ConnectClicked(func() {
+				Confirmation{
+					Heading: "Delete file?",
+					Body:    "If you delete this file, you will no longer be able to save it.",
+					Accept:  "_Delete",
+					Reject:  "_Cancel",
+				}.Show(a, func(accept bool) {
+					if accept {
+						err := a.TS.DeleteWaitingFile(context.TODO(), row.file.Name)
+						if err != nil {
+							slog.Error("delete file", "err", err)
+							return
+						}
+						a.poller.Poll() <- struct{}{}
+					}
+				})
+			})
 
 			return &row
 		}
@@ -436,7 +496,8 @@ type fileRow struct {
 	file apitype.WaitingFile
 
 	w *adw.ActionRow
-	c *gtk.Button
+	s *gtk.Button
+	d *gtk.Button
 }
 
 func (row *fileRow) Update(file apitype.WaitingFile) {

@@ -194,6 +194,14 @@ func (c *Client) PushFile(ctx context.Context, target tailcfg.StableNodeID, size
 	return localClient.PushFile(ctx, target, size, name, r)
 }
 
+func (c *Client) GetWaitingFile(ctx context.Context, name string) (io.ReadCloser, int64, error) {
+	return localClient.GetWaitingFile(ctx, name)
+}
+
+func (c *Client) DeleteWaitingFile(ctx context.Context, name string) error {
+	return localClient.DeleteWaitingFile(ctx, name)
+}
+
 // WaitingFiles polls for any pending incoming files. It blocks for an
 // extended period of time.
 func (c *Client) WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {

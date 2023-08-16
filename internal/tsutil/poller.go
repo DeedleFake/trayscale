@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"deedles.dev/mk"
+	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 )
@@ -89,7 +90,16 @@ func (p *Poller) Run(ctx context.Context) {
 			continue
 		}
 
-		s := Status{Status: status, Prefs: prefs}
+		files, err := p.client().WaitingFiles(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			slog.Error("get waiting files", "err", err)
+			continue
+		}
+
+		s := Status{Status: status, Prefs: prefs, Files: files}
 		if p.New != nil {
 			// TODO: Only call this if the status changed from the previous
 			// poll? Is that remotely feasible?
@@ -149,6 +159,7 @@ func (p *Poller) SetInterval() chan<- time.Duration {
 type Status struct {
 	Status *ipnstate.Status
 	Prefs  *ipn.Prefs
+	Files  []apitype.WaitingFile
 }
 
 // Online returns true if s indicates that the local node is online

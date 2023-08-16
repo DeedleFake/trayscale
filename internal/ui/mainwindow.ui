@@ -54,9 +54,6 @@
                 <child>
                   <object class="AdwHeaderBar">
                     <property name="show-start-title-buttons">False</property>
-                    <child type="title">
-                      <object class="GtkBox"/>
-                    </child>
                     <child type="start">
                       <object class="GtkButton" id="BackButton">
                         <property name="has-frame">False</property>
@@ -66,6 +63,9 @@
                           <lookup name="folded">Leaflet</lookup>
                         </binding>
                       </object>
+                    </child>
+                    <child type="end">
+                      <object class="GtkSpinner" id="WorkSpinner"/>
                     </child>
                     <!-- Custom fragments -->
                     <binding name="show-start-title-buttons">

@@ -3,11 +3,14 @@ package tsutil
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/netip"
 	"os/exec"
 	"strings"
+	"time"
 
 	"tailscale.com/client/tailscale"
+	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/netcheck"
@@ -206,4 +209,23 @@ func (c *Client) NetCheck(ctx context.Context, full bool) (*netcheck.Report, *ta
 	}
 
 	return r, dm, nil
+}
+
+func (c *Client) PushFile(ctx context.Context, target tailcfg.StableNodeID, size int64, name string, r io.Reader) error {
+	return localClient.PushFile(ctx, target, size, name, r)
+}
+
+func (c *Client) GetWaitingFile(ctx context.Context, name string) (io.ReadCloser, int64, error) {
+	return localClient.GetWaitingFile(ctx, name)
+}
+
+func (c *Client) DeleteWaitingFile(ctx context.Context, name string) error {
+	return localClient.DeleteWaitingFile(ctx, name)
+}
+
+// WaitingFiles polls for any pending incoming files. It blocks for an
+// extended period of time.
+func (c *Client) WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
+	// TODO: https://github.com/tailscale/tailscale/issues/8911
+	return localClient.AwaitWaitingFiles(ctx, time.Second)
 }

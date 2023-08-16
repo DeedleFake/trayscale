@@ -45,6 +45,7 @@
 			<description>
 				<ul>
 					<li>Add Taildrop support.</li>
+					<li>Add support for custom control plane servers.</li>
 					<li>Add preference for the polling interval.</li>
 					<li>Update to Tailscale v1.48.0.</li>
 					<li>Clean up UI code.</li>

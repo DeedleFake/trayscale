@@ -17,6 +17,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
@@ -44,21 +45,6 @@ type App struct {
 	statusPage *adw.StatusPage
 	peerPages  map[key.NodePublic]*peerPage
 	spinnum    int
-}
-
-func (a *App) showPreferences() {
-	if a.settings == nil {
-		a.toast("Settings schema not found")
-		return
-	}
-
-	win := NewPreferencesWindow()
-	a.settings.Bind("tray-icon", win.UseTrayIcon.Object, "active", gio.SettingsBindDefault)
-	a.settings.Bind("polling-interval", win.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
-	win.SetTransientFor(&a.win.Window)
-	win.Show()
-
-	a.app.AddWindow(&win.Window.Window)
 }
 
 // showAbout shows the app's about dialog.
@@ -188,6 +174,16 @@ func (a *App) update(s tsutil.Status) {
 	a.win.StatusSwitch.SetState(online)
 	a.win.StatusSwitch.SetActive(online)
 	a.updatePeers(s)
+
+	if a.settings != nil {
+		controlURL := a.settings.String("control-plane-server")
+		if controlURL == "" {
+			controlURL = ipn.DefaultControlURL
+		}
+		if controlURL != s.Prefs.ControlURL {
+			a.settings.SetString("control-plane-server", s.Prefs.ControlURL)
+		}
+	}
 }
 
 func (a *App) init(ctx context.Context) {
@@ -217,40 +213,6 @@ func (a *App) init(ctx context.Context) {
 	})
 
 	a.initSettings(ctx)
-}
-
-func (a *App) initSettings(ctx context.Context) {
-	nonreloc, reloc := gio.SettingsSchemaSourceGetDefault().ListSchemas(true)
-	if !slices.Contains(nonreloc, appID) && !slices.Contains(reloc, appID) {
-		goto init
-	}
-
-	a.settings = gio.NewSettings(appID)
-	a.settings.ConnectChanged(func(key string) {
-		switch key {
-		case "tray-icon":
-			if a.settings.Boolean("tray-icon") {
-				go tray.Start(func() { a.initTray(ctx) })
-				return
-			}
-			tray.Stop()
-
-		case "polling-interval":
-			a.poller.SetInterval() <- a.getInterval()
-		}
-	})
-
-init:
-	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
-		go tray.Start(func() { a.initTray(ctx) })
-	}
-}
-
-func (a *App) getInterval() time.Duration {
-	if a.settings == nil {
-		return 5 * time.Second
-	}
-	return time.Duration(a.settings.Double("polling-interval") * float64(time.Second))
 }
 
 func (a *App) startTS(ctx context.Context) error {

@@ -11,7 +11,6 @@
             <property name="title">General</property>
             <child>
               <object class="AdwActionRow" id="UseTrayIconRow">
-                <property name="activatable-widget">UseTrayIcon</property>
                 <property name="subtitle">If enabled, an icon will be added to the system tray</property>
                 <property name="title">Use Tray Icon</property>
                 <child>
@@ -33,6 +32,17 @@
                     <property name="margin-top">12</property>
                   </object>
                 </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">Advanced</property>
+            <child>
+              <object class="AdwEntryRow" id="ControlURLRow">
+                <property name="show-apply-button">True</property>
+                <property name="title">Control Server URL</property>
               </object>
             </child>
           </object>

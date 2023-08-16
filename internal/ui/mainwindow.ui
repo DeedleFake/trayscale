@@ -54,9 +54,6 @@
                 <child>
                   <object class="AdwHeaderBar">
                     <property name="show-start-title-buttons">False</property>
-                    <child type="title">
-                      <object class="GtkBox"/>
-                    </child>
                     <child type="start">
                       <object class="GtkButton" id="BackButton">
                         <property name="has-frame">False</property>

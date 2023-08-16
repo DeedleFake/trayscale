@@ -16,7 +16,6 @@
 	(1,9,"AdwHeaderBar",None,8,None,None,None,1,"&lt;binding name=\"show-start-title-buttons\"&gt;\n	&lt;lookup name=\"folded\"&gt;Leaflet&lt;/lookup&gt;\n&lt;/binding&gt;"),
 	(1,10,"GtkMenuButton","MainMenuButton",7,None,"end",None,1,"&lt;property name=\"menu-model\"&gt;MainMenu&lt;/property&gt;"),
 	(1,11,"GtkStackSidebar",None,6,None,None,None,1,None),
-	(1,15,"GtkBox",None,9,None,"title",None,None,None),
 	(1,16,"GtkStack","PeersStack",8,None,None,None,2,None),
 	(1,17,"GtkSwitch","StatusSwitch",7,None,"start",None,None,None),
 	(1,18,"GtkButton","BackButton",9,None,"start",None,None,"&lt;binding name=\"visible\"&gt;\n	&lt;lookup name=\"folded\"&gt;Leaflet&lt;/lookup&gt;\n&lt;/binding&gt;"),

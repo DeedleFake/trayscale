@@ -11,7 +11,7 @@
 			Trayscale is an unofficial GUI wrapper around the Tailscale CLI client, particularly for use on Linux, as no official Linux GUI client exists. It provides a basic system tray icon and a fairly comprehensive UI with support for many of Trayscale's features.
 		</p>
 		<p>
-			Trayscale interfaces with the Tailscale daemon, <code>tailscaled</code>, to perform many of its operations. In order for this to work, the daemon must have been configured with the current user as the &quot;operator&quot;. To do this, run <code>sudo tailscale up --operator=$USER</code> from the command-line at least once manually.
+			Trayscale interfaces with the Tailscale daemon, <code>tailscaled</code>, to perform many of its operations. In order for this to work, the daemon must have been configured with the current user as the &quot;operator&quot;. To do this, run <code>sudo tailscale set --operator=$USER</code> from the command-line at least once manually.
 		</p>
 	</description>
 
@@ -41,6 +41,15 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.10.2" date="2023-08-21">
+			<description>
+				<ul>
+					<li>Add drag and drop support for file transfers.</li>
+					<li>Warn the user when starting if they are not the Tailscale operator.</li>
+					<li>Fix a bug with polling if Taildrop is disabled for the network.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.10.1" date="2023-08-16">
 			<description>
 				<ul>

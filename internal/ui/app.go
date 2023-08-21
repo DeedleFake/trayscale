@@ -42,9 +42,10 @@ type App struct {
 	settings *gio.Settings
 	tray     *tray.Tray
 
-	statusPage *adw.StatusPage
-	peerPages  map[key.NodePublic]*peerPage
-	spinnum    int
+	statusPage    *adw.StatusPage
+	peerPages     map[key.NodePublic]*peerPage
+	spinnum       int
+	operatorCheck bool
 }
 
 // showAbout shows the app's about dialog.
@@ -182,6 +183,16 @@ func (a *App) update(s tsutil.Status) {
 		}
 		if controlURL != s.Prefs.ControlURL {
 			a.settings.SetString("control-plane-server", s.Prefs.ControlURL)
+		}
+	}
+
+	if a.online && !a.operatorCheck {
+		a.operatorCheck = true
+		if !s.OperatorIsCurrent() {
+			Info{
+				Heading: "User is not Tailscale Operator",
+				Body:    "Some functionality may not work as expected. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
+			}.Show(a)
 		}
 	}
 }

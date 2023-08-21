@@ -56,3 +56,17 @@ func (d Prompt) Show(a *App, res func(val string)) {
 
 	dialog.Show()
 }
+
+type Info struct {
+	Heading string
+	Body    string
+}
+
+func (d Info) Show(a *App) {
+	dialog := adw.NewMessageDialog(&a.win.Window, d.Heading, d.Body)
+	dialog.SetBodyUseMarkup(true)
+	dialog.AddResponse("close", "_Close")
+	dialog.SetDefaultResponse("close")
+
+	dialog.Show()
+}

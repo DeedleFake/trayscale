@@ -179,5 +179,5 @@ func (s Status) OperatorIsCurrent() bool {
 		return false
 	}
 
-	return s.Prefs.OperatorUser == current.Name
+	return s.Prefs.OperatorUser == current.Username
 }

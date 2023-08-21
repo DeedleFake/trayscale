@@ -3,6 +3,7 @@ package tsutil
 import (
 	"context"
 	"log/slog"
+	"os/user"
 	"sync"
 	"time"
 
@@ -169,4 +170,14 @@ func (s Status) Online() bool {
 
 func (s Status) NeedsAuth() bool {
 	return (s.Status != nil) && (s.Status.BackendState == ipn.NeedsLogin.String())
+}
+
+func (s Status) OperatorIsCurrent() bool {
+	current, err := user.Current()
+	if err != nil {
+		slog.Error("get current user", "err", err)
+		return false
+	}
+
+	return s.Prefs.OperatorUser == current.Name
 }

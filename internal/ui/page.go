@@ -13,6 +13,7 @@ import (
 	"deedles.dev/trayscale/internal/xmaps"
 	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -138,13 +139,15 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 			row := fileRow{
 				file: file,
 
-				w: adw.NewActionRow(),
-				s: gtk.NewButtonFromIconName("document-save-symbolic"),
-				d: gtk.NewButtonFromIconName("edit-delete-symbolic"),
+				w:  adw.NewActionRow(),
+				s:  gtk.NewButtonFromIconName("document-save-symbolic"),
+				d:  gtk.NewButtonFromIconName("edit-delete-symbolic"),
+				ds: gtk.NewDragSource(),
 			}
 
 			row.w.AddSuffix(row.s)
 			row.w.AddSuffix(row.d)
+			row.w.AddController(row.ds)
 			row.w.SetTitle(file.Name)
 			row.w.SetSubtitle(bytesize.ByteSize(file.Size).String())
 
@@ -185,6 +188,11 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 						a.poller.Poll() <- struct{}{}
 					}
 				})
+			})
+
+			row.ds.SetActions(gdk.ActionMove)
+			row.ds.ConnectPrepare(func(x, y float64) *gdk.ContentProvider {
+				return gdk.NewContentProviderForValue(glib.NewValue(gio.NewFileForPath(row.file.Name)))
 			})
 
 			return &row
@@ -460,9 +468,10 @@ func (row *routeRow) Widget() gtk.Widgetter {
 type fileRow struct {
 	file apitype.WaitingFile
 
-	w *adw.ActionRow
-	s *gtk.Button
-	d *gtk.Button
+	w  *adw.ActionRow
+	s  *gtk.Button
+	d  *gtk.Button
+	ds *gtk.DragSource
 }
 
 func (row *fileRow) Update(file apitype.WaitingFile) {

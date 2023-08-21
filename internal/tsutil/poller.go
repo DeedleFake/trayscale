@@ -3,6 +3,7 @@ package tsutil
 import (
 	"context"
 	"log/slog"
+	"os/user"
 	"sync"
 	"time"
 
@@ -96,7 +97,6 @@ func (p *Poller) Run(ctx context.Context) {
 				return
 			}
 			slog.Error("get waiting files", "err", err)
-			continue
 		}
 
 		s := Status{Status: status, Prefs: prefs, Files: files}
@@ -170,4 +170,14 @@ func (s Status) Online() bool {
 
 func (s Status) NeedsAuth() bool {
 	return (s.Status != nil) && (s.Status.BackendState == ipn.NeedsLogin.String())
+}
+
+func (s Status) OperatorIsCurrent() bool {
+	current, err := user.Current()
+	if err != nil {
+		slog.Error("get current user", "err", err)
+		return false
+	}
+
+	return s.Prefs.OperatorUser == current.Username
 }

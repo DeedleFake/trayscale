@@ -29,7 +29,7 @@ func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file *g
 		return
 	}
 
-	r := NewGReader(ctx, s)
+	r := greader{ctx, s}
 	err = a.TS.PushFile(ctx, peerID, info.Size(), file.Basename(), r)
 	if err != nil {
 		slog.Error("push file", "err", err)
@@ -59,7 +59,7 @@ func (a *App) saveFile(ctx context.Context, name string, file *gio.File) {
 		return
 	}
 
-	w := NewGWriter(ctx, s)
+	w := gwriter{ctx, s}
 	_, err = io.CopyN(w, r, size)
 	if err != nil {
 		slog.Error("write file", "err", err)
@@ -85,10 +85,6 @@ type gwriter struct {
 	s   GOutputStream
 }
 
-func NewGWriter(ctx context.Context, s GOutputStream) io.Writer {
-	return gwriter{ctx, s}
-}
-
 func (w gwriter) Write(data []byte) (int, error) {
 	return w.s.Write(w.ctx, data)
 }
@@ -100,10 +96,6 @@ type GInputStream interface {
 type greader struct {
 	ctx context.Context
 	s   GInputStream
-}
-
-func NewGReader(ctx context.Context, s GInputStream) io.Reader {
-	return greader{ctx, s}
 }
 
 func (r greader) Read(buf []byte) (int, error) {

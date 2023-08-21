@@ -61,14 +61,20 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	})
 	actions.AddAction(sendFileAction)
 
-	// TODO: https://github.com/diamondburned/gotk4/issues/107
-	//if !page.self {
-	//	page.container.AddController(page.container.DropTarget)
-	//	page.container.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
-	//	page.container.DropTarget.ConnectDrop(func(val glib.Value, x, y float64) bool {
-	//		return true
-	//	})
-	//}
+	if !page.self {
+		page.container.AddController(page.container.DropTarget)
+		page.container.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
+		// BUG: ConnectDrop() doesn't work. See
+		// https://github.com/diamondburned/gotk4/issues/107#issuecomment-1685377125
+		page.container.DropTarget.Connect("drop", func(val *glib.Value, x, y float64) bool {
+			file, ok := val.Object().Cast().(*gio.File)
+			if !ok {
+				return true
+			}
+			go a.pushFile(context.TODO(), peer.ID, file)
+			return true
+		})
+	}
 
 	page.addrRows.Parent = page.container.IPGroup
 	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {

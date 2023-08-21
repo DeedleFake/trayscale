@@ -9,7 +9,7 @@ require (
 	github.com/diamondburned/gotk4/pkg v0.0.5
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	golang.org/x/net v0.14.0
-	honnef.co/go/tools v0.4.3
+	honnef.co/go/tools v0.4.5
 	tailscale.com v1.48.0
 )
 
@@ -28,7 +28,7 @@ require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.1.0 // indirect
 	github.com/josharian/native v1.1.1-0.20230202152459-5c7d0dd6ab86 // indirect
-	github.com/jsimonetti/rtnetlink v1.3.4 // indirect
+	github.com/jsimonetti/rtnetlink v1.3.5 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/mdlayher/netlink v1.7.2 // indirect
 	github.com/mdlayher/socket v0.4.1 // indirect
@@ -44,14 +44,14 @@ require (
 	go4.org/netipx v0.0.0-20230728184502-ec4c8b891b28 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
-	golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb // indirect
-	golang.org/x/exp/typeparams v0.0.0-20230811145659-89c5cff77bcb // indirect
+	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20230817173708-d852ddb80c63 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.11.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.12.0 // indirect
+	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )

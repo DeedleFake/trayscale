@@ -12,7 +12,7 @@ _Disclaimer: This project is in an alpha state. If it bricks your machine, it's 
 Tailscale Config
 ----------------
 
-Trayscale makes calls to the Tailscale CLI for some operations. In order for this to work, the `tailscale` command must be in your `$PATH`. Additionally, the daemon must have been configured with the current user as the "operator". To do this, run `sudo tailscale up --operator=$USER` from the command-line at least once manually.
+Trayscale makes calls to the Tailscale CLI for some operations. In order for this to work, the `tailscale` command must be in your `$PATH`. Additionally, the daemon must have been configured with the current user as the "operator". To do this, run `sudo tailscale set --operator=$USER` from the command-line at least once manually.
 
 Installation
 ------------

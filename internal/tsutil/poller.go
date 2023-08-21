@@ -96,7 +96,6 @@ func (p *Poller) Run(ctx context.Context) {
 				return
 			}
 			slog.Error("get waiting files", "err", err)
-			continue
 		}
 
 		s := Status{Status: status, Prefs: prefs, Files: files}

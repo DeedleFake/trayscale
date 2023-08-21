@@ -192,7 +192,7 @@ func (a *App) update(s tsutil.Status) {
 			Info{
 				Heading: "User is not Tailscale Operator",
 				Body:    "Some functionality may not work as expected. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
-			}.Show(a)
+			}.Show(a, nil)
 		}
 	}
 }

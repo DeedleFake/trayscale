@@ -11,7 +11,7 @@ import (
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
-	"deedles.dev/trayscale/internal/xslices"
+	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -125,7 +125,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 		peerMap[status.Status.Self.PublicKey] = status.Status.Self
 	}
 
-	oldPeers, newPeers := xslices.Partition(peers, func(peer key.NodePublic) bool {
+	oldPeers, newPeers := xiter.Partition(xiter.Slice(peers), func(peer key.NodePublic) bool {
 		_, ok := a.peerPages[peer]
 		return ok
 	})

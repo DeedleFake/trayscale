@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"net/netip"
@@ -10,7 +11,7 @@ import (
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xcmp"
-	"deedles.dev/trayscale/internal/xmaps"
+	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -282,7 +283,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		})
 	})
 
-	type latencyEntry = xmaps.Entry[string, time.Duration]
+	type latencyEntry = xiter.MapEntry[string, time.Duration]
 	latencyRows := rowManager[latencyEntry]{
 		Parent: rowAdderParent{page.container.DERPLatencies},
 		New: func(lat latencyEntry) row[latencyEntry] {
@@ -334,16 +335,17 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		page.container.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
 
 		page.container.DERPLatencies.SetVisible(true)
-		latencies := xmaps.Entries(r.RegionLatency)
-		slices.SortFunc(latencies, func(e1, e2 xmaps.Entry[int, time.Duration]) int { return int(e1.Val - e2.Val) })
-		namedLats := make([]xmaps.Entry[string, time.Duration], 0, len(latencies))
-		for _, lat := range latencies {
-			namedLats = append(namedLats, xmaps.Entry[string, time.Duration]{
-				Key: dm.Regions[lat.Key].RegionName,
-				Val: lat.Val,
-			})
-		}
-		latencyRows.Update(namedLats)
+
+		type latency = xiter.MapEntry[int, time.Duration]
+		type namedLatency = xiter.MapEntry[string, time.Duration]
+		latencies := xiter.CollectSize(xiter.Map(xiter.MapEntries(r.RegionLatency),
+			func(lat latency) namedLatency {
+				return namedLatency{Key: dm.Regions[lat.Key].RegionName, Val: lat.Val}
+			}),
+			len(r.RegionLatency),
+		)
+		slices.SortFunc(latencies, func(e1, e2 namedLatency) int { return cmp.Compare(e1.Val, e2.Val) })
+		latencyRows.Update(latencies)
 	})
 
 	return &page
@@ -386,7 +388,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	}
 	page.routes = slices.DeleteFunc(page.routes, func(p netip.Prefix) bool { return p.Bits() == 0 })
 	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) int {
-		return xcmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())
+		return xcmp.Or(p1.Addr().Compare(p2.Addr()), cmp.Compare(p1.Bits(), p2.Bits()))
 	})
 	if len(page.routes) == 0 {
 		page.routes = append(page.routes, netip.Prefix{})

@@ -66,7 +66,7 @@ func (p *Poller) Run(ctx context.Context) {
 
 	interval := p.Interval
 	if interval < 0 {
-		interval = 5 * time.Second
+		interval = 5*time.Second
 	}
 
 	check := time.NewTicker(interval)
@@ -75,7 +75,7 @@ func (p *Poller) Run(ctx context.Context) {
 	for {
 		status, err := p.client().Status(ctx)
 		if err != nil {
-			if ctx.Err() != nil {
+			if context.Cause(ctx) != nil {
 				return
 			}
 			slog.Error("get Tailscale status", "err", err)
@@ -84,7 +84,7 @@ func (p *Poller) Run(ctx context.Context) {
 
 		prefs, err := p.client().Prefs(ctx)
 		if err != nil {
-			if ctx.Err() != nil {
+			if context.Cause(ctx) != nil {
 				return
 			}
 			slog.Error("get Tailscale prefs", "err", err)
@@ -93,7 +93,7 @@ func (p *Poller) Run(ctx context.Context) {
 
 		files, err := p.client().WaitingFiles(ctx)
 		if err != nil {
-			if ctx.Err() != nil {
+			if context.Cause(ctx) != nil {
 				return
 			}
 			slog.Error("get waiting files", "err", err)

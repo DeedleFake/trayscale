@@ -3,6 +3,7 @@ package ui
 import (
 	"slices"
 
+	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
@@ -28,10 +29,13 @@ func (m *rowManager[Data]) resize(size int) {
 	}
 }
 
-func (m *rowManager[Data]) Update(data []Data) {
-	m.resize(len(data))
+func (m *rowManager[Data]) Update(data xiter.Seq[Data], size int) {
+	if size > 0 {
+		m.resize(size)
+	}
 
-	for i, d := range data {
+	for i, d := range xiter.Enumerate(data) {
+		size = i
 		if i < len(m.rows) {
 			m.rows[i].Update(d)
 			continue
@@ -41,6 +45,7 @@ func (m *rowManager[Data]) Update(data []Data) {
 		m.Parent.Add(row.Widget())
 		m.rows = append(m.rows, row)
 	}
+	m.resize(size)
 }
 
 type rowManagerParent interface {

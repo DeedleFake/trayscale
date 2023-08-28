@@ -8,19 +8,13 @@ import (
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/tsutil"
+	"deedles.dev/xiter"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/opt"
 )
-
-type enum[T any] struct {
-	Index int
-	Val   T
-}
-
-func enumerate[T any](i int, v T) enum[T] {
-	return enum[T]{i, v}
-}
 
 func formatTime(t time.Time) string {
 	if t.IsZero() {
@@ -123,4 +117,15 @@ func newFromBuilder[T any](xml ...string) *T {
 	fillObjects(&t, builder)
 
 	return &t
+}
+
+func modelItems(model *gio.ListModel) xiter.Seq[*glib.Object] {
+	return func(yield func(*glib.Object) bool) bool {
+		for i := uint(0); i < model.NItems(); i++ {
+			if !yield(model.Item(i)) {
+				return false
+			}
+		}
+		return false
+	}
 }

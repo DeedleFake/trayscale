@@ -29,7 +29,7 @@ type peerPage struct {
 	routes []netip.Prefix
 
 	addrRows  rowManager[netip.Addr]
-	routeRows rowManager[enum[netip.Prefix]]
+	routeRows rowManager[xiter.Pair[int, netip.Prefix]]
 	fileRows  rowManager[apitype.WaitingFile]
 }
 
@@ -50,10 +50,8 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		fc.ConnectResponse(func(id int) {
 			switch gtk.ResponseType(id) {
 			case gtk.ResponseAccept:
-				files := fc.Files()
-				for i := uint(0); i < files.NItems(); i++ {
-					file := files.Item(i).Cast().(*gio.File)
-					go a.pushFile(context.TODO(), peer.ID, file)
+				for file := range modelItems(fc.Files()) {
+					go a.pushFile(context.TODO(), peer.ID, file.Cast().(*gio.File))
 				}
 			}
 		})
@@ -103,7 +101,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	}
 
 	page.routeRows.Parent = page.container.AdvertisedRoutesGroup
-	page.routeRows.New = func(route enum[netip.Prefix]) row[enum[netip.Prefix]] {
+	page.routeRows.New = func(route xiter.Pair[int, netip.Prefix]) row[xiter.Pair[int, netip.Prefix]] {
 		row := routeRow{
 			route: route,
 
@@ -113,14 +111,14 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 
 		row.w.SetObjectProperty("title-selectable", true)
 		row.w.AddSuffix(row.r)
-		row.w.SetTitle(route.Val.String())
+		row.w.SetTitle(route.V2.String())
 
 		row.r.SetMarginTop(12)
 		row.r.SetMarginBottom(12)
 		row.r.SetHasFrame(false)
 		row.r.SetTooltipText("Remove")
 		row.r.ConnectClicked(func() {
-			routes := slices.Delete(page.routes, row.route.Index, row.route.Index+1)
+			routes := slices.Delete(page.routes, row.route.V1, row.route.V1+1)
 			err := a.TS.AdvertiseRoutes(context.TODO(), routes)
 			if err != nil {
 				slog.Error("advertise routes", "err", err)
@@ -258,6 +256,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 
 	page.container.AdvertiseRouteButton.ConnectClicked(func() {
 		Prompt{"Add IP", "IP prefix to advertise"}.Show(a, func(val string) {
+			slog.Info("add route", "route", val)
 			p, err := netip.ParsePrefix(val)
 			if err != nil {
 				slog.Error("parse prefix", "err", err)
@@ -283,21 +282,21 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		})
 	})
 
-	type latencyEntry = xiter.MapEntry[string, time.Duration]
+	type latencyEntry = xiter.Pair[string, time.Duration]
 	latencyRows := rowManager[latencyEntry]{
 		Parent: rowAdderParent{page.container.DERPLatencies},
 		New: func(lat latencyEntry) row[latencyEntry] {
-			label := gtk.NewLabel(lat.Val.String())
+			label := gtk.NewLabel(lat.V2.String())
 
 			row := adw.NewActionRow()
-			row.SetTitle(lat.Key)
+			row.SetTitle(lat.V1)
 			row.AddSuffix(label)
 
 			return &simpleRow[latencyEntry]{
 				W: row,
 				U: func(lat latencyEntry) {
-					label.SetText(lat.Val.String())
-					row.SetTitle(lat.Key)
+					label.SetText(lat.V2.String())
+					row.SetTitle(lat.V1)
 				},
 			}
 		},
@@ -336,16 +335,16 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 
 		page.container.DERPLatencies.SetVisible(true)
 
-		type latency = xiter.MapEntry[int, time.Duration]
-		type namedLatency = xiter.MapEntry[string, time.Duration]
-		latencies := xiter.CollectSize(xiter.Map(xiter.MapEntries(r.RegionLatency),
+		type latency = xiter.Pair[int, time.Duration]
+		type namedLatency = xiter.Pair[string, time.Duration]
+		latencies := xiter.CollectSize(xiter.Map(xiter.ToPair(xiter.MapEntries(r.RegionLatency)),
 			func(lat latency) namedLatency {
-				return namedLatency{Key: dm.Regions[lat.Key].RegionName, Val: lat.Val}
+				return namedLatency{V1: dm.Regions[lat.V1].RegionName, V2: lat.V2}
 			}),
 			len(r.RegionLatency),
 		)
-		slices.SortFunc(latencies, func(e1, e2 namedLatency) int { return cmp.Compare(e1.Val, e2.Val) })
-		latencyRows.Update(latencies)
+		slices.SortFunc(latencies, func(e1, e2 namedLatency) int { return cmp.Compare(e1.V2, e2.V2) })
+		latencyRows.Update(xiter.Slice(latencies), len(latencies))
 	})
 
 	return &page
@@ -362,7 +361,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	page.container.SetDescription(peer.DNSName)
 
 	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
-	page.addrRows.Update(peer.TailscaleIPs)
+	page.addrRows.Update(xiter.Slice(peer.TailscaleIPs), len(peer.TailscaleIPs))
 
 	page.container.OptionsGroup.SetVisible(page.self)
 	if page.self {
@@ -373,7 +372,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	}
 
 	if page.self {
-		page.fileRows.Update(status.Files)
+		page.fileRows.Update(xiter.Slice(status.Files), len(status.Files))
 	}
 	page.container.FilesGroup.SetVisible(page.self && (len(status.Files) > 0))
 	page.container.SendFileGroup.SetVisible(!page.self)
@@ -393,14 +392,8 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	if len(page.routes) == 0 {
 		page.routes = append(page.routes, netip.Prefix{})
 	}
-	eroutes := make([]enum[netip.Prefix], 0, len(page.routes))
-	for i, r := range page.routes {
-		if !page.self {
-			i = -1
-		}
-		eroutes = append(eroutes, enumerate(i, r))
-	}
-	page.routeRows.Update(eroutes)
+	eroutes := xiter.ToPair(xiter.Enumerate(xiter.Slice(page.routes)))
+	page.routeRows.Update(eroutes, len(page.routes))
 
 	page.container.NetCheckGroup.SetVisible(page.self)
 
@@ -435,23 +428,23 @@ func (row *addrRow) Widget() gtk.Widgetter {
 }
 
 type routeRow struct {
-	route enum[netip.Prefix]
+	route xiter.Pair[int, netip.Prefix]
 
 	w *adw.ActionRow
 	r *gtk.Button
 }
 
-func (row *routeRow) Update(route enum[netip.Prefix]) {
+func (row *routeRow) Update(route xiter.Pair[int, netip.Prefix]) {
 	row.route = route
 
-	if !route.Val.IsValid() {
+	if !route.V2.IsValid() {
 		row.r.SetVisible(false)
 		row.w.SetTitle("No advertised routes.")
 		return
 	}
 
-	row.r.SetVisible(route.Index >= 0)
-	row.w.SetTitle(route.Val.String())
+	row.r.SetVisible(route.V1 >= 0)
+	row.w.SetTitle(route.V2.String())
 }
 
 func (row *routeRow) Widget() gtk.Widgetter {

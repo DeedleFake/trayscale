@@ -90,9 +90,8 @@ func fillObjects(dst any, builder *gtk.Builder) {
 	v := reflect.ValueOf(dst).Elem()
 	t := v.Type()
 
-	for i := 0; i < t.NumField(); i++ {
-		fv := v.Field(i)
-		ft := t.Field(i)
+	for ft := range structFields(t) {
+		fv := v.FieldByIndex(ft.Index)
 
 		name := ft.Name
 		if tag, ok := ft.Tag.Lookup("gtk"); ok {
@@ -123,6 +122,17 @@ func modelItems(model *gio.ListModel) xiter.Seq[*glib.Object] {
 	return func(yield func(*glib.Object) bool) bool {
 		for i := uint(0); i < model.NItems(); i++ {
 			if !yield(model.Item(i)) {
+				return false
+			}
+		}
+		return false
+	}
+}
+
+func structFields(t reflect.Type) xiter.Seq[reflect.StructField] {
+	return func(yield func(reflect.StructField) bool) bool {
+		for i := range t.NumField() {
+			if !yield(t.Field(i)) {
 				return false
 			}
 		}

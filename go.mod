@@ -11,7 +11,7 @@ require (
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	golang.org/x/net v0.14.0
 	honnef.co/go/tools v0.4.5
-	tailscale.com v1.48.0
+	tailscale.com v1.48.1
 )
 
 require (
@@ -42,7 +42,7 @@ require (
 	github.com/vishvananda/netns v0.0.4 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go4.org/mem v0.0.0-20220726221520-4f986261bf13 // indirect
-	go4.org/netipx v0.0.0-20230728184502-ec4c8b891b28 // indirect
+	go4.org/netipx v0.0.0-20230824141953-6213f710f925 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect

@@ -125,7 +125,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 		peerMap[status.Status.Self.PublicKey] = status.Status.Self
 	}
 
-	oldPeers, newPeers := xiter.Partition(xiter.Slice(peers), func(peer key.NodePublic) bool {
+	oldPeers, newPeers := xiter.Partition(xiter.OfSlice(peers), func(peer key.NodePublic) bool {
 		_, ok := a.peerPages[peer]
 		return ok
 	})

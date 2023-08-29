@@ -337,14 +337,14 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 
 		type latency = xiter.Pair[int, time.Duration]
 		type namedLatency = xiter.Pair[string, time.Duration]
-		latencies := xiter.CollectSize(xiter.Map(xiter.ToPair(xiter.MapEntries(r.RegionLatency)),
+		latencies := xiter.CollectSize(xiter.Map(xiter.ToPair(xiter.OfMap(r.RegionLatency)),
 			func(lat latency) namedLatency {
 				return namedLatency{V1: dm.Regions[lat.V1].RegionName, V2: lat.V2}
 			}),
 			len(r.RegionLatency),
 		)
 		slices.SortFunc(latencies, func(e1, e2 namedLatency) int { return cmp.Compare(e1.V2, e2.V2) })
-		latencyRows.Update(xiter.Slice(latencies), len(latencies))
+		latencyRows.Update(xiter.OfSlice(latencies), len(latencies))
 	})
 
 	return &page
@@ -361,7 +361,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	page.container.SetDescription(peer.DNSName)
 
 	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
-	page.addrRows.Update(xiter.Slice(peer.TailscaleIPs), len(peer.TailscaleIPs))
+	page.addrRows.Update(xiter.OfSlice(peer.TailscaleIPs), len(peer.TailscaleIPs))
 
 	page.container.OptionsGroup.SetVisible(page.self)
 	if page.self {
@@ -372,7 +372,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	}
 
 	if page.self {
-		page.fileRows.Update(xiter.Slice(status.Files), len(status.Files))
+		page.fileRows.Update(xiter.OfSlice(status.Files), len(status.Files))
 	}
 	page.container.FilesGroup.SetVisible(page.self && (len(status.Files) > 0))
 	page.container.SendFileGroup.SetVisible(!page.self)
@@ -392,7 +392,7 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	if len(page.routes) == 0 {
 		page.routes = append(page.routes, netip.Prefix{})
 	}
-	eroutes := xiter.ToPair(xiter.Enumerate(xiter.Slice(page.routes)))
+	eroutes := xiter.ToPair(xiter.Enumerate(xiter.OfSlice(page.routes)))
 	page.routeRows.Update(eroutes, len(page.routes))
 
 	page.container.NetCheckGroup.SetVisible(page.self)

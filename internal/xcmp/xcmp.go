@@ -6,6 +6,6 @@ import "deedles.dev/xiter"
 //
 // TODO: Remove when cmp.Or is added, maybe in Go 1.22.
 func Or[T comparable](vals ...T) (r T) {
-	r, _ = xiter.Find(xiter.Slice(vals), func(v T) bool { return v != r })
+	r, _ = xiter.Find(xiter.OfSlice(vals), func(v T) bool { return v != r })
 	return r
 }

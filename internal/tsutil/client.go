@@ -155,7 +155,7 @@ func (c *Client) AdvertiseRoutes(ctx context.Context, routes []netip.Prefix) err
 	return nil
 }
 
-// AllowLANAccess enabled and disables the ability for the current
+// AllowLANAccess enables and disables the ability for the current
 // node to get access to the regular LAN that it is connected to while
 // an exit node is in use.
 func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
@@ -166,6 +166,24 @@ func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
 	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
 		Prefs:                     prefs,
 		ExitNodeAllowLANAccessSet: true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+
+	return nil
+}
+
+// AcceptRoutes sets whether or not all shared subnet routes from
+// other nodes should be used by the local node.
+func (c *Client) AcceptRoutes(ctx context.Context, accept bool) error {
+	prefs := ipn.Prefs{
+		RouteAll: accept,
+	}
+
+	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:       prefs,
+		RouteAllSet: true,
 	})
 	if err != nil {
 		return fmt.Errorf("edit prefs: %w", err)

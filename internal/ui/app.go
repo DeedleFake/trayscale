@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/state"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
@@ -35,12 +36,12 @@ type App struct {
 	TS *tsutil.Client
 
 	poller *tsutil.Poller
-	online bool
 
 	app      *adw.Application
 	win      *MainWindow
 	settings *gio.Settings
 	tray     *tray.Tray
+	status   state.MutableState[tsutil.Status]
 
 	statusPage    *adw.StatusPage
 	peerPages     map[key.NodePublic]*peerPage
@@ -162,18 +163,10 @@ func (a *App) updatePeers(status tsutil.Status) {
 }
 
 func (a *App) update(s tsutil.Status) {
-	online := s.Online()
-	if a.online != online {
-		a.online = online
-		a.notify(online) // TODO: Notify on startup if not connected?
-		a.tray.SetOnlineStatus(online)
-	}
 	if a.win == nil {
 		return
 	}
 
-	a.win.StatusSwitch.SetState(online)
-	a.win.StatusSwitch.SetActive(online)
 	a.updatePeers(s)
 
 	if a.settings != nil {
@@ -186,7 +179,7 @@ func (a *App) update(s tsutil.Status) {
 		}
 	}
 
-	if a.online && !a.operatorCheck {
+	if s.Online() && !a.operatorCheck {
 		a.operatorCheck = true
 		if !s.OperatorIsCurrent() {
 			Info{
@@ -198,6 +191,8 @@ func (a *App) update(s tsutil.Status) {
 }
 
 func (a *App) init(ctx context.Context) {
+	a.status = state.Mutable(tsutil.Status{})
+
 	a.app = adw.NewApplication(appID, 0)
 	mk.Map(&a.peerPages, 0)
 
@@ -224,6 +219,18 @@ func (a *App) init(ctx context.Context) {
 	})
 
 	a.initSettings(ctx)
+
+	a.status.Listen(a.update)
+	state.Uniq(state.Derived(a.status, tsutil.Status.Online)).Listen(func(online bool) {
+		slog.Info("online status changed", "online", online)
+		a.notify(online) // TODO: Notify on startup if not connected?
+		a.tray.SetOnlineStatus(online)
+
+		if a.win != nil {
+			a.win.StatusSwitch.SetState(online)
+			a.win.StatusSwitch.SetActive(online)
+		}
+	})
 }
 
 func (a *App) startTS(ctx context.Context) error {
@@ -330,7 +337,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray == nil {
-		a.tray = tray.New(a.online)
+		a.tray = tray.New(state.Get(a.status).Online())
 	}
 
 	for {
@@ -373,7 +380,7 @@ func (a *App) Run(ctx context.Context) {
 	a.poller = &tsutil.Poller{
 		TS:       a.TS,
 		Interval: a.getInterval(),
-		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.status.Set(s) }) },
 	}
 	go a.poller.Run(ctx)
 

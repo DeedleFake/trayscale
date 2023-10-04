@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	deedles.dev/state v0.1.3 // indirect
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect

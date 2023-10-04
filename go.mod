@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	deedles.dev/mk v0.1.0
+	deedles.dev/state v0.2.0
 	fyne.io/systray v1.10.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307050941-20a05fa3a9df
 	github.com/diamondburned/gotk4/pkg v0.0.5
@@ -14,7 +15,6 @@ require (
 )
 
 require (
-	deedles.dev/state v0.1.3 // indirect
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect

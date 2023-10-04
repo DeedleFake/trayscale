@@ -256,6 +256,21 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		return true
 	})
 
+	page.container.AcceptRoutesSwitch.ConnectStateSet(func(s bool) bool {
+		if s == page.container.AcceptRoutesSwitch.State() {
+			return false
+		}
+
+		err := a.TS.AcceptRoutes(context.TODO(), s)
+		if err != nil {
+			slog.Error("accept routes", "err", err)
+			page.container.AcceptRoutesSwitch.SetActive(!s)
+			return true
+		}
+		a.poller.Poll() <- struct{}{}
+		return true
+	})
+
 	page.container.AdvertiseRouteButton.ConnectClicked(func() {
 		Prompt{"Add IP", "IP prefix to advertise"}.Show(a, func(val string) {
 			p, err := netip.ParsePrefix(val)
@@ -369,6 +384,8 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 		page.container.AdvertiseExitNodeSwitch.SetActive(status.Prefs.AdvertisesExitNode())
 		page.container.AllowLANAccessSwitch.SetState(status.Prefs.ExitNodeAllowLANAccess)
 		page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
+		page.container.AcceptRoutesSwitch.SetState(status.Prefs.RouteAll)
+		page.container.AcceptRoutesSwitch.SetActive(status.Prefs.RouteAll)
 	}
 
 	if page.self {

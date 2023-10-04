@@ -19,6 +19,8 @@ type PeerPage struct {
 	AdvertiseExitNodeSwitch *gtk.Switch
 	AllowLANAccessRow       *adw.ActionRow
 	AllowLANAccessSwitch    *gtk.Switch
+	AcceptRoutesRow         *adw.ActionRow
+	AcceptRoutesSwitch      *gtk.Switch
 	AdvertisedRoutesGroup   *adw.PreferencesGroup
 	AdvertiseRouteButton    *gtk.Button
 	NetCheckGroup           *adw.PreferencesGroup

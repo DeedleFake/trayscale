@@ -41,6 +41,14 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.10.3" date="2023-10-03">
+			<description>
+				<ul>
+					<li>Add support for --accept-routes.</li>
+					<li>Update Tailscale to v1.51.1.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.10.2" date="2023-08-21">
 			<description>
 				<ul>

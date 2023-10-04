@@ -218,14 +218,6 @@ func (a *App) init(ctx context.Context) {
 	a.initSettings(ctx)
 }
 
-func (a *App) status() state.State[tsutil.Status] {
-	return a.poller.State()
-}
-
-func (a *App) online() state.State[bool] {
-	return state.Derived(a.status(), tsutil.Status.Online)
-}
-
 func (a *App) startTS(ctx context.Context) error {
 	status := <-a.poller.Get()
 	if status.NeedsAuth() {
@@ -328,20 +320,6 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.win.Show()
 
 	a.connectState()
-}
-
-func (a *App) connectState() {
-	a.status().Listen(a.update)
-	state.Uniq(a.online()).Listen(func(online bool) {
-		slog.Info("online status changed", "online", online)
-		a.notify(online) // TODO: Notify on startup if not connected?
-		a.tray.SetOnlineStatus(online)
-
-		if a.win != nil {
-			a.win.StatusSwitch.SetState(online)
-			a.win.StatusSwitch.SetActive(online)
-		}
-	})
 }
 
 func (a *App) initTray(ctx context.Context) {

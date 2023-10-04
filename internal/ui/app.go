@@ -41,7 +41,6 @@ type App struct {
 	win      *MainWindow
 	settings *gio.Settings
 	tray     *tray.Tray
-	status   state.MutableState[tsutil.Status]
 
 	statusPage    *adw.StatusPage
 	peerPages     map[key.NodePublic]*peerPage
@@ -191,8 +190,6 @@ func (a *App) update(s tsutil.Status) {
 }
 
 func (a *App) init(ctx context.Context) {
-	a.status = state.Mutable(tsutil.Status{})
-
 	a.app = adw.NewApplication(appID, 0)
 	mk.Map(&a.peerPages, 0)
 
@@ -219,18 +216,14 @@ func (a *App) init(ctx context.Context) {
 	})
 
 	a.initSettings(ctx)
+}
 
-	a.status.Listen(a.update)
-	state.Uniq(state.Derived(a.status, tsutil.Status.Online)).Listen(func(online bool) {
-		slog.Info("online status changed", "online", online)
-		a.notify(online) // TODO: Notify on startup if not connected?
-		a.tray.SetOnlineStatus(online)
+func (a *App) status() state.State[tsutil.Status] {
+	return a.poller.State()
+}
 
-		if a.win != nil {
-			a.win.StatusSwitch.SetState(online)
-			a.win.StatusSwitch.SetActive(online)
-		}
-	})
+func (a *App) online() state.State[bool] {
+	return state.Derived(a.status(), tsutil.Status.Online)
 }
 
 func (a *App) startTS(ctx context.Context) error {
@@ -333,11 +326,27 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 	a.poller.Poll() <- struct{}{}
 	a.win.Show()
+
+	a.connectState()
+}
+
+func (a *App) connectState() {
+	a.status().Listen(a.update)
+	state.Uniq(a.online()).Listen(func(online bool) {
+		slog.Info("online status changed", "online", online)
+		a.notify(online) // TODO: Notify on startup if not connected?
+		a.tray.SetOnlineStatus(online)
+
+		if a.win != nil {
+			a.win.StatusSwitch.SetState(online)
+			a.win.StatusSwitch.SetActive(online)
+		}
+	})
 }
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray == nil {
-		a.tray = tray.New(state.Get(a.status).Online())
+		a.tray = tray.New(state.Get(a.online()))
 	}
 
 	for {
@@ -369,6 +378,12 @@ func (a *App) Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	a.poller = &tsutil.Poller{
+		TS:       a.TS,
+		Interval: a.getInterval(),
+	}
+	go a.poller.Run(ctx)
+
 	a.init(ctx)
 
 	err := a.app.Register(ctx)
@@ -376,13 +391,6 @@ func (a *App) Run(ctx context.Context) {
 		slog.Error("register application", "err", err)
 		return
 	}
-
-	a.poller = &tsutil.Poller{
-		TS:       a.TS,
-		Interval: a.getInterval(),
-		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.status.Set(s) }) },
-	}
-	go a.poller.Run(ctx)
 
 	go func() {
 		<-ctx.Done()

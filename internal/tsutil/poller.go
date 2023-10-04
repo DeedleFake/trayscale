@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/state"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -31,14 +32,11 @@ type Poller struct {
 	// If it is a zero, a non-zero default will be used.
 	Interval time.Duration
 
-	// If non-nil, New will be called when a new status is received from
-	// Tailscale.
-	New func(Status)
-
 	once     sync.Once
 	poll     chan struct{}
 	get      chan Status
 	interval chan time.Duration
+	state    state.MutableState[Status]
 }
 
 func (p *Poller) init() {
@@ -46,6 +44,7 @@ func (p *Poller) init() {
 		mk.Chan(&p.poll, 0)
 		mk.Chan(&p.get, 0)
 		mk.Chan(&p.interval, 0)
+		p.state = state.Mutable(Status{})
 	})
 }
 
@@ -100,11 +99,7 @@ func (p *Poller) Run(ctx context.Context) {
 		}
 
 		s := Status{Status: status, Prefs: prefs, Files: files}
-		if p.New != nil {
-			// TODO: Only call this if the status changed from the previous
-			// poll? Is that remotely feasible?
-			p.New(s)
-		}
+		p.state.Set(s)
 
 	send:
 		select {
@@ -152,6 +147,17 @@ func (p *Poller) SetInterval() chan<- time.Duration {
 	p.init()
 
 	return p.interval
+}
+
+// State returns an observable state wrapping the latest status.
+//
+// While it is possible to get the last status from the returned
+// state, it is recommended to use the Poller's Get method under most
+// circumstances. This is intended to be observed, not fetched.
+func (p *Poller) State() state.State[Status] {
+	p.init()
+
+	return p.state
 }
 
 // Status is a type that wraps various status-related types that

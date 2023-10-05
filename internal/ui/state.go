@@ -9,7 +9,7 @@ import (
 
 func (a *App) connectState() {
 	a.status().Listen(a.update)
-	state.Uniq(a.online()).Listen(func(online bool) {
+	a.online().Listen(func(online bool) {
 		slog.Info("online status changed", "online", online)
 		a.notify(online) // TODO: Notify on startup if not connected?
 		a.tray.SetOnlineStatus(online)
@@ -26,5 +26,5 @@ func (a *App) status() state.State[tsutil.Status] {
 }
 
 func (a *App) online() state.State[bool] {
-	return state.Derived(a.status(), tsutil.Status.Online)
+	return state.Uniq(state.Derived(a.status(), tsutil.Status.Online))
 }

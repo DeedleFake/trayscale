@@ -1,7 +1,7 @@
 deedles.dev/mk v0.1.0 h1:xrvuJA3+R/j6/6AZPc+o31I1rotdKLrAYJxhZJwdOuc=
 deedles.dev/mk v0.1.0/go.mod h1:TSFsz0T+BvhNqJae0yrj+KadkN4elx248PCpq2Ol4ME=
-deedles.dev/state v0.2.0 h1:+C71NnoOD4hhCWHm8/1CLMCYtJQr7mSPDxLY22nOe7g=
-deedles.dev/state v0.2.0/go.mod h1:oY5gOHCQYDNzxDaeedD8ktAX+wrvVZ1nKNG3bbuCgy0=
+deedles.dev/state v0.2.1 h1:0gDwz4eBMeFNlVTFl6V1IlL2JyrAON3wOcrlc5AEsIw=
+deedles.dev/state v0.2.1/go.mod h1:oY5gOHCQYDNzxDaeedD8ktAX+wrvVZ1nKNG3bbuCgy0=
 filippo.io/edwards25519 v1.0.0 h1:0wAIcmJUqRdI8IJ/3eGi5/HwXZWPujYXXlkrQogz0Ek=
 filippo.io/edwards25519 v1.0.0/go.mod h1:N1IkdkCkiLB6tki+MYJoSx2JTY9NUlxZE7eHn5EwJns=
 filippo.io/mkcert v1.4.4 h1:8eVbbwfVlaqUM7OwuftKc2nuYOoTDQWqsoXmzoXZdbc=

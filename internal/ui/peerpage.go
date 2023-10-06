@@ -14,13 +14,13 @@ type PeerPage struct {
 	*adw.StatusPage `gtk:"PeerPage"`
 
 	IPGroup                 *adw.PreferencesGroup
-	OptionsGroup            *adw.PreferencesGroup
+	OptionsGroup            *adw.PreferencesGroup `state:"page.Self,SetVisible"`
 	AdvertiseExitNodeRow    *adw.ActionRow
-	AdvertiseExitNodeSwitch *gtk.Switch
+	AdvertiseExitNodeSwitch *gtk.Switch `state:"prefs.AdvertisesExitNode(),SetState,SetActive"`
 	AllowLANAccessRow       *adw.ActionRow
-	AllowLANAccessSwitch    *gtk.Switch
+	AllowLANAccessSwitch    *gtk.Switch `state:"prefs.ExitNodeAllowLANAccess,SetState,SetActive"`
 	AcceptRoutesRow         *adw.ActionRow
-	AcceptRoutesSwitch      *gtk.Switch
+	AcceptRoutesSwitch      *gtk.Switch `state:"prefs.RouteAll,SetState,SetActive"`
 	AdvertisedRoutesGroup   *adw.PreferencesGroup
 	AdvertiseRouteButton    *gtk.Button
 	NetCheckGroup           *adw.PreferencesGroup

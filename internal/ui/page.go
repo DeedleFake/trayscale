@@ -2,12 +2,16 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/netip"
+	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
+	"deedles.dev/state"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xcmp"
 	"deedles.dev/trayscale/internal/xmaps"
@@ -25,7 +29,7 @@ type peerPage struct {
 	page      *gtk.StackPage
 	container *PeerPage
 
-	self   bool
+	Self   bool
 	routes []netip.Prefix
 
 	addrRows  rowManager[netip.Addr]
@@ -36,7 +40,7 @@ type peerPage struct {
 func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peerPage {
 	page := peerPage{
 		container: NewPeerPage(),
-		self:      peer.PublicKey == status.Status.Self.PublicKey,
+		Self:      peer.PublicKey == status.Status.Self.PublicKey,
 	}
 
 	actions := gio.NewSimpleActionGroup()
@@ -61,7 +65,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 	})
 	actions.AddAction(sendFileAction)
 
-	if !page.self {
+	if !page.Self {
 		page.container.AddController(page.container.DropTarget)
 		page.container.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
 		// BUG: ConnectDrop() doesn't work. See
@@ -132,7 +136,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		return &row
 	}
 
-	if page.self {
+	if page.Self {
 		page.fileRows.Parent = page.container.FilesGroup
 		page.fileRows.New = func(file apitype.WaitingFile) row[apitype.WaitingFile] {
 			row := fileRow{
@@ -362,15 +366,83 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		latencyRows.Update(namedLats)
 	})
 
+	page.connectState(a)
+
 	return &page
 }
 
+func (page *peerPage) connectState(a *App) {
+	pageState := state.Static(page)
+	prefsState := derivePrefs(a.status())
+
+	v := reflect.ValueOf(page.container).Elem()
+	t := v.Type()
+
+	for i := 0; i < t.NumField(); i++ {
+		fv := v.Field(i)
+		ft := t.Field(i)
+
+		tag, ok := ft.Tag.Lookup("state")
+		if !ok {
+			continue
+		}
+		parts := strings.Split(tag, ",")
+		src, name, ok := strings.Cut(parts[0], ".")
+		if !ok {
+			panic(fmt.Errorf("invalid state tag: %q", tag))
+		}
+
+		funcs := make([]reflect.Value, 0, len(parts[1:]))
+		for _, p := range parts[1:] {
+			funcs = append(funcs, fv.MethodByName(p))
+		}
+		if len(funcs) == 0 {
+			panic("no state functions specified")
+		}
+
+		listener := func(v reflect.Value) {
+			args := []reflect.Value{v}
+			for _, f := range funcs {
+				f.Call(args)
+			}
+		}
+
+		name, method := strings.CutSuffix(name, "()")
+		if method {
+			listener = func(v reflect.Value) {
+				args := v.Call(nil)
+				for _, f := range funcs {
+					f.Call(args)
+				}
+			}
+		}
+
+		var s state.State[reflect.Value]
+		switch src {
+		case "page":
+			s = deriveField(pageState, name)
+			if method {
+				s = deriveMethod(pageState, name)
+			}
+		case "prefs":
+			s = deriveField(prefsState, name)
+			if method {
+				s = deriveMethod(prefsState, name)
+			}
+		default:
+			panic(fmt.Errorf("unknown state source: %q", src))
+		}
+
+		s.Listen(listener)
+	}
+}
+
 func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.self = peer.PublicKey == status.Status.Self.PublicKey
+	page.Self = peer.PublicKey == status.Status.Self.PublicKey
 	// TODO: Disconnect drag-and-drop when this changes to true.
 
 	page.page.SetIconName(peerIcon(peer))
-	page.page.SetTitle(peerName(status, peer, page.self))
+	page.page.SetTitle(peerName(status, peer, page.Self))
 
 	page.container.SetTitle(peer.HostName)
 	page.container.SetDescription(peer.DNSName)
@@ -378,26 +450,26 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
 	page.addrRows.Update(peer.TailscaleIPs)
 
-	page.container.OptionsGroup.SetVisible(page.self)
-	if page.self {
-		page.container.AdvertiseExitNodeSwitch.SetState(status.Prefs.AdvertisesExitNode())
-		page.container.AdvertiseExitNodeSwitch.SetActive(status.Prefs.AdvertisesExitNode())
-		page.container.AllowLANAccessSwitch.SetState(status.Prefs.ExitNodeAllowLANAccess)
-		page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
-		page.container.AcceptRoutesSwitch.SetState(status.Prefs.RouteAll)
-		page.container.AcceptRoutesSwitch.SetActive(status.Prefs.RouteAll)
-	}
+	//page.container.OptionsGroup.SetVisible(page.self)
+	//if page.self {
+	//	page.container.AdvertiseExitNodeSwitch.SetState(status.Prefs.AdvertisesExitNode())
+	//	page.container.AdvertiseExitNodeSwitch.SetActive(status.Prefs.AdvertisesExitNode())
+	//	page.container.AllowLANAccessSwitch.SetState(status.Prefs.ExitNodeAllowLANAccess)
+	//	page.container.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
+	//	page.container.AcceptRoutesSwitch.SetState(status.Prefs.RouteAll)
+	//	page.container.AcceptRoutesSwitch.SetActive(status.Prefs.RouteAll)
+	//}
 
-	if page.self {
+	if page.Self {
 		page.fileRows.Update(status.Files)
 	}
-	page.container.FilesGroup.SetVisible(page.self && (len(status.Files) > 0))
-	page.container.SendFileGroup.SetVisible(!page.self)
+	page.container.FilesGroup.SetVisible(page.Self && (len(status.Files) > 0))
+	page.container.SendFileGroup.SetVisible(!page.Self)
 
-	page.container.AdvertiseRouteButton.SetVisible(page.self)
+	page.container.AdvertiseRouteButton.SetVisible(page.Self)
 
 	switch {
-	case page.self:
+	case page.Self:
 		page.routes = status.Prefs.AdvertiseRoutes
 	case peer.PrimaryRoutes != nil:
 		page.routes = peer.PrimaryRoutes.AsSlice()
@@ -411,16 +483,16 @@ func (a *App) updatePeerPage(page *peerPage, peer *ipnstate.PeerStatus, status t
 	}
 	eroutes := make([]enum[netip.Prefix], 0, len(page.routes))
 	for i, r := range page.routes {
-		if !page.self {
+		if !page.Self {
 			i = -1
 		}
 		eroutes = append(eroutes, enumerate(i, r))
 	}
 	page.routeRows.Update(eroutes)
 
-	page.container.NetCheckGroup.SetVisible(page.self)
+	page.container.NetCheckGroup.SetVisible(page.Self)
 
-	page.container.MiscGroup.SetVisible(!page.self)
+	page.container.MiscGroup.SetVisible(!page.Self)
 	page.container.ExitNodeRow.SetVisible(peer.ExitNodeOption)
 	page.container.ExitNodeSwitch.SetState(peer.ExitNode)
 	page.container.ExitNodeSwitch.SetActive(peer.ExitNode)

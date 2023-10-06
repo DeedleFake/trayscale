@@ -144,7 +144,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 		peerPage.page = w.AddTitled(
 			peerPage.container,
 			p.String(),
-			peerName(status, peerStatus, peerPage.self),
+			peerName(status, peerStatus, peerPage.Self),
 		)
 		a.updatePeerPage(peerPage, peerStatus, status)
 		a.peerPages[p] = peerPage
@@ -324,7 +324,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray == nil {
-		a.tray = tray.New(state.Get(a.online()))
+		a.tray = tray.New(state.Get(deriveOnline(a.status())))
 	}
 
 	for {

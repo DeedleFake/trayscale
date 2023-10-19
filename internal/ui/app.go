@@ -120,6 +120,9 @@ func (a *App) updatePeers(status tsutil.Status) {
 		}
 
 		peerMap = status.Status.Peer
+		if peerMap == nil {
+			mk.Map(&peerMap, 0)
+		}
 
 		peers = slices.Insert(status.Status.Peers(), 0, status.Status.Self.PublicKey) // Add this manually to guarantee ordering.
 		peerMap[status.Status.Self.PublicKey] = status.Status.Self

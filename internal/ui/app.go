@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/state"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
@@ -35,7 +36,6 @@ type App struct {
 	TS *tsutil.Client
 
 	poller *tsutil.Poller
-	online bool
 
 	app      *adw.Application
 	win      *MainWindow
@@ -147,7 +147,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 		peerPage.page = w.AddTitled(
 			peerPage.container,
 			p.String(),
-			peerName(status, peerStatus, peerPage.self),
+			peerName(status, peerStatus, peerPage.Self),
 		)
 		a.updatePeerPage(peerPage, peerStatus, status)
 		a.peerPages[p] = peerPage
@@ -165,18 +165,10 @@ func (a *App) updatePeers(status tsutil.Status) {
 }
 
 func (a *App) update(s tsutil.Status) {
-	online := s.Online()
-	if a.online != online {
-		a.online = online
-		a.notify(online) // TODO: Notify on startup if not connected?
-		a.tray.SetOnlineStatus(online)
-	}
 	if a.win == nil {
 		return
 	}
 
-	a.win.StatusSwitch.SetState(online)
-	a.win.StatusSwitch.SetActive(online)
 	a.updatePeers(s)
 
 	if a.settings != nil {
@@ -189,7 +181,7 @@ func (a *App) update(s tsutil.Status) {
 		}
 	}
 
-	if a.online && !a.operatorCheck {
+	if s.Online() && !a.operatorCheck {
 		a.operatorCheck = true
 		if !s.OperatorIsCurrent() {
 			Info{
@@ -329,11 +321,13 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 	a.poller.Poll() <- struct{}{}
 	a.win.Show()
+
+	a.connectState()
 }
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray == nil {
-		a.tray = tray.New(a.online)
+		a.tray = tray.New(state.Get(deriveOnline(a.status())))
 	}
 
 	for {
@@ -365,6 +359,12 @@ func (a *App) Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	a.poller = &tsutil.Poller{
+		TS:       a.TS,
+		Interval: a.getInterval(),
+	}
+	go a.poller.Run(ctx)
+
 	a.init(ctx)
 
 	err := a.app.Register(ctx)
@@ -372,13 +372,6 @@ func (a *App) Run(ctx context.Context) {
 		slog.Error("register application", "err", err)
 		return
 	}
-
-	a.poller = &tsutil.Poller{
-		TS:       a.TS,
-		Interval: a.getInterval(),
-		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
-	}
-	go a.poller.Run(ctx)
 
 	go func() {
 		<-ctx.Done()

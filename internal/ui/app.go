@@ -166,10 +166,10 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 func (a *App) update(s tsutil.Status) {
 	online := s.Online()
+	a.tray.Update(s, a.online)
 	if a.online != online {
 		a.online = online
 		a.notify(online) // TODO: Notify on startup if not connected?
-		a.tray.SetOnlineStatus(online)
 	}
 	if a.win == nil {
 		return

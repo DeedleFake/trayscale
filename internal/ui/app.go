@@ -340,14 +340,24 @@ func (a *App) initTray(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+
 		case <-a.tray.ShowChan():
 			glib.IdleAdd(func() {
 				if a.app != nil {
 					a.app.Activate()
 				}
 			})
+
 		case <-a.tray.QuitChan():
 			a.Quit()
+
+		case <-a.tray.SelfNodeChan():
+			s := <-a.poller.Get()
+			addr, ok := s.SelfAddr()
+			if !ok {
+				continue
+			}
+			a.win.Clipboard().Set(glib.NewValue(addr.String()))
 		}
 	}
 }

@@ -3,8 +3,6 @@ package tray
 import (
 	_ "embed"
 	"fmt"
-	"net/netip"
-	"slices"
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"fyne.io/systray"
@@ -56,6 +54,10 @@ func (t *Tray) ShowChan() <-chan struct{} {
 	return t.showItem.ClickedCh
 }
 
+func (t *Tray) SelfNodeChan() <-chan struct{} {
+	return t.selfNodeItem.ClickedCh
+}
+
 func (t *Tray) setOnlineStatus(online bool) {
 	systray.SetIcon(statusIcon(online))
 }
@@ -101,16 +103,13 @@ func Stop() {
 }
 
 func selfTitle(s tsutil.Status) (string, bool) {
-	if s.Status == nil {
+	addr, ok := s.SelfAddr()
+	if !ok {
+		if len(s.Status.Self.TailscaleIPs) == 0 {
+			return "Address unknown", false
+		}
 		return "Not connected", false
-	}
-	if s.Status.Self == nil {
-		return "Not connected", false
-	}
-	if len(s.Status.Self.TailscaleIPs) == 0 {
-		return "Address unknown", false
 	}
 
-	addr := slices.MinFunc(s.Status.Self.TailscaleIPs, netip.Addr.Compare)
 	return fmt.Sprintf("%v (%v)", s.Status.Self.HostName, addr), true
 }

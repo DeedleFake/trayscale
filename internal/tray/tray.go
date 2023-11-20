@@ -111,5 +111,5 @@ func selfTitle(s tsutil.Status) (string, bool) {
 		return "Not connected", false
 	}
 
-	return fmt.Sprintf("%v (%v)", s.Status.Self.HostName, addr), true
+	return fmt.Sprintf("%v (%v)", tsutil.DNSOrQuoteHostname(s.Status, s.Status.Self), addr), true
 }

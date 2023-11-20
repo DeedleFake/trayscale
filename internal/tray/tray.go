@@ -70,7 +70,7 @@ func (t *Tray) Update(s tsutil.Status, previousOnlineStatus bool) {
 	}
 
 	selfTitle, connected := selfTitle(s)
-	t.selfNodeItem.SetTitle(selfTitle)
+	t.selfNodeItem.SetTitle(fmt.Sprintf("This machine: %v", selfTitle))
 	if connected {
 		t.selfNodeItem.Enable()
 	} else {
@@ -108,9 +108,9 @@ func selfTitle(s tsutil.Status) (string, bool) {
 		return "Not connected", false
 	}
 	if len(s.Status.Self.TailscaleIPs) == 0 {
-		return "Local address unknown", false
+		return "Address unknown", false
 	}
 
 	addr := slices.MinFunc(s.Status.Self.TailscaleIPs, netip.Addr.Compare)
-	return fmt.Sprintf("This machine: %v (%v)", s.Status.Self.HostName, addr), true
+	return fmt.Sprintf("%v (%v)", s.Status.Self.HostName, addr), true
 }

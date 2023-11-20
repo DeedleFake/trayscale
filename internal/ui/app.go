@@ -68,15 +68,10 @@ func (a *App) showAbout() {
 	a.app.AddWindow(&dialog.Window.Window)
 }
 
-func (a *App) notify(status bool) {
-	body := "Tailscale is not connected."
-	if status {
-		body = "Tailscale is connected."
-	}
-
+func (a *App) notify(title, body string) {
 	icon, iconerr := gio.NewIconForString(appID)
 
-	n := gio.NewNotification("Tailscale Status")
+	n := gio.NewNotification(title)
 	n.SetBody(body)
 	if iconerr == nil {
 		n.SetIcon(icon)
@@ -169,7 +164,12 @@ func (a *App) update(s tsutil.Status) {
 	a.tray.Update(s, a.online)
 	if a.online != online {
 		a.online = online
-		a.notify(online) // TODO: Notify on startup if not connected?
+
+		body := "Tailscale is not connected."
+		if online {
+			body = "Tailscale is connected."
+		}
+		a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
 	}
 	if a.win == nil {
 		return
@@ -358,6 +358,7 @@ func (a *App) initTray(ctx context.Context) {
 				continue
 			}
 			a.win.Clipboard().Set(glib.NewValue(addr.String()))
+			a.notify("Trayscale", "Copied address to clipboard")
 		}
 	}
 }

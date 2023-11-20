@@ -18,8 +18,8 @@ github.com/coreos/go-iptables v0.7.0 h1:XWM3V+MPRr5/q51NuWSgU0fqMad64Zyxs8ZUoMsa
 github.com/coreos/go-iptables v0.7.0/go.mod h1:Qe8Bv2Xik5FyTXwgIbLAnv2sWSBmvWdFETJConOQ//Q=
 github.com/dblohm7/wingoes v0.0.0-20231025182615-65d8b4b5428f h1:c5mkOIXbHZVKGQaSEZZyLW9ORD+h4PT2TPF8IQPwyOs=
 github.com/dblohm7/wingoes v0.0.0-20231025182615-65d8b4b5428f/go.mod h1:6NCrWM5jRefaG7iN0iMShPalLsljHWBh9v1zxM2f8Xs=
-github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20231117093505-26f1789529b0 h1:95ZAdIjBYJ3IJ8OjYrgV1h1gEGVUOVtyg5RAyeD5dpc=
-github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20231117093505-26f1789529b0/go.mod h1:bUVlQiML8tKR3YedHmzCDLd/ZIQ/2W4GTAhgB/NqKn0=
+github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307050941-20a05fa3a9df h1:NRIoTDigwuOcRtcKGpP51vtHE3//RmH226Z7CjFlDwE=
+github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20230307050941-20a05fa3a9df/go.mod h1:f+Kv3QPlRGEW0nv0oyEZ4qhCcOY9qhxKnmPmrzmBkLo=
 github.com/diamondburned/gotk4/pkg v0.0.5 h1:1NOpwNttT63zJdRItwf79ZyX6Bw2bkv8+YjfZCUevcc=
 github.com/diamondburned/gotk4/pkg v0.0.5/go.mod h1:Jr5xzUuGyLsoMtE9LzE/Lay1gD0ONiFWAmQ0+Z6KLeA=
 github.com/frankban/quicktest v1.14.5 h1:dfYrrRyLtiqT9GyKXgdh+k4inNeTvmGbuSgZ3lx3GhA=

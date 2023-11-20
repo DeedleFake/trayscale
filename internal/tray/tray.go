@@ -3,6 +3,8 @@ package tray
 import (
 	_ "embed"
 	"fmt"
+	"net/netip"
+	"slices"
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"fyne.io/systray"
@@ -67,31 +69,12 @@ func (t *Tray) Update(s tsutil.Status, previousOnlineStatus bool) {
 		t.setOnlineStatus(s.Online())
 	}
 
-	var title string
-	if s.Status != nil && s.Status.Self != nil {
-		// A naive approach to get first available TS IP.
-		// Ways to refine: sort and get the "Less"er or prefer
-		// first IPv4 in the list.
-		var ipInfo string
-		if len(s.Status.Self.TailscaleIPs) > 0 {
-			ipInfo = fmt.Sprintf(
-				" (%s)",
-				s.Status.Self.TailscaleIPs[0].String(),
-			)
-		}
-
-		title = fmt.Sprintf(
-			"This device: %s%s",
-			s.Status.Self.HostName,
-			ipInfo,
-		)
-	}
-
-	if title == "" {
-		t.selfNodeItem.Hide()
+	selfTitle, connected := selfTitle(s)
+	t.selfNodeItem.SetTitle(selfTitle)
+	if connected {
+		t.selfNodeItem.Enable()
 	} else {
-		t.selfNodeItem.SetTitle(title)
-		t.selfNodeItem.Show()
+		t.selfNodeItem.Disable()
 	}
 }
 
@@ -115,4 +98,19 @@ func Stop() {
 		f()
 	default:
 	}
+}
+
+func selfTitle(s tsutil.Status) (string, bool) {
+	if s.Status == nil {
+		return "Not connected", false
+	}
+	if s.Status.Self == nil {
+		return "Not connected", false
+	}
+	if len(s.Status.Self.TailscaleIPs) == 0 {
+		return "Local address unknown", false
+	}
+
+	addr := slices.MinFunc(s.Status.Self.TailscaleIPs, netip.Addr.Compare)
+	return fmt.Sprintf("This machine: %v (%v)", s.Status.Self.HostName, addr), true
 }

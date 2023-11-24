@@ -68,6 +68,10 @@ func (a *App) showAbout() {
 	a.app.AddWindow(&dialog.Window.Window)
 }
 
+func (a *App) clip(v *glib.Value) {
+	gdk.DisplayGetDefault().Clipboard().Set(v)
+}
+
 func (a *App) notify(title, body string) {
 	icon, iconerr := gio.NewIconForString(appID)
 
@@ -357,7 +361,7 @@ func (a *App) initTray(ctx context.Context) {
 			if !ok {
 				continue
 			}
-			a.win.Clipboard().Set(glib.NewValue(addr.String()))
+			a.clip(glib.NewValue(addr.String()))
 			a.notify("Trayscale", "Copied address to clipboard")
 		}
 	}

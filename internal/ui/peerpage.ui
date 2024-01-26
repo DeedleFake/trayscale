@@ -42,7 +42,6 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="AcceptRoutesRow">
-                    <property name="activatable-widget">AcceptRoutesSwitch</property>
                     <property name="title">Accept routes</property>
                     <child>
                       <object class="GtkSwitch" id="AcceptRoutesSwitch">
@@ -85,6 +84,12 @@
             </child>
             <child>
               <object class="AdwPreferencesGroup" id="NetCheckGroup">
+                <property name="header-suffix">
+                  <object class="GtkButton" id="NetCheckButton">
+                    <property name="has-frame">False</property>
+                    <property name="icon-name">view-refresh-symbolic</property>
+                  </object>
+                </property>
                 <property name="title">Network Check</property>
                 <child>
                   <object class="AdwActionRow" id="LastNetCheckRow">
@@ -262,15 +267,11 @@
       </object>
     </child>
   </object>
-  <object class="GtkButton" id="NetCheckButton">
-    <property name="has-frame">False</property>
-    <property name="icon-name">view-refresh-symbolic</property>
+  <object class="GtkDropTarget" id="DropTarget">
+    <property name="actions">copy</property>
   </object>
   <object class="GtkButton" id="AdvertiseRouteButton">
     <property name="has-frame">False</property>
     <property name="icon-name">list-add-symbolic</property>
-  </object>
-  <object class="GtkDropTarget" id="DropTarget">
-    <property name="actions">copy</property>
   </object>
 </interface>

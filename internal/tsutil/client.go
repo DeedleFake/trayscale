@@ -221,7 +221,7 @@ func (c *Client) NetCheck(ctx context.Context, full bool) (*netcheck.Report, *ta
 	if full {
 		netcheckClient.MakeNextReportFull()
 	}
-	r, err := netcheckClient.GetReport(ctx, dm)
+	r, err := netcheckClient.GetReport(ctx, dm, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get netcheck report: %w", err)
 	}

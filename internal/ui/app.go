@@ -362,7 +362,9 @@ func (a *App) initTray(ctx context.Context) {
 				continue
 			}
 			a.clip(glib.NewValue(addr.String()))
-			a.notify("Trayscale", "Copied address to clipboard")
+			if a.win != nil {
+				a.notify("Trayscale", "Copied address to clipboard")
+			}
 		}
 	}
 }

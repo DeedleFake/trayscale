@@ -1,8 +1,9 @@
 name: Lint and Test
 
 env:
+  image: ubuntu:23.10
   dependencies: libgtk-4-dev libadwaita-1-dev
-  go-version: 1.21.0
+  go-version: 1.22.0
 
 on:
   workflow_dispatch:
@@ -16,7 +17,7 @@ jobs:
     name: go vet
     runs-on: ubuntu-latest
     container:
-      image: ubuntu:23.04
+      image: ${{ ubuntu }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -35,7 +36,7 @@ jobs:
     name: staticcheck
     runs-on: ubuntu-latest
     container:
-      image: ubuntu:23.04
+      image: ${{ ubuntu }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -56,7 +57,7 @@ jobs:
     name: go test
     runs-on: ubuntu-latest
     container:
-      image: ubuntu:23.04
+      image: ${{ ubuntu }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3

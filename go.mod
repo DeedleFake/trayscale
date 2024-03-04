@@ -1,26 +1,27 @@
 module deedles.dev/trayscale
 
-go 1.21
+go 1.22.0
 
 require (
 	deedles.dev/mk v0.1.0
 	fyne.io/systray v1.10.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20240107232253-5f283b5d35bc
-	github.com/diamondburned/gotk4/pkg v0.1.1-0.20240117035306-132b31b11a5f
+	github.com/diamondburned/gotk4/pkg v0.2.2
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
-	golang.org/x/net v0.20.0
-	honnef.co/go/tools v0.4.6
-	tailscale.com v1.58.2
+	golang.org/x/net v0.21.0
+	honnef.co/go/tools v0.4.7
+	tailscale.com v1.60.1
 )
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
+	github.com/KarpelesLab/weak v0.1.1 // indirect
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa // indirect
 	github.com/coreos/go-iptables v0.7.0 // indirect
 	github.com/dblohm7/wingoes v0.0.0-20240123200102-b75a8a7d7eb0 // indirect
-	github.com/fxamacker/cbor/v2 v2.5.0 // indirect
+	github.com/fxamacker/cbor/v2 v2.6.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.1-0.20230522191255-76236955d466 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
@@ -42,15 +43,15 @@ require (
 	go4.org/mem v0.0.0-20220726221520-4f986261bf13 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6 // indirect
-	golang.org/x/crypto v0.18.0 // indirect
-	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
-	golang.org/x/exp/typeparams v0.0.0-20240119083558-1b970713d09a // indirect
-	golang.org/x/mod v0.14.0 // indirect
+	golang.org/x/crypto v0.20.0 // indirect
+	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20240222234643-814bf88cf225 // indirect
+	golang.org/x/mod v0.15.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.17.0 // indirect
+	golang.org/x/tools v0.18.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	nhooyr.io/websocket v1.8.10 // indirect
 )

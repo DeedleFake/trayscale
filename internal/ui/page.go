@@ -90,7 +90,7 @@ func (a *App) newPeerPage(status tsutil.Status, peer *ipnstate.PeerStatus) *peer
 		row.c.SetHasFrame(false)
 		row.c.SetTooltipText("Copy to Clipboard")
 		row.c.ConnectClicked(func() {
-			row.c.Clipboard().Set(glib.NewValue(row.ip.String()))
+			a.clip(glib.NewValue(row.ip.String()))
 			a.toast("Copied to clipboard")
 		})
 

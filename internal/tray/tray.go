@@ -54,6 +54,10 @@ func (t *Tray) ShowChan() <-chan struct{} {
 	return t.showItem.ClickedCh
 }
 
+func (t *Tray) SelfNodeChan() <-chan struct{} {
+	return t.selfNodeItem.ClickedCh
+}
+
 func (t *Tray) setOnlineStatus(online bool) {
 	systray.SetIcon(statusIcon(online))
 }
@@ -67,31 +71,12 @@ func (t *Tray) Update(s tsutil.Status, previousOnlineStatus bool) {
 		t.setOnlineStatus(s.Online())
 	}
 
-	var title string
-	if s.Status != nil && s.Status.Self != nil {
-		// A naive approach to get first available TS IP.
-		// Ways to refine: sort and get the "Less"er or prefer
-		// first IPv4 in the list.
-		var ipInfo string
-		if len(s.Status.Self.TailscaleIPs) > 0 {
-			ipInfo = fmt.Sprintf(
-				" (%s)",
-				s.Status.Self.TailscaleIPs[0].String(),
-			)
-		}
-
-		title = fmt.Sprintf(
-			"This device: %s%s",
-			s.Status.Self.HostName,
-			ipInfo,
-		)
-	}
-
-	if title == "" {
-		t.selfNodeItem.Hide()
+	selfTitle, connected := selfTitle(s)
+	t.selfNodeItem.SetTitle(fmt.Sprintf("This machine: %v", selfTitle))
+	if connected {
+		t.selfNodeItem.Enable()
 	} else {
-		t.selfNodeItem.SetTitle(title)
-		t.selfNodeItem.Show()
+		t.selfNodeItem.Disable()
 	}
 }
 
@@ -115,4 +100,16 @@ func Stop() {
 		f()
 	default:
 	}
+}
+
+func selfTitle(s tsutil.Status) (string, bool) {
+	addr, ok := s.SelfAddr()
+	if !ok {
+		if len(s.Status.Self.TailscaleIPs) == 0 {
+			return "Address unknown", false
+		}
+		return "Not connected", false
+	}
+
+	return fmt.Sprintf("%v (%v)", tsutil.DNSOrQuoteHostname(s.Status, s.Status.Self), addr), true
 }

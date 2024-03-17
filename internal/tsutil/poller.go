@@ -3,7 +3,9 @@ package tsutil
 import (
 	"context"
 	"log/slog"
+	"net/netip"
 	"os/user"
+	"slices"
 	"sync"
 	"time"
 
@@ -180,4 +182,18 @@ func (s Status) OperatorIsCurrent() bool {
 	}
 
 	return s.Prefs.OperatorUser == current.Username
+}
+
+func (s Status) SelfAddr() (netip.Addr, bool) {
+	if s.Status == nil {
+		return netip.Addr{}, false
+	}
+	if s.Status.Self == nil {
+		return netip.Addr{}, false
+	}
+	if len(s.Status.Self.TailscaleIPs) == 0 {
+		return netip.Addr{}, false
+	}
+
+	return slices.MinFunc(s.Status.Self.TailscaleIPs, netip.Addr.Compare), true
 }

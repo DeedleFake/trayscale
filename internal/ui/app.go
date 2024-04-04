@@ -316,14 +316,9 @@ func (a *App) onAppActivate(ctx context.Context) {
 		return true
 	})
 
+	contentVariant := glib.NewVariantString("content")
 	a.win.PeersStack.NotifyProperty("visible-child", func() {
-		if a.win.PeersStack.VisibleChild() != nil {
-			a.win.Leaflet.Navigate(adw.NavigationDirectionForward)
-		}
-	})
-
-	a.win.BackButton.ConnectClicked(func() {
-		a.win.Leaflet.Navigate(adw.NavigationDirectionBack)
+		a.win.SplitView.ActivateAction("navigation.push", contentVariant)
 	})
 
 	a.win.ConnectCloseRequest(func() bool {

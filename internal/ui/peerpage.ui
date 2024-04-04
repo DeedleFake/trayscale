@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Created with Cambalache 0.16.0 -->
+<!-- Created with Cambalache 0.17.2 -->
 <interface>
   <requires lib="gtk" version="4.12"/>
   <requires lib="libadwaita" version="1.3"/>
@@ -20,6 +20,7 @@
                 <property name="title">Options</property>
                 <child>
                   <object class="AdwActionRow" id="AdvertiseExitNodeRow">
+                    <property name="activatable-widget">AdvertiseExitNodeSwitch</property>
                     <property name="title">Advertise exit node</property>
                     <child>
                       <object class="GtkSwitch" id="AdvertiseExitNodeSwitch">
@@ -31,6 +32,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="AllowLANAccessRow">
+                    <property name="activatable-widget">AllowLANAccessSwitch</property>
                     <property name="title">Allow LAN access</property>
                     <child>
                       <object class="GtkSwitch" id="AllowLANAccessSwitch">
@@ -42,6 +44,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="AcceptRoutesRow">
+                    <property name="activatable-widget">AcceptRoutesSwitch</property>
                     <property name="title">Accept routes</property>
                     <child>
                       <object class="GtkSwitch" id="AcceptRoutesSwitch">
@@ -64,11 +67,13 @@
                 <child>
                   <object class="AdwActionRow" id="SendFileRow">
                     <property name="action-name">peer.sendfile</property>
-                    <property name="icon-name">document-send-symbolic</property>
+                    <property name="activatable-widget">SendFileButton</property>
+                    <property name="subtitle">Click or drag and drop here</property>
                     <property name="title">Send a file to remote machine</property>
                     <child>
                       <object class="GtkButton" id="SendFileButton">
                         <property name="has-frame">False</property>
+                        <property name="icon-name">document-send-symbolic</property>
                         <property name="margin-bottom">12</property>
                         <property name="margin-top">12</property>
                       </object>
@@ -79,6 +84,12 @@
             </child>
             <child>
               <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
+                <property name="header-suffix">
+                  <object class="GtkButton" id="AdvertiseRouteButton">
+                    <property name="has-frame">False</property>
+                    <property name="icon-name">list-add-symbolic</property>
+                  </object>
+                </property>
                 <property name="title">Advertised Routes</property>
               </object>
             </child>
@@ -194,7 +205,7 @@
                 <property name="title">Misc.</property>
                 <child>
                   <object class="AdwActionRow" id="ExitNodeRow">
-                    <property name="icon-name">security-high-symbolic</property>
+                    <property name="activatable-widget">ExitNodeSwitch</property>
                     <property name="title">Use as exit node</property>
                     <child>
                       <object class="GtkSwitch" id="ExitNodeSwitch">
@@ -269,9 +280,5 @@
   </object>
   <object class="GtkDropTarget" id="DropTarget">
     <property name="actions">copy</property>
-  </object>
-  <object class="GtkButton" id="AdvertiseRouteButton">
-    <property name="has-frame">False</property>
-    <property name="icon-name">list-add-symbolic</property>
   </object>
 </interface>

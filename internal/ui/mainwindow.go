@@ -19,10 +19,9 @@ type MainWindow struct {
 	*adw.ApplicationWindow `gtk:"MainWindow"`
 
 	ToastOverlay   *adw.ToastOverlay
-	Leaflet        *adw.Leaflet
+	SplitView      *adw.NavigationSplitView
 	StatusSwitch   *gtk.Switch
 	MainMenuButton *gtk.MenuButton
-	BackButton     *gtk.Button
 	PeersStack     *gtk.Stack
 	WorkSpinner    *gtk.Spinner
 }

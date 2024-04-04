@@ -41,6 +41,14 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.11.1" date="2024-04-04">
+			<description>
+				<ul>
+					<li>Update to use new Libadwaita widgets.</li>
+					<li>Fix a bunch of UI bugs.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.11.0" date="2024-03-17">
 			<description>
 				<ul>

@@ -316,16 +316,6 @@ func (a *App) onAppActivate(ctx context.Context) {
 		return true
 	})
 
-	a.win.PeersStack.NotifyProperty("visible-child", func() {
-		if a.win.PeersStack.VisibleChild() != nil {
-			a.win.Leaflet.Navigate(adw.NavigationDirectionForward)
-		}
-	})
-
-	a.win.BackButton.ConnectClicked(func() {
-		a.win.Leaflet.Navigate(adw.NavigationDirectionBack)
-	})
-
 	a.win.ConnectCloseRequest(func() bool {
 		clear(a.peerPages)
 		a.win = nil

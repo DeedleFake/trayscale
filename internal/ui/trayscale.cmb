@@ -103,6 +103,7 @@
 	(1,35,"AdwNavigationPage","title","Trayscale",None,None,None,None,None,None,None,None,None),
 	(1,52,"AdwToolbarView","content",None,None,None,None,None,60,None,None,None,None),
 	(1,57,"AdwHeaderBar","show-start-title-buttons","False",None,None,None,None,None,None,None,None,None),
+	(1,57,"AdwHeaderBar","show-title","False",None,None,None,None,None,None,None,None,None),
 	(1,60,"GtkStack","transition-type","slide-up-down",None,None,None,None,None,None,None,None,None),
 	(1,61,"AdwToolbarView","content",None,None,None,None,None,71,None,None,None,None),
 	(1,67,"AdwHeaderBar","show-end-title-buttons","False",None,None,None,None,None,None,None,None,None),

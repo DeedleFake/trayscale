@@ -25,6 +25,7 @@
                     <child type="top">
                       <object class="AdwHeaderBar">
                         <property name="show-start-title-buttons">False</property>
+                        <property name="show-title">False</property>
                         <child type="end">
                           <object class="GtkSpinner" id="WorkSpinner"/>
                         </child>

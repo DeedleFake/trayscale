@@ -8,7 +8,16 @@
     <property name="content">ToastOverlay</property>
     <property name="default-height">600</property>
     <property name="default-width">800</property>
+    <property name="height-request">400</property>
     <property name="title">Trayscale</property>
+    <property name="width-request">200</property>
+    <child>
+      <object class="AdwBreakpoint">
+        <!-- Custom fragments -->
+        <condition>max-width: 400sp</condition>
+        <setter object="SplitView" property="collapsed">True</setter>
+      </object>
+    </child>
     <child>
       <object class="AdwToastOverlay" id="ToastOverlay">
         <child>
@@ -36,6 +45,8 @@
                 <property name="tag">content</property>
               </object>
             </property>
+            <property name="max-sidebar-width">360.0</property>
+            <property name="min-sidebar-width">200.0</property>
             <property name="sidebar">
               <object class="AdwNavigationPage">
                 <property name="child">
@@ -71,10 +82,5 @@
         </child>
       </object>
     </child>
-  </object>
-  <object class="AdwBreakpoint">
-    <!-- Custom fragments -->
-    <condition>max-width: 400sp</condition>
-    <setter object="SplitView" property="collapsed">True</setter>
   </object>
 </interface>

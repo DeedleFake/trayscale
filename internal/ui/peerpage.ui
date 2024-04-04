@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Created with Cambalache 0.16.0 -->
+<!-- Created with Cambalache 0.17.2 -->
 <interface>
   <requires lib="gtk" version="4.12"/>
   <requires lib="libadwaita" version="1.3"/>
@@ -79,6 +79,12 @@
             </child>
             <child>
               <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
+                <property name="header-suffix">
+                  <object class="GtkButton" id="AdvertiseRouteButton">
+                    <property name="has-frame">False</property>
+                    <property name="icon-name">list-add-symbolic</property>
+                  </object>
+                </property>
                 <property name="title">Advertised Routes</property>
               </object>
             </child>
@@ -269,9 +275,5 @@
   </object>
   <object class="GtkDropTarget" id="DropTarget">
     <property name="actions">copy</property>
-  </object>
-  <object class="GtkButton" id="AdvertiseRouteButton">
-    <property name="has-frame">False</property>
-    <property name="icon-name">list-add-symbolic</property>
   </object>
 </interface>

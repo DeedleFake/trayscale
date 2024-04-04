@@ -33,6 +33,7 @@
                     </child>
                   </object>
                 </property>
+                <property name="tag">content</property>
               </object>
             </property>
             <property name="sidebar">
@@ -62,6 +63,7 @@
                     </child>
                   </object>
                 </property>
+                <property name="tag">sidebar</property>
                 <property name="title">Trayscale</property>
               </object>
             </property>

@@ -316,6 +316,11 @@ func (a *App) onAppActivate(ctx context.Context) {
 		return true
 	})
 
+	contentVariant := glib.NewVariantString("content")
+	a.win.PeersStack.NotifyProperty("visible-child", func() {
+		a.win.SplitView.ActivateAction("navigation.push", contentVariant)
+	})
+
 	a.win.ConnectCloseRequest(func() bool {
 		clear(a.peerPages)
 		a.win = nil

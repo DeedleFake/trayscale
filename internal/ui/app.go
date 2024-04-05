@@ -4,22 +4,16 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"slices"
 	"time"
 
-	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
-	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"tailscale.com/ipn"
-	"tailscale.com/ipn/ipnstate"
-	"tailscale.com/types/key"
 )
 
 const (
@@ -35,7 +29,7 @@ type App struct {
 	TS *tsutil.Client
 
 	poller *tsutil.Poller
-	online bool
+	state  *state
 
 	app      *adw.Application
 	win      *MainWindow
@@ -43,7 +37,6 @@ type App struct {
 	tray     *tray.Tray
 
 	statusPage    *adw.StatusPage
-	peerPages     map[key.NodePublic]*peerPage
 	spinnum       int
 	operatorCheck bool
 }
@@ -105,108 +98,8 @@ func (a *App) toast(msg string) *adw.Toast {
 	return toast
 }
 
-func (a *App) updatePeers(status tsutil.Status) {
-	const statusPageName = "status"
-
-	w := a.win.PeersStack
-
-	var peerMap map[key.NodePublic]*ipnstate.PeerStatus
-	var peers []key.NodePublic
-
-	if status.Online() {
-		if c := w.ChildByName(statusPageName); c != nil {
-			w.Remove(c)
-		}
-
-		peerMap = status.Status.Peer
-		if peerMap == nil {
-			mk.Map(&peerMap, 0)
-		}
-
-		peers = slices.Insert(status.Status.Peers(), 0, status.Status.Self.PublicKey) // Add this manually to guarantee ordering.
-		peerMap[status.Status.Self.PublicKey] = status.Status.Self
-	}
-
-	oldPeers, newPeers := xslices.Partition(peers, func(peer key.NodePublic) bool {
-		_, ok := a.peerPages[peer]
-		return ok
-	})
-
-	for id, page := range a.peerPages {
-		_, ok := peerMap[id]
-		if !ok {
-			w.Remove(page.container)
-			delete(a.peerPages, id)
-		}
-	}
-
-	for _, p := range newPeers {
-		peerStatus := peerMap[p]
-		peerPage := a.newPeerPage(status, peerStatus)
-		peerPage.page = w.AddTitled(
-			peerPage.container,
-			p.String(),
-			peerName(status, peerStatus, peerPage.self),
-		)
-		a.updatePeerPage(peerPage, peerStatus, status)
-		a.peerPages[p] = peerPage
-	}
-
-	for _, p := range oldPeers {
-		page := a.peerPages[p]
-		a.updatePeerPage(page, peerMap[p], status)
-	}
-
-	if w.Pages().NItems() == 0 {
-		w.AddTitled(a.statusPage, statusPageName, "Not Connected")
-		return
-	}
-}
-
-func (a *App) update(s tsutil.Status) {
-	online := s.Online()
-	a.tray.Update(s, a.online)
-	if a.online != online {
-		a.online = online
-
-		body := "Tailscale is not connected."
-		if online {
-			body = "Tailscale is connected."
-		}
-		a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
-	}
-	if a.win == nil {
-		return
-	}
-
-	a.win.StatusSwitch.SetState(online)
-	a.win.StatusSwitch.SetActive(online)
-	a.updatePeers(s)
-
-	if a.settings != nil {
-		controlURL := a.settings.String("control-plane-server")
-		if controlURL == "" {
-			controlURL = ipn.DefaultControlURL
-		}
-		if controlURL != s.Prefs.ControlURL {
-			a.settings.SetString("control-plane-server", s.Prefs.ControlURL)
-		}
-	}
-
-	if a.online && !a.operatorCheck {
-		a.operatorCheck = true
-		if !s.OperatorIsCurrent() {
-			Info{
-				Heading: "User is not Tailscale Operator",
-				Body:    "Some functionality may not work as expected. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
-			}.Show(a, nil)
-		}
-	}
-}
-
 func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, 0)
-	mk.Map(&a.peerPages, 0)
 
 	var hideWindow bool
 	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, "Hide window on initial start", "")
@@ -322,7 +215,6 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 
 	a.win.ConnectCloseRequest(func() bool {
-		clear(a.peerPages)
 		a.win = nil
 		return false
 	})
@@ -332,7 +224,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray == nil {
-		a.tray = tray.New(a.online)
+		a.tray = tray.New(false)
 	}
 
 	for {
@@ -385,10 +277,13 @@ func (a *App) Run(ctx context.Context) {
 		return
 	}
 
+	a.state = newState(a)
+	go a.state.Run(ctx)
+
 	a.poller = &tsutil.Poller{
 		TS:       a.TS,
 		Interval: a.getInterval(),
-		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		New:      func(s tsutil.Status) { a.state.Updates() <- s },
 	}
 	go a.poller.Run(ctx)
 

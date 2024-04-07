@@ -3,7 +3,7 @@
 	<id>dev.deedles.Trayscale</id>
 
 	<name>Trayscale</name>
-	<summary>An unofficial GUI wrapper around the Tailscale CLI.</summary>
+	<summary>Unofficial GUI for Tailscale</summary>
 	<developer_name>DeedleFake</developer_name>
 
 	<description>

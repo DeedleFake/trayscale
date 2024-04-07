@@ -35,6 +35,11 @@
 	<url type="bugtracker">https://github.com/DeedleFake/trayscale/issues</url>
 	<url type="donation">https://buymeacoffee.com/DeedleFake</url>
 
+	<branding>
+		<color type="primary" scheme_preference="light">#8fb3b2</color>
+		<color type="primary" scheme_preference="dark">#2d5959</color>
+	</branding>
+
 	<provides>
 		<binary>trayscale</binary>
 	</provides>

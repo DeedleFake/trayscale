@@ -3,7 +3,7 @@
 	<id>dev.deedles.Trayscale</id>
 
 	<name>Trayscale</name>
-	<summary>An unofficial GUI wrapper around the Tailscale CLI.</summary>
+	<summary>Unofficial GUI for Tailscale</summary>
 	<developer_name>DeedleFake</developer_name>
 
 	<description>
@@ -27,13 +27,18 @@
 	<launchable type="desktop-id">dev.deedles.Trayscale.desktop</launchable>
 	<screenshots>
 		<screenshot type="default">
-			<image>https://user-images.githubusercontent.com/326750/229931274-731da0dc-61c6-42a0-aefa-1f4649fbcffe.png</image>
+			<image>https://github.com/DeedleFake/trayscale/assets/326750/a24a4987-d90a-4c8e-ac60-b8c3afcfdb99</image>
 		</screenshot>
 	</screenshots>
 
 	<url type="homepage">https://github.com/DeedleFake/trayscale</url>
 	<url type="bugtracker">https://github.com/DeedleFake/trayscale/issues</url>
 	<url type="donation">https://buymeacoffee.com/DeedleFake</url>
+
+	<branding>
+		<color type="primary" scheme_preference="light">#8fb3b2</color>
+		<color type="primary" scheme_preference="dark">#2d5959</color>
+	</branding>
 
 	<provides>
 		<binary>trayscale</binary>

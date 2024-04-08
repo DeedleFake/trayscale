@@ -104,6 +104,7 @@
 	(1,21,"AdwNavigationSplitView","sidebar",None,None,None,None,None,35,None,None,None,None),
 	(1,34,"AdwNavigationPage","child",None,None,None,None,None,52,None,None,None,None),
 	(1,34,"AdwNavigationPage","tag","content",None,None,None,None,None,None,None,None,None),
+	(1,34,"AdwNavigationPage","title"," ",None,None,None,None,None,None,None,None,None),
 	(1,35,"AdwNavigationPage","child",None,None,None,None,None,61,None,None,None,None),
 	(1,35,"AdwNavigationPage","tag","sidebar",None,None,None,None,None,None,None,None,None),
 	(1,35,"AdwNavigationPage","title","Trayscale",None,None,None,None,None,None,None,None,None),

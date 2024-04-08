@@ -43,6 +43,7 @@
                   </object>
                 </property>
                 <property name="tag">content</property>
+                <property name="title"> </property>
               </object>
             </property>
             <property name="max-sidebar-width">360.0</property>

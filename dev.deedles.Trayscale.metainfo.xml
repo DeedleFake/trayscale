@@ -46,6 +46,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.11.2" date="2024-04-07">
+			<description>
+				<ul>Fix warning about a missing title at startup.</ul>
+				<ul>Update a number of pieces of metadata for Flathub.</ul>
+			</description>
+		</release>
 		<release version="v0.11.1" date="2024-04-04">
 			<description>
 				<ul>

@@ -142,12 +142,12 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 	for _, p := range newPeers {
 		peerStatus := peerMap[p]
-		page := &pageInfo{
+		page := stackPage{
 			page: NewPage(peerStatus, status),
 		}
 		page.Init(a, peerStatus, status)
 		page.Update(a, peerStatus, status)
-		a.peerPages[p] = page
+		a.peerPages[p] = &page
 	}
 
 	for _, p := range oldPeers {

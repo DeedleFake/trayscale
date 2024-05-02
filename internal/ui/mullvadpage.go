@@ -28,6 +28,10 @@ func (page *MullvadPage) Root() gtk.Widgetter {
 	return page.StatusPage
 }
 
+func (page *MullvadPage) ID() string {
+	return "mullvad"
+}
+
 func (page *MullvadPage) Name() string {
 	return "Mullvad Exit Nodes"
 }

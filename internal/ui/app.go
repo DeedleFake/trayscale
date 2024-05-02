@@ -137,6 +137,18 @@ func (a *App) updatePeers(status tsutil.Status) {
 	}
 	a.selfPage.Update(a, status.Status.Self, status)
 
+	switch {
+	case tsutil.CanMullvad(status.Status.Self):
+		if a.mullvadPage == nil {
+			a.mullvadPage = &stackPage{page: NewMullvadPage()}
+			a.mullvadPage.Init(a, nil, status)
+		}
+		a.mullvadPage.Update(a, nil, status)
+	case a.mullvadPage != nil:
+		stack.Remove(a.mullvadPage.page.Root())
+		a.mullvadPage = nil
+	}
+
 	peerMap := status.Status.Peer
 	peers := slices.DeleteFunc(status.Status.Peers(), func(peer key.NodePublic) bool {
 		return tsutil.IsMullvad(peerMap[peer])

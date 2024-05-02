@@ -220,6 +220,7 @@
 	(4,39,"GtkLabel","label","Never",None,None,None,None,None,None,None,None,None),
 	(4,40,"AdwPreferencesRow","title","DERP Latencies",None,None,None,None,None,None,None,None,None),
 	(4,40,"GtkWidget","visible","False",None,None,None,None,None,None,None,None,None),
+	(5,1,"AdwStatusPage","title","Mullvad Exit Nodes",None,None,None,None,None,None,None,None,None),
 	(5,3,"GtkBox","spacing","12",None,None,None,None,None,None,None,None,None),
 	(5,3,"GtkOrientable","orientation","vertical",None,None,None,None,None,None,None,None,None)
   </object_property>

@@ -66,6 +66,7 @@ type PeerPage struct {
 	SendFileRow           *adw.ActionRow
 	DropTarget            *gtk.DropTarget
 
+	peer *ipnstate.PeerStatus
 	name string
 
 	routes []netip.Prefix
@@ -84,11 +85,17 @@ func (page *PeerPage) Root() gtk.Widgetter {
 	return page.StatusPage
 }
 
+func (page *PeerPage) ID() string {
+	return page.peer.PublicKey.String()
+}
+
 func (page *PeerPage) Name() string {
 	return page.name
 }
 
 func (page *PeerPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.peer = peer
+
 	actions := gio.NewSimpleActionGroup()
 	page.InsertActionGroup("peer", actions)
 
@@ -207,7 +214,9 @@ func (page *PeerPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 }
 
 func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.peer = peer
 	page.name = peerName(status, peer)
+
 	page.SetTitle(peer.HostName)
 	page.SetDescription(peer.DNSName)
 

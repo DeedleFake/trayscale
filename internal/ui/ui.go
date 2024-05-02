@@ -67,6 +67,10 @@ func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
 }
 
 func peerIcon(peer *ipnstate.PeerStatus) string {
+	if peer == nil {
+		return ""
+	}
+
 	if peer.ExitNode {
 		return "network-workgroup-symbolic"
 	}

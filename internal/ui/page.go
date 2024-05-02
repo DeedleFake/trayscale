@@ -12,6 +12,9 @@ type Page interface {
 	// Root returns the root widget that is can be placed into a container.
 	Root() gtk.Widgetter
 
+	// An identifier for the page.
+	ID() string
+
 	// Name returns a displayable name for the page.
 	Name() string
 
@@ -35,14 +38,14 @@ func (page *stackPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Sta
 
 	page.stackPage = a.win.PeersStack.AddTitled(
 		page.page.Root(),
-		peer.PublicKey.String(),
+		page.page.ID(),
 		page.page.Name(),
 	)
 }
 
 func (page *stackPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.page.Update(a, peer, status)
+
 	page.stackPage.SetIconName(peerIcon(peer))
 	page.stackPage.SetTitle(page.page.Name())
-
-	page.page.Update(a, peer, status)
 }

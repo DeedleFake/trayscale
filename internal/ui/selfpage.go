@@ -62,6 +62,7 @@ type SelfPage struct {
 	DERPLatencies           *adw.ExpanderRow
 	FilesGroup              *adw.PreferencesGroup
 
+	peer *ipnstate.PeerStatus
 	name string
 
 	routes []netip.Prefix
@@ -81,11 +82,17 @@ func (page *SelfPage) Root() gtk.Widgetter {
 	return page.StatusPage
 }
 
+func (page *SelfPage) ID() string {
+	return page.peer.PublicKey.String()
+}
+
 func (page *SelfPage) Name() string {
 	return page.name
 }
 
 func (page *SelfPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.peer = peer
+
 	actions := gio.NewSimpleActionGroup()
 	page.InsertActionGroup("peer", actions)
 
@@ -367,7 +374,9 @@ func (page *SelfPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 }
 
 func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.peer = peer
 	page.name = peerName(status, peer)
+
 	page.SetTitle(peer.HostName)
 	page.SetDescription(peer.DNSName)
 

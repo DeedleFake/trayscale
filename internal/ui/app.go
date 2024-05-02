@@ -113,9 +113,8 @@ func (a *App) updatePeersOffline() {
 		delete(a.peerPages, id)
 	}
 
-	if w.Pages().NItems() == 0 {
+	if w.Page(a.statusPage).Object == nil {
 		w.AddTitled(a.statusPage, "status", "Not Connected")
-		return
 	}
 }
 
@@ -126,7 +125,9 @@ func (a *App) updatePeers(status tsutil.Status) {
 	}
 
 	w := a.win.PeersStack
-	w.Remove(a.statusPage)
+	if w.Page(a.statusPage).Object != nil {
+		w.Remove(a.statusPage)
+	}
 
 	peerMap := status.Status.Peer
 	if peerMap == nil {

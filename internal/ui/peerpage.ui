@@ -37,6 +37,11 @@
               </object>
             </child>
             <child>
+              <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
+                <property name="title">Advertised Routes</property>
+              </object>
+            </child>
+            <child>
               <object class="AdwPreferencesGroup" id="MiscGroup">
                 <property name="title">Misc.</property>
                 <child>

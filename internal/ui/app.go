@@ -43,7 +43,7 @@ type App struct {
 	tray     *tray.Tray
 
 	statusPage    *adw.StatusPage
-	peerPages     map[key.NodePublic]Page
+	peerPages     map[key.NodePublic]*stackPage
 	mullvad       *MullvadPage
 	spinnum       int
 	operatorCheck bool
@@ -136,7 +136,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 	for id, page := range a.peerPages {
 		_, ok := peerMap[id]
 		if !ok {
-			w.Remove(page.Root())
+			w.Remove(page.page.Root())
 			delete(a.peerPages, id)
 		}
 	}

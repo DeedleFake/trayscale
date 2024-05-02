@@ -28,6 +28,10 @@ func (page *MullvadPage) Root() gtk.Widgetter {
 	return page.StatusPage
 }
 
+func (page *MullvadPage) Name() string {
+	return "Mullvad Exit Nodes"
+}
+
 func (page *MullvadPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
 }
 

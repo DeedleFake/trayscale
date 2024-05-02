@@ -66,6 +66,8 @@ type PeerPage struct {
 	SendFileRow           *adw.ActionRow
 	DropTarget            *gtk.DropTarget
 
+	name string
+
 	routes []netip.Prefix
 
 	addrRows  rowManager[netip.Addr]
@@ -80,6 +82,10 @@ func NewPeerPage() *PeerPage {
 
 func (page *PeerPage) Root() gtk.Widgetter {
 	return page.StatusPage
+}
+
+func (page *PeerPage) Name() string {
+	return page.name
 }
 
 func (page *PeerPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
@@ -201,6 +207,7 @@ func (page *PeerPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 }
 
 func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.name = peerName(status, peer)
 	page.SetTitle(peer.HostName)
 	page.SetDescription(peer.DNSName)
 

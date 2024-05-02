@@ -62,6 +62,8 @@ type SelfPage struct {
 	DERPLatencies           *adw.ExpanderRow
 	FilesGroup              *adw.PreferencesGroup
 
+	name string
+
 	routes []netip.Prefix
 
 	addrRows  rowManager[netip.Addr]
@@ -77,6 +79,10 @@ func NewSelfPage() *SelfPage {
 
 func (page *SelfPage) Root() gtk.Widgetter {
 	return page.StatusPage
+}
+
+func (page *SelfPage) Name() string {
+	return page.name
 }
 
 func (page *SelfPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
@@ -361,6 +367,7 @@ func (page *SelfPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 }
 
 func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.name = peerName(status, peer)
 	page.SetTitle(peer.HostName)
 	page.SetDescription(peer.DNSName)
 

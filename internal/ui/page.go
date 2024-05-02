@@ -12,6 +12,9 @@ type Page interface {
 	// Root returns the root widget that is can be placed into a container.
 	Root() gtk.Widgetter
 
+	// Name returns a displayable name for the page.
+	Name() string
+
 	// Init performs first-time initialization of the page, i.e. setting
 	// values to their defaults and whatnot. It should not call Update
 	// unless doing so is idempotent, though even then it's better not
@@ -35,23 +38,19 @@ type stackPage struct {
 	stackPage *gtk.StackPage
 }
 
-func (page *stackPage) Root() gtk.Widgetter {
-	return page.page.Root()
-}
-
 func (page *stackPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.stackPage = a.win.PeersStack.AddTitled(
-		page.Root(),
-		peer.PublicKey.String(),
-		peerName(status, peer),
-	)
-
 	page.page.Init(a, peer, status)
+
+	page.stackPage = a.win.PeersStack.AddTitled(
+		page.page.Root(),
+		peer.PublicKey.String(),
+		page.page.Name(),
+	)
 }
 
 func (page *stackPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
 	page.stackPage.SetIconName(peerIcon(peer))
-	page.stackPage.SetTitle(peerName(status, peer))
+	page.stackPage.SetTitle(page.page.Name())
 
 	page.page.Update(a, peer, status)
 }

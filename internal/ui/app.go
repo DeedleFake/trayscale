@@ -120,7 +120,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 		peerMap = status.Status.Peer
 		if peerMap == nil {
-			mk.Map(&peerMap, 0)
+			mk.Map(&peerMap, 1)
 		}
 
 		peers = slices.Insert(status.Status.Peers(), 0, status.Status.Self.PublicKey) // Add this manually to guarantee ordering.
@@ -142,9 +142,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 	for _, p := range newPeers {
 		peerStatus := peerMap[p]
-		page := stackPage{
-			page: NewPage(peerStatus, status),
-		}
+		page := stackPage{page: NewPage(peerStatus, status)}
 		page.Init(a, peerStatus, status)
 		page.Update(a, peerStatus, status)
 		a.peerPages[p] = &page

@@ -143,6 +143,9 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 	for _, p := range newPeers {
 		peerStatus := peerMap[p]
+		if tsutil.IsMullvad(peerStatus) {
+			continue
+		}
 		page := stackPage{page: NewPage(peerStatus, status)}
 		page.Init(a, peerStatus, status)
 		page.Update(a, peerStatus, status)

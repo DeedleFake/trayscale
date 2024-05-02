@@ -1,7 +1,12 @@
 package ui
 
 import (
+	"cmp"
+	"context"
 	_ "embed"
+	"fmt"
+	"log/slog"
+	"slices"
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -16,6 +21,8 @@ type MullvadPage struct {
 	*adw.StatusPage `gtk:"Page"`
 
 	ExitNodesGroup *adw.PreferencesGroup
+
+	exitNodeRows rowManager[*ipnstate.PeerStatus]
 }
 
 func NewMullvadPage() *MullvadPage {
@@ -37,7 +44,81 @@ func (page *MullvadPage) Name() string {
 }
 
 func (page *MullvadPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.exitNodeRows.Parent = page.ExitNodesGroup
+	page.exitNodeRows.New = func(peer *ipnstate.PeerStatus) row[*ipnstate.PeerStatus] {
+		row := exitNodeRow{
+			peer: peer,
+
+			w: adw.NewActionRow(),
+			r: gtk.NewSwitch(),
+		}
+
+		row.w.AddSuffix(row.r)
+		row.w.SetTitle(fmt.Sprintf("%v, %v", peer.Location.Country, peer.Location.City))
+
+		row.r.SetMarginTop(12)
+		row.r.SetMarginBottom(12)
+		row.r.ConnectStateSet(func(s bool) bool {
+			if s == row.r.State() {
+				return false
+			}
+
+			if s {
+				err := a.TS.AdvertiseExitNode(context.TODO(), false)
+				if err != nil {
+					slog.Error("disable exit node advertisement", "err", err)
+					// Continue anyways.
+				}
+			}
+
+			var node *ipnstate.PeerStatus
+			if s {
+				node = row.peer
+			}
+			err := a.TS.ExitNode(context.TODO(), node)
+			if err != nil {
+				slog.Error("set exit node", "err", err)
+				row.r.SetActive(!s)
+				return true
+			}
+			a.poller.Poll() <- struct{}{}
+			return true
+		})
+
+		return &row
+	}
 }
 
 func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	nodes := make([]*ipnstate.PeerStatus, 0, len(status.Status.Peer))
+	for _, peer := range status.Status.Peer {
+		if tsutil.IsMullvad(peer) {
+			nodes = append(nodes, peer)
+		}
+	}
+	slices.SortFunc(nodes, func(p1 *ipnstate.PeerStatus, p2 *ipnstate.PeerStatus) int {
+		return cmp.Compare(p1.DNSName, p2.DNSName)
+	})
+
+	page.exitNodeRows.Update(nodes)
+}
+
+type exitNodeRow struct {
+	peer *ipnstate.PeerStatus
+
+	w *adw.ActionRow
+	r *gtk.Switch
+}
+
+func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
+	row.peer = peer
+
+	row.w.SetTitle(fmt.Sprintf("%v, %v", peer.Location.Country, peer.Location.City))
+
+	row.r.SetState(peer.ExitNode)
+	row.r.SetActive(peer.ExitNode)
+}
+
+func (row *exitNodeRow) Widget() gtk.Widgetter {
+	return row.w
 }

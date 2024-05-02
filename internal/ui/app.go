@@ -18,7 +18,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn"
-	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
 
@@ -106,46 +105,48 @@ func (a *App) toast(msg string) *adw.Toast {
 	return toast
 }
 
-func (a *App) updatePeers(status tsutil.Status) {
-	const statusPageName = "status"
-
+func (a *App) updatePeersOffline() {
 	w := a.win.PeersStack
 
-	var peerMap map[key.NodePublic]*ipnstate.PeerStatus
-	var peers []key.NodePublic
-
-	if status.Online() {
-		if c := w.ChildByName(statusPageName); c != nil {
-			w.Remove(c)
-		}
-
-		peerMap = status.Status.Peer
-		if peerMap == nil {
-			mk.Map(&peerMap, 1)
-		}
-
-		peers = slices.Insert(status.Status.Peers(), 0, status.Status.Self.PublicKey) // Add this manually to guarantee ordering.
-		peerMap[status.Status.Self.PublicKey] = status.Status.Self
+	for id, page := range a.peerPages {
+		w.Remove(page.page.Root())
+		delete(a.peerPages, id)
 	}
+
+	if w.Pages().NItems() == 0 {
+		w.AddTitled(a.statusPage, "status", "Not Connected")
+		return
+	}
+}
+
+func (a *App) updatePeers(status tsutil.Status) {
+	if !status.Online() {
+		a.updatePeersOffline()
+		return
+	}
+
+	w := a.win.PeersStack
+	w.Remove(a.statusPage)
+
+	peerMap := status.Status.Peer
+	if peerMap == nil {
+		mk.Map(&peerMap, 1)
+	}
+
+	peers := slices.Insert(status.Status.Peers(), 0, status.Status.Self.PublicKey) // Add this manually to guarantee ordering.
+	peerMap[status.Status.Self.PublicKey] = status.Status.Self
+
+	peers = slices.DeleteFunc(peers, func(peer key.NodePublic) bool {
+		return tsutil.IsMullvad(peerMap[peer])
+	})
 
 	oldPeers, newPeers := xslices.Partition(peers, func(peer key.NodePublic) bool {
 		_, ok := a.peerPages[peer]
 		return ok
 	})
 
-	for id, page := range a.peerPages {
-		_, ok := peerMap[id]
-		if !ok {
-			w.Remove(page.page.Root())
-			delete(a.peerPages, id)
-		}
-	}
-
 	for _, p := range newPeers {
 		peerStatus := peerMap[p]
-		if tsutil.IsMullvad(peerStatus) {
-			continue
-		}
 		page := stackPage{page: NewPage(peerStatus, status)}
 		page.Init(a, peerStatus, status)
 		page.Update(a, peerStatus, status)
@@ -155,11 +156,6 @@ func (a *App) updatePeers(status tsutil.Status) {
 	for _, p := range oldPeers {
 		page := a.peerPages[p]
 		page.Update(a, peerMap[p], status)
-	}
-
-	if w.Pages().NItems() == 0 {
-		w.AddTitled(a.statusPage, statusPageName, "Not Connected")
-		return
 	}
 }
 

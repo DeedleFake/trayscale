@@ -377,7 +377,7 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	page.fileRows.Update(status.Files)
 	page.FilesGroup.SetVisible(len(status.Files) > 0)
 
-	page.routes = peer.PrimaryRoutes.AsSlice()
+	page.routes = status.Prefs.AdvertiseRoutes
 	page.routes = xslices.Filter(page.routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
 	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) int {
 		return xcmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())

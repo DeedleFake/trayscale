@@ -119,5 +119,5 @@ func fillFromBuilder(into any, xml ...string) {
 		builder.AddFromString(v, len(v))
 	}
 
-	fillObjects(&into, builder)
+	fillObjects(into, builder)
 }

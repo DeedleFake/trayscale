@@ -207,7 +207,9 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
 	page.addrRows.Update(peer.TailscaleIPs)
 
-	page.routes = peer.PrimaryRoutes.AsSlice()
+	if peer.PrimaryRoutes != nil {
+		page.routes = peer.PrimaryRoutes.AsSlice()
+	}
 	page.routes = xslices.Filter(page.routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
 	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) int {
 		return xcmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())

@@ -13,17 +13,16 @@ type Page interface {
 	Update(*App, *ipnstate.PeerStatus, tsutil.Status)
 }
 
-func NewPage(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) Page {
+func NewPage(peer *ipnstate.PeerStatus, status tsutil.Status) Page {
 	if peer.PublicKey == status.Status.Self.PublicKey {
-		page := NewSelfPage()
-		page.Init(a, peer, status)
-		return page
+		return NewSelfPage()
 	}
+	return NewPeerPage()
 }
 
 type pageInfo struct {
-	stackPage *gtk.StackPage
 	page      Page
+	stackPage *gtk.StackPage
 }
 
 func (page *pageInfo) Root() gtk.Widgetter {
@@ -31,6 +30,12 @@ func (page *pageInfo) Root() gtk.Widgetter {
 }
 
 func (page *pageInfo) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.stackPage = a.win.PeersStack.AddTitled(
+		page.Root(),
+		peer.PublicKey.String(),
+		peerName(status, peer, peer.PublicKey == status.Status.Self.PublicKey),
+	)
+
 	page.page.Init(a, peer, status)
 }
 

@@ -43,7 +43,7 @@ type App struct {
 	tray     *tray.Tray
 
 	statusPage    *adw.StatusPage
-	peerPages     map[key.NodePublic]*peerPage
+	peerPages     map[key.NodePublic]Page
 	spinnum       int
 	operatorCheck bool
 }
@@ -120,7 +120,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 		peerMap = status.Status.Peer
 		if peerMap == nil {
-			mk.Map(&peerMap, 0)
+			mk.Map(&peerMap, 1)
 		}
 
 		peers = slices.Insert(status.Status.Peers(), 0, status.Status.Self.PublicKey) // Add this manually to guarantee ordering.
@@ -135,26 +135,22 @@ func (a *App) updatePeers(status tsutil.Status) {
 	for id, page := range a.peerPages {
 		_, ok := peerMap[id]
 		if !ok {
-			w.Remove(page.container)
+			w.Remove(page.Root())
 			delete(a.peerPages, id)
 		}
 	}
 
 	for _, p := range newPeers {
 		peerStatus := peerMap[p]
-		peerPage := a.newPeerPage(status, peerStatus)
-		peerPage.page = w.AddTitled(
-			peerPage.container,
-			p.String(),
-			peerName(status, peerStatus, peerPage.self),
-		)
-		a.updatePeerPage(peerPage, peerStatus, status)
-		a.peerPages[p] = peerPage
+		page := stackPage{page: NewPage(peerStatus, status)}
+		page.Init(a, peerStatus, status)
+		page.Update(a, peerStatus, status)
+		a.peerPages[p] = &page
 	}
 
 	for _, p := range oldPeers {
 		page := a.peerPages[p]
-		a.updatePeerPage(page, peerMap[p], status)
+		page.Update(a, peerMap[p], status)
 	}
 
 	if w.Pages().NItems() == 0 {

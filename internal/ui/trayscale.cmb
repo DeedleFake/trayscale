@@ -5,7 +5,8 @@
 	(1,None,"mainwindow.ui","mainwindow.ui",None,None,None,None,None,None,None),
 	(2,None,None,"peerpage.ui",None,None,None,None,None,None,None),
 	(3,None,None,"preferences.ui",None,None,None,None,None,None,None),
-	(4,None,None,"selfpage.ui",None,None,None,None,None,None,None)
+	(4,None,None,"selfpage.ui",None,None,None,None,None,None,None),
+	(5,None,None,"mullvadpage.ui",None,None,None,None,None,None,None)
   </ui>
   <object>
 	(1,1,"AdwApplicationWindow","MainWindow",None,None,None,None,None,None),
@@ -95,7 +96,11 @@
 	(4,37,"GtkImage","HairPinning",36,None,None,None,None,None),
 	(4,38,"AdwActionRow","PreferredDERPRow",18,None,None,None,8,None),
 	(4,39,"GtkLabel","PreferredDERP",38,None,None,None,None,None),
-	(4,40,"AdwExpanderRow","DERPLatencies",18,None,None,None,9,None)
+	(4,40,"AdwExpanderRow","DERPLatencies",18,None,None,None,9,None),
+	(5,1,"AdwStatusPage","Page",None,None,None,None,None,None),
+	(5,2,"AdwClamp",None,1,None,None,None,None,None),
+	(5,3,"GtkBox",None,2,None,None,None,None,None),
+	(5,4,"AdwPreferencesGroup","ExitNodesGroup",3,None,None,None,None,None)
   </object>
   <object_property>
 	(1,1,"AdwApplicationWindow","content","4",None,None,None,None,None,None,None,None,None),
@@ -214,6 +219,8 @@
 	(4,38,"GtkWidget","visible","False",None,None,None,None,None,None,None,None,None),
 	(4,39,"GtkLabel","label","Never",None,None,None,None,None,None,None,None,None),
 	(4,40,"AdwPreferencesRow","title","DERP Latencies",None,None,None,None,None,None,None,None,None),
-	(4,40,"GtkWidget","visible","False",None,None,None,None,None,None,None,None,None)
+	(4,40,"GtkWidget","visible","False",None,None,None,None,None,None,None,None,None),
+	(5,3,"GtkBox","spacing","12",None,None,None,None,None,None,None,None,None),
+	(5,3,"GtkOrientable","orientation","vertical",None,None,None,None,None,None,None,None,None)
   </object_property>
 </cambalache-project>

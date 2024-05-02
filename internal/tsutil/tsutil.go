@@ -26,3 +26,10 @@ func DNSOrQuoteHostname(st *ipnstate.Status, ps *ipnstate.PeerStatus) string {
 	}
 	return fmt.Sprintf("(%q)", dnsname.SanitizeHostname(ps.HostName))
 }
+
+// IsMullvad returns true if peer is a Mullvad exit node.
+func IsMullvad(peer *ipnstate.PeerStatus) bool {
+	return (peer.Tags != nil) && peer.Tags.ContainsFunc(func(tag string) bool {
+		return tag == "tag:mullvad-exit-node"
+	})
+}

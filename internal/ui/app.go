@@ -44,6 +44,7 @@ type App struct {
 
 	statusPage    *adw.StatusPage
 	peerPages     map[key.NodePublic]Page
+	mullvad       *MullvadPage
 	spinnum       int
 	operatorCheck bool
 }

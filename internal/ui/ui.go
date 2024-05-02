@@ -47,14 +47,14 @@ func readAssetString(file string) string {
 	return str.String()
 }
 
-func peerName(status tsutil.Status, peer *ipnstate.PeerStatus, self bool) string {
+func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
 	const maxNameLength = 30
 	name := tsutil.DNSOrQuoteHostname(status.Status, peer)
 	if len(name) > maxNameLength {
 		name = name[:maxNameLength-3] + "..."
 	}
 
-	if self {
+	if peer.PublicKey == status.Status.Self.PublicKey {
 		return name + " [This machine]"
 	}
 	if peer.ExitNode {

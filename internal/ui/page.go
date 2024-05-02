@@ -43,17 +43,15 @@ func (page *stackPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Sta
 	page.stackPage = a.win.PeersStack.AddTitled(
 		page.Root(),
 		peer.PublicKey.String(),
-		peerName(status, peer, peer.PublicKey == status.Status.Self.PublicKey),
+		peerName(status, peer),
 	)
 
 	page.page.Init(a, peer, status)
 }
 
 func (page *stackPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	self := peer.PublicKey == status.Status.Self.PublicKey
-
 	page.stackPage.SetIconName(peerIcon(peer))
-	page.stackPage.SetTitle(peerName(status, peer, self))
+	page.stackPage.SetTitle(peerName(status, peer))
 
 	page.page.Update(a, peer, status)
 }

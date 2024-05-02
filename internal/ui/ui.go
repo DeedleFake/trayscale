@@ -113,14 +113,11 @@ func fillObjects(dst any, builder *gtk.Builder) {
 	}
 }
 
-func newFromBuilder[T any](xml ...string) *T {
+func fillFromBuilder(into any, xml ...string) {
 	builder := gtk.NewBuilder()
 	for _, v := range xml {
 		builder.AddFromString(v, len(v))
 	}
 
-	var t T
-	fillObjects(&t, builder)
-
-	return &t
+	fillObjects(&into, builder)
 }

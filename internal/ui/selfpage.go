@@ -7,10 +7,10 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
-//go:embed peerpage.ui
-var peerPageXML string
+//go:embed selfpage.ui
+var selfPageXML string
 
-type PeerPage struct {
+type SelfPage struct {
 	*adw.StatusPage `gtk:"Page"`
 
 	IPGroup                 *adw.PreferencesGroup
@@ -69,8 +69,8 @@ type PeerPage struct {
 	DropTarget              *gtk.DropTarget
 }
 
-func NewPeerPage() *PeerPage {
-	var page PeerPage
-	fillFromBuilder(&page, peerPageXML)
+func NewSelfPage() *SelfPage {
+	var page SelfPage
+	fillFromBuilder(&page, selfPageXML)
 	return &page
 }

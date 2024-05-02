@@ -22,5 +22,7 @@ type PreferencesWindow struct {
 }
 
 func NewPreferencesWindow() *PreferencesWindow {
-	return newFromBuilder[PreferencesWindow](preferencesXML)
+	var win PreferencesWindow
+	fillFromBuilder(&win, preferencesXML)
+	return &win
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 )
 
 //go:embed mullvadpage.ui
@@ -21,6 +22,8 @@ type MullvadPage struct {
 	*adw.StatusPage `gtk:"Page"`
 
 	ExitNodesGroup *adw.PreferencesGroup
+
+	name string
 
 	exitNodeRows rowManager[*ipnstate.PeerStatus]
 }
@@ -40,10 +43,12 @@ func (page *MullvadPage) ID() string {
 }
 
 func (page *MullvadPage) Name() string {
-	return "Mullvad Exit Nodes"
+	return page.name
 }
 
 func (page *MullvadPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.name = "Mullvad Exit Nodes"
+
 	page.exitNodeRows.Parent = page.ExitNodesGroup
 	page.exitNodeRows.New = func(peer *ipnstate.PeerStatus) row[*ipnstate.PeerStatus] {
 		row := exitNodeRow{
@@ -54,7 +59,7 @@ func (page *MullvadPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.S
 		}
 
 		row.w.AddSuffix(row.r)
-		row.w.SetTitle(fmt.Sprintf("%v, %v", peer.Location.Country, peer.Location.City))
+		row.w.SetTitle(mullvadExitNodeName(peer))
 
 		row.r.SetMarginTop(12)
 		row.r.SetMarginBottom(12)
@@ -90,10 +95,20 @@ func (page *MullvadPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.S
 }
 
 func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.name = "Mullvad Exit Nodes"
+
+	var exitNodeID tailcfg.StableNodeID
+	if status.Status.ExitNodeStatus != nil {
+		exitNodeID = status.Status.ExitNodeStatus.ID
+	}
+
 	nodes := make([]*ipnstate.PeerStatus, 0, len(status.Status.Peer))
 	for _, peer := range status.Status.Peer {
 		if tsutil.IsMullvad(peer) {
 			nodes = append(nodes, peer)
+			if peer.ID == exitNodeID {
+				page.name = fmt.Sprintf("Mullvad Exit Nodes [%v]", mullvadExitNodeName(peer))
+			}
 		}
 	}
 	slices.SortFunc(nodes, func(p1 *ipnstate.PeerStatus, p2 *ipnstate.PeerStatus) int {
@@ -113,7 +128,7 @@ type exitNodeRow struct {
 func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
 	row.peer = peer
 
-	row.w.SetTitle(fmt.Sprintf("%v, %v", peer.Location.Country, peer.Location.City))
+	row.w.SetTitle(mullvadExitNodeName(peer))
 
 	row.r.SetState(peer.ExitNode)
 	row.r.SetActive(peer.ExitNode)
@@ -121,4 +136,8 @@ func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
 
 func (row *exitNodeRow) Widget() gtk.Widgetter {
 	return row.w
+}
+
+func mullvadExitNodeName(peer *ipnstate.PeerStatus) string {
+	return fmt.Sprintf("%v, %v", peer.Location.Country, peer.Location.City)
 }

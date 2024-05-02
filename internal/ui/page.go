@@ -25,14 +25,6 @@ type Page interface {
 	Update(*App, *ipnstate.PeerStatus, tsutil.Status)
 }
 
-// NewPage returns an instance of page that represents the given peer.
-func NewPage(peer *ipnstate.PeerStatus, status tsutil.Status) Page {
-	if peer.PublicKey == status.Status.Self.PublicKey {
-		return NewSelfPage()
-	}
-	return NewPeerPage()
-}
-
 type stackPage struct {
 	page      Page
 	stackPage *gtk.StackPage

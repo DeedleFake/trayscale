@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"strings"
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -144,8 +143,6 @@ func mullvadExitNodeName(peer *ipnstate.PeerStatus) string {
 }
 
 func countryCodeToFlag(code string) string {
-	code = strings.ToUpper(code)
-
 	var raw [2]rune
 	for i, c := range code {
 		raw[i] = 127397 + c

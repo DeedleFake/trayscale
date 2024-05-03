@@ -33,3 +33,9 @@ func IsMullvad(peer *ipnstate.PeerStatus) bool {
 		return tag == "tag:mullvad-exit-node"
 	})
 }
+
+// CanMullvad returns true if peer is allowed to access Mullvad exit
+// nodes.
+func CanMullvad(peer *ipnstate.PeerStatus) bool {
+	return peer.CapMap.Contains("mullvad")
+}

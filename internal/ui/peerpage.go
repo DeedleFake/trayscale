@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"context"
 	_ "embed"
 	"log/slog"
@@ -9,7 +10,6 @@ import (
 	"strconv"
 
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/trayscale/internal/xcmp"
 	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -66,6 +66,9 @@ type PeerPage struct {
 	SendFileRow           *adw.ActionRow
 	DropTarget            *gtk.DropTarget
 
+	peer *ipnstate.PeerStatus
+	name string
+
 	routes []netip.Prefix
 
 	addrRows  rowManager[netip.Addr]
@@ -82,7 +85,17 @@ func (page *PeerPage) Root() gtk.Widgetter {
 	return page.StatusPage
 }
 
+func (page *PeerPage) ID() string {
+	return page.peer.PublicKey.String()
+}
+
+func (page *PeerPage) Name() string {
+	return page.name
+}
+
 func (page *PeerPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.peer = peer
+
 	actions := gio.NewSimpleActionGroup()
 	page.InsertActionGroup("peer", actions)
 
@@ -201,6 +214,9 @@ func (page *PeerPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 }
 
 func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+	page.peer = peer
+	page.name = peerName(status, peer)
+
 	page.SetTitle(peer.HostName)
 	page.SetDescription(peer.DNSName)
 
@@ -212,7 +228,7 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	}
 	page.routes = xslices.Filter(page.routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
 	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) int {
-		return xcmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())
+		return cmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())
 	})
 	if len(page.routes) == 0 {
 		page.routes = append(page.routes, netip.Prefix{})

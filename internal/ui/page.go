@@ -12,6 +12,12 @@ type Page interface {
 	// Root returns the root widget that is can be placed into a container.
 	Root() gtk.Widgetter
 
+	// An identifier for the page.
+	ID() string
+
+	// Name returns a displayable name for the page.
+	Name() string
+
 	// Init performs first-time initialization of the page, i.e. setting
 	// values to their defaults and whatnot. It should not call Update
 	// unless doing so is idempotent, though even then it's better not
@@ -22,38 +28,24 @@ type Page interface {
 	Update(*App, *ipnstate.PeerStatus, tsutil.Status)
 }
 
-// NewPage returns an instance of page that represents the given peer.
-func NewPage(peer *ipnstate.PeerStatus, status tsutil.Status) Page {
-	if peer.PublicKey == status.Status.Self.PublicKey {
-		return NewSelfPage()
-	}
-	return NewPeerPage()
-}
-
 type stackPage struct {
 	page      Page
 	stackPage *gtk.StackPage
 }
 
-func (page *stackPage) Root() gtk.Widgetter {
-	return page.page.Root()
-}
-
 func (page *stackPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.stackPage = a.win.PeersStack.AddTitled(
-		page.Root(),
-		peer.PublicKey.String(),
-		peerName(status, peer, peer.PublicKey == status.Status.Self.PublicKey),
-	)
-
 	page.page.Init(a, peer, status)
+
+	page.stackPage = a.win.PeersStack.AddTitled(
+		page.page.Root(),
+		page.page.ID(),
+		page.page.Name(),
+	)
 }
 
 func (page *stackPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	self := peer.PublicKey == status.Status.Self.PublicKey
+	page.page.Update(a, peer, status)
 
 	page.stackPage.SetIconName(peerIcon(peer))
-	page.stackPage.SetTitle(peerName(status, peer, self))
-
-	page.page.Update(a, peer, status)
+	page.stackPage.SetTitle(page.page.Name())
 }

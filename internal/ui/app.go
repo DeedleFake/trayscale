@@ -11,14 +11,12 @@ import (
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
-	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn"
-	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
 
@@ -43,7 +41,9 @@ type App struct {
 	tray     *tray.Tray
 
 	statusPage    *adw.StatusPage
-	peerPages     map[key.NodePublic]Page
+	selfPage      *stackPage
+	mullvadPage   *stackPage
+	peerPages     map[key.NodePublic]*stackPage
 	spinnum       int
 	operatorCheck bool
 }
@@ -105,57 +105,77 @@ func (a *App) toast(msg string) *adw.Toast {
 	return toast
 }
 
-func (a *App) updatePeers(status tsutil.Status) {
-	const statusPageName = "status"
+func (a *App) updatePeersOffline() {
+	stack := a.win.PeersStack
 
-	w := a.win.PeersStack
+	for _, page := range a.peerPages {
+		stack.Remove(page.page.Root())
+	}
+	clear(a.peerPages)
 
-	var peerMap map[key.NodePublic]*ipnstate.PeerStatus
-	var peers []key.NodePublic
-
-	if status.Online() {
-		if c := w.ChildByName(statusPageName); c != nil {
-			w.Remove(c)
-		}
-
-		peerMap = status.Status.Peer
-		if peerMap == nil {
-			mk.Map(&peerMap, 1)
-		}
-
-		peers = slices.Insert(status.Status.Peers(), 0, status.Status.Self.PublicKey) // Add this manually to guarantee ordering.
-		peerMap[status.Status.Self.PublicKey] = status.Status.Self
+	if (a.selfPage != nil) && (stack.Page(a.selfPage.page.Root()).Object != nil) {
+		stack.Remove(a.selfPage.page.Root())
+		a.selfPage = nil
 	}
 
-	oldPeers, newPeers := xslices.Partition(peers, func(peer key.NodePublic) bool {
-		_, ok := a.peerPages[peer]
-		return ok
+	if stack.Page(a.statusPage).Object == nil {
+		stack.AddTitled(a.statusPage, "status", "Not Connected")
+	}
+}
+
+func (a *App) updatePeers(status tsutil.Status) {
+	if !status.Online() {
+		a.updatePeersOffline()
+		return
+	}
+
+	stack := a.win.PeersStack
+
+	if a.selfPage == nil {
+		a.selfPage = &stackPage{page: NewSelfPage()}
+		a.selfPage.Init(a, status.Status.Self, status)
+	}
+	a.selfPage.Update(a, status.Status.Self, status)
+
+	switch {
+	case tsutil.CanMullvad(status.Status.Self):
+		if a.mullvadPage == nil {
+			a.mullvadPage = &stackPage{page: NewMullvadPage()}
+			a.mullvadPage.Init(a, nil, status)
+		}
+		a.mullvadPage.Update(a, nil, status)
+	case a.mullvadPage != nil:
+		stack.Remove(a.mullvadPage.page.Root())
+		a.mullvadPage = nil
+	}
+
+	peerMap := status.Status.Peer
+	peers := slices.DeleteFunc(status.Status.Peers(), func(peer key.NodePublic) bool {
+		return tsutil.IsMullvad(peerMap[peer])
 	})
 
-	for id, page := range a.peerPages {
-		_, ok := peerMap[id]
-		if !ok {
-			w.Remove(page.Root())
-			delete(a.peerPages, id)
+	for key, page := range a.peerPages {
+		if _, ok := peerMap[key]; !ok {
+			stack.Remove(page.page.Root())
+			delete(a.peerPages, key)
 		}
 	}
 
-	for _, p := range newPeers {
+	for _, p := range peers {
 		peerStatus := peerMap[p]
-		page := stackPage{page: NewPage(peerStatus, status)}
-		page.Init(a, peerStatus, status)
+
+		page, ok := a.peerPages[p]
+		if !ok {
+			page = &stackPage{page: NewPeerPage()}
+			page.Init(a, peerStatus, status)
+			a.peerPages[p] = page
+		}
+
 		page.Update(a, peerStatus, status)
-		a.peerPages[p] = &page
 	}
 
-	for _, p := range oldPeers {
-		page := a.peerPages[p]
-		page.Update(a, peerMap[p], status)
-	}
-
-	if w.Pages().NItems() == 0 {
-		w.AddTitled(a.statusPage, statusPageName, "Not Connected")
-		return
+	if stack.Page(a.statusPage).Object != nil {
+		stack.Remove(a.statusPage)
 	}
 }
 

@@ -113,9 +113,14 @@ func (a *App) updatePeersOffline() {
 	}
 	clear(a.peerPages)
 
-	if (a.selfPage != nil) && (stack.Page(a.selfPage.page.Root()).Object != nil) {
+	if a.selfPage != nil {
 		stack.Remove(a.selfPage.page.Root())
 		a.selfPage = nil
+	}
+
+	if a.mullvadPage != nil {
+		stack.Remove(a.mullvadPage.page.Root())
+		a.mullvadPage = nil
 	}
 
 	if stack.Page(a.statusPage).Object == nil {

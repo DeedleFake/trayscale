@@ -23,7 +23,7 @@ _build() {
 	fi
 
 	echo "Building $version"
-	go build -v -trimpath -ldflags="-X 'deedles.dev/trayscale/internal/version.version=$version'" -o trayscale ./cmd/trayscale
+	go build -v -trimpath -ldflags="-w -s -X 'deedles.dev/trayscale/internal/version.version=$version'" -o trayscale ./cmd/trayscale
 }
 
 _install() {

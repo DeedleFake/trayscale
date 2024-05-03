@@ -46,6 +46,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.12.0" date="2024-05-02">
+			<description>
+				<ul>Move all Mullvad nodes into their own page.</ul>
+				<ul>Cleanup a large amount of code for handling pages in the UI.</ul>
+			</description>
+		</release>
 		<release version="v0.11.2" date="2024-04-07">
 			<description>
 				<ul>Fix warning about a missing title at startup.</ul>

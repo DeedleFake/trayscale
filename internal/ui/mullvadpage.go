@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -139,5 +140,16 @@ func (row *exitNodeRow) Widget() gtk.Widgetter {
 }
 
 func mullvadExitNodeName(peer *ipnstate.PeerStatus) string {
-	return fmt.Sprintf("%v, %v", peer.Location.Country, peer.Location.City)
+	return fmt.Sprintf("%v %v, %v", countryCodeToFlag(peer.Location.CountryCode), peer.Location.Country, peer.Location.City)
+}
+
+func countryCodeToFlag(code string) string {
+	code = strings.ToUpper(code)
+
+	var raw [2]rune
+	for i, c := range code {
+		raw[i] = 127397 + c
+	}
+
+	return string(raw[:])
 }

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"cmp"
 	"context"
 	_ "embed"
 	"fmt"
@@ -111,8 +110,8 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 			}
 		}
 	}
-	slices.SortFunc(nodes, func(p1 *ipnstate.PeerStatus, p2 *ipnstate.PeerStatus) int {
-		return cmp.Compare(p1.DNSName, p2.DNSName)
+	slices.SortFunc(nodes, func(p1, p2 *ipnstate.PeerStatus) int {
+		return tsutil.CompareLocations(p1.Location, p2.Location)
 	})
 
 	page.exitNodeRows.Update(nodes)
@@ -139,7 +138,7 @@ func (row *exitNodeRow) Widget() gtk.Widgetter {
 }
 
 func mullvadExitNodeName(peer *ipnstate.PeerStatus) string {
-	return fmt.Sprintf("%v %v, %v", countryCodeToFlag(peer.Location.CountryCode), peer.Location.Country, peer.Location.City)
+	return fmt.Sprintf("%v %v, %v", countryCodeToFlag(peer.Location.CountryCode), peer.Location.City, peer.Location.Country)
 }
 
 func countryCodeToFlag(code string) string {

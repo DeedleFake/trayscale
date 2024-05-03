@@ -28,6 +28,7 @@
 	<screenshots>
 		<screenshot type="default">
 			<image>https://github.com/DeedleFake/trayscale/assets/326750/156e5138-ce60-4940-8cdc-67afa27fcf6f</image>
+			<image>https://github.com/DeedleFake/trayscale/assets/326750/2d06e023-9c24-4d72-9e28-c62f6fb53832</image>
 		</screenshot>
 	</screenshots>
 
@@ -46,6 +47,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.12.1" date="2024-05-02">
+			<description>
+				<ul>Strip debugging symbols to reduce binary size.</ul>
+				<ul>Remove Mullvad page when switching to offline.</ul>
+			</description>
+		</release>
 		<release version="v0.12.0" date="2024-05-02">
 			<description>
 				<ul>Move all Mullvad nodes into their own page.</ul>

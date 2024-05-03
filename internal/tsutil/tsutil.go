@@ -1,11 +1,13 @@
 package tsutil
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
 
 	"golang.org/x/net/idna"
 	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 	"tailscale.com/util/dnsname"
 )
 
@@ -38,4 +40,13 @@ func IsMullvad(peer *ipnstate.PeerStatus) bool {
 // nodes.
 func CanMullvad(peer *ipnstate.PeerStatus) bool {
 	return peer.CapMap.Contains("mullvad")
+}
+
+// CompareLocations alphabestically compares the countries and then,
+// if necessary, cities of two Locations.
+func CompareLocations(loc1, loc2 *tailcfg.Location) int {
+	return cmp.Or(
+		cmp.Compare(loc1.Country, loc2.Country),
+		cmp.Compare(loc1.City, loc2.City),
+	)
 }

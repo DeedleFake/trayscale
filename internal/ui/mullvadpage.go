@@ -146,7 +146,12 @@ func mullvadExitNodeName(peer *ipnstate.PeerStatus) string {
 		return peer.HostName
 	}
 
-	return fmt.Sprintf("%v %v, %v", countryCodeToFlag(peer.Location.CountryCode), peer.Location.City, peer.Location.Country)
+	return fmt.Sprintf(
+		"%v %v, %v",
+		countryCodeToFlag(peer.Location.CountryCode),
+		peer.Location.City,
+		peer.Location.Country,
+	)
 }
 
 func countryCodeToFlag(code string) string {

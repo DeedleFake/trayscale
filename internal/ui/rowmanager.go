@@ -6,6 +6,8 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
+// TODO: Move this into a different package and remove the need to keep
+// track of the parent and other pieces of tight coupling to GTK.
 type rowManager[Data any] struct {
 	Parent rowManagerParent
 	New    func(Data) row[Data]

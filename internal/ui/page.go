@@ -22,6 +22,8 @@ type Page interface {
 	// values to their defaults and whatnot. It should not call Update
 	// unless doing so is idempotent, though even then it's better not
 	// to.
+	//
+	// TODO: Remove this and just do it in constructors instead.
 	Init(*App, *ipnstate.PeerStatus, tsutil.Status)
 
 	// Update performs an update of the UI to match new state.

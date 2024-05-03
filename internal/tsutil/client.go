@@ -241,8 +241,8 @@ func (c *Client) DeleteWaitingFile(ctx context.Context, name string) error {
 	return localClient.DeleteWaitingFile(ctx, name)
 }
 
-// WaitingFiles polls for any pending incoming files. It blocks for an
-// extended period of time.
+// WaitingFiles polls for any pending incoming files. It returns
+// quickly if there are no files currently pending.
 func (c *Client) WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
 	// TODO: https://github.com/tailscale/tailscale/issues/8911
 	return localClient.AwaitWaitingFiles(ctx, time.Second)

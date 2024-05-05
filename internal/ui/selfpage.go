@@ -72,9 +72,10 @@ type SelfPage struct {
 	fileRows  rowManager[apitype.WaitingFile]
 }
 
-func NewSelfPage() *SelfPage {
+func NewSelfPage(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) *SelfPage {
 	var page SelfPage
 	fillFromBuilder(&page, selfPageXML)
+	page.init(a, peer, status)
 	return &page
 }
 
@@ -90,7 +91,7 @@ func (page *SelfPage) Name() string {
 	return page.name
 }
 
-func (page *SelfPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
 	page.peer = peer
 
 	actions := gio.NewSimpleActionGroup()

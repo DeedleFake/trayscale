@@ -137,16 +137,14 @@ func (a *App) updatePeers(status tsutil.Status) {
 	stack := a.win.PeersStack
 
 	if a.selfPage == nil {
-		a.selfPage = &stackPage{page: NewSelfPage()}
-		a.selfPage.Init(a, status.Status.Self, status)
+		a.selfPage = newStackPage(a, NewSelfPage(a, status.Status.Self, status))
 	}
 	a.selfPage.Update(a, status.Status.Self, status)
 
 	switch {
 	case tsutil.CanMullvad(status.Status.Self):
 		if a.mullvadPage == nil {
-			a.mullvadPage = &stackPage{page: NewMullvadPage()}
-			a.mullvadPage.Init(a, nil, status)
+			a.mullvadPage = newStackPage(a, NewMullvadPage(a, status))
 		}
 		a.mullvadPage.Update(a, nil, status)
 	case a.mullvadPage != nil:
@@ -171,8 +169,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 		page, ok := a.peerPages[p]
 		if !ok {
-			page = &stackPage{page: NewPeerPage()}
-			page.Init(a, peerStatus, status)
+			page = newStackPage(a, NewPeerPage(a, peerStatus, status))
 			a.peerPages[p] = page
 		}
 
@@ -344,6 +341,8 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 	a.win.ConnectCloseRequest(func() bool {
 		clear(a.peerPages)
+		a.mullvadPage = nil
+		a.selfPage = nil
 		a.win = nil
 		return false
 	})

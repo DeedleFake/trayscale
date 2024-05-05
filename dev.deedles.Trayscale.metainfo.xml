@@ -54,6 +54,16 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.12.3" date="2024-05-04">
+			<description>
+				<ul>Fix self and Mullvad pages disappearing when re-opening the window.</ul>
+			</description>
+		</release>
+		<release version="v0.12.2" date="2024-05-03">
+			<description>
+				<ul>Nicer sorting and display of Mullvad nodes.</ul>
+			</description>
+		</release>
 		<release version="v0.12.1" date="2024-05-02">
 			<description>
 				<ul>Strip debugging symbols to reduce binary size.</ul>

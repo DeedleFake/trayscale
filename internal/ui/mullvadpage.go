@@ -28,9 +28,10 @@ type MullvadPage struct {
 	exitNodeRows rowManager[*ipnstate.PeerStatus]
 }
 
-func NewMullvadPage() *MullvadPage {
+func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
 	var page MullvadPage
 	fillFromBuilder(&page, mullvadPageXML)
+	page.init(a, status)
 	return &page
 }
 
@@ -46,7 +47,7 @@ func (page *MullvadPage) Name() string {
 	return page.name
 }
 
-func (page *MullvadPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+func (page *MullvadPage) init(a *App, status tsutil.Status) {
 	page.name = "Mullvad Exit Nodes"
 
 	page.exitNodeRows.Parent = page.ExitNodesGroup

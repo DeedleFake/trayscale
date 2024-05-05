@@ -75,9 +75,10 @@ type PeerPage struct {
 	routeRows rowManager[enum[netip.Prefix]]
 }
 
-func NewPeerPage() *PeerPage {
+func NewPeerPage(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) *PeerPage {
 	var page PeerPage
 	fillFromBuilder(&page, peerPageXML)
+	page.init(a, peer, status)
 	return &page
 }
 
@@ -93,7 +94,7 @@ func (page *PeerPage) Name() string {
 	return page.name
 }
 
-func (page *PeerPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
 	page.peer = peer
 
 	actions := gio.NewSimpleActionGroup()

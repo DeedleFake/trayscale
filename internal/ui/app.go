@@ -341,6 +341,8 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 	a.win.ConnectCloseRequest(func() bool {
 		clear(a.peerPages)
+		a.mullvadPage = nil
+		a.selfPage = nil
 		a.win = nil
 		return false
 	})

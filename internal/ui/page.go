@@ -18,14 +18,6 @@ type Page interface {
 	// Name returns a displayable name for the page.
 	Name() string
 
-	// Init performs first-time initialization of the page, i.e. setting
-	// values to their defaults and whatnot. It should not call Update
-	// unless doing so is idempotent, though even then it's better not
-	// to.
-	//
-	// TODO: Remove this and just do it in constructors instead.
-	Init(*App, *ipnstate.PeerStatus, tsutil.Status)
-
 	// Update performs an update of the UI to match new state.
 	Update(*App, *ipnstate.PeerStatus, tsutil.Status)
 }
@@ -35,14 +27,15 @@ type stackPage struct {
 	stackPage *gtk.StackPage
 }
 
-func (page *stackPage) Init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.page.Init(a, peer, status)
-
-	page.stackPage = a.win.PeersStack.AddTitled(
-		page.page.Root(),
-		page.page.ID(),
-		page.page.Name(),
-	)
+func newStackPage(a *App, page Page) *stackPage {
+	return &stackPage{
+		page: page,
+		stackPage: a.win.PeersStack.AddTitled(
+			page.Root(),
+			page.ID(),
+			page.Name(),
+		),
+	}
 }
 
 func (page *stackPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {

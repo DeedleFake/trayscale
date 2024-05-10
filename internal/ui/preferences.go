@@ -13,10 +13,8 @@ var preferencesXML string
 type PreferencesWindow struct {
 	*adw.PreferencesWindow `gtk:"PreferencesWindow"`
 
-	UseTrayIconRow            *adw.ActionRow
-	UseTrayIcon               *gtk.Switch
-	PollingIntervalRow        *adw.ActionRow
-	PollingInterval           *gtk.SpinButton
+	UseTrayIconRow            *adw.SwitchRow
+	PollingIntervalRow        *adw.SpinRow
 	PollingIntervalAdjustment *gtk.Adjustment
 	ControlURLRow             *adw.EntryRow
 }

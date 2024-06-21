@@ -224,6 +224,11 @@ func (c *Client) SetControlURL(ctx context.Context, controlURL string) error {
 }
 
 func (c *Client) NetCheck(ctx context.Context, full bool) (*netcheck.Report, *tailcfg.DERPMap, error) {
+	err := netcheckClient.Standalone(ctx, "")
+	if err != nil {
+		return nil, nil, fmt.Errorf("standalone: %w", err)
+	}
+
 	dm, err := localClient.CurrentDERPMap(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("current DERP map: %w", err)

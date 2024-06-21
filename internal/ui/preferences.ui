@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Created with Cambalache 0.17.2 -->
+<!-- Created with Cambalache 0.91.1 -->
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <requires lib="libadwaita" version="1.3"/>
+  <requires lib="libadwaita" version="1.4"/>
   <object class="AdwPreferencesWindow" id="PreferencesWindow">
     <child>
       <object class="AdwPreferencesPage">
@@ -10,28 +10,23 @@
           <object class="AdwPreferencesGroup">
             <property name="title">General</property>
             <child>
-              <object class="AdwActionRow" id="UseTrayIconRow">
+              <object class="AdwSwitchRow" id="UseTrayIconRow">
                 <property name="subtitle">If enabled, an icon will be added to the system tray</property>
                 <property name="title">Use Tray Icon</property>
-                <child>
-                  <object class="GtkSwitch" id="UseTrayIcon">
-                    <property name="margin-bottom">12</property>
-                    <property name="margin-top">12</property>
-                  </object>
-                </child>
               </object>
             </child>
             <child>
-              <object class="AdwActionRow" id="PollingIntervalRow">
+              <object class="AdwSpinRow" id="PollingIntervalRow">
+                <property name="adjustment">
+                  <object class="GtkAdjustment" id="PollingIntervalAdjustment">
+                    <property name="lower">0.5</property>
+                    <property name="step-increment">1.0</property>
+                    <property name="upper">100.0</property>
+                    <property name="value">5.0</property>
+                  </object>
+                </property>
                 <property name="subtitle">Interval, in seconds, at which to poll the Tailscale daemon</property>
                 <property name="title">Polling Interval</property>
-                <child>
-                  <object class="GtkSpinButton" id="PollingInterval">
-                    <property name="adjustment">PollingIntervalAdjustment</property>
-                    <property name="margin-bottom">12</property>
-                    <property name="margin-top">12</property>
-                  </object>
-                </child>
               </object>
             </child>
           </object>
@@ -49,11 +44,5 @@
         </child>
       </object>
     </child>
-  </object>
-  <object class="GtkAdjustment" id="PollingIntervalAdjustment">
-    <property name="lower">0.5</property>
-    <property name="step-increment">1.0</property>
-    <property name="upper">100.0</property>
-    <property name="value">5.0</property>
   </object>
 </interface>

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"cmp"
 	"context"
 	_ "embed"
 	"fmt"
@@ -55,17 +54,15 @@ func (page *MullvadPage) init(a *App, status tsutil.Status) {
 		row := exitNodeRow{
 			peer: peer,
 
-			w: adw.NewActionRow(),
-			r: gtk.NewSwitch(),
+			w: adw.NewSwitchRow(),
 		}
 
-		row.w.AddSuffix(row.r)
 		row.w.SetTitle(mullvadExitNodeName(peer))
 
-		row.r.SetMarginTop(12)
-		row.r.SetMarginBottom(12)
-		row.r.ConnectStateSet(func(s bool) bool {
-			if s == row.r.State() {
+		row.r().SetMarginTop(12)
+		row.r().SetMarginBottom(12)
+		row.r().ConnectStateSet(func(s bool) bool {
+			if s == row.r().State() {
 				return false
 			}
 
@@ -84,7 +81,7 @@ func (page *MullvadPage) init(a *App, status tsutil.Status) {
 			err := a.TS.ExitNode(context.TODO(), node)
 			if err != nil {
 				slog.Error("set exit node", "err", err)
-				row.r.SetActive(!s)
+				row.r().SetActive(!s)
 				return true
 			}
 			a.poller.Poll() <- struct{}{}
@@ -112,12 +109,7 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 			}
 		}
 	}
-	slices.SortFunc(nodes, func(p1, p2 *ipnstate.PeerStatus) int {
-		if (p1.Location == nil) || (p2.Location == nil) {
-			return cmp.Compare(p1.HostName, p2.HostName)
-		}
-		return tsutil.CompareLocations(p1.Location, p2.Location)
-	})
+	slices.SortFunc(nodes, tsutil.ComparePeers)
 
 	page.exitNodeRows.Update(nodes)
 }
@@ -125,8 +117,11 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 type exitNodeRow struct {
 	peer *ipnstate.PeerStatus
 
-	w *adw.ActionRow
-	r *gtk.Switch
+	w *adw.SwitchRow
+}
+
+func (row *exitNodeRow) r() *gtk.Switch {
+	return row.w.ActivatableWidget().(*gtk.Switch)
 }
 
 func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
@@ -134,8 +129,8 @@ func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
 
 	row.w.SetTitle(mullvadExitNodeName(peer))
 
-	row.r.SetState(peer.ExitNode)
-	row.r.SetActive(peer.ExitNode)
+	row.r().SetState(peer.ExitNode)
+	row.r().SetActive(peer.ExitNode)
 }
 
 func (row *exitNodeRow) Widget() gtk.Widgetter {

@@ -46,8 +46,7 @@ type PeerPage struct {
 	PreferredDERP         *gtk.Label
 	DERPLatencies         *adw.ExpanderRow
 	MiscGroup             *adw.PreferencesGroup
-	ExitNodeRow           *adw.ActionRow
-	ExitNodeSwitch        *gtk.Switch
+	ExitNodeRow           *adw.SwitchRow
 	OnlineRow             *adw.ActionRow
 	Online                *gtk.Image
 	LastSeenRow           *adw.ActionRow
@@ -186,8 +185,8 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		return &row
 	}
 
-	page.ExitNodeSwitch.ConnectStateSet(func(s bool) bool {
-		if s == page.ExitNodeSwitch.State() {
+	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
+		if s == page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).State() {
 			return false
 		}
 
@@ -206,7 +205,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		err := a.TS.ExitNode(context.TODO(), node)
 		if err != nil {
 			slog.Error("set exit node", "err", err)
-			page.ExitNodeSwitch.SetActive(!s)
+			page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
 		a.poller.Poll() <- struct{}{}
@@ -242,8 +241,8 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	page.routeRows.Update(eroutes)
 
 	page.ExitNodeRow.SetVisible(peer.ExitNodeOption)
-	page.ExitNodeSwitch.SetState(peer.ExitNode)
-	page.ExitNodeSwitch.SetActive(peer.ExitNode)
+	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(peer.ExitNode)
+	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(peer.ExitNode)
 	page.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
 	page.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
 	page.Created.SetText(formatTime(peer.Created))

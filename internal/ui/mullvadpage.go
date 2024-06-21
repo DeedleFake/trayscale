@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"cmp"
 	"context"
 	_ "embed"
 	"fmt"
@@ -110,12 +109,7 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 			}
 		}
 	}
-	slices.SortFunc(nodes, func(p1, p2 *ipnstate.PeerStatus) int {
-		if (p1.Location == nil) || (p2.Location == nil) {
-			return cmp.Compare(p1.HostName, p2.HostName)
-		}
-		return tsutil.CompareLocations(p1.Location, p2.Location)
-	})
+	slices.SortFunc(nodes, tsutil.ComparePeers)
 
 	page.exitNodeRows.Update(nodes)
 }

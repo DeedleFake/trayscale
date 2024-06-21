@@ -50,3 +50,16 @@ func CompareLocations(loc1, loc2 *tailcfg.Location) int {
 		cmp.Compare(loc1.City, loc2.City),
 	)
 }
+
+// ComparePeers compares two peers. It does so by location if
+// available or hostname if not. It returns the peers in a
+// deterministic order if their locations or hostnames are identical,
+// so the result of calling this is never 0. To determine if peers are
+// the same, compare their IDs manually.
+func ComparePeers(p1, p2 *ipnstate.PeerStatus) int {
+	ids := cmp.Compare(p1.ID, p2.ID)
+	if (p1.Location == nil) || (p2.Location == nil) {
+		return cmp.Or(cmp.Compare(p1.HostName, p2.HostName), ids)
+	}
+	return cmp.Or(CompareLocations(p1.Location, p2.Location), ids)
+}

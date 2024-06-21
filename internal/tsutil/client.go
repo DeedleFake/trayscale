@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/netip"
 	"os/exec"
 	"strings"
@@ -14,19 +15,29 @@ import (
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/netcheck"
+	"tailscale.com/net/netmon"
 	"tailscale.com/tailcfg"
+	"tailscale.com/types/logger"
 )
 
 var (
 	localClient    tailscale.LocalClient
+	monitor        = initMonitor()
 	netcheckClient = netcheck.Client{
-		Logf: func(format string, v ...any) {
-			// Do nothing.
-		},
+		NetMon: monitor,
+		Logf:   logger.Discard,
 	}
 
 	defaultClient Client
 )
+
+func initMonitor() *netmon.Monitor {
+	monitor, err := netmon.New(logger.Discard)
+	if err != nil {
+		slog.Error("init netmon monitor", "err", err)
+	}
+	return monitor
+}
 
 // Client is a client for Tailscale's services. Some functionality is
 // handled via the Go API, and some is handled via execution of the
@@ -213,6 +224,11 @@ func (c *Client) SetControlURL(ctx context.Context, controlURL string) error {
 }
 
 func (c *Client) NetCheck(ctx context.Context, full bool) (*netcheck.Report, *tailcfg.DERPMap, error) {
+	err := netcheckClient.Standalone(ctx, "")
+	if err != nil {
+		return nil, nil, fmt.Errorf("standalone: %w", err)
+	}
+
 	dm, err := localClient.CurrentDERPMap(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("current DERP map: %w", err)

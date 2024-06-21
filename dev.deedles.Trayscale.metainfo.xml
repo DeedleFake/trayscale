@@ -58,6 +58,9 @@
 			<description>
 				<ul>Update to use new Libadwaita widgets.</ul>
 				<ul>Fix a bug with ordering of Mullvad nodes.</ul>
+				<ul>Remove deprecated hair pinning from netcheck and add captive portal detection.</ul>
+				<ul>Fix bug with netcheck that caused it to essentially not work and to be extremely slow.</ul>
+				<ul>Update dependencies.</ul>
 			</description>
 		</release>
 		<release version="v0.12.3" date="2024-05-04">

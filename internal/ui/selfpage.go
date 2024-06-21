@@ -52,8 +52,8 @@ type SelfPage struct {
 	PMP                   *gtk.Image
 	PCPRow                *adw.ActionRow
 	PCP                   *gtk.Image
-	HairPinningRow        *adw.ActionRow
-	HairPinning           *gtk.Image
+	CaptivePortalRow      *adw.ActionRow
+	CaptivePortal         *gtk.Image
 	PreferredDERPRow      *adw.ActionRow
 	PreferredDERP         *gtk.Label
 	DERPLatencies         *adw.ExpanderRow
@@ -340,20 +340,20 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		page.IPv4Icon.SetVisible(!r.IPv4)
 		page.IPv4Icon.SetFromIconName(boolIcon(r.IPv4))
 		page.IPv4Addr.SetVisible(r.IPv4)
-		page.IPv4Addr.SetText(r.GlobalV4)
+		page.IPv4Addr.SetText(r.GlobalV4.String())
 		page.IPv6Row.SetVisible(true)
 		page.IPv6Icon.SetVisible(!r.IPv6)
 		page.IPv6Icon.SetFromIconName(boolIcon(r.IPv6))
 		page.IPv6Addr.SetVisible(r.IPv6)
-		page.IPv6Addr.SetText(r.GlobalV6)
+		page.IPv6Addr.SetText(r.GlobalV6.String())
 		page.UPnPRow.SetVisible(true)
 		page.UPnP.SetFromIconName(optBoolIcon(r.UPnP))
 		page.PMPRow.SetVisible(true)
 		page.PMP.SetFromIconName(optBoolIcon(r.PMP))
 		page.PCPRow.SetVisible(true)
 		page.PCP.SetFromIconName(optBoolIcon(r.PCP))
-		page.HairPinningRow.SetVisible(true)
-		page.HairPinning.SetFromIconName(optBoolIcon(r.HairPinning))
+		page.CaptivePortalRow.SetVisible(true)
+		page.CaptivePortal.SetFromIconName(optBoolIcon(r.CaptivePortal))
 		page.PreferredDERPRow.SetVisible(true)
 		page.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
 

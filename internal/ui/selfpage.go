@@ -52,6 +52,8 @@ type SelfPage struct {
 	PMP                   *gtk.Image
 	PCPRow                *adw.ActionRow
 	PCP                   *gtk.Image
+	CaptivePortalRow      *adw.ActionRow
+	CaptivePortal         *gtk.Image
 	PreferredDERPRow      *adw.ActionRow
 	PreferredDERP         *gtk.Label
 	DERPLatencies         *adw.ExpanderRow
@@ -350,6 +352,8 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		page.PMP.SetFromIconName(optBoolIcon(r.PMP))
 		page.PCPRow.SetVisible(true)
 		page.PCP.SetFromIconName(optBoolIcon(r.PCP))
+		page.CaptivePortalRow.SetVisible(true)
+		page.CaptivePortal.SetFromIconName(optBoolIcon(r.CaptivePortal))
 		page.PreferredDERPRow.SetVisible(true)
 		page.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
 

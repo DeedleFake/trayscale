@@ -142,6 +142,16 @@
                   </object>
                 </child>
                 <child>
+                  <object class="AdwActionRow" id="CaptivePortalRow">
+                    <property name="activatable-widget">CaptivePortal</property>
+                    <property name="title">Captive portal detected</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkImage" id="CaptivePortal"/>
+                    </child>
+                  </object>
+                </child>
+                <child>
                   <object class="AdwExpanderRow" id="DERPLatencies">
                     <property name="title">DERP Latencies</property>
                     <property name="visible">False</property>

@@ -27,40 +27,37 @@ var selfPageXML string
 type SelfPage struct {
 	*adw.StatusPage `gtk:"Page"`
 
-	IPGroup                 *adw.PreferencesGroup
-	OptionsGroup            *adw.PreferencesGroup
-	AdvertiseExitNodeRow    *adw.ActionRow
-	AdvertiseExitNodeSwitch *gtk.Switch
-	AllowLANAccessRow       *adw.ActionRow
-	AllowLANAccessSwitch    *gtk.Switch
-	AcceptRoutesRow         *adw.ActionRow
-	AcceptRoutesSwitch      *gtk.Switch
-	AdvertisedRoutesGroup   *adw.PreferencesGroup
-	AdvertiseRouteButton    *gtk.Button
-	NetCheckGroup           *adw.PreferencesGroup
-	NetCheckButton          *gtk.Button
-	LastNetCheckRow         *adw.ActionRow
-	LastNetCheck            *gtk.Label
-	UDPRow                  *adw.ActionRow
-	UDP                     *gtk.Image
-	IPv4Row                 *adw.ActionRow
-	IPv4Icon                *gtk.Image
-	IPv4Addr                *gtk.Label
-	IPv6Row                 *adw.ActionRow
-	IPv6Icon                *gtk.Image
-	IPv6Addr                *gtk.Label
-	UPnPRow                 *adw.ActionRow
-	UPnP                    *gtk.Image
-	PMPRow                  *adw.ActionRow
-	PMP                     *gtk.Image
-	PCPRow                  *adw.ActionRow
-	PCP                     *gtk.Image
-	HairPinningRow          *adw.ActionRow
-	HairPinning             *gtk.Image
-	PreferredDERPRow        *adw.ActionRow
-	PreferredDERP           *gtk.Label
-	DERPLatencies           *adw.ExpanderRow
-	FilesGroup              *adw.PreferencesGroup
+	IPGroup               *adw.PreferencesGroup
+	OptionsGroup          *adw.PreferencesGroup
+	AdvertiseExitNodeRow  *adw.SwitchRow
+	AllowLANAccessRow     *adw.SwitchRow
+	AcceptRoutesRow       *adw.SwitchRow
+	AdvertisedRoutesGroup *adw.PreferencesGroup
+	AdvertiseRouteButton  *gtk.Button
+	NetCheckGroup         *adw.PreferencesGroup
+	NetCheckButton        *gtk.Button
+	LastNetCheckRow       *adw.ActionRow
+	LastNetCheck          *gtk.Label
+	UDPRow                *adw.ActionRow
+	UDP                   *gtk.Image
+	IPv4Row               *adw.ActionRow
+	IPv4Icon              *gtk.Image
+	IPv4Addr              *gtk.Label
+	IPv6Row               *adw.ActionRow
+	IPv6Icon              *gtk.Image
+	IPv6Addr              *gtk.Label
+	UPnPRow               *adw.ActionRow
+	UPnP                  *gtk.Image
+	PMPRow                *adw.ActionRow
+	PMP                   *gtk.Image
+	PCPRow                *adw.ActionRow
+	PCP                   *gtk.Image
+	HairPinningRow        *adw.ActionRow
+	HairPinning           *gtk.Image
+	PreferredDERPRow      *adw.ActionRow
+	PreferredDERP         *gtk.Label
+	DERPLatencies         *adw.ExpanderRow
+	FilesGroup            *adw.PreferencesGroup
 
 	peer *ipnstate.PeerStatus
 	name string
@@ -229,8 +226,8 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		return &row
 	}
 
-	page.AdvertiseExitNodeSwitch.ConnectStateSet(func(s bool) bool {
-		if s == page.AdvertiseExitNodeSwitch.State() {
+	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
+		if s == page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).State() {
 			return false
 		}
 
@@ -245,37 +242,37 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		err := a.TS.AdvertiseExitNode(context.TODO(), s)
 		if err != nil {
 			slog.Error("advertise exit node", "err", err)
-			page.AdvertiseExitNodeSwitch.SetActive(!s)
+			page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
 		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
-	page.AllowLANAccessSwitch.ConnectStateSet(func(s bool) bool {
-		if s == page.AllowLANAccessSwitch.State() {
+	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
+		if s == page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).State() {
 			return false
 		}
 
 		err := a.TS.AllowLANAccess(context.TODO(), s)
 		if err != nil {
 			slog.Error("allow LAN access", "err", err)
-			page.AllowLANAccessSwitch.SetActive(!s)
+			page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
 		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
-	page.AcceptRoutesSwitch.ConnectStateSet(func(s bool) bool {
-		if s == page.AcceptRoutesSwitch.State() {
+	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
+		if s == page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).State() {
 			return false
 		}
 
 		err := a.TS.AcceptRoutes(context.TODO(), s)
 		if err != nil {
 			slog.Error("accept routes", "err", err)
-			page.AcceptRoutesSwitch.SetActive(!s)
+			page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
 		a.poller.Poll() <- struct{}{}
@@ -384,12 +381,12 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
 	page.addrRows.Update(peer.TailscaleIPs)
 
-	page.AdvertiseExitNodeSwitch.SetState(status.Prefs.AdvertisesExitNode())
-	page.AdvertiseExitNodeSwitch.SetActive(status.Prefs.AdvertisesExitNode())
-	page.AllowLANAccessSwitch.SetState(status.Prefs.ExitNodeAllowLANAccess)
-	page.AllowLANAccessSwitch.SetActive(status.Prefs.ExitNodeAllowLANAccess)
-	page.AcceptRoutesSwitch.SetState(status.Prefs.RouteAll)
-	page.AcceptRoutesSwitch.SetActive(status.Prefs.RouteAll)
+	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.AdvertisesExitNode())
+	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.AdvertisesExitNode())
+	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.ExitNodeAllowLANAccess)
+	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.ExitNodeAllowLANAccess)
+	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.RouteAll)
+	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.RouteAll)
 
 	page.fileRows.Update(status.Files)
 	page.FilesGroup.SetVisible(len(status.Files) > 0)

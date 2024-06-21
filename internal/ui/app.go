@@ -28,10 +28,6 @@ const (
 // App is the main type for the app, containing all of the state
 // necessary to run it.
 type App struct {
-	// TS is the Tailscale Client instance to use for interaction with
-	// Tailscale.
-	TS *tsutil.Client
-
 	poller *tsutil.Poller
 	online bool
 
@@ -267,7 +263,7 @@ func (a *App) startTS(ctx context.Context) error {
 		return nil
 	}
 
-	err := a.TS.Start(ctx)
+	err := tsutil.Start(ctx)
 	if err != nil {
 		return err
 	}
@@ -276,7 +272,7 @@ func (a *App) startTS(ctx context.Context) error {
 }
 
 func (a *App) stopTS(ctx context.Context) error {
-	err := a.TS.Stop(ctx)
+	err := tsutil.Stop(ctx)
 	if err != nil {
 		return err
 	}
@@ -406,7 +402,6 @@ func (a *App) Run(ctx context.Context) {
 	}
 
 	a.poller = &tsutil.Poller{
-		TS:       a.TS,
 		Interval: a.getInterval(),
 		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}

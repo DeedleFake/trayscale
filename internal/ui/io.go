@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 
+	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"tailscale.com/tailcfg"
 )
@@ -30,7 +31,7 @@ func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file *g
 	}
 
 	r := greader{ctx, s}
-	err = a.TS.PushFile(ctx, peerID, info.Size(), file.Basename(), r)
+	err = tsutil.PushFile(ctx, peerID, info.Size(), file.Basename(), r)
 	if err != nil {
 		slog.Error("push file", "err", err)
 		return
@@ -46,7 +47,7 @@ func (a *App) saveFile(ctx context.Context, name string, file *gio.File) {
 	slog := slog.With("path", file.Path(), "filename", name)
 	slog.Info("starting file save")
 
-	r, size, err := a.TS.GetWaitingFile(ctx, name)
+	r, size, err := tsutil.GetWaitingFile(ctx, name)
 	if err != nil {
 		slog.Error("get file", "err", err)
 		return
@@ -66,7 +67,7 @@ func (a *App) saveFile(ctx context.Context, name string, file *gio.File) {
 		return
 	}
 
-	err = a.TS.DeleteWaitingFile(ctx, name)
+	err = tsutil.DeleteWaitingFile(ctx, name)
 	if err != nil {
 		slog.Error("delete file", "err", err)
 		return

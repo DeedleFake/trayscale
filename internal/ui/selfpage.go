@@ -158,7 +158,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		row.r.SetTooltipText("Remove")
 		row.r.ConnectClicked(func() {
 			routes := slices.Delete(page.routes, row.route.Index, row.route.Index+1)
-			err := a.TS.AdvertiseRoutes(context.TODO(), routes)
+			err := tsutil.AdvertiseRoutes(context.TODO(), routes)
 			if err != nil {
 				slog.Error("advertise routes", "err", err)
 				return
@@ -213,7 +213,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 				Reject:  "_Cancel",
 			}.Show(a, func(accept bool) {
 				if accept {
-					err := a.TS.DeleteWaitingFile(context.TODO(), row.file.Name)
+					err := tsutil.DeleteWaitingFile(context.TODO(), row.file.Name)
 					if err != nil {
 						slog.Error("delete file", "err", err)
 						return
@@ -232,14 +232,14 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		}
 
 		if s {
-			err := a.TS.ExitNode(context.TODO(), nil)
+			err := tsutil.ExitNode(context.TODO(), nil)
 			if err != nil {
 				slog.Error("disable existing exit node", "err", err)
 				// Continue anyways.
 			}
 		}
 
-		err := a.TS.AdvertiseExitNode(context.TODO(), s)
+		err := tsutil.AdvertiseExitNode(context.TODO(), s)
 		if err != nil {
 			slog.Error("advertise exit node", "err", err)
 			page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
@@ -254,7 +254,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 			return false
 		}
 
-		err := a.TS.AllowLANAccess(context.TODO(), s)
+		err := tsutil.AllowLANAccess(context.TODO(), s)
 		if err != nil {
 			slog.Error("allow LAN access", "err", err)
 			page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
@@ -269,7 +269,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 			return false
 		}
 
-		err := a.TS.AcceptRoutes(context.TODO(), s)
+		err := tsutil.AcceptRoutes(context.TODO(), s)
 		if err != nil {
 			slog.Error("accept routes", "err", err)
 			page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
@@ -287,13 +287,13 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 				return
 			}
 
-			prefs, err := a.TS.Prefs(context.TODO())
+			prefs, err := tsutil.Prefs(context.TODO())
 			if err != nil {
 				slog.Error("get prefs", "err", err)
 				return
 			}
 
-			err = a.TS.AdvertiseRoutes(
+			err = tsutil.AdvertiseRoutes(
 				context.TODO(),
 				append(prefs.AdvertiseRoutes, p),
 			)
@@ -327,7 +327,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	}
 
 	page.NetCheckButton.ConnectClicked(func() {
-		r, dm, err := a.TS.NetCheck(context.TODO(), true)
+		r, dm, err := tsutil.NetCheck(context.TODO(), true)
 		if err != nil {
 			slog.Error("netcheck", "err", err)
 			return

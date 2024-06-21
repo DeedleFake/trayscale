@@ -6,12 +6,11 @@ import (
 	"io"
 	"log/slog"
 	"net/netip"
-	"os/exec"
-	"strings"
 	"time"
 
 	"tailscale.com/client/tailscale"
 	"tailscale.com/client/tailscale/apitype"
+	"tailscale.com/cmd/tailscale/cli"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/netcheck"
@@ -27,8 +26,6 @@ var (
 		NetMon: monitor,
 		Logf:   logger.Discard,
 	}
-
-	defaultClient Client
 )
 
 func initMonitor() *netmon.Monitor {
@@ -39,36 +36,10 @@ func initMonitor() *netmon.Monitor {
 	return monitor
 }
 
-// Client is a client for Tailscale's services. Some functionality is
-// handled via the Go API, and some is handled via execution of the
-// Tailscale CLI binary.
-type Client struct {
-	// Command is the command to call for the Tailscale CLI binary. It
-	// defaults to "tailscale".
-	Command string
-}
-
-// run runs the Tailscale CLI binary with the given arguments. It
-// returns the combined stdout and stderr of the resulting process.
-func (c *Client) run(ctx context.Context, args ...string) (string, error) {
-	command := "tailscale"
-	if c.Command != "" {
-		command = c.Command
-	}
-	cmd := exec.CommandContext(ctx, command, args...)
-
-	var out strings.Builder
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	err := cmd.Run()
-	return out.String(), err
-}
-
-// Status returns the status of the connection to the Tailscale
+// GetStatus returns the status of the connection to the Tailscale
 // network. If the network is not currently connected, it returns
 // nil, nil.
-func (c *Client) Status(ctx context.Context) (*ipnstate.Status, error) {
+func GetStatus(ctx context.Context) (*ipnstate.Status, error) {
 	st, err := localClient.Status(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get tailscale status: %w", err)
@@ -77,25 +48,23 @@ func (c *Client) Status(ctx context.Context) (*ipnstate.Status, error) {
 }
 
 // Prefs returns the options of the local node.
-func (c *Client) Prefs(ctx context.Context) (*ipn.Prefs, error) {
+func Prefs(ctx context.Context) (*ipn.Prefs, error) {
 	return localClient.GetPrefs(ctx)
 }
 
 // Start connects the local peer to the Tailscale network.
-func (c *Client) Start(ctx context.Context) error {
-	_, err := c.run(ctx, "up")
-	return err
+func Start(ctx context.Context) error {
+	return cli.Run([]string{"up"})
 }
 
 // Stop disconnects the local peer from the Tailscale network.
-func (c *Client) Stop(ctx context.Context) error {
-	_, err := c.run(ctx, "down")
-	return err
+func Stop(ctx context.Context) error {
+	return cli.Run([]string{"down"})
 }
 
 // ExitNode uses the specified peer as an exit node, or unsets
 // an existing exit node if peer is nil.
-func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
+func ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
 	if peer == nil {
 		var prefs ipn.Prefs
 		prefs.ClearExitNode()
@@ -131,7 +100,7 @@ func (c *Client) ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error 
 
 // AdvertiseExitNode enables and disables exit node advertisement for
 // the current node.
-func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
+func AdvertiseExitNode(ctx context.Context, enable bool) error {
 	var prefs ipn.Prefs
 	prefs.SetAdvertiseExitNode(enable)
 
@@ -146,8 +115,8 @@ func (c *Client) AdvertiseExitNode(ctx context.Context, enable bool) error {
 	return nil
 }
 
-func (c *Client) AdvertiseRoutes(ctx context.Context, routes []netip.Prefix) error {
-	prefs, err := c.Prefs(ctx)
+func AdvertiseRoutes(ctx context.Context, routes []netip.Prefix) error {
+	prefs, err := Prefs(ctx)
 	if err != nil {
 		return fmt.Errorf("get prefs: %w", err)
 	}
@@ -169,7 +138,7 @@ func (c *Client) AdvertiseRoutes(ctx context.Context, routes []netip.Prefix) err
 // AllowLANAccess enables and disables the ability for the current
 // node to get access to the regular LAN that it is connected to while
 // an exit node is in use.
-func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
+func AllowLANAccess(ctx context.Context, allow bool) error {
 	prefs := ipn.Prefs{
 		ExitNodeAllowLANAccess: allow,
 	}
@@ -187,7 +156,7 @@ func (c *Client) AllowLANAccess(ctx context.Context, allow bool) error {
 
 // AcceptRoutes sets whether or not all shared subnet routes from
 // other nodes should be used by the local node.
-func (c *Client) AcceptRoutes(ctx context.Context, accept bool) error {
+func AcceptRoutes(ctx context.Context, accept bool) error {
 	prefs := ipn.Prefs{
 		RouteAll: accept,
 	}
@@ -206,8 +175,8 @@ func (c *Client) AcceptRoutes(ctx context.Context, accept bool) error {
 // SetControlURL changes the URL of the control plane server used by
 // the daemon. If controlURL is empty, the default Tailscale server is
 // used.
-func (c *Client) SetControlURL(ctx context.Context, controlURL string) error {
-	prefs, err := c.Prefs(ctx)
+func SetControlURL(ctx context.Context, controlURL string) error {
+	prefs, err := Prefs(ctx)
 	if err != nil {
 		return fmt.Errorf("get prefs: %w", err)
 	}
@@ -223,7 +192,7 @@ func (c *Client) SetControlURL(ctx context.Context, controlURL string) error {
 	return nil
 }
 
-func (c *Client) NetCheck(ctx context.Context, full bool) (*netcheck.Report, *tailcfg.DERPMap, error) {
+func NetCheck(ctx context.Context, full bool) (*netcheck.Report, *tailcfg.DERPMap, error) {
 	err := netcheckClient.Standalone(ctx, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("standalone: %w", err)
@@ -245,21 +214,21 @@ func (c *Client) NetCheck(ctx context.Context, full bool) (*netcheck.Report, *ta
 	return r, dm, nil
 }
 
-func (c *Client) PushFile(ctx context.Context, target tailcfg.StableNodeID, size int64, name string, r io.Reader) error {
+func PushFile(ctx context.Context, target tailcfg.StableNodeID, size int64, name string, r io.Reader) error {
 	return localClient.PushFile(ctx, target, size, name, r)
 }
 
-func (c *Client) GetWaitingFile(ctx context.Context, name string) (io.ReadCloser, int64, error) {
+func GetWaitingFile(ctx context.Context, name string) (io.ReadCloser, int64, error) {
 	return localClient.GetWaitingFile(ctx, name)
 }
 
-func (c *Client) DeleteWaitingFile(ctx context.Context, name string) error {
+func DeleteWaitingFile(ctx context.Context, name string) error {
 	return localClient.DeleteWaitingFile(ctx, name)
 }
 
 // WaitingFiles polls for any pending incoming files. It returns
 // quickly if there are no files currently pending.
-func (c *Client) WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
+func WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
 	// TODO: https://github.com/tailscale/tailscale/issues/8911
 	return localClient.AwaitWaitingFiles(ctx, time.Second)
 }

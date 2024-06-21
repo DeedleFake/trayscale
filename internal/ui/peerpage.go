@@ -174,7 +174,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		row.r.SetTooltipText("Remove")
 		row.r.ConnectClicked(func() {
 			routes := slices.Delete(page.routes, row.route.Index, row.route.Index+1)
-			err := a.TS.AdvertiseRoutes(context.TODO(), routes)
+			err := tsutil.AdvertiseRoutes(context.TODO(), routes)
 			if err != nil {
 				slog.Error("advertise routes", "err", err)
 				return
@@ -191,7 +191,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		}
 
 		if s {
-			err := a.TS.AdvertiseExitNode(context.TODO(), false)
+			err := tsutil.AdvertiseExitNode(context.TODO(), false)
 			if err != nil {
 				slog.Error("disable exit node advertisement", "err", err)
 				// Continue anyways.
@@ -202,7 +202,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		if s {
 			node = peer
 		}
-		err := a.TS.ExitNode(context.TODO(), node)
+		err := tsutil.ExitNode(context.TODO(), node)
 		if err != nil {
 			slog.Error("set exit node", "err", err)
 			page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)

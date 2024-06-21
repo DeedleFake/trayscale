@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"deedles.dev/trayscale/internal/tray"
+	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 )
 
@@ -31,7 +32,7 @@ func (a *App) initSettings(ctx context.Context) {
 
 		case "control-plane-server":
 			url := a.settings.String("control-plane-server")
-			err := a.TS.SetControlURL(ctx, url)
+			err := tsutil.SetControlURL(ctx, url)
 			if err != nil {
 				slog.Error("update control plane server URL", "err", err, "url", url)
 				return

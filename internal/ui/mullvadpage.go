@@ -67,7 +67,7 @@ func (page *MullvadPage) init(a *App, status tsutil.Status) {
 			}
 
 			if s {
-				err := a.TS.AdvertiseExitNode(context.TODO(), false)
+				err := tsutil.AdvertiseExitNode(context.TODO(), false)
 				if err != nil {
 					slog.Error("disable exit node advertisement", "err", err)
 					// Continue anyways.
@@ -78,7 +78,7 @@ func (page *MullvadPage) init(a *App, status tsutil.Status) {
 			if s {
 				node = row.peer
 			}
-			err := a.TS.ExitNode(context.TODO(), node)
+			err := tsutil.ExitNode(context.TODO(), node)
 			if err != nil {
 				slog.Error("set exit node", "err", err)
 				row.r().SetActive(!s)

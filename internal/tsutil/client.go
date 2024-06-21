@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/netip"
 	"os/exec"
 	"strings"
@@ -14,19 +15,32 @@ import (
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/netcheck"
+	"tailscale.com/net/netmon"
 	"tailscale.com/tailcfg"
 )
 
 var (
 	localClient    tailscale.LocalClient
+	monitor        = initMonitor()
 	netcheckClient = netcheck.Client{
-		Logf: func(format string, v ...any) {
-			// Do nothing.
-		},
+		NetMon: monitor,
+		Logf:   noopLog,
 	}
 
 	defaultClient Client
 )
+
+func noopLog(format string, v ...any) {
+	// Do nothing.
+}
+
+func initMonitor() *netmon.Monitor {
+	monitor, err := netmon.New(noopLog)
+	if err != nil {
+		slog.Error("init netmon monitor", "err", err)
+	}
+	return monitor
+}
 
 // Client is a client for Tailscale's services. Some functionality is
 // handled via the Go API, and some is handled via execution of the

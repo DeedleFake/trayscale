@@ -17,6 +17,7 @@ import (
 	"tailscale.com/net/netcheck"
 	"tailscale.com/net/netmon"
 	"tailscale.com/tailcfg"
+	"tailscale.com/types/logger"
 )
 
 var (
@@ -24,18 +25,14 @@ var (
 	monitor        = initMonitor()
 	netcheckClient = netcheck.Client{
 		NetMon: monitor,
-		Logf:   noopLog,
+		Logf:   logger.Discard,
 	}
 
 	defaultClient Client
 )
 
-func noopLog(format string, v ...any) {
-	// Do nothing.
-}
-
 func initMonitor() *netmon.Monitor {
-	monitor, err := netmon.New(noopLog)
+	monitor, err := netmon.New(logger.Discard)
 	if err != nil {
 		slog.Error("init netmon monitor", "err", err)
 	}

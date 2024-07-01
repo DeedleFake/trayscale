@@ -23,11 +23,6 @@ import (
 // It is a race condition to change any exported fields of Poller
 // while Run is running.
 type Poller struct {
-	// TS is the Client to use to interact with Tailscale.
-	//
-	// If it is nil, a default client will be used.
-	TS *Client
-
 	// Interval is the default interval to use for polling.
 	//
 	// If it is a zero, a non-zero default will be used.
@@ -51,13 +46,6 @@ func (p *Poller) init() {
 	})
 }
 
-func (p *Poller) client() *Client {
-	if p.TS == nil {
-		return &defaultClient
-	}
-	return p.TS
-}
-
 // Run runs the poller. It blocks until polling is done, which is
 // generally a result of the given Context being cancelled.
 //
@@ -75,7 +63,7 @@ func (p *Poller) Run(ctx context.Context) {
 	defer check.Stop()
 
 	for {
-		status, err := p.client().Status(ctx)
+		status, err := GetStatus(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -84,7 +72,7 @@ func (p *Poller) Run(ctx context.Context) {
 			continue
 		}
 
-		prefs, err := p.client().Prefs(ctx)
+		prefs, err := Prefs(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -93,7 +81,7 @@ func (p *Poller) Run(ctx context.Context) {
 			continue
 		}
 
-		files, err := p.client().WaitingFiles(ctx)
+		files, err := WaitingFiles(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return

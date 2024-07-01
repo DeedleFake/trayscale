@@ -3,16 +3,16 @@ Trayscale
 
 [![Go Report Card](https://goreportcard.com/badge/deedles.dev/trayscale)](https://goreportcard.com/report/deedles.dev/trayscale)
 
-Trayscale is an unofficial GUI wrapper around the Tailscale CLI client, particularly for use on Linux, as no official Linux GUI client exists. It provides a basic system tray icon and a fairly comprehensive UI with support for many of Trayscale's features.
+Trayscale is an unofficial GUI interface for the Tailscale daemon particularly for use on Linux, as no official Linux GUI client exists. It provides a basic system tray icon and a fairly comprehensive UI with support for many of Tailscale's features.
 
-_Disclaimer: This project is in an alpha state. If it bricks your machine, it's not my fault. Use at your own risk._
+_Disclaimer: This project is in a beta state. If it bricks your machine, it's not my fault. Use at your own risk._
 
 ![screenshot](https://github.com/DeedleFake/trayscale/assets/326750/156e5138-ce60-4940-8cdc-67afa27fcf6f)
 
 Tailscale Config
 ----------------
 
-Trayscale makes calls to the Tailscale CLI for some operations. In order for this to work, the `tailscale` command must be in your `$PATH`. Additionally, the daemon must have been configured with the current user as the "operator". To do this, run `sudo tailscale set --operator=$USER` from the command-line at least once manually.
+Trayscale interfaces with the Tailscale daemon, `tailscaled`, to perform many of its operations. In order for this to work, the daemon must have been configured with the current user as the "operator". To do this, run `sudo tailscale set --operator=$USER` from the command-line at least once manually.
 
 Installation
 ------------
@@ -31,7 +31,7 @@ First, make sure that you have dependencies installed:
 
 * Go >= 1.21
 * GTK >= 4.0
-* Libadwaita >= 1.2
+* Libadwaita >= 1.4
 
 The main Trayscale binary can be installed with `go install`:
 

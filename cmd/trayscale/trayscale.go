@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"runtime/pprof"
 
-	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/ui"
 )
 
@@ -46,12 +45,6 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	ts := tsutil.Client{
-		Command: "tailscale",
-	}
-
-	a := ui.App{
-		TS: &ts,
-	}
+	var a ui.App
 	a.Run(ctx)
 }

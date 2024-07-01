@@ -11,7 +11,7 @@
 
 	<description>
 		<p>
-			Trayscale is an unofficial GUI wrapper around the Tailscale CLI client, particularly for use on Linux, as no official Linux GUI client exists. It provides a basic system tray icon and a fairly comprehensive UI with support for many of Trayscale's features.
+			Trayscale is an unofficial GUI interface for the Tailscale daemon particularly for use on Linux, as no official Linux GUI client exists. It provides a basic system tray icon and a fairly comprehensive UI with support for many of Tailscale's features.
 		</p>
 		<p>
 			Trayscale interfaces with the Tailscale daemon, <code>tailscaled</code>, to perform many of its operations. In order for this to work, the daemon must have been configured with the current user as the &quot;operator&quot;. To do this, run <code>sudo tailscale set --operator=$USER</code> from the command-line at least once manually.
@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.12.5" date="2024-07-01">
+			<description>
+				<ul>Remove calls to <code>tailscale</code> command.</ul>
+				<ul>Update dependencies.</ul>
+			</description>
+		</release>
 		<release version="v0.12.4" date="2024-06-21">
 			<description>
 				<ul>Update to use new Libadwaita widgets.</ul>

@@ -56,7 +56,7 @@
 	<releases>
 		<release version="v0.12.5" date="2024-07-01">
 			<description>
-				<ul>Remove calls to <code>tailscale</code> command.</ul>
+				<ul>Remove calls to tailscale command.</ul>
 				<ul>Update dependencies.</ul>
 			</description>
 		</release>

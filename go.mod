@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	deedles.dev/mk v0.1.0
-	fyne.io/systray v1.10.0
+	fyne.io/systray v1.11.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20240512000724-8dc7455ee58f
 	github.com/diamondburned/gotk4/pkg v0.2.2
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
@@ -47,7 +47,6 @@ require (
 	github.com/tailscale/netlink v1.1.1-0.20211101221916-cabfb018fe85 // indirect
 	github.com/tailscale/web-client-prebuilt v0.0.0-20240226180453-5db17b287bf1 // indirect
 	github.com/tcnksm/go-httpstat v0.2.0 // indirect
-	github.com/tevino/abool v1.2.0 // indirect
 	github.com/toqueteos/webbrowser v1.2.0 // indirect
 	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect

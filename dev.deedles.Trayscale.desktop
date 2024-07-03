@@ -3,8 +3,10 @@ Version=1.0
 Type=Application
 
 Name=Trayscale
+GenericName=Tailscale Client
 Comment=An unofficial GUI interface for the Tailscale daemon.
 Categories=System;GNOME;GTK;
+Keywords=tailscale;vpn;
 
 Icon=dev.deedles.Trayscale
 Exec=trayscale

@@ -3,7 +3,7 @@ Version=1.0
 Type=Application
 
 Name=Trayscale
-Comment=An unofficial GUI wrapper around the Tailscale CLI.
+Comment=An unofficial GUI interface for the Tailscale daemon.
 Categories=System;GNOME;GTK;
 
 Icon=dev.deedles.Trayscale

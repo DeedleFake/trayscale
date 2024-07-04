@@ -107,7 +107,7 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 		if tsutil.IsMullvad(peer) {
 			nodes = append(nodes, peer)
 			if peer.ID == exitNodeID {
-				page.name = fmt.Sprintf("Mullvad Exit Nodes [%v]", mullvadExitNodeName(peer))
+				page.name = fmt.Sprintf("%v [%v]", mullvadPageBaseName, mullvadExitNodeName(peer))
 			}
 		}
 	}

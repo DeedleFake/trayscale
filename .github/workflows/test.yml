@@ -17,7 +17,7 @@ jobs:
     name: go vet
     runs-on: ubuntu-latest
     container:
-      image: $image
+      image: ${{ env.image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -36,7 +36,7 @@ jobs:
     name: staticcheck
     runs-on: ubuntu-latest
     container:
-      image: $image
+      image: ${{ env.image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -57,7 +57,7 @@ jobs:
     name: go test
     runs-on: ubuntu-latest
     container:
-      image: $image
+      image: ${{ env.image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3

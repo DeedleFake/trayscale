@@ -49,21 +49,36 @@ func readAssetString(file string) string {
 
 func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
 	const maxNameLength = 30
+	self := peer.PublicKey == status.Status.Self.PublicKey
+
+	var buf strings.Builder
+
+	switch {
+	case self, peer == nil:
+		buf.WriteString("🔵")
+	case peer.Online:
+		buf.WriteString("🟢")
+	default:
+		buf.WriteString("🔴")
+	}
+
 	name := tsutil.DNSOrQuoteHostname(status.Status, peer)
 	if len(name) > maxNameLength {
 		name = name[:maxNameLength-3] + "..."
 	}
+	buf.WriteString(name)
 
-	if peer.PublicKey == status.Status.Self.PublicKey {
-		return name + " [This machine]"
+	if self {
+		buf.WriteString(" [This machine]")
 	}
 	if peer.ExitNode {
-		return name + " [Exit node]"
+		buf.WriteString(" [Exit node]")
 	}
 	if peer.ExitNodeOption {
-		return name + " [Exit node option]"
+		buf.WriteString(" [Exit node option]")
 	}
-	return name
+
+	return buf.String()
 }
 
 func peerIcon(peer *ipnstate.PeerStatus) string {

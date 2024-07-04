@@ -86,7 +86,7 @@ func (page *PeerPage) Root() gtk.Widgetter {
 }
 
 func (page *PeerPage) ID() string {
-	return page.peer.PublicKey.String()
+	return string(page.peer.ID)
 }
 
 func (page *PeerPage) Name() string {

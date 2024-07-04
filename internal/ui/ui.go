@@ -49,7 +49,7 @@ func readAssetString(file string) string {
 
 func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
 	const maxNameLength = 30
-	self := peer.PublicKey == status.Status.Self.PublicKey
+	self := peer.ID == status.Status.Self.ID
 
 	var buf strings.Builder
 

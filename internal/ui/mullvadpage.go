@@ -14,6 +14,8 @@ import (
 	"tailscale.com/tailcfg"
 )
 
+const mullvadPageBaseName = "🟡 Mullvad Exit Nodes"
+
 //go:embed mullvadpage.ui
 var mullvadPageXML string
 
@@ -47,7 +49,7 @@ func (page *MullvadPage) Name() string {
 }
 
 func (page *MullvadPage) init(a *App, status tsutil.Status) {
-	page.name = "Mullvad Exit Nodes"
+	page.name = mullvadPageBaseName
 
 	page.exitNodeRows.Parent = page.ExitNodesGroup
 	page.exitNodeRows.New = func(peer *ipnstate.PeerStatus) row[*ipnstate.PeerStatus] {
@@ -93,7 +95,7 @@ func (page *MullvadPage) init(a *App, status tsutil.Status) {
 }
 
 func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.name = "Mullvad Exit Nodes"
+	page.name = mullvadPageBaseName
 
 	var exitNodeID tailcfg.StableNodeID
 	if status.Status.ExitNodeStatus != nil {

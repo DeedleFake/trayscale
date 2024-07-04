@@ -55,11 +55,11 @@ func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
 
 	switch {
 	case self, peer == nil:
-		buf.WriteString("🔵")
+		buf.WriteString("🔵 ")
 	case peer.Online:
-		buf.WriteString("🟢")
+		buf.WriteString("🟢 ")
 	default:
-		buf.WriteString("🔴")
+		buf.WriteString("🔴 ")
 	}
 
 	name := tsutil.DNSOrQuoteHostname(status.Status, peer)

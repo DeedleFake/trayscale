@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.12.6" date="2024-07-03">
+			<description>
+				<ul>Add online status indicators to peer list.</ul>
+				<ul>Use node IDs to identify them instead of keys.</ul>
+			</description>
+		</release>
 		<release version="v0.12.5" date="2024-07-01">
 			<description>
 				<ul>Remove calls to tailscale command.</ul>

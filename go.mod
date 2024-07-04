@@ -1,6 +1,6 @@
 module deedles.dev/trayscale
 
-go 1.22.0
+go 1.22.5
 
 require (
 	deedles.dev/mk v0.1.0
@@ -10,7 +10,7 @@ require (
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	golang.org/x/net v0.26.0
 	honnef.co/go/tools v0.4.7
-	tailscale.com v1.68.1
+	tailscale.com v1.68.2
 )
 
 require (

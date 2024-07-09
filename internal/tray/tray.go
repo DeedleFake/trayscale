@@ -24,47 +24,50 @@ func statusIcon(online bool) []byte {
 }
 
 type Tray struct {
-	showItem                 *systray.MenuItem
-	quitItem                 *systray.MenuItem
-	selfNodeItem             *systray.MenuItem
-	connectionStatusMenuItem *systray.MenuItem
+	connToggleItem *systray.MenuItem
+	selfNodeItem   *systray.MenuItem
+	showItem       *systray.MenuItem
+	quitItem       *systray.MenuItem
 }
 
 func New(online bool) *Tray {
 	systray.SetIcon(statusIcon(online))
 	systray.SetTitle("Trayscale")
 
+	connToggleItem := systray.AddMenuItem(connToggleText(online), "")
 	selfNodeItem := systray.AddMenuItem("", "")
-	connectionStatusMenuItem := systray.AddMenuItem(connectionStatusText(online), "")
-	connectionStatusMenuItem.Disable()
 	systray.AddSeparator()
 	showWindow := systray.AddMenuItem("Show", "")
 	systray.AddSeparator()
 	quit := systray.AddMenuItem("Quit", "")
 
 	return &Tray{
-		showItem:                 showWindow,
-		quitItem:                 quit,
-		selfNodeItem:             selfNodeItem,
-		connectionStatusMenuItem: connectionStatusMenuItem,
+		connToggleItem: connToggleItem,
+		selfNodeItem:   selfNodeItem,
+		showItem:       showWindow,
+		quitItem:       quit,
 	}
 }
 
-func (t *Tray) QuitChan() <-chan struct{} {
-	return t.quitItem.ClickedCh
-}
-
-func (t *Tray) ShowChan() <-chan struct{} {
-	return t.showItem.ClickedCh
+func (t *Tray) ConnToggleChan() <-chan struct{} {
+	return t.connToggleItem.ClickedCh
 }
 
 func (t *Tray) SelfNodeChan() <-chan struct{} {
 	return t.selfNodeItem.ClickedCh
 }
 
+func (t *Tray) ShowChan() <-chan struct{} {
+	return t.showItem.ClickedCh
+}
+
+func (t *Tray) QuitChan() <-chan struct{} {
+	return t.quitItem.ClickedCh
+}
+
 func (t *Tray) setOnlineStatus(online bool) {
 	systray.SetIcon(statusIcon(online))
-	t.connectionStatusMenuItem.SetTitle(connectionStatusText(online))
+	t.connToggleItem.SetTitle(connToggleText(online))
 }
 
 func (t *Tray) Update(s tsutil.Status, previousOnlineStatus bool) {
@@ -119,10 +122,10 @@ func selfTitle(s tsutil.Status) (string, bool) {
 	return fmt.Sprintf("%v (%v)", tsutil.DNSOrQuoteHostname(s.Status, s.Status.Self), addr), true
 }
 
-func connectionStatusText(online bool) string {
+func connToggleText(online bool) string {
 	if online {
-		return "Connected"
+		return "Disconnect"
 	}
 
-	return "Disconnected"
+	return "Connect"
 }

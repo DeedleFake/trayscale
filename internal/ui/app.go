@@ -356,6 +356,36 @@ func (a *App) initTray(ctx context.Context) {
 		case <-ctx.Done():
 			return
 
+		case <-a.tray.ConnToggleChan():
+			glib.IdleAdd(func() {
+				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				defer cancel()
+
+				f := a.stopTS
+				if !a.online {
+					f = a.startTS
+				}
+
+				err := f(ctx)
+				if err != nil {
+					slog.Error("set Tailscale status from tray", "err", err)
+					return
+				}
+			})
+
+		case <-a.tray.SelfNodeChan():
+			glib.IdleAdd(func() {
+				s := <-a.poller.Get()
+				addr, ok := s.SelfAddr()
+				if !ok {
+					return
+				}
+				a.clip(glib.NewValue(addr.String()))
+				if a.win != nil {
+					a.notify("Trayscale", "Copied address to clipboard")
+				}
+			})
+
 		case <-a.tray.ShowChan():
 			glib.IdleAdd(func() {
 				if a.app != nil {
@@ -365,17 +395,6 @@ func (a *App) initTray(ctx context.Context) {
 
 		case <-a.tray.QuitChan():
 			a.Quit()
-
-		case <-a.tray.SelfNodeChan():
-			s := <-a.poller.Get()
-			addr, ok := s.SelfAddr()
-			if !ok {
-				continue
-			}
-			a.clip(glib.NewValue(addr.String()))
-			if a.win != nil {
-				a.notify("Trayscale", "Copied address to clipboard")
-			}
 		}
 	}
 }

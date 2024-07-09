@@ -24,9 +24,10 @@ func statusIcon(online bool) []byte {
 }
 
 type Tray struct {
-	showItem     *systray.MenuItem
-	quitItem     *systray.MenuItem
-	selfNodeItem *systray.MenuItem
+	showItem                 *systray.MenuItem
+	quitItem                 *systray.MenuItem
+	selfNodeItem             *systray.MenuItem
+	connectionStatusMenuItem *systray.MenuItem
 }
 
 func New(online bool) *Tray {
@@ -34,15 +35,18 @@ func New(online bool) *Tray {
 	systray.SetTitle("Trayscale")
 
 	selfNodeItem := systray.AddMenuItem("", "")
+	connectionStatusMenuItem := systray.AddMenuItem(connectionStatusText(online), "")
+	connectionStatusMenuItem.Disable()
 	systray.AddSeparator()
 	showWindow := systray.AddMenuItem("Show", "")
 	systray.AddSeparator()
 	quit := systray.AddMenuItem("Quit", "")
 
 	return &Tray{
-		showItem:     showWindow,
-		quitItem:     quit,
-		selfNodeItem: selfNodeItem,
+		showItem:                 showWindow,
+		quitItem:                 quit,
+		selfNodeItem:             selfNodeItem,
+		connectionStatusMenuItem: connectionStatusMenuItem,
 	}
 }
 
@@ -60,6 +64,7 @@ func (t *Tray) SelfNodeChan() <-chan struct{} {
 
 func (t *Tray) setOnlineStatus(online bool) {
 	systray.SetIcon(statusIcon(online))
+	t.connectionStatusMenuItem.SetTitle(connectionStatusText(online))
 }
 
 func (t *Tray) Update(s tsutil.Status, previousOnlineStatus bool) {
@@ -112,4 +117,12 @@ func selfTitle(s tsutil.Status) (string, bool) {
 	}
 
 	return fmt.Sprintf("%v (%v)", tsutil.DNSOrQuoteHostname(s.Status, s.Status.Self), addr), true
+}
+
+func connectionStatusText(online bool) string {
+	if online {
+		return "Connected"
+	}
+
+	return "Disconnected"
 }

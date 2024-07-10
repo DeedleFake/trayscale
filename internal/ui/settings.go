@@ -60,10 +60,6 @@ func (a *App) showPreferences() {
 	win := NewPreferencesWindow()
 	a.settings.Bind("tray-icon", win.UseTrayIconRow.Object, "active", gio.SettingsBindDefault)
 	a.settings.Bind("polling-interval", win.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
-	a.settings.Bind("control-plane-server", win.ControlURLRow.Object, "text", gio.SettingsBindGet)
-	win.ControlURLRow.ConnectApply(func() {
-		a.settings.SetString("control-plane-server", win.ControlURLRow.Text())
-	})
 	win.SetTransientFor(&a.win.Window)
 	win.Show()
 

@@ -16,7 +16,6 @@ type PreferencesWindow struct {
 	UseTrayIconRow            *adw.SwitchRow
 	PollingIntervalRow        *adw.SpinRow
 	PollingIntervalAdjustment *gtk.Adjustment
-	ControlURLRow             *adw.EntryRow
 }
 
 func NewPreferencesWindow() *PreferencesWindow {

@@ -47,6 +47,10 @@ init:
 	}
 }
 
+func (a *App) showChangeControlServer() {
+	slog.Info("change control server clicked")
+}
+
 func (a *App) showPreferences() {
 	if a.settings == nil {
 		a.toast("Settings schema not found")

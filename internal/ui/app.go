@@ -286,6 +286,10 @@ func (a *App) onAppActivate(ctx context.Context) {
 		return
 	}
 
+	changeControlServerAction := gio.NewSimpleAction("change_control_server", nil)
+	changeControlServerAction.ConnectActivate(func(p *glib.Variant) { a.showChangeControlServer() })
+	a.app.AddAction(changeControlServerAction)
+
 	preferencesAction := gio.NewSimpleAction("preferences", nil)
 	preferencesAction.ConnectActivate(func(p *glib.Variant) { a.showPreferences() })
 	a.app.AddAction(preferencesAction)

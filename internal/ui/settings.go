@@ -48,7 +48,11 @@ init:
 }
 
 func (a *App) showChangeControlServer() {
-	slog.Info("change control server clicked")
+	Prompt{
+		Heading: "Control Server URL",
+	}.Show(a, func(val string) {
+		slog.Info("control server URL dialog closed", "response", val)
+	})
 }
 
 func (a *App) showPreferences() {

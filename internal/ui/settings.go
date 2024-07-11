@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"slices"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/ipn"
 )
 
 func (a *App) initSettings(ctx context.Context) {
@@ -32,15 +34,6 @@ func (a *App) initSettings(ctx context.Context) {
 
 		case "polling-interval":
 			a.poller.SetInterval() <- a.getInterval()
-
-		case "control-plane-server":
-			url := a.settings.String("control-plane-server")
-			err := tsutil.SetControlURL(ctx, url)
-			if err != nil {
-				slog.Error("update control plane server URL", "err", err, "url", url)
-				return
-			}
-			a.poller.Poll() <- struct{}{}
 		}
 	})
 
@@ -61,7 +54,22 @@ func (a *App) showChangeControlServer() {
 			{ID: "set", Label: "_Set URL", Appearance: adw.ResponseSuggested, Default: true},
 		},
 	}.Show(a, status.Prefs.ControlURL, func(response, val string) {
-		slog.Info("control server URL dialog closed", "response", response, "val", val)
+		switch response {
+		case "default":
+			val = ipn.DefaultControlURL
+			fallthrough // Oh my.
+		case "set":
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			err := tsutil.SetControlURL(ctx, val)
+			if err != nil {
+				slog.Error("update control plane server URL", "err", err, "url", val)
+				a.toast(fmt.Sprintf("Error setting control URL: %v", err))
+				return
+			}
+			a.poller.Poll() <- struct{}{}
+		}
 	})
 }
 

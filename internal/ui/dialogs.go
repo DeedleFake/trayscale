@@ -28,30 +28,43 @@ func (d Confirmation) Show(a *App, res func(bool)) {
 }
 
 type Prompt struct {
-	Heading string
-	Body    string
+	Heading   string
+	Body      string
+	Responses []PromptResponse
 }
 
-func (d Prompt) Show(a *App, res func(val string)) {
+type PromptResponse struct {
+	ID         string
+	Label      string
+	Appearance adw.ResponseAppearance
+	Default    bool
+}
+
+func (d Prompt) Show(a *App, initialValue string, res func(response, val string)) {
 	input := gtk.NewText()
+	if initialValue != "" {
+		input.Buffer().SetText(initialValue, len(initialValue))
+	}
 
 	dialog := adw.NewMessageDialog(&a.win.Window, d.Heading, d.Body)
 	dialog.SetExtraChild(input)
-	dialog.AddResponse("cancel", "_Cancel")
-	dialog.SetCloseResponse("cancel")
-	dialog.AddResponse("add", "_Add")
-	dialog.SetResponseAppearance("add", adw.ResponseSuggested)
-	dialog.SetDefaultResponse("add")
+
+	def := "activate"
+	for _, r := range d.Responses {
+		dialog.AddResponse(r.ID, r.Label)
+		dialog.SetResponseAppearance(r.ID, r.Appearance)
+		if r.Default {
+			dialog.SetDefaultResponse(r.ID)
+			def = r.ID
+		}
+	}
 
 	dialog.ConnectResponse(func(response string) {
-		switch response {
-		case "add":
-			res(input.Buffer().Text())
-		}
+		res(response, input.Buffer().Text())
 	})
 	input.ConnectActivate(func() {
 		defer dialog.Close()
-		res(input.Buffer().Text())
+		res(def, input.Buffer().Text())
 	})
 
 	dialog.Show()

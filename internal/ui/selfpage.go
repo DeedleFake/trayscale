@@ -280,7 +280,18 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	})
 
 	page.AdvertiseRouteButton.ConnectClicked(func() {
-		Prompt{"Add IP", "IP prefix to advertise"}.Show(a, func(val string) {
+		Prompt{
+			Heading: "Add IP",
+			Body:    "IP prefix to advertise",
+			Responses: []PromptResponse{
+				{ID: "cancel", Label: "_Cancel"},
+				{ID: "add", Label: "_Add", Appearance: adw.ResponseSuggested, Default: true},
+			},
+		}.Show(a, "", func(response, val string) {
+			if response != "add" {
+				return
+			}
+
 			p, err := netip.ParsePrefix(val)
 			if err != nil {
 				slog.Error("parse prefix", "err", err)

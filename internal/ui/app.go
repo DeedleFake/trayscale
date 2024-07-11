@@ -10,7 +10,6 @@ import (
 	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/trayscale/internal/version"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -41,26 +40,6 @@ type App struct {
 	peerPages     map[key.NodePublic]*stackPage
 	spinnum       int
 	operatorCheck bool
-}
-
-// showAbout shows the app's about dialog.
-func (a *App) showAbout() {
-	dialog := adw.NewAboutWindow()
-	dialog.SetDevelopers([]string{"DeedleFake"})
-	dialog.SetCopyright("Copyright (c) 2023 DeedleFake")
-	dialog.SetLicense(readAssetString("LICENSE"))
-	dialog.SetLicenseType(gtk.LicenseCustom)
-	dialog.SetApplicationIcon(appID)
-	dialog.SetApplicationName("Trayscale")
-	dialog.SetWebsite("https://github.com/DeedleFake/trayscale")
-	dialog.SetIssueURL("https://github.com/DeedleFake/trayscale/issues")
-	if v, ok := version.Get(); ok {
-		dialog.SetVersion(v)
-	}
-	dialog.SetTransientFor(&a.win.Window)
-	dialog.Show()
-
-	a.app.AddWindow(&dialog.Window.Window)
 }
 
 func (a *App) clip(v *glib.Value) {

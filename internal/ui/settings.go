@@ -8,7 +8,10 @@ import (
 
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
+	"deedles.dev/trayscale/internal/version"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 func (a *App) initSettings(ctx context.Context) {
@@ -48,10 +51,17 @@ init:
 }
 
 func (a *App) showChangeControlServer() {
+	status := <-a.poller.Get()
+
 	Prompt{
 		Heading: "Control Server URL",
-	}.Show(a, func(val string) {
-		slog.Info("control server URL dialog closed", "response", val)
+		Responses: []PromptResponse{
+			{ID: "cancel", Label: "_Cancel"},
+			{ID: "default", Label: "Use _Default"},
+			{ID: "set", Label: "_Set URL", Appearance: adw.ResponseSuggested, Default: true},
+		},
+	}.Show(a, status.Prefs.ControlURL, func(response, val string) {
+		slog.Info("control server URL dialog closed", "response", response, "val", val)
 	})
 }
 
@@ -68,6 +78,26 @@ func (a *App) showPreferences() {
 	win.Show()
 
 	a.app.AddWindow(&win.Window.Window)
+}
+
+// showAbout shows the app's about dialog.
+func (a *App) showAbout() {
+	dialog := adw.NewAboutWindow()
+	dialog.SetDevelopers([]string{"DeedleFake"})
+	dialog.SetCopyright("Copyright (c) 2023 DeedleFake")
+	dialog.SetLicense(readAssetString("LICENSE"))
+	dialog.SetLicenseType(gtk.LicenseCustom)
+	dialog.SetApplicationIcon(appID)
+	dialog.SetApplicationName("Trayscale")
+	dialog.SetWebsite("https://github.com/DeedleFake/trayscale")
+	dialog.SetIssueURL("https://github.com/DeedleFake/trayscale/issues")
+	if v, ok := version.Get(); ok {
+		dialog.SetVersion(v)
+	}
+	dialog.SetTransientFor(&a.win.Window)
+	dialog.Show()
+
+	a.app.AddWindow(&dialog.Window.Window)
 }
 
 func (a *App) getInterval() time.Duration {

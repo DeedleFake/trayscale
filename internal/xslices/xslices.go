@@ -45,6 +45,15 @@ func ChunkBy[E any, S ~[]E, R comparable](s S, val func(E) R) []S {
 	}
 
 	r := make([]S, 0, len(s)/2)
+	return AppendChunkBy(r, s, val)
+}
+
+// AppendChunkBy is the same as [ChunkBy] but it appends the results
+// to to instead of allocating its own slice.
+func AppendChunkBy[E any, S ~[]E, R comparable](to []S, s S, val func(E) R) []S {
+	if len(s) == 0 {
+		return to
+	}
 
 	prev := val(s[0])
 	var start int
@@ -55,14 +64,14 @@ func ChunkBy[E any, S ~[]E, R comparable](s S, val func(E) R) []S {
 			continue
 		}
 
-		r = append(r, s[start:i])
+		to = append(to, slices.Clip(s[start:i]))
 		prev, start = cur, i
 	}
 
 	last := s[start:]
 	if len(last) != 0 {
-		r = append(r, last)
+		to = append(to, slices.Clip(last))
 	}
 
-	return slices.Clip(r)
+	return to
 }

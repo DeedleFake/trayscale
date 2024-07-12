@@ -8,7 +8,7 @@ import (
 	"slices"
 
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/trayscale/internal/xmaps"
+	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
@@ -111,26 +111,26 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 		exitNodeID = status.Status.ExitNodeStatus.ID
 	}
 
-	locs := make(map[string][]*ipnstate.PeerStatus, len(status.Status.Peer))
+	nodes := make([]*ipnstate.PeerStatus, 0, len(status.Status.Peer))
 	for _, peer := range status.Status.Peer {
 		if tsutil.IsMullvad(peer) {
-			locID := fmt.Sprintf("%v, %v", peer.Location.CityCode, peer.Location.CountryCode)
-			locs[locID] = append(locs[locID], peer)
+			nodes = append(nodes, peer)
 			if peer.ID == exitNodeID {
 				page.name = fmt.Sprintf("%v [%v]", mullvadPageBaseName, mullvadLocationName(peer.Location))
 			}
 		}
 	}
+	slices.SortFunc(nodes, tsutil.ComparePeers)
 
-	nodes := xmaps.Values(locs)
-	slices.SortFunc(nodes, func(v1, v2 []*ipnstate.PeerStatus) int {
-		return tsutil.CompareLocations(v1[0].Location, v2[0].Location)
-	})
-	for i := range nodes {
-		slices.SortFunc(nodes[i], tsutil.ComparePeers)
+	type locID struct {
+		CountryCode string
+		CityCode    string
 	}
+	locs := xslices.ChunkBy(nodes, func(peer *ipnstate.PeerStatus) locID {
+		return locID{peer.Location.CountryCode, peer.Location.CityCode}
+	})
 
-	page.nodeLocationRows.Update(nodes)
+	page.nodeLocationRows.Update(locs)
 }
 
 type nodeLocationRow struct {

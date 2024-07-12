@@ -28,6 +28,11 @@ type MullvadPage struct {
 	name string
 
 	nodeLocationRows rowManager[[]*ipnstate.PeerStatus]
+
+	// These are used to cache some intermediate variables between
+	// updates to cut down on the number of necessary allocations.
+	nodes []*ipnstate.PeerStatus
+	locs  [][]*ipnstate.PeerStatus
 }
 
 func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
@@ -111,26 +116,29 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 		exitNodeID = status.Status.ExitNodeStatus.ID
 	}
 
-	nodes := make([]*ipnstate.PeerStatus, 0, len(status.Status.Peer))
 	for _, peer := range status.Status.Peer {
 		if tsutil.IsMullvad(peer) {
-			nodes = append(nodes, peer)
+			page.nodes = append(page.nodes, peer)
 			if peer.ID == exitNodeID {
 				page.name = fmt.Sprintf("%v [%v]", mullvadPageBaseName, mullvadLocationName(peer.Location))
 			}
 		}
 	}
-	slices.SortFunc(nodes, tsutil.ComparePeers)
+	slices.SortFunc(page.nodes, tsutil.ComparePeers)
 
 	type locID struct {
 		CountryCode string
 		CityCode    string
 	}
-	locs := xslices.ChunkBy(nodes, func(peer *ipnstate.PeerStatus) locID {
+	page.locs = page.locs[:0]
+	page.locs = xslices.AppendChunkBy(page.locs, page.nodes, func(peer *ipnstate.PeerStatus) locID {
 		return locID{peer.Location.CountryCode, peer.Location.CityCode}
 	})
 
-	page.nodeLocationRows.Update(locs)
+	page.nodeLocationRows.Update(page.locs)
+
+	clear(page.nodes)
+	page.nodes = page.nodes[:0]
 }
 
 type nodeLocationRow struct {

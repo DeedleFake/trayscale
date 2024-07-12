@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"deedles.dev/trayscale/internal/tsutil"
+	"deedles.dev/trayscale/internal/xslices"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
@@ -26,7 +27,12 @@ type MullvadPage struct {
 
 	name string
 
-	exitNodeRows rowManager[*ipnstate.PeerStatus]
+	nodeLocationRows rowManager[[]*ipnstate.PeerStatus]
+
+	// These are used to cache some intermediate variables between
+	// updates to cut down on the number of necessary allocations.
+	nodes []*ipnstate.PeerStatus
+	locs  [][]*ipnstate.PeerStatus
 }
 
 func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
@@ -51,46 +57,54 @@ func (page *MullvadPage) Name() string {
 func (page *MullvadPage) init(a *App, status tsutil.Status) {
 	page.name = mullvadPageBaseName
 
-	page.exitNodeRows.Parent = page.ExitNodesGroup
-	page.exitNodeRows.New = func(peer *ipnstate.PeerStatus) row[*ipnstate.PeerStatus] {
-		row := exitNodeRow{
-			peer: peer,
+	page.nodeLocationRows.Parent = page.ExitNodesGroup
+	page.nodeLocationRows.New = func(peers []*ipnstate.PeerStatus) row[[]*ipnstate.PeerStatus] {
+		r := nodeLocationRow{
+			w: adw.NewExpanderRow(),
+		}
+		r.m.Parent = rowAdderParent{r.w}
+		r.m.New = func(peer *ipnstate.PeerStatus) row[*ipnstate.PeerStatus] {
+			row := exitNodeRow{
+				peer: peer,
 
-			w: adw.NewSwitchRow(),
+				w: adw.NewSwitchRow(),
+			}
+
+			row.w.SetTitle(peer.HostName)
+
+			row.r().SetMarginTop(12)
+			row.r().SetMarginBottom(12)
+			row.r().ConnectStateSet(func(s bool) bool {
+				if s == row.r().State() {
+					return false
+				}
+
+				if s {
+					err := tsutil.AdvertiseExitNode(context.TODO(), false)
+					if err != nil {
+						slog.Error("disable exit node advertisement", "err", err)
+						// Continue anyways.
+					}
+				}
+
+				var node *ipnstate.PeerStatus
+				if s {
+					node = row.peer
+				}
+				err := tsutil.ExitNode(context.TODO(), node)
+				if err != nil {
+					slog.Error("set exit node", "err", err)
+					row.r().SetActive(!s)
+					return true
+				}
+				a.poller.Poll() <- struct{}{}
+				return true
+			})
+
+			return &row
 		}
 
-		row.w.SetTitle(mullvadExitNodeName(peer))
-
-		row.r().SetMarginTop(12)
-		row.r().SetMarginBottom(12)
-		row.r().ConnectStateSet(func(s bool) bool {
-			if s == row.r().State() {
-				return false
-			}
-
-			if s {
-				err := tsutil.AdvertiseExitNode(context.TODO(), false)
-				if err != nil {
-					slog.Error("disable exit node advertisement", "err", err)
-					// Continue anyways.
-				}
-			}
-
-			var node *ipnstate.PeerStatus
-			if s {
-				node = row.peer
-			}
-			err := tsutil.ExitNode(context.TODO(), node)
-			if err != nil {
-				slog.Error("set exit node", "err", err)
-				row.r().SetActive(!s)
-				return true
-			}
-			a.poller.Poll() <- struct{}{}
-			return true
-		})
-
-		return &row
+		return &r
 	}
 }
 
@@ -102,18 +116,53 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 		exitNodeID = status.Status.ExitNodeStatus.ID
 	}
 
-	nodes := make([]*ipnstate.PeerStatus, 0, len(status.Status.Peer))
 	for _, peer := range status.Status.Peer {
 		if tsutil.IsMullvad(peer) {
-			nodes = append(nodes, peer)
+			page.nodes = append(page.nodes, peer)
 			if peer.ID == exitNodeID {
-				page.name = fmt.Sprintf("%v [%v]", mullvadPageBaseName, mullvadExitNodeName(peer))
+				page.name = fmt.Sprintf("%v [%v]", mullvadPageBaseName, mullvadLocationName(peer.Location))
 			}
 		}
 	}
-	slices.SortFunc(nodes, tsutil.ComparePeers)
+	slices.SortFunc(page.nodes, tsutil.ComparePeers)
 
-	page.exitNodeRows.Update(nodes)
+	type locID struct {
+		CountryCode string
+		CityCode    string
+	}
+	page.locs = page.locs[:0]
+	page.locs = xslices.AppendChunkBy(page.locs, page.nodes, func(peer *ipnstate.PeerStatus) locID {
+		return locID{peer.Location.CountryCode, peer.Location.CityCode}
+	})
+
+	page.nodeLocationRows.Update(page.locs)
+
+	clear(page.nodes)
+	page.nodes = page.nodes[:0]
+}
+
+type nodeLocationRow struct {
+	w *adw.ExpanderRow
+	m rowManager[*ipnstate.PeerStatus]
+}
+
+func (row *nodeLocationRow) Update(nodes []*ipnstate.PeerStatus) {
+	loc := nodes[0].Location
+
+	row.w.SetTitle(mullvadLocationName(loc))
+	row.w.SetSubtitle("")
+	for _, peer := range nodes {
+		if peer.ExitNode {
+			row.w.SetSubtitle("Current exit node location")
+			break
+		}
+	}
+
+	row.m.Update(nodes)
+}
+
+func (row *nodeLocationRow) Widget() gtk.Widgetter {
+	return row.w
 }
 
 type exitNodeRow struct {
@@ -129,7 +178,7 @@ func (row *exitNodeRow) r() *gtk.Switch {
 func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
 	row.peer = peer
 
-	row.w.SetTitle(mullvadExitNodeName(peer))
+	row.w.SetTitle(peer.HostName)
 
 	row.r().SetState(peer.ExitNode)
 	row.r().SetActive(peer.ExitNode)
@@ -139,16 +188,12 @@ func (row *exitNodeRow) Widget() gtk.Widgetter {
 	return row.w
 }
 
-func mullvadExitNodeName(peer *ipnstate.PeerStatus) string {
-	if peer.Location == nil {
-		return peer.HostName
-	}
-
+func mullvadLocationName(loc *tailcfg.Location) string {
 	return fmt.Sprintf(
 		"%v %v, %v",
-		countryCodeToFlag(peer.Location.CountryCode),
-		peer.Location.City,
-		peer.Location.Country,
+		countryCodeToFlag(loc.CountryCode),
+		loc.City,
+		loc.Country,
 	)
 }
 

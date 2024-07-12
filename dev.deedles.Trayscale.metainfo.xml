@@ -57,6 +57,7 @@
 		<release version="v0.13.0" date="TODO">
 			<description>
 				<ul>Remove control server dconf setting and instead use a new dialog.</ul>
+				<ul>Make Mullvad peer list hierarchical.</ul>
 			</description>
 		</release>
 		<release version="v0.12.7" date="2024-07-09">

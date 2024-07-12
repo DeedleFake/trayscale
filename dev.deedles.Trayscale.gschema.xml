@@ -18,14 +18,6 @@
 				for status changes and other things.
 			</description>
 		</key>
-		<key name="control-plane-server" type="s">
-			<default>""</default>
-			<summary>Control plane server to use</summary>
-			<description>
-				If not empty, uses the specified control plane server instead
-				of the default Tailscale one.
-			</description>
-		</key>
 	</schema>
 </schemalist>
 

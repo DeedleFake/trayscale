@@ -10,13 +10,11 @@ import (
 	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/trayscale/internal/version"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"tailscale.com/ipn"
 	"tailscale.com/types/key"
 )
 
@@ -42,26 +40,6 @@ type App struct {
 	peerPages     map[key.NodePublic]*stackPage
 	spinnum       int
 	operatorCheck bool
-}
-
-// showAbout shows the app's about dialog.
-func (a *App) showAbout() {
-	dialog := adw.NewAboutWindow()
-	dialog.SetDevelopers([]string{"DeedleFake"})
-	dialog.SetCopyright("Copyright (c) 2023 DeedleFake")
-	dialog.SetLicense(readAssetString("LICENSE"))
-	dialog.SetLicenseType(gtk.LicenseCustom)
-	dialog.SetApplicationIcon(appID)
-	dialog.SetApplicationName("Trayscale")
-	dialog.SetWebsite("https://github.com/DeedleFake/trayscale")
-	dialog.SetIssueURL("https://github.com/DeedleFake/trayscale/issues")
-	if v, ok := version.Get(); ok {
-		dialog.SetVersion(v)
-	}
-	dialog.SetTransientFor(&a.win.Window)
-	dialog.Show()
-
-	a.app.AddWindow(&dialog.Window.Window)
 }
 
 func (a *App) clip(v *glib.Value) {
@@ -197,16 +175,6 @@ func (a *App) update(s tsutil.Status) {
 	a.win.StatusSwitch.SetActive(online)
 	a.updatePeers(s)
 
-	if a.settings != nil {
-		controlURL := a.settings.String("control-plane-server")
-		if controlURL == "" {
-			controlURL = ipn.DefaultControlURL
-		}
-		if controlURL != s.Prefs.ControlURL {
-			a.settings.SetString("control-plane-server", s.Prefs.ControlURL)
-		}
-	}
-
 	if a.online && !a.operatorCheck {
 		a.operatorCheck = true
 		if !s.OperatorIsCurrent() {
@@ -285,6 +253,10 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.win.Present()
 		return
 	}
+
+	changeControlServerAction := gio.NewSimpleAction("change_control_server", nil)
+	changeControlServerAction.ConnectActivate(func(p *glib.Variant) { a.showChangeControlServer() })
+	a.app.AddAction(changeControlServerAction)
 
 	preferencesAction := gio.NewSimpleAction("preferences", nil)
 	preferencesAction.ConnectActivate(func(p *glib.Variant) { a.showPreferences() })

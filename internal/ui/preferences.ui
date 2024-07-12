@@ -31,17 +31,6 @@
             </child>
           </object>
         </child>
-        <child>
-          <object class="AdwPreferencesGroup">
-            <property name="title">Advanced</property>
-            <child>
-              <object class="AdwEntryRow" id="ControlURLRow">
-                <property name="show-apply-button">True</property>
-                <property name="title">Control Server URL</property>
-              </object>
-            </child>
-          </object>
-        </child>
       </object>
     </child>
   </object>

@@ -4,6 +4,10 @@
 	<menu id="MainMenu">
 		<section>
 			<item>
+				<attribute name="label">Change Control _Server</attribute>
+				<attribute name="action">app.change_control_server</attribute>
+			</item>
+			<item>
 				<attribute name="label">_Preferences</attribute>
 				<attribute name="action">app.preferences</attribute>
 			</item>

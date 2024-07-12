@@ -145,7 +145,7 @@ func (row *nodeLocationRow) Update(nodes []*ipnstate.PeerStatus) {
 	row.w.SetSubtitle("")
 	for _, peer := range nodes {
 		if peer.ExitNode {
-			row.w.SetSubtitle("Current exit node")
+			row.w.SetSubtitle("Current exit node location")
 			break
 		}
 	}

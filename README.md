@@ -5,7 +5,7 @@ Trayscale
 
 Trayscale is an unofficial GUI interface for the Tailscale daemon particularly for use on Linux, as no official Linux GUI client exists. It provides a basic system tray icon and a fairly comprehensive UI with support for many of Tailscale's features.
 
-_Disclaimer: This project is in a beta state. If it bricks your machine, it's not my fault. Use at your own risk._
+_Disclaimer: This project is in a beta state. There may still be undiscovered bugs or compatibility issues. Use at your own risk._
 
 ![screenshot](https://github.com/DeedleFake/trayscale/assets/326750/103125df-2e6e-48ce-9711-82e408fddc67)
 

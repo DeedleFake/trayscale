@@ -120,7 +120,7 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 		if tsutil.IsMullvad(peer) {
 			page.nodes = append(page.nodes, peer)
 			if peer.ID == exitNodeID {
-				page.name = fmt.Sprintf("%v [%v]", mullvadPageBaseName, mullvadLocationName(peer.Location))
+				page.name = fmt.Sprintf("%v [%v]", mullvadPageBaseName, mullvadLongLocationName(peer.Location))
 			}
 		}
 	}
@@ -182,6 +182,15 @@ func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
 
 func (row *exitNodeRow) Widget() gtk.Widgetter {
 	return row.w
+}
+
+func mullvadLongLocationName(loc *tailcfg.Location) string {
+	return fmt.Sprintf(
+		"%v %v, %v",
+		countryCodeToFlag(loc.CountryCode),
+		loc.City,
+		loc.Country,
+	)
 }
 
 func mullvadLocationName(loc *tailcfg.Location) string {

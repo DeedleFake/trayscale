@@ -126,13 +126,9 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 	}
 	slices.SortFunc(page.nodes, tsutil.ComparePeers)
 
-	type locID struct {
-		CountryCode string
-		CityCode    string
-	}
 	page.locs = page.locs[:0]
-	page.locs = xslices.AppendChunkBy(page.locs, page.nodes, func(peer *ipnstate.PeerStatus) locID {
-		return locID{peer.Location.CountryCode, peer.Location.CityCode}
+	page.locs = xslices.AppendChunkBy(page.locs, page.nodes, func(peer *ipnstate.PeerStatus) string {
+		return peer.Location.CountryCode
 	})
 
 	page.nodeLocationRows.Update(page.locs)
@@ -178,7 +174,7 @@ func (row *exitNodeRow) r() *gtk.Switch {
 func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
 	row.peer = peer
 
-	row.w.SetTitle(peer.HostName)
+	row.w.SetTitle(mullvadNodeName(peer))
 
 	row.r().SetState(peer.ExitNode)
 	row.r().SetActive(peer.ExitNode)
@@ -190,11 +186,18 @@ func (row *exitNodeRow) Widget() gtk.Widgetter {
 
 func mullvadLocationName(loc *tailcfg.Location) string {
 	return fmt.Sprintf(
-		"%v %v, %v",
+		"%v %v",
 		countryCodeToFlag(loc.CountryCode),
-		loc.City,
 		loc.Country,
 	)
+}
+
+func mullvadNodeName(peer *ipnstate.PeerStatus) string {
+	if peer.Location == nil {
+		return peer.HostName
+	}
+
+	return fmt.Sprintf("%v (%v)", peer.Location.City, peer.HostName)
 }
 
 func countryCodeToFlag(code string) string {

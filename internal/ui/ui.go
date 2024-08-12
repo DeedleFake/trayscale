@@ -135,7 +135,7 @@ func fillObjects(dst any, builder *gtk.Builder) {
 func fillFromBuilder(into any, xml ...string) {
 	builder := gtk.NewBuilder()
 	for _, v := range xml {
-		builder.AddFromString(v, len(v))
+		builder.AddFromString(v)
 	}
 
 	fillObjects(into, builder)

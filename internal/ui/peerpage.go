@@ -107,10 +107,8 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		fc.ConnectResponse(func(id int) {
 			switch gtk.ResponseType(id) {
 			case gtk.ResponseAccept:
-				files := fc.Files()
-				for i := uint(0); i < files.NItems(); i++ {
-					file := files.Item(i).Cast().(*gio.File)
-					go a.pushFile(context.TODO(), peer.ID, file)
+				for file := range listItemObjects(fc.Files()) {
+					go a.pushFile(context.TODO(), peer.ID, file.Cast().(*gio.File))
 				}
 			}
 		})

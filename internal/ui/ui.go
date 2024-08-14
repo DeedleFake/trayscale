@@ -2,12 +2,15 @@ package ui
 
 import (
 	"io"
+	"iter"
 	"reflect"
 	"strings"
 	"time"
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/tsutil"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/opt"
@@ -139,4 +142,16 @@ func fillFromBuilder(into any, xml ...string) {
 	}
 
 	fillObjects(into, builder)
+}
+
+func listModelObjects(list *gio.ListModel) iter.Seq[*glib.Object] {
+	return func(yield func(*glib.Object) bool) {
+		length := list.NItems()
+		for i := uint(0); i < length; i++ {
+			item := list.Item(i)
+			if !yield(item) {
+				return
+			}
+		}
+	}
 }

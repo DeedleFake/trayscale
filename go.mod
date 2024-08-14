@@ -1,6 +1,6 @@
 module deedles.dev/trayscale
 
-go 1.22.5
+go 1.23.0
 
 require (
 	deedles.dev/mk v0.1.0
@@ -10,13 +10,13 @@ require (
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	golang.org/x/net v0.28.0
 	gotest.tools/v3 v3.5.1
-	honnef.co/go/tools v0.4.7
+	honnef.co/go/tools v0.5.0
 	tailscale.com v1.70.0
 )
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/BurntSushi/toml v1.4.0 // indirect
+	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/KarpelesLab/weak v0.1.1 // indirect
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa // indirect
@@ -39,7 +39,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mdlayher/netlink v1.7.2 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
-	github.com/miekg/dns v1.1.61 // indirect
+	github.com/miekg/dns v1.1.62 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
@@ -66,7 +66,7 @@ require (
 	golang.org/x/time v0.6.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
-	k8s.io/client-go v0.30.3 // indirect
+	k8s.io/client-go v0.31.0 // indirect
 	nhooyr.io/websocket v1.8.17 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 	software.sslmate.com/src/go-pkcs12 v0.4.0 // indirect

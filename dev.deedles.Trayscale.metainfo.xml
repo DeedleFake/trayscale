@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.13.2" date="2024-08-14">
+			<description>
+				<ul>Update to Go 1.23.</ul>
+				<ul>Replace some deprecated code with the new API.</ul>
+			</description>
+		</release>
 		<release version="v0.13.1" date="2024-08-12">
 			<description>
 				<ul>Restructured Mullvad list to categorize per-country.</ul>

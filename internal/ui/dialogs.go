@@ -24,7 +24,7 @@ func (d Confirmation) Show(a *App, res func(bool)) {
 		res(response == "accept")
 	})
 
-	dialog.Show()
+	dialog.SetVisible(true)
 }
 
 type Prompt struct {
@@ -67,7 +67,7 @@ func (d Prompt) Show(a *App, initialValue string, res func(response, val string)
 		res(def, input.Buffer().Text())
 	})
 
-	dialog.Show()
+	dialog.SetVisible(true)
 }
 
 type Info struct {
@@ -87,5 +87,5 @@ func (d Info) Show(a *App, closed func()) {
 		})
 	}
 
-	dialog.Show()
+	dialog.SetVisible(true)
 }

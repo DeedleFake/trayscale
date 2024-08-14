@@ -83,7 +83,7 @@ func (a *App) showPreferences() {
 	a.settings.Bind("tray-icon", win.UseTrayIconRow.Object, "active", gio.SettingsBindDefault)
 	a.settings.Bind("polling-interval", win.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
 	win.SetTransientFor(&a.win.Window)
-	win.Show()
+	win.SetVisible(true)
 
 	a.app.AddWindow(&win.Window.Window)
 }
@@ -103,7 +103,7 @@ func (a *App) showAbout() {
 		dialog.SetVersion(v)
 	}
 	dialog.SetTransientFor(&a.win.Window)
-	dialog.Show()
+	dialog.SetVisible(true)
 
 	a.app.AddWindow(&dialog.Window.Window)
 }

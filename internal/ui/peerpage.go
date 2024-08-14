@@ -101,18 +101,21 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 
 	sendFileAction := gio.NewSimpleAction("sendfile", nil)
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
-		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionOpen, "", "")
-		fc.SetModal(true)
-		fc.SetSelectMultiple(true)
-		fc.ConnectResponse(func(id int) {
-			switch gtk.ResponseType(id) {
-			case gtk.ResponseAccept:
-				for file := range listItemObjects(fc.Files()) {
-					go a.pushFile(context.TODO(), peer.ID, file.Cast().(*gio.File))
+		dialog := gtk.NewFileDialog()
+		dialog.SetModal(true)
+		dialog.OpenMultiple(context.TODO(), &a.win.Window, func(res gio.AsyncResulter) {
+			files, err := dialog.OpenMultipleFinish(res)
+			if err != nil {
+				if !errHasCode(err, int(gtk.DialogErrorDismissed)) {
+					slog.Error("open files", "err", err)
 				}
+				return
+			}
+
+			for file := range listModelObjects(files) {
+				go a.pushFile(context.TODO(), peer.ID, file.Cast().(*gio.File))
 			}
 		})
-		fc.Show()
 	})
 	actions.AddAction(sendFileAction)
 

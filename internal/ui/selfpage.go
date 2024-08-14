@@ -94,25 +94,6 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	actions := gio.NewSimpleActionGroup()
 	page.InsertActionGroup("peer", actions)
 
-	sendFileAction := gio.NewSimpleAction("sendfile", nil)
-	sendFileAction.ConnectActivate(func(p *glib.Variant) {
-		fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionOpen, "", "")
-		fc.SetModal(true)
-		fc.SetSelectMultiple(true)
-		fc.ConnectResponse(func(id int) {
-			switch gtk.ResponseType(id) {
-			case gtk.ResponseAccept:
-				files := fc.Files()
-				for i := uint(0); i < files.NItems(); i++ {
-					file := files.Item(i).Cast().(*gio.File)
-					go a.pushFile(context.TODO(), peer.ID, file)
-				}
-			}
-		})
-		fc.Show()
-	})
-	actions.AddAction(sendFileAction)
-
 	page.addrRows.Parent = page.IPGroup
 	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {
 		row := addrRow{
@@ -189,16 +170,20 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		row.s.SetHasFrame(false)
 		row.s.SetTooltipText("Save")
 		row.s.ConnectClicked(func() {
-			fc := gtk.NewFileChooserNative("", &a.win.Window, gtk.FileChooserActionSave, "", "")
-			fc.SetModal(true)
-			fc.SetCurrentName(row.file.Name)
-			fc.ConnectResponse(func(id int) {
-				switch gtk.ResponseType(id) {
-				case gtk.ResponseAccept:
-					go a.saveFile(context.TODO(), row.file.Name, fc.File())
+			dialog := gtk.NewFileDialog()
+			dialog.SetModal(true)
+			dialog.SetInitialName(row.file.Name)
+			dialog.Save(context.TODO(), &a.win.Window, func(res gio.AsyncResulter) {
+				file, err := dialog.SaveFinish(res)
+				if err != nil {
+					if !errHasCode(err, int(gtk.DialogErrorDismissed)) {
+						slog.Error("save file", "err", err)
+					}
+					return
 				}
+
+				go a.saveFile(context.TODO(), row.file.Name, file)
 			})
-			fc.Show()
 		})
 
 		row.d.SetMarginTop(12)

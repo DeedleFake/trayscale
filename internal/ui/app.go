@@ -225,7 +225,7 @@ func (a *App) startTS(ctx context.Context) error {
 			Reject:  "_Cancel",
 		}.Show(a, func(accept bool) {
 			if accept {
-				gtk.ShowURI(&a.win.Window, status.Status.AuthURL, gdk.CURRENT_TIME)
+				gtk.NewURILauncher(status.Status.AuthURL).Launch(ctx, &a.win.Window, nil)
 			}
 		})
 		return nil
@@ -315,7 +315,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 		return false
 	})
 	a.poller.Poll() <- struct{}{}
-	a.win.Show()
+	a.win.SetVisible(true)
 }
 
 func (a *App) initTray(ctx context.Context) {

@@ -39,7 +39,7 @@ func IsMullvad(peer *ipnstate.PeerStatus) bool {
 // CanMullvad returns true if peer is allowed to access Mullvad exit
 // nodes.
 func CanMullvad(peer *ipnstate.PeerStatus) bool {
-	return peer.CapMap.Contains("mullvad")
+	return peer.HasCap("mullvad")
 }
 
 // CompareLocations alphabestically compares the countries and then,

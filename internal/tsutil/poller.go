@@ -13,6 +13,7 @@ import (
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 )
 
 // A Poller gets the latest Tailscale status at regular intervals or
@@ -81,12 +82,15 @@ func (p *Poller) Run(ctx context.Context) {
 			continue
 		}
 
-		files, err := WaitingFiles(ctx)
-		if err != nil {
-			if ctx.Err() != nil {
-				return
+		var files []apitype.WaitingFile
+		if status.Self.HasCap(tailcfg.CapabilityFileSharing) {
+			files, err = WaitingFiles(ctx)
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				slog.Error("get waiting files", "err", err)
 			}
-			slog.Error("get waiting files", "err", err)
 		}
 
 		s := Status{Status: status, Prefs: prefs, Files: files}

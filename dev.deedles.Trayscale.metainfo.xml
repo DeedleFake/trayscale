@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.13.3" date="2024-08-16">
+			<description>
+				<ul>Reorder tray menu items.</ul>
+				<ul>Skip polling for waiting files if Taildrop isn't turned on.</ul>
+			</description>
+		</release>
 		<release version="v0.13.2" date="2024-08-14">
 			<description>
 				<ul>Update to Go 1.23.</ul>

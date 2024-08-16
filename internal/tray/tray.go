@@ -34,10 +34,10 @@ func New(online bool) *Tray {
 	systray.SetIcon(statusIcon(online))
 	systray.SetTitle("Trayscale")
 
+	showWindow := systray.AddMenuItem("Show", "")
+	systray.AddSeparator()
 	connToggleItem := systray.AddMenuItem(connToggleText(online), "")
 	selfNodeItem := systray.AddMenuItem("", "")
-	systray.AddSeparator()
-	showWindow := systray.AddMenuItem("Show", "")
 	systray.AddSeparator()
 	quit := systray.AddMenuItem("Quit", "")
 

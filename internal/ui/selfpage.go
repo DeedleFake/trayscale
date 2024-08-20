@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"iter"
 	"log/slog"
-	"maps"
 	"net/netip"
 	"slices"
 	"time"
@@ -355,7 +354,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		page.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
 
 		page.DERPLatencies.SetVisible(true)
-		namedLats := slices.SortedFunc(iter.Seq[xiter.Pair[string, time.Duration]](xiter.Map(xiter.ToPair(xiter.Seq2[int, time.Duration](maps.All(r.RegionLatency))),
+		namedLats := slices.SortedFunc(iter.Seq[xiter.Pair[string, time.Duration]](xiter.Map(xiter.ToPair(xiter.OfMap(r.RegionLatency)),
 			func(p xiter.Pair[int, time.Duration]) xiter.Pair[string, time.Duration] {
 				return xiter.P(dm.Regions[p.V1].RegionName, p.V2)
 			})),
@@ -384,7 +383,7 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	page.fileRows.Update(status.Files)
 	page.FilesGroup.SetVisible(len(status.Files) > 0)
 
-	page.routes = slices.SortedFunc(iter.Seq[netip.Prefix](xiter.Filter(xiter.Seq[netip.Prefix](slices.Values(status.Prefs.AdvertiseRoutes)),
+	page.routes = slices.SortedFunc(iter.Seq[netip.Prefix](xiter.Filter(xiter.OfSlice(status.Prefs.AdvertiseRoutes),
 		func(p netip.Prefix) bool { return p.Bits() != 0 })), // Filter
 		func(p1, p2 netip.Prefix) int { // SortedFunc
 			return cmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())

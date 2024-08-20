@@ -14,13 +14,19 @@ var (
 
 	//go:embed status-icon-inactive.png
 	statusIconInactive []byte
+
+	//go:embed status-icon-exit-node.png
+	statusIconExitNode []byte
 )
 
-func statusIcon(online bool) []byte {
-	if online {
-		return statusIconActive
+func statusIcon(s tsutil.Status) []byte {
+	if !s.Online() {
+		return statusIconInactive
 	}
-	return statusIconInactive
+	if s.Status.ExitNodeStatus != nil {
+		return statusIconExitNode
+	}
+	return statusIconActive
 }
 
 type Tray struct {
@@ -31,7 +37,7 @@ type Tray struct {
 }
 
 func New(online bool) *Tray {
-	systray.SetIcon(statusIcon(online))
+	systray.SetIcon(statusIcon(tsutil.Status{}))
 	systray.SetTitle("Trayscale")
 
 	showWindow := systray.AddMenuItem("Show", "")
@@ -49,6 +55,10 @@ func New(online bool) *Tray {
 	}
 }
 
+func (t *Tray) ShowChan() <-chan struct{} {
+	return t.showItem.ClickedCh
+}
+
 func (t *Tray) ConnToggleChan() <-chan struct{} {
 	return t.connToggleItem.ClickedCh
 }
@@ -57,27 +67,17 @@ func (t *Tray) SelfNodeChan() <-chan struct{} {
 	return t.selfNodeItem.ClickedCh
 }
 
-func (t *Tray) ShowChan() <-chan struct{} {
-	return t.showItem.ClickedCh
-}
-
 func (t *Tray) QuitChan() <-chan struct{} {
 	return t.quitItem.ClickedCh
 }
 
-func (t *Tray) setOnlineStatus(online bool) {
-	systray.SetIcon(statusIcon(online))
-	t.connToggleItem.SetTitle(connToggleText(online))
-}
-
-func (t *Tray) Update(s tsutil.Status, previousOnlineStatus bool) {
+func (t *Tray) Update(s tsutil.Status) {
 	if t == nil {
 		return
 	}
 
-	if s.Online() != previousOnlineStatus {
-		t.setOnlineStatus(s.Online())
-	}
+	systray.SetIcon(statusIcon(s))
+	t.connToggleItem.SetTitle(connToggleText(s.Online()))
 
 	selfTitle, connected := selfTitle(s)
 	t.selfNodeItem.SetTitle(fmt.Sprintf("This machine: %v", selfTitle))

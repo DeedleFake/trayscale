@@ -157,7 +157,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 func (a *App) update(s tsutil.Status) {
 	online := s.Online()
-	a.tray.Update(s, a.online)
+	a.tray.Update(s)
 	if a.online != online {
 		a.online = online
 

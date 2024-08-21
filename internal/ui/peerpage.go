@@ -4,13 +4,14 @@ import (
 	"cmp"
 	"context"
 	_ "embed"
+	"iter"
 	"log/slog"
 	"net/netip"
 	"slices"
 	"strconv"
 
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/trayscale/internal/xslices"
+	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -227,10 +228,11 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	if peer.PrimaryRoutes != nil {
 		page.routes = peer.PrimaryRoutes.AsSlice()
 	}
-	page.routes = xslices.Filter(page.routes, func(p netip.Prefix) bool { return p.Bits() != 0 })
-	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) int {
-		return cmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())
-	})
+	page.routes = slices.SortedFunc(iter.Seq[netip.Prefix](xiter.Filter(xiter.OfSlice(page.routes),
+		func(p netip.Prefix) bool { return p.Bits() != 0 })),
+		func(p1, p2 netip.Prefix) int {
+			return cmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())
+		})
 	if len(page.routes) == 0 {
 		page.routes = append(page.routes, netip.Prefix{})
 	}

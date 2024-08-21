@@ -228,7 +228,7 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	if peer.PrimaryRoutes != nil {
 		page.routes = peer.PrimaryRoutes.AsSlice()
 	}
-	page.routes = slices.SortedFunc(iter.Seq[netip.Prefix](xiter.Filter(xiter.Seq[netip.Prefix](slices.Values(page.routes)),
+	page.routes = slices.SortedFunc(iter.Seq[netip.Prefix](xiter.Filter(xiter.OfSlice(page.routes),
 		func(p netip.Prefix) bool { return p.Bits() != 0 })),
 		func(p1, p2 netip.Prefix) int {
 			return cmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())

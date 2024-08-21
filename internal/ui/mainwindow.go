@@ -24,6 +24,7 @@ type MainWindow struct {
 	MainMenuButton *gtk.MenuButton
 	PeersStack     *gtk.Stack
 	WorkSpinner    *gtk.Spinner
+	CopyFQDNButton *gtk.Button
 }
 
 func NewMainWindow(app *gtk.Application) *MainWindow {

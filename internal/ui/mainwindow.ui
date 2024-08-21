@@ -36,6 +36,13 @@
                         <property name="show-start-title-buttons">False</property>
                         <property name="show-title">False</property>
                         <child type="end">
+                          <object class="GtkButton" id="CopyFQDNButton">
+                            <property name="has-frame">False</property>
+                            <property name="label">_Copy FQDN</property>
+                            <property name="use-underline">True</property>
+                          </object>
+                        </child>
+                        <child type="end">
                           <object class="GtkSpinner" id="WorkSpinner"/>
                         </child>
                       </object>

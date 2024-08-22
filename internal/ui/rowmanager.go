@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"iter"
 	"slices"
 
+	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
@@ -31,9 +33,14 @@ func (m *rowManager[Data]) resize(size int) {
 }
 
 func (m *rowManager[Data]) Update(data []Data) {
-	m.resize(len(data))
+	m.UpdateFromSeq(slices.Values(data), len(data))
+}
 
-	for i, d := range data {
+func (m *rowManager[Data]) UpdateFromSeq(data iter.Seq[Data], size int) {
+	m.resize(size)
+
+	edata := xiter.Enumerate(xiter.Seq[Data](data))
+	for i, d := range edata {
 		if i < len(m.rows) {
 			m.rows[i].Update(d)
 			continue

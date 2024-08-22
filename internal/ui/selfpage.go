@@ -383,19 +383,39 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	page.fileRows.Update(status.Files)
 	page.FilesGroup.SetVisible(len(status.Files) > 0)
 
-	page.routes = slices.SortedFunc(iter.Seq[netip.Prefix](xiter.Filter(xiter.OfSlice(status.Prefs.AdvertiseRoutes),
-		func(p netip.Prefix) bool { return p.Bits() != 0 })), // Filter
-		func(p1, p2 netip.Prefix) int { // SortedFunc
-			return cmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())
-		})
-	if len(page.routes) == 0 {
-		page.routes = append(page.routes, netip.Prefix{})
+	routes := func(yield func(netip.Prefix) bool) {
+		for _, r := range status.Prefs.AdvertiseRoutes {
+			if r.Bits() == 0 {
+				continue
+			}
+			if !yield(r) {
+				return
+			}
+		}
 	}
-	eroutes := make([]enum[netip.Prefix], 0, len(page.routes))
-	for i, r := range page.routes {
-		eroutes = append(eroutes, enumerate(i, r))
+	routes = xiter.Or(
+		routes,
+		xiter.Of(netip.Prefix{}),
+	)
+
+	clear(page.routes)
+	page.routes = page.routes[:0]
+	page.routes = slices.AppendSeq(page.routes, routes)
+	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) int {
+		return cmp.Or(
+			p1.Addr().Compare(p2.Addr()),
+			cmp.Compare(p1.Bits(), p2.Bits()),
+		)
+	})
+
+	eroutes := func(yield func(enum[netip.Prefix]) bool) {
+		for i, r := range page.routes {
+			if !yield(enumerate(i, r)) {
+				return
+			}
+		}
 	}
-	page.routeRows.Update(eroutes)
+	page.routeRows.UpdateFromSeq(eroutes, len(page.routes))
 }
 
 type addrRow struct {

@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	_ "embed"
-	"iter"
 	"log/slog"
 	"net/netip"
 	"slices"
@@ -225,23 +224,46 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
 	page.addrRows.Update(peer.TailscaleIPs)
 
-	if peer.PrimaryRoutes != nil {
-		page.routes = peer.PrimaryRoutes.AsSlice()
+	routes := func(yield func(netip.Prefix) bool) {
+		if peer.PrimaryRoutes == nil {
+			return
+		}
+		for i := 0; i < peer.PrimaryRoutes.Len(); i++ {
+			r := peer.PrimaryRoutes.At(i)
+			if r.Bits() == 0 {
+				continue
+			}
+			if !yield(r) {
+				return
+			}
+		}
 	}
-	page.routes = slices.SortedFunc(iter.Seq[netip.Prefix](xiter.Filter(xiter.OfSlice(page.routes),
-		func(p netip.Prefix) bool { return p.Bits() != 0 })),
+	routes = xiter.Or(
+		routes,
+		xiter.Of(netip.Prefix{}),
+	)
+
+	clear(page.routes)
+	page.routes = page.routes[:0]
+	page.routes = slices.AppendSeq(page.routes, routes)
+	slices.SortFunc(
+		page.routes,
 		func(p1, p2 netip.Prefix) int {
-			return cmp.Or(p1.Addr().Compare(p2.Addr()), p1.Bits()-p2.Bits())
-		})
-	if len(page.routes) == 0 {
-		page.routes = append(page.routes, netip.Prefix{})
+			return cmp.Or(
+				p1.Addr().Compare(p2.Addr()),
+				cmp.Compare(p1.Bits(), p2.Bits()),
+			)
+		},
+	)
+
+	eroutes := func(yield func(enum[netip.Prefix]) bool) {
+		for _, r := range page.routes {
+			if !yield(enumerate(-1, r)) {
+				return
+			}
+		}
 	}
-	eroutes := make([]enum[netip.Prefix], 0, len(page.routes))
-	for i, r := range page.routes {
-		i = -1
-		eroutes = append(eroutes, enumerate(i, r))
-	}
-	page.routeRows.Update(eroutes)
+	page.routeRows.UpdateFromSeq(eroutes, len(page.routes))
 
 	page.ExitNodeRow.SetVisible(peer.ExitNodeOption)
 	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(peer.ExitNode)

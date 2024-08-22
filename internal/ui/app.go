@@ -127,18 +127,13 @@ func (a *App) updatePeers(status tsutil.Status) {
 	}
 
 	peerMap := status.Status.Peer
-	peersseq := func(yield func(key.NodePublic) bool) {
-		for k, p := range status.Status.Peer {
-			if tsutil.IsMullvad(p) {
-				continue
-			}
-			if !yield(k) {
-				return
-			}
-		}
-	}
 	peers := make([]key.NodePublic, 0, len(status.Status.Peer))
-	peers = slices.AppendSeq(peers, peersseq)
+	for k, p := range peerMap {
+		if tsutil.IsMullvad(p) {
+			continue
+		}
+		peers = append(peers, k)
+	}
 	slices.SortFunc(peers, key.NodePublic.Compare)
 
 	for key, page := range a.peerPages {

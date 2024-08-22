@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	_ "embed"
-	"iter"
 	"log/slog"
 	"net/netip"
 	"slices"
@@ -354,12 +353,16 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		page.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
 
 		page.DERPLatencies.SetVisible(true)
-		namedLats := slices.SortedFunc(iter.Seq[xiter.Pair[string, time.Duration]](xiter.Map(xiter.ToPair(xiter.OfMap(r.RegionLatency)),
-			func(p xiter.Pair[int, time.Duration]) xiter.Pair[string, time.Duration] {
-				return xiter.P(dm.Regions[p.V1].RegionName, p.V2)
-			})),
-			func(p1, p2 xiter.Pair[string, time.Duration]) int { return cmp.Compare(p1.V2, p2.V2) })
-		latencyRows.Update(namedLats)
+		namedLats := func(yield func(latencyEntry) bool) {
+			for id, latency := range r.RegionLatency {
+				named := xiter.P(dm.Regions[id].RegionName, latency)
+				if !yield(named) {
+					return
+				}
+			}
+		}
+		sortedLats := slices.SortedFunc(namedLats, func(p1, p2 latencyEntry) int { return cmp.Compare(p1.V2, p2.V2) })
+		latencyRows.Update(sortedLats)
 	})
 }
 

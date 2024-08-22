@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"iter"
 	"log/slog"
 	"os"
 	"slices"
@@ -11,7 +10,6 @@ import (
 	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -129,11 +127,19 @@ func (a *App) updatePeers(status tsutil.Status) {
 	}
 
 	peerMap := status.Status.Peer
-	peers := slices.SortedFunc(iter.Seq[key.NodePublic](xiter.Filter(xiter.MapKeys(status.Status.Peer),
-		func(peer key.NodePublic) bool {
-			return !tsutil.IsMullvad(peerMap[peer])
-		})),
-		key.NodePublic.Compare)
+	peersseq := func(yield func(key.NodePublic) bool) {
+		for k, p := range status.Status.Peer {
+			if tsutil.IsMullvad(p) {
+				continue
+			}
+			if !yield(k) {
+				return
+			}
+		}
+	}
+	peers := make([]key.NodePublic, 0, len(status.Status.Peer))
+	peers = slices.AppendSeq(peers, peersseq)
+	slices.SortFunc(peers, key.NodePublic.Compare)
 
 	for key, page := range a.peerPages {
 		if _, ok := peerMap[key]; !ok {

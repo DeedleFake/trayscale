@@ -59,6 +59,7 @@ func (p *Poller) Run(ctx context.Context) {
 	if interval < 0 {
 		interval = 5 * time.Second
 	}
+	retry := interval
 
 	check := time.NewTicker(interval)
 	defer check.Stop()
@@ -73,7 +74,10 @@ func (p *Poller) Run(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				return
-			case <-check.C:
+			case <-time.After(retry):
+				if retry < time.Hour {
+					retry *= 2
+				}
 				continue
 			}
 		}
@@ -87,10 +91,15 @@ func (p *Poller) Run(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				return
-			case <-check.C:
+			case <-time.After(retry):
+				if retry < time.Hour {
+					retry *= 2
+				}
 				continue
 			}
 		}
+
+		retry = interval
 
 		var files []apitype.WaitingFile
 		if status.Self.HasCap(tailcfg.CapabilityFileSharing) {

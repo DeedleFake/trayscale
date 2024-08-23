@@ -70,7 +70,12 @@ func (p *Poller) Run(ctx context.Context) {
 				return
 			}
 			slog.Error("get Tailscale status", "err", err)
-			continue
+			select {
+			case <-ctx.Done():
+				return
+			case <-check.C:
+				continue
+			}
 		}
 
 		prefs, err := Prefs(ctx)
@@ -79,7 +84,12 @@ func (p *Poller) Run(ctx context.Context) {
 				return
 			}
 			slog.Error("get Tailscale prefs", "err", err)
-			continue
+			select {
+			case <-ctx.Done():
+				return
+			case <-check.C:
+				continue
+			}
 		}
 
 		var files []apitype.WaitingFile

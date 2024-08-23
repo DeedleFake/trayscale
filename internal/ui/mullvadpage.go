@@ -8,7 +8,7 @@ import (
 	"slices"
 
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/trayscale/internal/xslices"
+	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
@@ -127,9 +127,9 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 	slices.SortFunc(page.nodes, tsutil.ComparePeers)
 
 	page.locs = page.locs[:0]
-	page.locs = xslices.AppendChunkBy(page.locs, page.nodes, func(peer *ipnstate.PeerStatus) string {
+	page.locs = slices.AppendSeq(page.locs, xiter.SliceChunksFunc(page.nodes, func(peer *ipnstate.PeerStatus) string {
 		return peer.Location.CountryCode
-	})
+	}))
 
 	page.nodeLocationRows.Update(page.locs)
 

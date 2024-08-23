@@ -59,6 +59,7 @@ func (p *Poller) Run(ctx context.Context) {
 	if interval < 0 {
 		interval = 5 * time.Second
 	}
+	retry := interval
 
 	check := time.NewTicker(interval)
 	defer check.Stop()
@@ -70,7 +71,15 @@ func (p *Poller) Run(ctx context.Context) {
 				return
 			}
 			slog.Error("get Tailscale status", "err", err)
-			continue
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(retry):
+				if retry < 30*time.Second {
+					retry *= 2
+				}
+				continue
+			}
 		}
 
 		prefs, err := Prefs(ctx)
@@ -79,8 +88,18 @@ func (p *Poller) Run(ctx context.Context) {
 				return
 			}
 			slog.Error("get Tailscale prefs", "err", err)
-			continue
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(retry):
+				if retry < 30*time.Second {
+					retry *= 2
+				}
+				continue
+			}
 		}
+
+		retry = interval
 
 		var files []apitype.WaitingFile
 		if status.Self.HasCap(tailcfg.CapabilityFileSharing) {

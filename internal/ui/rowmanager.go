@@ -39,7 +39,7 @@ func (m *rowManager[Data]) Update(data []Data) {
 func (m *rowManager[Data]) UpdateFromSeq(data iter.Seq[Data], size int) {
 	m.resize(size)
 
-	edata := xiter.Enumerate(xiter.Seq[Data](data))
+	edata := xiter.Enumerate(data)
 	for i, d := range edata {
 		if i < len(m.rows) {
 			m.rows[i].Update(d)

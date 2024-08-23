@@ -75,7 +75,7 @@ func (p *Poller) Run(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-time.After(retry):
-				if retry < time.Hour {
+				if retry < 30*time.Second {
 					retry *= 2
 				}
 				continue
@@ -92,7 +92,7 @@ func (p *Poller) Run(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-time.After(retry):
-				if retry < time.Hour {
+				if retry < 30*time.Second {
 					retry *= 2
 				}
 				continue

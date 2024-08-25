@@ -4,13 +4,12 @@ go 1.23.0
 
 require (
 	deedles.dev/mk v0.1.0
-	deedles.dev/xiter v0.0.0-20240823150837-dcf0352f0bda
+	deedles.dev/xiter v0.0.0-20240825023150-1849aa7a9329
 	fyne.io/systray v1.11.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20240712143708-824c3ce8a5f4
 	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	golang.org/x/net v0.28.0
-	gotest.tools/v3 v3.5.1
 	honnef.co/go/tools v0.5.1
 	tailscale.com v1.72.1
 )

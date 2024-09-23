@@ -2,6 +2,7 @@ package tsutil
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/netip"
 	"os/user"
@@ -14,6 +15,7 @@ import (
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
+	"tailscale.com/taildrop"
 )
 
 // A Poller gets the latest Tailscale status at regular intervals or
@@ -104,7 +106,7 @@ func (p *Poller) Run(ctx context.Context) {
 		var files []apitype.WaitingFile
 		if status.Self.HasCap(tailcfg.CapabilityFileSharing) {
 			files, err = WaitingFiles(ctx)
-			if err != nil {
+			if err != nil && !errors.Is(err, taildrop.ErrNoTaildrop) {
 				if ctx.Err() != nil {
 					return
 				}

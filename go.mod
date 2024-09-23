@@ -1,18 +1,17 @@
 module deedles.dev/trayscale
 
-go 1.23.0
+go 1.23.1
 
 require (
 	deedles.dev/mk v0.1.0
-	deedles.dev/xiter v0.0.0-20240822213914-e05a7bd121c1
+	deedles.dev/xiter v0.0.0-20240903181553-ec85411a9550
 	fyne.io/systray v1.11.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20240712143708-824c3ce8a5f4
 	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
-	golang.org/x/net v0.28.0
-	gotest.tools/v3 v3.5.1
+	golang.org/x/net v0.29.0
 	honnef.co/go/tools v0.5.1
-	tailscale.com v1.72.1
+	tailscale.com v1.74.1
 )
 
 require (
@@ -22,14 +21,14 @@ require (
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa // indirect
 	github.com/coder/websocket v1.8.12 // indirect
-	github.com/coreos/go-iptables v0.7.1-0.20240112124308-65c67c9f46e6 // indirect
+	github.com/coreos/go-iptables v0.8.0 // indirect
 	github.com/dblohm7/wingoes v0.0.0-20240820181039-f2b84150679e // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-json-experiment/json v0.0.0-20240815175050-ebd3a8989ca1 // indirect
 	github.com/godbus/dbus/v5 v5.1.1-0.20230522191255-76236955d466 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/google/nftables v0.2.1-0.20240815064735-6ddeb7caed5d // indirect
+	github.com/google/nftables v0.2.1-0.20240902164806-9a9f2ce6b319 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/csrf v1.7.2 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
@@ -56,18 +55,18 @@ require (
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6 // indirect
-	golang.org/x/crypto v0.26.0 // indirect
-	golang.org/x/exp v0.0.0-20240822175202-778ce7bba035 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20240822175202-778ce7bba035 // indirect
-	golang.org/x/mod v0.20.0 // indirect
-	golang.org/x/oauth2 v0.22.0 // indirect
+	golang.org/x/crypto v0.27.0 // indirect
+	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20240909161429-701f63a606c0 // indirect
+	golang.org/x/mod v0.21.0 // indirect
+	golang.org/x/oauth2 v0.23.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
-	golang.org/x/text v0.17.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
-	golang.org/x/tools v0.24.0 // indirect
+	golang.org/x/tools v0.25.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
-	k8s.io/client-go v0.31.0 // indirect
+	k8s.io/client-go v0.31.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
-	software.sslmate.com/src/go-pkcs12 v0.4.0 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.5.0 // indirect
 )

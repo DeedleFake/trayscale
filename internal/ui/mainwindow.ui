@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Created with Cambalache 0.91.1 -->
+<!-- Created with Cambalache 0.91.3 -->
 <interface>
   <!-- interface-name mainwindow.ui -->
   <requires lib="gtk" version="4.12"/>
@@ -11,13 +11,6 @@
     <property name="height-request">400</property>
     <property name="title">Trayscale</property>
     <property name="width-request">200</property>
-    <child>
-      <object class="AdwBreakpoint">
-        <!-- Custom object fragments -->
-        <condition>max-width: 400sp</condition>
-        <setter object="SplitView" property="collapsed">True</setter>
-      </object>
-    </child>
     <child>
       <object class="AdwToastOverlay" id="ToastOverlay">
         <child>
@@ -81,6 +74,13 @@
             </property>
           </object>
         </child>
+      </object>
+    </child>
+    <child>
+      <object class="AdwBreakpoint">
+        <!-- Custom object fragments -->
+        <condition>max-width: 400sp</condition>
+        <setter object="SplitView" property="collapsed">True</setter>
       </object>
     </child>
   </object>

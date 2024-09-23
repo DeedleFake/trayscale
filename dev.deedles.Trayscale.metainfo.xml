@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.13.5" date="2024-09-23">
+			<description>
+				<ul>Fix Taildrop log spam when Taildrop is disabled.</ul>
+				<ul>Internal cleanup.</ul>
+			</description>
+		</release>
 		<release version="v0.13.4" date="2024-08-22">
 			<description>
 				<ul>Change tray icon when exit node is in use.</ul>

@@ -5,12 +5,14 @@ import (
 	"io"
 	"iter"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4/pkg/core/gerror"
+	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -164,4 +166,45 @@ func errHasCode(err error, code int) bool {
 		return false
 	}
 	return gerr.ErrorCode() == code
+}
+
+func listModelBackward[T any](m *gioutil.ListModel[T]) iter.Seq2[int, T] {
+	return func(yield func(int, T) bool) {
+		for i := int(m.NItems()) - 1; i >= 0; i-- {
+			if !yield(i, m.At(i)) {
+				return
+			}
+		}
+	}
+}
+
+func listModelContains[T comparable](m *gioutil.ListModel[T], val T) bool {
+	for v := range m.All() {
+		if v == val {
+			return true
+		}
+	}
+	return false
+}
+
+func updateListModel[T comparable](m *gioutil.ListModel[T], s []T) {
+	for i, v := range listModelBackward(m) {
+		if !slices.Contains(s, v) {
+			m.Remove(i)
+		}
+	}
+
+	for _, v := range s {
+		if !listModelContains(m, v) {
+			m.Append(v)
+		}
+	}
+}
+
+func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
+	return glib.NewObjectComparer(func(o1, o2 *glib.Object) int {
+		v1 := gioutil.ObjectValue[T](o1)
+		v2 := gioutil.ObjectValue[T](o2)
+		return f(v1, v2)
+	})
 }

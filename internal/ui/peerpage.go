@@ -277,3 +277,19 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	page.LastHandshake.SetText(formatTime(peer.LastHandshake))
 	page.Online.SetFromIconName(boolIcon(peer.Online))
 }
+
+type addrRow struct {
+	ip netip.Addr
+
+	w *adw.ActionRow
+	c *gtk.Button
+}
+
+func (row *addrRow) Update(ip netip.Addr) {
+	row.ip = ip
+	row.w.SetTitle(ip.String())
+}
+
+func (row *addrRow) Widget() gtk.Widgetter {
+	return row.w
+}

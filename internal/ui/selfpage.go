@@ -12,6 +12,7 @@ import (
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -20,13 +21,18 @@ import (
 	"tailscale.com/ipn/ipnstate"
 )
 
+var (
+	addrModel  = gioutil.NewListModelType[netip.Addr]()
+	addrSorter = gtk.NewCustomSorter(NewObjectComparer(netip.Addr.Compare))
+)
+
 //go:embed selfpage.ui
 var selfPageXML string
 
 type SelfPage struct {
 	*adw.StatusPage `gtk:"Page"`
 
-	IPGroup               *adw.PreferencesGroup
+	IPList                *gtk.ListBox
 	OptionsGroup          *adw.PreferencesGroup
 	AdvertiseExitNodeRow  *adw.SwitchRow
 	AllowLANAccessRow     *adw.SwitchRow
@@ -63,7 +69,8 @@ type SelfPage struct {
 
 	routes []netip.Prefix
 
-	addrRows  rowManager[netip.Addr]
+	addrModel *gioutil.ListModel[netip.Addr]
+
 	routeRows rowManager[enum[netip.Prefix]]
 	fileRows  rowManager[apitype.WaitingFile]
 }
@@ -93,31 +100,29 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	actions := gio.NewSimpleActionGroup()
 	page.InsertActionGroup("peer", actions)
 
-	page.addrRows.Parent = page.IPGroup
-	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {
-		row := addrRow{
-			ip: ip,
+	page.addrModel = addrModel.New()
+	page.IPList.BindModel(gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter), func(obj *glib.Object) gtk.Widgetter {
+		addr := addrModel.ObjectValue(obj)
 
-			w: adw.NewActionRow(),
-			c: gtk.NewButtonFromIconName("edit-copy-symbolic"),
-		}
+		copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
 
-		row.c.SetMarginTop(12) // Why is this necessary?
-		row.c.SetMarginBottom(12)
-		row.c.SetHasFrame(false)
-		row.c.SetTooltipText("Copy to Clipboard")
-		row.c.ConnectClicked(func() {
-			a.clip(glib.NewValue(row.ip.String()))
+		copyButton.SetMarginTop(12) // Why is this necessary?
+		copyButton.SetMarginBottom(12)
+		copyButton.SetHasFrame(false)
+		copyButton.SetTooltipText("Copy to Clipboard")
+		copyButton.ConnectClicked(func() {
+			a.clip(glib.NewValue(addr.String()))
 			a.toast("Copied to clipboard")
 		})
 
-		row.w.SetObjectProperty("title-selectable", true)
-		row.w.AddSuffix(row.c)
-		row.w.SetActivatableWidget(row.c)
-		row.w.SetTitle(ip.String())
+		row := adw.NewActionRow()
+		row.SetObjectProperty("title-selectable", true)
+		row.AddSuffix(copyButton)
+		row.SetActivatableWidget(copyButton)
+		row.SetTitle(addr.String())
 
-		return &row
-	}
+		return row
+	})
 
 	page.routeRows.Parent = page.AdvertisedRoutesGroup
 	page.routeRows.New = func(route enum[netip.Prefix]) row[enum[netip.Prefix]] {
@@ -373,8 +378,7 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	page.SetTitle(peer.HostName)
 	page.SetDescription(peer.DNSName)
 
-	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
-	page.addrRows.Update(peer.TailscaleIPs)
+	updateListModel(page.addrModel, peer.TailscaleIPs)
 
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.AdvertisesExitNode())
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.AdvertisesExitNode())
@@ -419,22 +423,6 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 		}
 	}
 	page.routeRows.UpdateFromSeq(eroutes, len(page.routes))
-}
-
-type addrRow struct {
-	ip netip.Addr
-
-	w *adw.ActionRow
-	c *gtk.Button
-}
-
-func (row *addrRow) Update(ip netip.Addr) {
-	row.ip = ip
-	row.w.SetTitle(ip.String())
-}
-
-func (row *addrRow) Widget() gtk.Widgetter {
-	return row.w
 }
 
 type routeRow struct {

@@ -1,33 +1,39 @@
 package ui
 
 import (
+	"cmp"
 	"errors"
 	"io"
 	"iter"
+	"net/netip"
 	"reflect"
 	"strings"
 	"time"
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/tsutil"
+	"deedles.dev/trayscale/internal/xnetip"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4/pkg/core/gerror"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/opt"
 )
 
-type enum[T any] struct {
-	Index int
-	Val   T
-}
-
-func enumerate[T any](i int, v T) enum[T] {
-	return enum[T]{i, v}
-}
+var (
+	addrSorter        = gtk.NewCustomSorter(NewObjectComparer(netip.Addr.Compare))
+	prefixSorter      = gtk.NewCustomSorter(NewObjectComparer(xnetip.ComparePrefixes))
+	waitingFileSorter = gtk.NewCustomSorter(NewObjectComparer(func(f1, f2 apitype.WaitingFile) int {
+		return cmp.Or(
+			cmp.Compare(f1.Name, f2.Name),
+			cmp.Compare(f1.Size, f2.Size),
+		)
+	}))
+)
 
 func formatTime(t time.Time) string {
 	if t.IsZero() {

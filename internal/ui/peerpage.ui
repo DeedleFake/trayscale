@@ -13,6 +13,12 @@
             <child>
               <object class="AdwPreferencesGroup" id="IPGroup">
                 <property name="title">Tailscale IPs</property>
+                <child>
+                  <object class="GtkListBox" id="IPList">
+                    <property name="css-classes">boxed-list</property>
+                    <property name="selection-mode">none</property>
+                  </object>
+                </child>
               </object>
             </child>
             <child>
@@ -105,6 +111,12 @@
             <child>
               <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
                 <property name="title">Advertised Routes</property>
+                <child>
+                  <object class="GtkListBox" id="AdvertisedRoutesList">
+                    <property name="css-classes">boxed-list</property>
+                    <property name="selection-mode">none</property>
+                  </object>
+                </child>
               </object>
             </child>
           </object>

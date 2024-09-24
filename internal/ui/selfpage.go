@@ -22,17 +22,6 @@ import (
 	"tailscale.com/ipn/ipnstate"
 )
 
-var (
-	addrSorter        = gtk.NewCustomSorter(NewObjectComparer(netip.Addr.Compare))
-	prefixSorter      = gtk.NewCustomSorter(NewObjectComparer(xnetip.ComparePrefixes))
-	waitingFileSorter = gtk.NewCustomSorter(NewObjectComparer(func(f1, f2 apitype.WaitingFile) int {
-		return cmp.Or(
-			cmp.Compare(f1.Name, f2.Name),
-			cmp.Compare(f1.Size, f2.Size),
-		)
-	}))
-)
-
 //go:embed selfpage.ui
 var selfPageXML string
 

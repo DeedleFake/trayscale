@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"cmp"
 	"context"
 	_ "embed"
 	"log/slog"
@@ -10,8 +9,10 @@ import (
 	"strconv"
 
 	"deedles.dev/trayscale/internal/tsutil"
+	"deedles.dev/trayscale/internal/xnetip"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -24,8 +25,9 @@ var peerPageXML string
 type PeerPage struct {
 	*adw.StatusPage `gtk:"Page"`
 
-	IPGroup               *adw.PreferencesGroup
+	IPList                *gtk.ListBox
 	AdvertisedRoutesGroup *adw.PreferencesGroup
+	AdvertisedRoutesList  *gtk.ListBox
 	UDPRow                *adw.ActionRow
 	UDP                   *gtk.Image
 	IPv4Row               *adw.ActionRow
@@ -68,10 +70,8 @@ type PeerPage struct {
 	peer *ipnstate.PeerStatus
 	name string
 
-	routes []netip.Prefix
-
-	addrRows  rowManager[netip.Addr]
-	routeRows rowManager[enum[netip.Prefix]]
+	addrModel  *gioutil.ListModel[netip.Addr]
+	routeModel *gioutil.ListModel[netip.Prefix]
 }
 
 func NewPeerPage(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) *PeerPage {
@@ -130,61 +130,71 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 		return true
 	})
 
-	page.addrRows.Parent = page.IPGroup
-	page.addrRows.New = func(ip netip.Addr) row[netip.Addr] {
-		row := addrRow{
-			ip: ip,
+	page.addrModel = gioutil.NewListModel[netip.Addr]()
+	BindModel(
+		page.IPList,
+		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
+		func(addr netip.Addr) gtk.Widgetter {
+			copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
 
-			w: adw.NewActionRow(),
-			c: gtk.NewButtonFromIconName("edit-copy-symbolic"),
-		}
+			copyButton.SetMarginTop(12) // Why is this necessary?
+			copyButton.SetMarginBottom(12)
+			copyButton.SetHasFrame(false)
+			copyButton.SetTooltipText("Copy to Clipboard")
+			copyButton.ConnectClicked(func() {
+				a.clip(glib.NewValue(addr.String()))
+				a.toast("Copied to clipboard")
+			})
 
-		row.c.SetMarginTop(12) // Why is this necessary?
-		row.c.SetMarginBottom(12)
-		row.c.SetHasFrame(false)
-		row.c.SetTooltipText("Copy to Clipboard")
-		row.c.ConnectClicked(func() {
-			a.clip(glib.NewValue(row.ip.String()))
-			a.toast("Copied to clipboard")
-		})
+			row := adw.NewActionRow()
+			row.SetObjectProperty("title-selectable", true)
+			row.AddSuffix(copyButton)
+			row.SetActivatableWidget(copyButton)
+			row.SetTitle(addr.String())
 
-		row.w.SetObjectProperty("title-selectable", true)
-		row.w.AddSuffix(row.c)
-		row.w.SetActivatableWidget(row.c)
-		row.w.SetTitle(ip.String())
+			return row
+		},
+	)
 
-		return &row
-	}
+	ipListPlaceholder := adw.NewActionRow()
+	ipListPlaceholder.SetTitle("No addresses.")
+	page.IPList.SetPlaceholder(ipListPlaceholder)
 
-	page.routeRows.Parent = page.AdvertisedRoutesGroup
-	page.routeRows.New = func(route enum[netip.Prefix]) row[enum[netip.Prefix]] {
-		row := routeRow{
-			route: route,
+	page.routeModel = gioutil.NewListModel[netip.Prefix]()
+	BindModel(
+		page.AdvertisedRoutesList,
+		gtk.NewSortListModel(page.routeModel, &prefixSorter.Sorter),
+		func(route netip.Prefix) gtk.Widgetter {
+			removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
 
-			w: adw.NewActionRow(),
-			r: gtk.NewButtonFromIconName("list-remove-symbolic"),
-		}
+			removeButton.SetMarginTop(12)
+			removeButton.SetMarginBottom(12)
+			removeButton.SetHasFrame(false)
+			removeButton.SetTooltipText("Remove")
+			removeButton.ConnectClicked(func() {
+				routes := slices.Collect(xiter.Filter(page.routeModel.All(), func(p netip.Prefix) bool {
+					return xnetip.ComparePrefixes(p, route) != 0
+				}))
+				err := tsutil.AdvertiseRoutes(context.TODO(), routes)
+				if err != nil {
+					slog.Error("advertise routes", "err", err)
+					return
+				}
+				a.poller.Poll() <- struct{}{}
+			})
 
-		row.w.SetObjectProperty("title-selectable", true)
-		row.w.AddSuffix(row.r)
-		row.w.SetTitle(route.Val.String())
+			row := adw.NewActionRow()
+			row.SetObjectProperty("title-selectable", true)
+			row.AddSuffix(removeButton)
+			row.SetTitle(route.String())
 
-		row.r.SetMarginTop(12)
-		row.r.SetMarginBottom(12)
-		row.r.SetHasFrame(false)
-		row.r.SetTooltipText("Remove")
-		row.r.ConnectClicked(func() {
-			routes := slices.Delete(page.routes, row.route.Index, row.route.Index+1)
-			err := tsutil.AdvertiseRoutes(context.TODO(), routes)
-			if err != nil {
-				slog.Error("advertise routes", "err", err)
-				return
-			}
-			a.poller.Poll() <- struct{}{}
-		})
+			return row
+		},
+	)
 
-		return &row
-	}
+	advertisedRoutesListPlaceholder := adw.NewActionRow()
+	advertisedRoutesListPlaceholder.SetTitle("No advertised routes.")
+	page.AdvertisedRoutesList.SetPlaceholder(advertisedRoutesListPlaceholder)
 
 	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
 		if s == page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).State() {
@@ -221,8 +231,17 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	page.SetTitle(peer.HostName)
 	page.SetDescription(peer.DNSName)
 
-	slices.SortFunc(peer.TailscaleIPs, netip.Addr.Compare)
-	page.addrRows.Update(peer.TailscaleIPs)
+	page.ExitNodeRow.SetVisible(peer.ExitNodeOption)
+	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(peer.ExitNode)
+	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(peer.ExitNode)
+	page.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
+	page.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
+	page.Created.SetText(formatTime(peer.Created))
+	page.LastSeen.SetText(formatTime(peer.LastSeen))
+	page.LastSeenRow.SetVisible(!peer.Online)
+	page.LastWrite.SetText(formatTime(peer.LastWrite))
+	page.LastHandshake.SetText(formatTime(peer.LastHandshake))
+	page.Online.SetFromIconName(boolIcon(peer.Online))
 
 	routes := func(yield func(netip.Prefix) bool) {
 		if peer.PrimaryRoutes == nil {
@@ -238,82 +257,7 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 			}
 		}
 	}
-	routes = xiter.Or(
-		routes,
-		xiter.Of(netip.Prefix{}),
-	)
 
-	clear(page.routes)
-	page.routes = page.routes[:0]
-	page.routes = slices.AppendSeq(page.routes, routes)
-	slices.SortFunc(
-		page.routes,
-		func(p1, p2 netip.Prefix) int {
-			return cmp.Or(
-				p1.Addr().Compare(p2.Addr()),
-				cmp.Compare(p1.Bits(), p2.Bits()),
-			)
-		},
-	)
-
-	eroutes := func(yield func(enum[netip.Prefix]) bool) {
-		for _, r := range page.routes {
-			if !yield(enumerate(-1, r)) {
-				return
-			}
-		}
-	}
-	page.routeRows.UpdateFromSeq(eroutes, len(page.routes))
-
-	page.ExitNodeRow.SetVisible(peer.ExitNodeOption)
-	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(peer.ExitNode)
-	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(peer.ExitNode)
-	page.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
-	page.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
-	page.Created.SetText(formatTime(peer.Created))
-	page.LastSeen.SetText(formatTime(peer.LastSeen))
-	page.LastSeenRow.SetVisible(!peer.Online)
-	page.LastWrite.SetText(formatTime(peer.LastWrite))
-	page.LastHandshake.SetText(formatTime(peer.LastHandshake))
-	page.Online.SetFromIconName(boolIcon(peer.Online))
-}
-
-type addrRow struct {
-	ip netip.Addr
-
-	w *adw.ActionRow
-	c *gtk.Button
-}
-
-func (row *addrRow) Update(ip netip.Addr) {
-	row.ip = ip
-	row.w.SetTitle(ip.String())
-}
-
-func (row *addrRow) Widget() gtk.Widgetter {
-	return row.w
-}
-
-type routeRow struct {
-	route enum[netip.Prefix]
-
-	w *adw.ActionRow
-	r *gtk.Button
-}
-
-func (row *routeRow) Update(route enum[netip.Prefix]) {
-	row.route = route
-
-	if !route.Val.IsValid() {
-		row.r.SetVisible(false)
-		row.w.SetTitle("No advertised routes.")
-		return
-	}
-
-	row.r.SetVisible(route.Index >= 0)
-	row.w.SetTitle(route.Val.String())
-}
-
-func (row *routeRow) Widget() gtk.Widgetter {
-	return row.w
+	updateListModel(page.addrModel, slices.Values(peer.TailscaleIPs))
+	updateListModel(page.routeModel, routes)
 }

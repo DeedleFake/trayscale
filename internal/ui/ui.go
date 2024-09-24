@@ -208,3 +208,9 @@ func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 		return f(v1, v2)
 	})
 }
+
+func BindModel[T any](lb *gtk.ListBox, m gio.ListModeller, f func(T) gtk.Widgetter) {
+	lb.BindModel(m, func(obj *glib.Object) gtk.Widgetter {
+		return f(gioutil.ObjectValue[T](obj))
+	})
+}

@@ -222,9 +222,14 @@ func BindListBoxModel[T any](lb *gtk.ListBox, m gio.ListModeller, f func(T) gtk.
 	})
 }
 
-func BindModel[T any](add func(int, gtk.Widgetter), remove func(int, gtk.Widgetter), m gio.ListModeller, f func(T) gtk.Widgetter) {
+func BindModel[T any](
+	add func(int, gtk.Widgetter),
+	remove func(int, gtk.Widgetter),
+	m gio.ListModeller,
+	f func(T) gtk.Widgetter,
+) func() {
 	widgets := make([]gtk.Widgetter, 0, m.NItems())
-	m.ConnectItemsChanged(func(index, removed, added uint) {
+	h := m.ConnectItemsChanged(func(index, removed, added uint) {
 		for i, w := range widgets[index : index+removed] {
 			remove(int(index)+i, w)
 		}
@@ -240,4 +245,8 @@ func BindModel[T any](add func(int, gtk.Widgetter), remove func(int, gtk.Widgett
 			add(int(index)+i, w)
 		}
 	})
+
+	return func() {
+		m.HandlerDisconnect(h)
+	}
 }

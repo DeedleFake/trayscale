@@ -10,9 +10,16 @@ import (
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/core/gioutil"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
+)
+
+var (
+	locationListModel = gioutil.NewListModelType[[]*ipnstate.PeerStatus]()
+	peerStatusModel   = gioutil.NewListModelType[*ipnstate.PeerStatus]()
 )
 
 const mullvadPageBaseName = "🟡 Mullvad Exit Nodes"
@@ -23,11 +30,12 @@ var mullvadPageXML string
 type MullvadPage struct {
 	*adw.StatusPage `gtk:"Page"`
 
-	ExitNodesGroup *adw.PreferencesGroup
+	LocationList *gtk.ListBox
 
 	name string
 
-	nodeLocationRows rowManager[[]*ipnstate.PeerStatus]
+	locationsModel *gioutil.ListModel[[]*ipnstate.PeerStatus]
+	nodeModels     []*gioutil.ListModel[*ipnstate.PeerStatus]
 
 	// These are used to cache some intermediate variables between
 	// updates to cut down on the number of necessary allocations.
@@ -57,25 +65,23 @@ func (page *MullvadPage) Name() string {
 func (page *MullvadPage) init(a *App, status tsutil.Status) {
 	page.name = mullvadPageBaseName
 
-	page.nodeLocationRows.Parent = page.ExitNodesGroup
-	page.nodeLocationRows.New = func(peers []*ipnstate.PeerStatus) row[[]*ipnstate.PeerStatus] {
-		r := nodeLocationRow{
-			w: adw.NewExpanderRow(),
-		}
-		r.m.Parent = rowAdderParent{r.w}
-		r.m.New = func(peer *ipnstate.PeerStatus) row[*ipnstate.PeerStatus] {
-			row := exitNodeRow{
-				peer: peer,
+	page.locationsModel = locationListModel.New()
+	page.LocationList.BindModel(page.locationsModel, func(obj *glib.Object) gtk.Widgetter {
+		peers := locationListModel.ObjectValue(obj)
 
-				w: adw.NewSwitchRow(),
-			}
+		expander := adw.NewExpanderRow()
+		expander.SetTitle(mullvadLocationName(peers[0].Location))
 
-			row.w.SetTitle(peer.HostName)
+		for _, peer := range peers {
+			node := adw.NewActionRow()
+			node.SetTitle(peer.HostName)
 
-			row.r().SetMarginTop(12)
-			row.r().SetMarginBottom(12)
-			row.r().ConnectStateSet(func(s bool) bool {
-				if s == row.r().State() {
+			r := gtk.NewSwitch()
+
+			r.SetMarginTop(12)
+			r.SetMarginBottom(12)
+			r.ConnectStateSet(func(s bool) bool {
+				if s == r.State() {
 					return false
 				}
 
@@ -89,23 +95,30 @@ func (page *MullvadPage) init(a *App, status tsutil.Status) {
 
 				var node *ipnstate.PeerStatus
 				if s {
-					node = row.peer
+					node = peer
 				}
 				err := tsutil.ExitNode(context.TODO(), node)
 				if err != nil {
 					slog.Error("set exit node", "err", err)
-					row.r().SetActive(!s)
+					r.SetActive(!s)
 					return true
 				}
 				a.poller.Poll() <- struct{}{}
 				return true
 			})
 
-			return &row
+			expander.AddRow(node)
 		}
 
-		return &r
-	}
+		row := gtk.NewListBoxRow()
+		row.SetChild(expander)
+
+		return row
+
+		//row := gtk.NewListBoxRow()
+		//row.SetChild(w)
+		//return row
+	})
 }
 
 func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
@@ -131,57 +144,10 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 		return peer.Location.CountryCode
 	}))
 
-	page.nodeLocationRows.Update(page.locs)
+	page.locationsModel.Splice(0, page.locationsModel.Len(), page.locs...)
 
 	clear(page.nodes)
 	page.nodes = page.nodes[:0]
-}
-
-type nodeLocationRow struct {
-	w *adw.ExpanderRow
-	m rowManager[*ipnstate.PeerStatus]
-}
-
-func (row *nodeLocationRow) Update(nodes []*ipnstate.PeerStatus) {
-	loc := nodes[0].Location
-
-	row.w.SetTitle(mullvadLocationName(loc))
-	row.w.SetSubtitle("")
-	for _, peer := range nodes {
-		if peer.ExitNode {
-			row.w.SetSubtitle("Current exit node location")
-			break
-		}
-	}
-
-	row.m.Update(nodes)
-}
-
-func (row *nodeLocationRow) Widget() gtk.Widgetter {
-	return row.w
-}
-
-type exitNodeRow struct {
-	peer *ipnstate.PeerStatus
-
-	w *adw.SwitchRow
-}
-
-func (row *exitNodeRow) r() *gtk.Switch {
-	return row.w.ActivatableWidget().(*gtk.Switch)
-}
-
-func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
-	row.peer = peer
-
-	row.w.SetTitle(mullvadNodeName(peer))
-
-	row.r().SetState(peer.ExitNode)
-	row.r().SetActive(peer.ExitNode)
-}
-
-func (row *exitNodeRow) Widget() gtk.Widgetter {
-	return row.w
 }
 
 func mullvadLongLocationName(loc *tailcfg.Location) string {

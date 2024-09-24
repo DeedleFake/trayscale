@@ -12,7 +12,9 @@
             <property name="orientation">vertical</property>
             <property name="spacing">12</property>
             <child>
-              <object class="AdwPreferencesGroup" id="ExitNodesGroup"/>
+              <object class="GtkListBox" id="LocationList">
+                <property name="selection-mode">none</property>
+              </object>
             </child>
           </object>
         </child>

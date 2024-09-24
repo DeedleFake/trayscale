@@ -131,7 +131,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	})
 
 	page.addrModel = gioutil.NewListModel[netip.Addr]()
-	BindModel(
+	BindListBoxModel(
 		page.IPList,
 		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
 		func(addr netip.Addr) gtk.Widgetter {
@@ -161,7 +161,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.IPList.SetPlaceholder(ipListPlaceholder)
 
 	page.routeModel = gioutil.NewListModel[netip.Prefix]()
-	BindModel(
+	BindListBoxModel(
 		page.AdvertisedRoutesList,
 		gtk.NewSortListModel(page.routeModel, &prefixSorter.Sorter),
 		func(route netip.Prefix) gtk.Widgetter {

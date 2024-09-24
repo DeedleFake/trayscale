@@ -7,6 +7,7 @@ import (
 	"iter"
 	"net/netip"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -215,8 +216,28 @@ func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 	})
 }
 
-func BindModel[T any](lb *gtk.ListBox, m gio.ListModeller, f func(T) gtk.Widgetter) {
+func BindListBoxModel[T any](lb *gtk.ListBox, m gio.ListModeller, f func(T) gtk.Widgetter) {
 	lb.BindModel(m, func(obj *glib.Object) gtk.Widgetter {
 		return f(gioutil.ObjectValue[T](obj))
+	})
+}
+
+func BindModel[T any](add func(int, gtk.Widgetter), remove func(int, gtk.Widgetter), m gio.ListModeller, f func(T) gtk.Widgetter) {
+	widgets := make([]gtk.Widgetter, 0, m.NItems())
+	m.ConnectItemsChanged(func(index, removed, added uint) {
+		for i, w := range widgets[index : index+removed] {
+			remove(int(index)+i, w)
+		}
+
+		new := make([]gtk.Widgetter, 0, added)
+		for i := index; i < added; i++ {
+			item := m.Item(i)
+			new = append(new, f(gioutil.ObjectValue[T](item)))
+		}
+		widgets = slices.Replace(widgets, int(index), int(removed), new...)
+
+		for i, w := range new {
+			add(int(index)+i, w)
+		}
 	})
 }

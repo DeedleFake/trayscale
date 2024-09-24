@@ -94,7 +94,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.InsertActionGroup("peer", actions)
 
 	page.addrModel = gioutil.NewListModel[netip.Addr]()
-	BindModel(
+	BindListBoxModel(
 		page.IPList,
 		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
 		func(addr netip.Addr) gtk.Widgetter {
@@ -124,7 +124,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.IPList.SetPlaceholder(ipListPlaceholder)
 
 	page.routeModel = gioutil.NewListModel[netip.Prefix]()
-	BindModel(
+	BindListBoxModel(
 		page.AdvertisedRoutesList,
 		gtk.NewSortListModel(page.routeModel, &prefixSorter.Sorter),
 		func(route netip.Prefix) gtk.Widgetter {
@@ -160,7 +160,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.AdvertisedRoutesList.SetPlaceholder(advertisedRoutesListPlaceholder)
 
 	page.fileModel = gioutil.NewListModel[apitype.WaitingFile]()
-	BindModel(
+	BindListBoxModel(
 		page.FilesList,
 		gtk.NewSortListModel(page.fileModel, &waitingFileSorter.Sorter),
 		func(file apitype.WaitingFile) gtk.Widgetter {

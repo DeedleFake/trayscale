@@ -5,12 +5,12 @@ import (
 	"io"
 	"iter"
 	"reflect"
-	"slices"
 	"strings"
 	"time"
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/tsutil"
+	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4/pkg/core/gerror"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -187,14 +187,14 @@ func listModelContains[T comparable](m *gioutil.ListModel[T], val T) bool {
 	return false
 }
 
-func updateListModel[T comparable](m *gioutil.ListModel[T], s []T) {
+func updateListModel[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
 	for i, v := range listModelBackward(m) {
-		if !slices.Contains(s, v) {
+		if !xiter.Contains(s, v) {
 			m.Remove(i)
 		}
 	}
 
-	for _, v := range s {
+	for v := range s {
 		if !listModelContains(m, v) {
 			m.Append(v)
 		}

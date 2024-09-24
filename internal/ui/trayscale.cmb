@@ -90,6 +90,7 @@
 	(4,44,"AdwActionRow","CaptivePortalRow",18,None,None,None,10,None,None),
 	(4,45,"GtkImage","CaptivePortal",44,None,None,None,0,None,None),
 	(4,46,"GtkListBox","IPList",4,None,None,None,0,None,None),
+	(4,47,"GtkListBox","AdvertisedRoutesList",16,None,None,None,1,None,None),
 	(5,1,"AdwStatusPage","Page",None,None,None,None,0,None,None),
 	(5,2,"AdwClamp",None,1,None,None,None,2,None,None),
 	(5,3,"GtkBox",None,2,None,None,None,2,None,None),
@@ -196,6 +197,8 @@
 	(4,44,"GtkWidget","visible","False",None,None,None,None,None,None,None,None,None),
 	(4,46,"GtkListBox","selection-mode","none",None,None,None,None,None,None,None,None,None),
 	(4,46,"GtkWidget","css-classes","boxed-list",None,None,None,None,None,None,None,None,None),
+	(4,47,"GtkListBox","selection-mode","none",None,None,None,None,None,None,None,None,None),
+	(4,47,"GtkWidget","css-classes","boxed-list",None,None,None,None,None,None,None,None,None),
 	(5,1,"AdwStatusPage","title","Mullvad Exit Nodes",None,None,None,None,None,None,None,None,None),
 	(5,3,"GtkBox","spacing","12",None,None,None,None,None,None,None,None,None),
 	(5,3,"GtkOrientable","orientation","vertical",None,None,None,None,None,None,None,None,None)

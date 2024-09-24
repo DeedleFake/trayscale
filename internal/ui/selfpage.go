@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"deedles.dev/trayscale/internal/tsutil"
+	"deedles.dev/trayscale/internal/xnetip"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
@@ -24,6 +25,9 @@ import (
 var (
 	addrModel  = gioutil.NewListModelType[netip.Addr]()
 	addrSorter = gtk.NewCustomSorter(NewObjectComparer(netip.Addr.Compare))
+
+	prefixModel  = gioutil.NewListModelType[netip.Prefix]()
+	prefixSorter = gtk.NewCustomSorter(NewObjectComparer(xnetip.ComparePrefixes))
 )
 
 //go:embed selfpage.ui
@@ -32,47 +36,45 @@ var selfPageXML string
 type SelfPage struct {
 	*adw.StatusPage `gtk:"Page"`
 
-	IPList                *gtk.ListBox
-	OptionsGroup          *adw.PreferencesGroup
-	AdvertiseExitNodeRow  *adw.SwitchRow
-	AllowLANAccessRow     *adw.SwitchRow
-	AcceptRoutesRow       *adw.SwitchRow
-	AdvertisedRoutesGroup *adw.PreferencesGroup
-	AdvertiseRouteButton  *gtk.Button
-	NetCheckGroup         *adw.PreferencesGroup
-	NetCheckButton        *gtk.Button
-	LastNetCheckRow       *adw.ActionRow
-	LastNetCheck          *gtk.Label
-	UDPRow                *adw.ActionRow
-	UDP                   *gtk.Image
-	IPv4Row               *adw.ActionRow
-	IPv4Icon              *gtk.Image
-	IPv4Addr              *gtk.Label
-	IPv6Row               *adw.ActionRow
-	IPv6Icon              *gtk.Image
-	IPv6Addr              *gtk.Label
-	UPnPRow               *adw.ActionRow
-	UPnP                  *gtk.Image
-	PMPRow                *adw.ActionRow
-	PMP                   *gtk.Image
-	PCPRow                *adw.ActionRow
-	PCP                   *gtk.Image
-	CaptivePortalRow      *adw.ActionRow
-	CaptivePortal         *gtk.Image
-	PreferredDERPRow      *adw.ActionRow
-	PreferredDERP         *gtk.Label
-	DERPLatencies         *adw.ExpanderRow
-	FilesGroup            *adw.PreferencesGroup
+	IPList               *gtk.ListBox
+	OptionsGroup         *adw.PreferencesGroup
+	AdvertiseExitNodeRow *adw.SwitchRow
+	AllowLANAccessRow    *adw.SwitchRow
+	AcceptRoutesRow      *adw.SwitchRow
+	AdvertisedRoutesList *gtk.ListBox
+	AdvertiseRouteButton *gtk.Button
+	NetCheckGroup        *adw.PreferencesGroup
+	NetCheckButton       *gtk.Button
+	LastNetCheckRow      *adw.ActionRow
+	LastNetCheck         *gtk.Label
+	UDPRow               *adw.ActionRow
+	UDP                  *gtk.Image
+	IPv4Row              *adw.ActionRow
+	IPv4Icon             *gtk.Image
+	IPv4Addr             *gtk.Label
+	IPv6Row              *adw.ActionRow
+	IPv6Icon             *gtk.Image
+	IPv6Addr             *gtk.Label
+	UPnPRow              *adw.ActionRow
+	UPnP                 *gtk.Image
+	PMPRow               *adw.ActionRow
+	PMP                  *gtk.Image
+	PCPRow               *adw.ActionRow
+	PCP                  *gtk.Image
+	CaptivePortalRow     *adw.ActionRow
+	CaptivePortal        *gtk.Image
+	PreferredDERPRow     *adw.ActionRow
+	PreferredDERP        *gtk.Label
+	DERPLatencies        *adw.ExpanderRow
+	FilesGroup           *adw.PreferencesGroup
 
 	peer *ipnstate.PeerStatus
 	name string
 
-	routes []netip.Prefix
+	addrModel  *gioutil.ListModel[netip.Addr]
+	routeModel *gioutil.ListModel[netip.Prefix]
 
-	addrModel *gioutil.ListModel[netip.Addr]
-
-	routeRows rowManager[enum[netip.Prefix]]
-	fileRows  rowManager[apitype.WaitingFile]
+	fileRows rowManager[apitype.WaitingFile]
 }
 
 func NewSelfPage(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) *SelfPage {
@@ -101,58 +103,68 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.InsertActionGroup("peer", actions)
 
 	page.addrModel = addrModel.New()
-	page.IPList.BindModel(gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter), func(obj *glib.Object) gtk.Widgetter {
-		addr := addrModel.ObjectValue(obj)
+	page.IPList.BindModel(
+		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
+		func(obj *glib.Object) gtk.Widgetter {
+			addr := addrModel.ObjectValue(obj)
 
-		copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
+			copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
 
-		copyButton.SetMarginTop(12) // Why is this necessary?
-		copyButton.SetMarginBottom(12)
-		copyButton.SetHasFrame(false)
-		copyButton.SetTooltipText("Copy to Clipboard")
-		copyButton.ConnectClicked(func() {
-			a.clip(glib.NewValue(addr.String()))
-			a.toast("Copied to clipboard")
-		})
+			copyButton.SetMarginTop(12) // Why is this necessary?
+			copyButton.SetMarginBottom(12)
+			copyButton.SetHasFrame(false)
+			copyButton.SetTooltipText("Copy to Clipboard")
+			copyButton.ConnectClicked(func() {
+				a.clip(glib.NewValue(addr.String()))
+				a.toast("Copied to clipboard")
+			})
 
-		row := adw.NewActionRow()
-		row.SetObjectProperty("title-selectable", true)
-		row.AddSuffix(copyButton)
-		row.SetActivatableWidget(copyButton)
-		row.SetTitle(addr.String())
+			row := adw.NewActionRow()
+			row.SetObjectProperty("title-selectable", true)
+			row.AddSuffix(copyButton)
+			row.SetActivatableWidget(copyButton)
+			row.SetTitle(addr.String())
 
-		return row
-	})
+			return row
+		},
+	)
 
-	page.routeRows.Parent = page.AdvertisedRoutesGroup
-	page.routeRows.New = func(route enum[netip.Prefix]) row[enum[netip.Prefix]] {
-		row := routeRow{
-			route: route,
+	page.routeModel = prefixModel.New()
+	page.AdvertisedRoutesList.BindModel(
+		gtk.NewSortListModel(page.routeModel, &prefixSorter.Sorter),
+		func(obj *glib.Object) gtk.Widgetter {
+			route := prefixModel.ObjectValue(obj)
 
-			w: adw.NewActionRow(),
-			r: gtk.NewButtonFromIconName("list-remove-symbolic"),
-		}
+			removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
 
-		row.w.SetObjectProperty("title-selectable", true)
-		row.w.AddSuffix(row.r)
-		row.w.SetTitle(route.Val.String())
+			removeButton.SetMarginTop(12)
+			removeButton.SetMarginBottom(12)
+			removeButton.SetHasFrame(false)
+			removeButton.SetTooltipText("Remove")
+			removeButton.ConnectClicked(func() {
+				routes := slices.Collect(xiter.Filter(page.routeModel.All(), func(p netip.Prefix) bool {
+					return xnetip.ComparePrefixes(p, route) != 0
+				}))
+				err := tsutil.AdvertiseRoutes(context.TODO(), routes)
+				if err != nil {
+					slog.Error("advertise routes", "err", err)
+					return
+				}
+				a.poller.Poll() <- struct{}{}
+			})
 
-		row.r.SetMarginTop(12)
-		row.r.SetMarginBottom(12)
-		row.r.SetHasFrame(false)
-		row.r.SetTooltipText("Remove")
-		row.r.ConnectClicked(func() {
-			routes := slices.Delete(page.routes, row.route.Index, row.route.Index+1)
-			err := tsutil.AdvertiseRoutes(context.TODO(), routes)
-			if err != nil {
-				slog.Error("advertise routes", "err", err)
-				return
-			}
-			a.poller.Poll() <- struct{}{}
-		})
+			row := adw.NewActionRow()
+			row.SetObjectProperty("title-selectable", true)
+			row.AddSuffix(removeButton)
+			row.SetTitle(route.String())
 
-		return &row
-	}
+			return row
+		},
+	)
+
+	advertisedRoutesListPlaceholder := adw.NewActionRow()
+	advertisedRoutesListPlaceholder.SetTitle("No advertised routes.")
+	page.AdvertisedRoutesList.SetPlaceholder(advertisedRoutesListPlaceholder)
 
 	page.fileRows.Parent = page.FilesGroup
 	page.fileRows.New = func(file apitype.WaitingFile) row[apitype.WaitingFile] {
@@ -378,7 +390,7 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	page.SetTitle(peer.HostName)
 	page.SetDescription(peer.DNSName)
 
-	updateListModel(page.addrModel, peer.TailscaleIPs)
+	updateListModel(page.addrModel, slices.Values(peer.TailscaleIPs))
 
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.AdvertisesExitNode())
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.AdvertisesExitNode())
@@ -392,37 +404,14 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 
 	routes := func(yield func(netip.Prefix) bool) {
 		for _, r := range status.Prefs.AdvertiseRoutes {
-			if r.Bits() == 0 {
-				continue
-			}
-			if !yield(r) {
-				return
-			}
-		}
-	}
-	routes = xiter.Or(
-		routes,
-		xiter.Of(netip.Prefix{}),
-	)
-
-	clear(page.routes)
-	page.routes = page.routes[:0]
-	page.routes = slices.AppendSeq(page.routes, routes)
-	slices.SortFunc(page.routes, func(p1, p2 netip.Prefix) int {
-		return cmp.Or(
-			p1.Addr().Compare(p2.Addr()),
-			cmp.Compare(p1.Bits(), p2.Bits()),
-		)
-	})
-
-	eroutes := func(yield func(enum[netip.Prefix]) bool) {
-		for i, r := range page.routes {
-			if !yield(enumerate(i, r)) {
-				return
+			if r.Bits() != 0 {
+				if !yield(r) {
+					return
+				}
 			}
 		}
 	}
-	page.routeRows.UpdateFromSeq(eroutes, len(page.routes))
+	updateListModel(page.routeModel, routes)
 }
 
 type routeRow struct {

@@ -34,6 +34,7 @@ var (
 			cmp.Compare(f1.Size, f2.Size),
 		)
 	}))
+	peerSorter = gtk.NewCustomSorter(NewObjectComparer(tsutil.ComparePeers))
 )
 
 func formatTime(t time.Time) string {
@@ -185,15 +186,6 @@ func listModelBackward[T any](m *gioutil.ListModel[T]) iter.Seq2[int, T] {
 	}
 }
 
-func listModelContains[T comparable](m *gioutil.ListModel[T], val T) bool {
-	for v := range m.All() {
-		if v == val {
-			return true
-		}
-	}
-	return false
-}
-
 func updateListModel[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
 	for i, v := range listModelBackward(m) {
 		if !xiter.Contains(s, v) {
@@ -202,7 +194,21 @@ func updateListModel[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
 	}
 
 	for v := range s {
-		if !listModelContains(m, v) {
+		if !xiter.Contains(m.All(), v) {
+			m.Append(v)
+		}
+	}
+}
+
+func updateListModelFunc[T any](m *gioutil.ListModel[T], s iter.Seq[T], f func(T, T) bool) {
+	for i, v := range listModelBackward(m) {
+		if !xiter.Any(s, func(sv T) bool { return f(v, sv) }) {
+			m.Remove(i)
+		}
+	}
+
+	for v := range s {
+		if !xiter.Any(m.All(), func(mv T) bool { return f(v, mv) }) {
 			m.Append(v)
 		}
 	}

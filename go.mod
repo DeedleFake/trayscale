@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	deedles.dev/mk v0.1.0
-	deedles.dev/xiter v0.0.0-20240903181553-ec85411a9550
+	deedles.dev/xiter v0.1.0
 	fyne.io/systray v1.11.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20240712143708-824c3ce8a5f4
 	github.com/diamondburned/gotk4/pkg v0.3.1

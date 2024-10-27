@@ -10,6 +10,11 @@
 				example, display the current Tailscale connection status.
 			</description>
 		</key>
+		<key name="show-notification-on-startup" type="b">
+			<default>true</default>
+			<summary>Show Notification on Startup</summary>
+			<description>If enabled, shows a notification when the application starts</description>
+    	</key>
 		<key name="polling-interval" type="d">
 			<default>5</default>
 			<summary>Interval at which to poll the Tailscale daemon</summary>

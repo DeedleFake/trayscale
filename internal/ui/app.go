@@ -344,7 +344,6 @@ func (a *App) onAppActivate(ctx context.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		slog.Info("selected item changed", "selected item", item)
 		err := tsutil.SwitchProfile(ctx, profile.ID)
 		if err != nil {
 			slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)

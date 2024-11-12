@@ -232,3 +232,11 @@ func WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
 	// TODO: https://github.com/tailscale/tailscale/issues/8911
 	return localClient.AwaitWaitingFiles(ctx, time.Second)
 }
+
+func ProfileStatus(ctx context.Context) (ipn.LoginProfile, []ipn.LoginProfile, error) {
+	return localClient.ProfileStatus(ctx)
+}
+
+func SwitchProfile(ctx context.Context, id ipn.ProfileID) error {
+	return localClient.SwitchProfile(ctx, id)
+}

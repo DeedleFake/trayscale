@@ -101,6 +101,23 @@ func (p *Poller) Run(ctx context.Context) {
 			}
 		}
 
+		profile, profiles, err := ProfileStatus(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			slog.Error("get profile status", "err", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(retry):
+				if retry < 30*time.Second {
+					retry *= 2
+				}
+				continue
+			}
+		}
+
 		retry = interval
 
 		var files []apitype.WaitingFile
@@ -114,7 +131,7 @@ func (p *Poller) Run(ctx context.Context) {
 			}
 		}
 
-		s := Status{Status: status, Prefs: prefs, Files: files}
+		s := Status{Status: status, Prefs: prefs, Files: files, Profile: profile, Profiles: profiles}
 		if p.New != nil {
 			// TODO: Only call this if the status changed from the previous
 			// poll? Is that remotely feasible?
@@ -172,9 +189,11 @@ func (p *Poller) SetInterval() chan<- time.Duration {
 // Status is a type that wraps various status-related types that
 // Tailscale provides.
 type Status struct {
-	Status *ipnstate.Status
-	Prefs  *ipn.Prefs
-	Files  []apitype.WaitingFile
+	Status   *ipnstate.Status
+	Prefs    *ipn.Prefs
+	Files    []apitype.WaitingFile
+	Profile  ipn.LoginProfile
+	Profiles []ipn.LoginProfile
 }
 
 // Online returns true if s indicates that the local node is online

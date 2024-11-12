@@ -24,6 +24,7 @@
 	(1,69,"GtkMenuButton","MainMenuButton",67,None,"end",None,1,"&lt;property name=\"menu-model\"&gt;MainMenu&lt;/property&gt;",None),
 	(1,71,"GtkStackSidebar",None,61,None,None,None,1,None,None),
 	(1,72,"AdwBreakpoint",None,1,None,None,None,4,"&lt;condition&gt;max-width: 400sp&lt;/condition&gt;&lt;setter object=\"SplitView\" property=\"collapsed\"&gt;True&lt;/setter&gt;",None),
+	(1,73,"GtkDropDown","ProfileDropDown",67,None,"title",None,2,None,None),
 	(2,3,"AdwStatusPage","Page",None,None,None,None,0,None,None),
 	(2,73,"AdwClamp",None,3,None,None,None,8,None,None),
 	(2,74,"GtkBox",None,73,None,None,None,0,None,None),

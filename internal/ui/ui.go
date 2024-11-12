@@ -35,6 +35,10 @@ var (
 		)
 	}))
 	peerSorter = gtk.NewCustomSorter(NewObjectComparer(tsutil.ComparePeers))
+
+	stringListSorter = gtk.NewCustomSorter(glib.NewObjectComparer(func(s1, s2 *gtk.StringObject) int {
+		return cmp.Compare(s1.String(), s2.String())
+	}))
 )
 
 func formatTime(t time.Time) string {
@@ -186,7 +190,47 @@ func listModelBackward[T any](m *gioutil.ListModel[T]) iter.Seq2[int, T] {
 	}
 }
 
+func stringListBackward(m *gtk.StringList) iter.Seq2[uint, string] {
+	return func(yield func(uint, string) bool) {
+		for i := m.NItems(); i > 0; i-- {
+			if !yield(i-1, m.String(i-1)) {
+				return
+			}
+		}
+	}
+}
+
+func listModelIndex(m gio.ListModeller, f func(obj *glib.Object) bool) (uint, bool) {
+	length := m.NItems()
+	for i := uint(0); i < length; i++ {
+		if f(m.Item(i)) {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+func updateStringList(m *gtk.StringList, s iter.Seq[string]) {
+	m.FreezeNotify()
+	defer m.ThawNotify()
+
+	for i, v := range stringListBackward(m) {
+		if !xiter.Contains(s, v) {
+			m.Remove(i)
+		}
+	}
+
+	for v := range s {
+		if !xiter.Contains(xiter.V2(stringListBackward(m)), v) {
+			m.Append(v)
+		}
+	}
+}
+
 func updateListModel[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
+	m.FreezeNotify()
+	defer m.ThawNotify()
+
 	for i, v := range listModelBackward(m) {
 		if !xiter.Contains(s, v) {
 			m.Remove(i)
@@ -201,6 +245,9 @@ func updateListModel[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
 }
 
 func updateListModelFunc[T any](m *gioutil.ListModel[T], s iter.Seq[T], f func(T, T) bool) {
+	m.FreezeNotify()
+	defer m.ThawNotify()
+
 	for i, v := range listModelBackward(m) {
 		if !xiter.Any(s, func(sv T) bool { return f(v, sv) }) {
 			m.Remove(i)

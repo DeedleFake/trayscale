@@ -15,6 +15,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/ipn"
 	"tailscale.com/types/key"
 )
 
@@ -40,6 +41,7 @@ type App struct {
 	peerPages     map[key.NodePublic]*stackPage
 	spinnum       int
 	operatorCheck bool
+	profiles      []ipn.LoginProfile
 }
 
 func (a *App) clip(v *glib.Value) {
@@ -160,6 +162,23 @@ func (a *App) updatePeers(status tsutil.Status) {
 	}
 }
 
+func (a *App) updateProfiles(s tsutil.Status) {
+	updateStringList(a.win.ProfileModel, func(yield func(string) bool) {
+		for _, profile := range s.Profiles {
+			if !yield(profile.Name) {
+				return
+			}
+		}
+	})
+
+	profileIndex, ok := listModelIndex(a.win.ProfileSortModel, func(obj *glib.Object) bool {
+		return obj.Cast().(*gtk.StringObject).String() == s.Profile.Name
+	})
+	if ok {
+		a.win.ProfileDropDown.SetSelected(uint(profileIndex))
+	}
+}
+
 func (a *App) update(s tsutil.Status) {
 	online := s.Online()
 	a.tray.Update(s)
@@ -176,9 +195,12 @@ func (a *App) update(s tsutil.Status) {
 		return
 	}
 
+	a.profiles = s.Profiles
+
 	a.win.StatusSwitch.SetState(online)
 	a.win.StatusSwitch.SetActive(online)
 	a.updatePeers(s)
+	a.updateProfiles(s)
 
 	if a.online && !a.operatorCheck {
 		a.operatorCheck = true
@@ -305,6 +327,29 @@ func (a *App) onAppActivate(ctx context.Context) {
 			return true
 		}
 		return true
+	})
+
+	a.win.ProfileDropDown.NotifyProperty("selected-item", func() {
+		item := a.win.ProfileDropDown.SelectedItem().Cast().(*gtk.StringObject).String()
+		index := slices.IndexFunc(a.profiles, func(p ipn.LoginProfile) bool {
+			// TODO: Find a reasonable way to do this by profile ID instead.
+			return p.Name == item
+		})
+		if index < 0 {
+			slog.Error("selected unknown profile", "name", item)
+			return
+		}
+		profile := a.profiles[index]
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		slog.Info("selected item changed", "selected item", item)
+		err := tsutil.SwitchProfile(ctx, profile.ID)
+		if err != nil {
+			slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
+			return
+		}
 	})
 
 	contentVariant := glib.NewVariantString("content")

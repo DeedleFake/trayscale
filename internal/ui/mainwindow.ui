@@ -64,6 +64,9 @@
                             <property name="menu-model">MainMenu</property>
                           </object>
                         </child>
+                        <child type="title">
+                          <object class="GtkDropDown" id="ProfileDropDown"/>
+                        </child>
                       </object>
                     </child>
                   </object>

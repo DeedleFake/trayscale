@@ -1,31 +1,45 @@
 package ui
 
 import (
+	"cmp"
 	"errors"
 	"io"
 	"iter"
+	"net/netip"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/tsutil"
+	"deedles.dev/trayscale/internal/xnetip"
+	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4/pkg/core/gerror"
+	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/opt"
 )
 
-type enum[T any] struct {
-	Index int
-	Val   T
-}
+var (
+	addrSorter        = gtk.NewCustomSorter(NewObjectComparer(netip.Addr.Compare))
+	prefixSorter      = gtk.NewCustomSorter(NewObjectComparer(xnetip.ComparePrefixes))
+	waitingFileSorter = gtk.NewCustomSorter(NewObjectComparer(func(f1, f2 apitype.WaitingFile) int {
+		return cmp.Or(
+			cmp.Compare(f1.Name, f2.Name),
+			cmp.Compare(f1.Size, f2.Size),
+		)
+	}))
+	peerSorter = gtk.NewCustomSorter(NewObjectComparer(tsutil.ComparePeers))
 
-func enumerate[T any](i int, v T) enum[T] {
-	return enum[T]{i, v}
-}
+	stringListSorter = gtk.NewCustomSorter(glib.NewObjectComparer(func(s1, s2 *gtk.StringObject) int {
+		return cmp.Compare(s1.String(), s2.String())
+	}))
+)
 
 func formatTime(t time.Time) string {
 	if t.IsZero() {
@@ -164,4 +178,128 @@ func errHasCode(err error, code int) bool {
 		return false
 	}
 	return gerr.ErrorCode() == code
+}
+
+func listModelBackward[T any](m *gioutil.ListModel[T]) iter.Seq2[int, T] {
+	return func(yield func(int, T) bool) {
+		for i := int(m.NItems()) - 1; i >= 0; i-- {
+			if !yield(i, m.At(i)) {
+				return
+			}
+		}
+	}
+}
+
+func stringListBackward(m *gtk.StringList) iter.Seq2[uint, string] {
+	return func(yield func(uint, string) bool) {
+		for i := m.NItems(); i > 0; i-- {
+			if !yield(i-1, m.String(i-1)) {
+				return
+			}
+		}
+	}
+}
+
+func listModelIndex(m gio.ListModeller, f func(obj *glib.Object) bool) (uint, bool) {
+	length := m.NItems()
+	for i := uint(0); i < length; i++ {
+		if f(m.Item(i)) {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+func updateStringList(m *gtk.StringList, s iter.Seq[string]) {
+	m.FreezeNotify()
+	defer m.ThawNotify()
+
+	for i, v := range stringListBackward(m) {
+		if !xiter.Contains(s, v) {
+			m.Remove(i)
+		}
+	}
+
+	for v := range s {
+		if !xiter.Contains(xiter.V2(stringListBackward(m)), v) {
+			m.Append(v)
+		}
+	}
+}
+
+func updateListModel[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
+	m.FreezeNotify()
+	defer m.ThawNotify()
+
+	for i, v := range listModelBackward(m) {
+		if !xiter.Contains(s, v) {
+			m.Remove(i)
+		}
+	}
+
+	for v := range s {
+		if !xiter.Contains(m.All(), v) {
+			m.Append(v)
+		}
+	}
+}
+
+func updateListModelFunc[T any](m *gioutil.ListModel[T], s iter.Seq[T], f func(T, T) bool) {
+	m.FreezeNotify()
+	defer m.ThawNotify()
+
+	for i, v := range listModelBackward(m) {
+		if !xiter.Any(s, func(sv T) bool { return f(v, sv) }) {
+			m.Remove(i)
+		}
+	}
+
+	for v := range s {
+		if !xiter.Any(m.All(), func(mv T) bool { return f(v, mv) }) {
+			m.Append(v)
+		}
+	}
+}
+
+func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
+	return glib.NewObjectComparer(func(o1, o2 *glib.Object) int {
+		v1 := gioutil.ObjectValue[T](o1)
+		v2 := gioutil.ObjectValue[T](o2)
+		return f(v1, v2)
+	})
+}
+
+func BindListBoxModel[T any](lb *gtk.ListBox, m gio.ListModeller, f func(T) gtk.Widgetter) {
+	lb.BindModel(m, func(obj *glib.Object) gtk.Widgetter {
+		return f(gioutil.ObjectValue[T](obj))
+	})
+}
+
+func BindModel[T any](
+	add func(int, gtk.Widgetter),
+	remove func(int, gtk.Widgetter),
+	m gio.ListModeller,
+	f func(T) gtk.Widgetter,
+) func() {
+	widgets := make([]gtk.Widgetter, 0, m.NItems())
+	h := m.ConnectItemsChanged(func(index, removed, added uint) {
+		for i, w := range widgets[index : index+removed] {
+			remove(int(index)+i, w)
+		}
+
+		new := make([]gtk.Widgetter, 0, added)
+		for i := index; i < added; i++ {
+			item := m.Item(i)
+			new = append(new, f(gioutil.ObjectValue[T](item)))
+		}
+		widgets = slices.Replace(widgets, int(index), int(removed), new...)
+
+		for i, w := range new {
+			add(int(index)+i, w)
+		}
+	})
+
+	return func() {
+		m.HandlerDisconnect(h)
+	}
 }

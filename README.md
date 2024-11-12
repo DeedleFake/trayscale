@@ -19,7 +19,7 @@ Installation
 
 <a href='https://flathub.org/apps/details/dev.deedles.Trayscale'><img width='240' alt='Download on Flathub' src='https://flathub.org/assets/badges/flathub-badge-en.svg'/></a>
 
-Note that the above config note about the current user being designated as an "operator" still applies to the Flatpak version of this app. However, the `tailscale` binary is bundled into the Flatpak and thus does _not_ need to be in your `$PATH`.
+Note that the above config note about the current user being designated as an "operator" still applies to the Flatpak version of this app. However, the `tailscale` client is bundled into the Flatpak and thus does _not_ need to be in your `$PATH`.
 
 ### AUR
 

@@ -30,7 +30,7 @@
 	<launchable type="desktop-id">dev.deedles.Trayscale.desktop</launchable>
 	<screenshots>
 		<screenshot type="default">
-			<image>https://github.com/DeedleFake/trayscale/assets/326750/103125df-2e6e-48ce-9711-82e408fddc67</image>
+			<image>https://github.com/user-attachments/assets/2fad419d-caaf-4b24-a79b-c16ca057b865</image>
 			<caption>Connected to Tailscale</caption>
 		</screenshot>
 		<screenshot>
@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.14.0" date="2024-11-11">
+			<description>
+				<ul>Add multi-profile support.</ul>
+				<ul>Internal cleanup.</ul>
+			</description>
+		</release>
 		<release version="v0.13.5" date="2024-09-23">
 			<description>
 				<ul>Fix Taildrop log spam when Taildrop is disabled.</ul>

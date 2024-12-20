@@ -349,6 +349,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 			slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
 			return
 		}
+		a.poller.Poll() <- struct{}{}
 	})
 
 	contentVariant := glib.NewVariantString("content")

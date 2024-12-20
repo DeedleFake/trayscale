@@ -54,6 +54,11 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.14.1" date="2024-12-20">
+			<description>
+				<ul>Poll manually after switching profiles.</ul>
+			</description>
+		</release>
 		<release version="v0.14.0" date="2024-11-11">
 			<description>
 				<ul>Add multi-profile support.</ul>

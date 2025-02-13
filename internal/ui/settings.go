@@ -12,6 +12,7 @@ import (
 	"deedles.dev/trayscale/internal/version"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn"
 )
@@ -27,7 +28,9 @@ func (a *App) initSettings(ctx context.Context) {
 		switch key {
 		case "tray-icon":
 			if a.settings.Boolean("tray-icon") {
-				go tray.Start(func() { a.initTray(ctx) })
+				glib.IdleAdd(func() {
+					tray.Start(func() { a.initTray(ctx) })
+				})
 				return
 			}
 			tray.Stop()
@@ -39,7 +42,9 @@ func (a *App) initSettings(ctx context.Context) {
 
 init:
 	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
-		go tray.Start(func() { a.initTray(ctx) })
+		glib.IdleAdd(func() {
+			tray.Start(func() { a.initTray(ctx) })
+		})
 	}
 }
 

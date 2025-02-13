@@ -91,7 +91,13 @@ func (t *Tray) Update(s tsutil.Status) {
 var systrayExit = make(chan func(), 1)
 
 func Start(onStart func()) {
-	start, stop := systray.RunWithExternalLoop(onStart, nil)
+	start, stop := systray.RunWithExternalLoop(func() {
+		systray.SetIcon(statusIcon(tsutil.Status{}))
+		systray.SetTitle("Trayscale")
+		if onStart != nil {
+			onStart()
+		}
+	}, nil)
 	select {
 	case f := <-systrayExit:
 		f()

@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.14.2" date="2025-02-11">
+			<description>
+				<ul>Update Go to 1.24.</ul>
+				<ul>Update some dependencies.</ul>
+			</description>
+		</release>
 		<release version="v0.14.1" date="2024-12-20">
 			<description>
 				<ul>Poll manually after switching profiles.</ul>

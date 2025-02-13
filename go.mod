@@ -10,8 +10,8 @@ require (
 	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	golang.org/x/net v0.35.0
-	honnef.co/go/tools v0.5.1
-	tailscale.com v1.80.1
+	honnef.co/go/tools v0.6.0
+	tailscale.com v1.80.2
 )
 
 require (

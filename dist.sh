@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 # This script is intended to help with correct packaging of Trayscale.
 # It is not intended for general usage. If you'd like to install
@@ -6,13 +6,17 @@
 # this script to see where various files are put.
 
 _usage() {
-	echo "Usage: $0 <build | install> [options]"
+	echo "Usage: $0 <build | install | install-macos | uninstall-macos> [options]"
 	echo
 	echo "Modes:"
 	echo "  build: build the binary with embedded version information"
 	echo "    Usage: build [version]"
 	echo "  install: install the binary and other files into a directory tree"
 	echo "    Usage: install <destination directory>"
+	echo "  install-macos: install Trayscale for macOS (Apple Silicon)"
+	echo "    Usage: install-macos"
+	echo "  uninstall-macos: uninstall Trayscale from macOS"
+	echo "    Usage: uninstall-macos"
 	exit 2
 }
 
@@ -40,12 +44,63 @@ _install() {
 	install -Dm644 -t "$dstdir/share/glib-2.0/schemas" dev.deedles.Trayscale.gschema.xml
 }
 
+_install_macos() {
+	if [ -z "$HOMEBREW_PREFIX" ]; then
+		echo "Error: HOMEBREW_PREFIX not set. Is Homebrew installed?"
+		exit 1
+	fi
+	
+	echo "Installing for macOS"
+	install -d "$HOMEBREW_PREFIX/bin"
+	install trayscale "$HOMEBREW_PREFIX/bin/"
+	
+	schema_dir="$HOMEBREW_PREFIX/share/glib-2.0/schemas"
+	install -d "$schema_dir"
+	install -m644 dev.deedles.Trayscale.gschema.xml "$schema_dir/"
+	glib-compile-schemas "$schema_dir"
+	
+	share_dir="$HOMEBREW_PREFIX/share"
+	install -d "$share_dir/applications"
+	install -m644 dev.deedles.Trayscale.desktop "$share_dir/applications/"
+	
+	install -d "$share_dir/icons/hicolor/256x256/apps"
+	install -m644 dev.deedles.Trayscale.png "$share_dir/icons/hicolor/256x256/apps/"
+	
+	echo "Installation complete. You can now run 'trayscale' from anywhere"
+}
+
+_uninstall_macos() {
+	if [ -z "$HOMEBREW_PREFIX" ]; then
+		echo "Error: HOMEBREW_PREFIX not set. Is Homebrew installed?"
+		exit 1
+	fi
+
+	echo "Uninstalling from macOS"
+	rm -f "$HOMEBREW_PREFIX/bin/trayscale"
+	
+	schema_dir="$HOMEBREW_PREFIX/share/glib-2.0/schemas"
+	rm -f "$schema_dir/dev.deedles.Trayscale.gschema.xml"
+	glib-compile-schemas "$schema_dir"
+	
+	share_dir="$HOMEBREW_PREFIX/share"
+	rm -f "$share_dir/applications/dev.deedles.Trayscale.desktop"
+	rm -f "$share_dir/icons/hicolor/256x256/apps/dev.deedles.Trayscale.png"
+	
+	echo "Uninstallation complete"
+}
+
 case "$1" in
 	build)
 		_build "$2"
 		;;
 	install)
 		_install "$2"
+		;;
+	install-macos)
+		_install_macos
+		;;
+	uninstall-macos)
+		_uninstall_macos
 		;;
 	--help)
 		_usage

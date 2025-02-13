@@ -51,8 +51,21 @@ _install_macos() {
 	fi
 	
 	echo "Installing for macOS"
-	install -d "$HOMEBREW_PREFIX/bin"
-	install trayscale "$HOMEBREW_PREFIX/bin/"
+	# Create wrapper script to set up environment
+	cat > trayscale.wrapper << EOF
+#!/bin/bash
+export XDG_DATA_DIRS="$HOMEBREW_PREFIX/share:\${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+exec "$HOMEBREW_PREFIX/libexec/trayscale"
+EOF
+	chmod +x trayscale.wrapper
+	
+	# Install binary to libexec (actual executable)
+	install -d "$HOMEBREW_PREFIX/libexec"
+	install trayscale "$HOMEBREW_PREFIX/libexec/"
+	
+	# Install wrapper to bin (what users will run)
+	install trayscale.wrapper "$HOMEBREW_PREFIX/bin/trayscale"
+	rm trayscale.wrapper
 	
 	schema_dir="$HOMEBREW_PREFIX/share/glib-2.0/schemas"
 	install -d "$schema_dir"
@@ -77,6 +90,7 @@ _uninstall_macos() {
 
 	echo "Uninstalling from macOS"
 	rm -f "$HOMEBREW_PREFIX/bin/trayscale"
+	rm -f "$HOMEBREW_PREFIX/libexec/trayscale"
 	
 	schema_dir="$HOMEBREW_PREFIX/share/glib-2.0/schemas"
 	rm -f "$schema_dir/dev.deedles.Trayscale.gschema.xml"

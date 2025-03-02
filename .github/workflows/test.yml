@@ -20,8 +20,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Dependencies
         run: |
-          apt-get update
-          apt-get install -y ${{ env.dependencies }}
+          sudo apt-get update
+          sudo apt-get install -y ${{ env.dependencies }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -37,8 +37,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Dependencies
         run: |
-          apt-get update
-          apt-get install -y ${{ env.dependencies }}
+          sudo apt-get update
+          sudo apt-get install -y ${{ env.dependencies }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -56,8 +56,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Dependencies
         run: |
-          apt-get update
-          apt-get install -y ${{ env.dependencies }}
+          sudo apt-get update
+          sudo apt-get install -y ${{ env.dependencies }}
       - name: Setup Go
         uses: actions/setup-go@v5
         with:

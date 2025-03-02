@@ -1,7 +1,7 @@
 name: Lint and Test
 
 env:
-  dependencies: libgtk-4-dev libadwaita-1-dev
+  dependencies: libgtk-4-dev libadwaita-1-dev gobject-introspection
   go-version: stable
 
 on:

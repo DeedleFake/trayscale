@@ -2,7 +2,7 @@ name: Lint and Test
 
 env:
   dependencies: libgtk-4-dev libadwaita-1-dev
-  go-version: 1.22.5
+  go-version: stable
 
 on:
   workflow_dispatch:

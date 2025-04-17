@@ -98,6 +98,20 @@ func ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
 	return nil
 }
 
+func SetUseExitNode(ctx context.Context, use bool) error {
+	err := localClient.SetUseExitNode(ctx, use)
+	if err == nil {
+		return nil
+	}
+
+	// TODO: If there's no prior exit node, get a suggested node and use
+	// that? Unfortunately, the returned errors seem to be mostly opaque
+	// strings, so that kind of complicates detecting that specific
+	// situation...
+
+	return err
+}
+
 // AdvertiseExitNode enables and disables exit node advertisement for
 // the current node.
 func AdvertiseExitNode(ctx context.Context, enable bool) error {

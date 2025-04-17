@@ -8,7 +8,7 @@ import (
 	"net/netip"
 	"time"
 
-	"tailscale.com/client/tailscale"
+	"tailscale.com/client/local"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/cmd/tailscale/cli"
 	"tailscale.com/ipn"
@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	localClient    tailscale.LocalClient
+	localClient    local.Client
 	monitor        = initMonitor()
 	netcheckClient = netcheck.Client{
 		NetMon: monitor,

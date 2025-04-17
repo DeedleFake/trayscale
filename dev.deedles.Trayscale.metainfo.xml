@@ -58,6 +58,8 @@
 			<description>
 				<ul>Add exit node toggle to tray icon menu.</ul>
 				<ul>Update dependencies.</ul>
+			</description>
+		</release>
 		<release version="v0.14.2" date="2025-02-11">
 			<description>
 				<ul>Update Go to 1.24.</ul>

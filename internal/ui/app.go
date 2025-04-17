@@ -408,6 +408,31 @@ func (a *App) initTray(ctx context.Context) {
 				}
 			})
 
+		case <-a.tray.ExitToggleChan():
+			glib.IdleAdd(func() {
+				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				defer cancel()
+
+				s := <-a.poller.Get()
+				if s.Status == nil {
+					return
+				}
+				toggle := s.Status.ExitNodeStatus == nil
+				err := tsutil.SetUseExitNode(ctx, toggle)
+				if err != nil {
+					a.notify("Toggle exit node", err.Error())
+					slog.Error("toggle exit node from tray", "err", err)
+					return
+				}
+				a.poller.Poll() <- struct{}{}
+
+				if toggle {
+					a.notify("Exit node", "Enabled")
+					return
+				}
+				a.notify("Exit node", "Disabled")
+			})
+
 		case <-a.tray.ShowChan():
 			glib.IdleAdd(func() {
 				if a.app != nil {

@@ -31,6 +31,7 @@ func statusIcon(s tsutil.Status) []byte {
 
 type Tray struct {
 	connToggleItem *systray.MenuItem
+	exitToggleItem *systray.MenuItem
 	selfNodeItem   *systray.MenuItem
 	showItem       *systray.MenuItem
 	quitItem       *systray.MenuItem
@@ -43,12 +44,14 @@ func New(online bool) *Tray {
 	showWindow := systray.AddMenuItem("Show", "")
 	systray.AddSeparator()
 	connToggleItem := systray.AddMenuItem(connToggleText(online), "")
+	exitToogleItem := systray.AddMenuItem(exitToggleText(tsutil.Status{}), "")
 	selfNodeItem := systray.AddMenuItem("", "")
 	systray.AddSeparator()
 	quit := systray.AddMenuItem("Quit", "")
 
 	return &Tray{
 		connToggleItem: connToggleItem,
+		exitToggleItem: exitToogleItem,
 		selfNodeItem:   selfNodeItem,
 		showItem:       showWindow,
 		quitItem:       quit,
@@ -61,6 +64,10 @@ func (t *Tray) ShowChan() <-chan struct{} {
 
 func (t *Tray) ConnToggleChan() <-chan struct{} {
 	return t.connToggleItem.ClickedCh
+}
+
+func (t *Tray) ExitToggleChan() <-chan struct{} {
+	return t.exitToggleItem.ClickedCh
 }
 
 func (t *Tray) SelfNodeChan() <-chan struct{} {
@@ -78,13 +85,16 @@ func (t *Tray) Update(s tsutil.Status) {
 
 	systray.SetIcon(statusIcon(s))
 	t.connToggleItem.SetTitle(connToggleText(s.Online()))
+	t.exitToggleItem.SetTitle(exitToggleText(s))
 
 	selfTitle, connected := selfTitle(s)
 	t.selfNodeItem.SetTitle(fmt.Sprintf("This machine: %v", selfTitle))
 	if connected {
 		t.selfNodeItem.Enable()
+		t.exitToggleItem.Enable()
 	} else {
 		t.selfNodeItem.Disable()
+		t.exitToggleItem.Disable()
 	}
 }
 
@@ -134,4 +144,13 @@ func connToggleText(online bool) string {
 	}
 
 	return "Connect"
+}
+
+func exitToggleText(s tsutil.Status) string {
+	if s.Status != nil && s.Status.ExitNodeStatus != nil {
+		// TODO: Show some actual information about the current exit node?
+		return "Disable exit node"
+	}
+
+	return "Enable exit node"
 }

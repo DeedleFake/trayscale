@@ -3,6 +3,7 @@ package tray
 import (
 	_ "embed"
 	"fmt"
+	"sync/atomic"
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"fyne.io/systray"
@@ -17,16 +18,28 @@ var (
 
 	//go:embed status-icon-exit-node.png
 	statusIconExitNode []byte
+
+	prevIcon atomic.Pointer[[]byte]
 )
 
-func statusIcon(s tsutil.Status) []byte {
+func statusIcon(s tsutil.Status) *[]byte {
 	if !s.Online() {
-		return statusIconInactive
+		return &statusIconInactive
 	}
 	if s.Status.ExitNodeStatus != nil {
-		return statusIconExitNode
+		return &statusIconExitNode
 	}
-	return statusIconActive
+	return &statusIconActive
+}
+
+func updateIcon(s tsutil.Status) {
+	icon := statusIcon(s)
+	prev := prevIcon.Swap(icon)
+	if prev == icon {
+		return
+	}
+
+	systray.SetIcon(*icon)
 }
 
 type Tray struct {
@@ -38,8 +51,7 @@ type Tray struct {
 }
 
 func New(online bool) *Tray {
-	systray.SetIcon(statusIcon(tsutil.Status{}))
-	systray.SetTitle("Trayscale")
+	commonInit()
 
 	showWindow := systray.AddMenuItem("Show", "")
 	systray.AddSeparator()
@@ -56,6 +68,11 @@ func New(online bool) *Tray {
 		showItem:       showWindow,
 		quitItem:       quit,
 	}
+}
+
+func commonInit() {
+	updateIcon(tsutil.Status{})
+	systray.SetTitle("Trayscale")
 }
 
 func (t *Tray) ShowChan() <-chan struct{} {
@@ -83,7 +100,7 @@ func (t *Tray) Update(s tsutil.Status) {
 		return
 	}
 
-	systray.SetIcon(statusIcon(s))
+	updateIcon(s)
 	t.connToggleItem.SetTitle(connToggleText(s.Online()))
 	t.exitToggleItem.SetTitle(exitToggleText(s))
 
@@ -102,8 +119,7 @@ var systrayExit = make(chan func(), 1)
 
 func Start(onStart func()) {
 	start, stop := systray.RunWithExternalLoop(func() {
-		systray.SetIcon(statusIcon(tsutil.Status{}))
-		systray.SetTitle("Trayscale")
+		commonInit()
 		if onStart != nil {
 			onStart()
 		}
@@ -124,6 +140,8 @@ func Stop() {
 		f()
 	default:
 	}
+
+	prevIcon.Store(nil)
 }
 
 func selfTitle(s tsutil.Status) (string, bool) {

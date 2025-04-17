@@ -1,6 +1,6 @@
 module deedles.dev/trayscale
 
-go 1.24.1
+go 1.24.2
 
 require (
 	deedles.dev/mk v0.1.0

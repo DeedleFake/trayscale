@@ -64,3 +64,16 @@ jobs:
           go-version: ${{ env.go-version }}
       - name: go test
         run: go test -v ./...
+
+  metainfo-validate:
+    name: metainfo validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y appstream
+      - name: appstreamcli validate
+        run: appstreamcli validate --pedantic --no-net --explain dev.deedles.Trayscale.metainfo.xml

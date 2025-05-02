@@ -4,7 +4,7 @@ go 1.24.2
 
 require (
 	deedles.dev/mk v0.1.0
-	deedles.dev/tray v0.0.0-20250502203005-fa04237b6797
+	deedles.dev/tray v0.0.0-20250502214209-1be0a369a521
 	deedles.dev/xiter v0.2.1
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250223021911-503726bcfce6
 	github.com/diamondburned/gotk4/pkg v0.3.1
@@ -25,7 +25,7 @@ require (
 	github.com/dblohm7/wingoes v0.0.0-20240820181039-f2b84150679e // indirect
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
 	github.com/go-json-experiment/json v0.0.0-20250223041408-d3c622f1b874 // indirect
-	github.com/godbus/dbus/v5 v5.1.1-0.20230522191255-76236955d466 // indirect
+	github.com/godbus/dbus/v5 v5.1.1-0.20241109141217-c266b19b28e9 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/nftables v0.3.0 // indirect

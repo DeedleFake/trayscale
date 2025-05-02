@@ -85,6 +85,7 @@ func (t *Tray) Start(online bool) error {
 	if err != nil {
 		return err
 	}
+	t.item = item
 
 	menu := item.Menu()
 

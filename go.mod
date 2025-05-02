@@ -4,8 +4,8 @@ go 1.24.2
 
 require (
 	deedles.dev/mk v0.1.0
+	deedles.dev/tray v0.0.0-20250502203005-fa04237b6797
 	deedles.dev/xiter v0.2.1
-	fyne.io/systray v1.11.0
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250223021911-503726bcfce6
 	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	deedles.dev/ximage v0.0.0-20250321223218-e433919886dd // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.4.1-0.20240615085220-eb727477b3f7 // indirect
 	github.com/KarpelesLab/weak v0.1.1 // indirect

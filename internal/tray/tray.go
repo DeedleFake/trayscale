@@ -1,25 +1,45 @@
 package tray
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
+	"image"
+	"image/png"
 
+	"deedles.dev/tray"
 	"deedles.dev/trayscale/internal/tsutil"
-	"fyne.io/systray"
 )
 
 var (
 	//go:embed status-icon-active.png
-	statusIconActive []byte
+	statusIconActiveData []byte
+	statusIconActive     image.Image
 
 	//go:embed status-icon-inactive.png
-	statusIconInactive []byte
+	statusIconInactiveData []byte
+	statusIconInactive     image.Image
 
 	//go:embed status-icon-exit-node.png
-	statusIconExitNode []byte
+	statusIconExitNodeData []byte
+	statusIconExitNode     image.Image
 )
 
-func statusIcon(s tsutil.Status) []byte {
+func init() {
+	decode := func(data []byte) image.Image {
+		img, err := png.Decode(bytes.NewReader(data))
+		if err != nil {
+			panic(err)
+		}
+		return img
+	}
+
+	statusIconActive = decode(statusIconActiveData)
+	statusIconInactive = decode(statusIconInactiveData)
+	statusIconExitNode = decode(statusIconExitNodeData)
+}
+
+func statusIcon(s tsutil.Status) image.Image {
 	if !s.Online() {
 		return statusIconInactive
 	}
@@ -29,101 +49,80 @@ func statusIcon(s tsutil.Status) []byte {
 	return statusIconActive
 }
 
+func handler(f func()) tray.MenuItemProp {
+	return tray.MenuItemHandler(tray.ClickedHandler(func(data any, timestamp uint32) error {
+		f()
+		return nil
+	}))
+}
+
 type Tray struct {
-	connToggleItem *systray.MenuItem
-	exitToggleItem *systray.MenuItem
-	selfNodeItem   *systray.MenuItem
-	showItem       *systray.MenuItem
-	quitItem       *systray.MenuItem
+	OnShow       func()
+	OnConnToggle func()
+	OnExitToggle func()
+	OnSelfNode   func()
+	OnQuit       func()
+
+	item *tray.Item
+
+	showItem       *tray.MenuItem
+	connToggleItem *tray.MenuItem
+	exitToggleItem *tray.MenuItem
+	selfNodeItem   *tray.MenuItem
+	quitItem       *tray.MenuItem
 }
 
-func New(online bool) *Tray {
-	systray.SetIcon(statusIcon(tsutil.Status{}))
-	systray.SetTitle("Trayscale")
-
-	showWindow := systray.AddMenuItem("Show", "")
-	systray.AddSeparator()
-	connToggleItem := systray.AddMenuItem(connToggleText(online), "")
-	exitToogleItem := systray.AddMenuItem(exitToggleText(tsutil.Status{}), "")
-	selfNodeItem := systray.AddMenuItem("", "")
-	systray.AddSeparator()
-	quit := systray.AddMenuItem("Quit", "")
-
-	return &Tray{
-		connToggleItem: connToggleItem,
-		exitToggleItem: exitToogleItem,
-		selfNodeItem:   selfNodeItem,
-		showItem:       showWindow,
-		quitItem:       quit,
+func (t *Tray) Start(online bool) error {
+	if t.item != nil {
+		return nil
 	}
+
+	item, err := tray.New(
+		tray.ItemID("dev.deedles.Trayscale"),
+		tray.ItemTitle("Trayscale"),
+		tray.ItemIconPixmap(statusIcon(tsutil.Status{})),
+	)
+	if err != nil {
+		return err
+	}
+
+	menu := item.Menu()
+
+	t.showItem, _ = menu.AddItem(tray.MenuItemLabel("Show"), handler(t.OnShow))
+	menu.AddItem(tray.MenuItemType(tray.Separator))
+	t.connToggleItem, _ = menu.AddItem(tray.MenuItemLabel(connToggleText(online)), handler(t.OnConnToggle))
+	t.exitToggleItem, _ = menu.AddItem(tray.MenuItemLabel(exitToggleText(tsutil.Status{})), handler(t.OnExitToggle))
+	t.selfNodeItem, _ = menu.AddItem(tray.MenuItemLabel(""), handler(t.OnSelfNode))
+	menu.AddItem(tray.MenuItemType(tray.Separator))
+	t.quitItem, _ = menu.AddItem(tray.MenuItemLabel("Quit"), handler(t.OnQuit))
+
+	return nil
 }
 
-func (t *Tray) ShowChan() <-chan struct{} {
-	return t.showItem.ClickedCh
-}
-
-func (t *Tray) ConnToggleChan() <-chan struct{} {
-	return t.connToggleItem.ClickedCh
-}
-
-func (t *Tray) ExitToggleChan() <-chan struct{} {
-	return t.exitToggleItem.ClickedCh
-}
-
-func (t *Tray) SelfNodeChan() <-chan struct{} {
-	return t.selfNodeItem.ClickedCh
-}
-
-func (t *Tray) QuitChan() <-chan struct{} {
-	return t.quitItem.ClickedCh
+func (t *Tray) Close() error {
+	err := t.item.Close()
+	t.item = nil
+	return err
 }
 
 func (t *Tray) Update(s tsutil.Status) {
-	if t == nil {
+	if t == nil || t.item == nil {
 		return
 	}
 
-	systray.SetIcon(statusIcon(s))
-	t.connToggleItem.SetTitle(connToggleText(s.Online()))
-	t.exitToggleItem.SetTitle(exitToggleText(s))
-
 	selfTitle, connected := selfTitle(s)
-	t.selfNodeItem.SetTitle(fmt.Sprintf("This machine: %v", selfTitle))
-	if connected {
-		t.selfNodeItem.Enable()
-		t.exitToggleItem.Enable()
-	} else {
-		t.selfNodeItem.Disable()
-		t.exitToggleItem.Disable()
-	}
-}
 
-var systrayExit = make(chan func(), 1)
+	t.item.SetProps(tray.ItemIconPixmap(statusIcon(s)))
 
-func Start(onStart func()) {
-	start, stop := systray.RunWithExternalLoop(func() {
-		systray.SetIcon(statusIcon(tsutil.Status{}))
-		systray.SetTitle("Trayscale")
-		if onStart != nil {
-			onStart()
-		}
-	}, nil)
-	select {
-	case f := <-systrayExit:
-		f()
-	default:
-	}
-
-	start()
-	systrayExit <- stop
-}
-
-func Stop() {
-	select {
-	case f := <-systrayExit:
-		f()
-	default:
-	}
+	t.connToggleItem.SetProps(tray.MenuItemLabel(connToggleText(s.Online())))
+	t.exitToggleItem.SetProps(
+		tray.MenuItemLabel(exitToggleText(s)),
+		tray.MenuItemEnabled(connected),
+	)
+	t.selfNodeItem.SetProps(
+		tray.MenuItemLabel(fmt.Sprintf("This machine: %v", selfTitle)),
+		tray.MenuItemEnabled(connected),
+	)
 }
 
 func selfTitle(s tsutil.Status) (string, bool) {

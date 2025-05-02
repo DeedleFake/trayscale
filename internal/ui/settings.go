@@ -7,7 +7,6 @@ import (
 	"slices"
 	"time"
 
-	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -29,11 +28,14 @@ func (a *App) initSettings(ctx context.Context) {
 		case "tray-icon":
 			if a.settings.Boolean("tray-icon") {
 				glib.IdleAdd(func() {
-					tray.Start(func() { a.initTray(ctx) })
+					a.initTray(ctx)
 				})
 				return
 			}
-			tray.Stop()
+			glib.IdleAdd(func() {
+				a.tray.Close()
+				a.tray = nil
+			})
 
 		case "polling-interval":
 			a.poller.SetInterval() <- a.getInterval()
@@ -43,7 +45,7 @@ func (a *App) initSettings(ctx context.Context) {
 init:
 	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
 		glib.IdleAdd(func() {
-			tray.Start(func() { a.initTray(ctx) })
+			a.initTray(ctx)
 		})
 	}
 }

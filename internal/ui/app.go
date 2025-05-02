@@ -369,16 +369,24 @@ func (a *App) onAppActivate(ctx context.Context) {
 }
 
 func (a *App) initTray(ctx context.Context) {
-	if a.tray == nil {
-		a.tray = tray.New(a.online)
+	if a.tray != nil {
+		err := a.tray.Start(a.online)
+		if err != nil {
+			slog.Error("failed to start tray icon", "err", err)
+		}
+		return
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
+	a.tray = &tray.Tray{
+		OnShow: func() {
+			glib.IdleAdd(func() {
+				if a.app != nil {
+					a.app.Activate()
+				}
+			})
+		},
 
-		case <-a.tray.ConnToggleChan():
+		OnConnToggle: func() {
 			glib.IdleAdd(func() {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
@@ -394,21 +402,9 @@ func (a *App) initTray(ctx context.Context) {
 					return
 				}
 			})
+		},
 
-		case <-a.tray.SelfNodeChan():
-			glib.IdleAdd(func() {
-				s := <-a.poller.Get()
-				addr, ok := s.SelfAddr()
-				if !ok {
-					return
-				}
-				a.clip(glib.NewValue(addr.String()))
-				if a.win != nil {
-					a.notify("Trayscale", "Copied address to clipboard")
-				}
-			})
-
-		case <-a.tray.ExitToggleChan():
+		OnExitToggle: func() {
 			glib.IdleAdd(func() {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
@@ -432,23 +428,35 @@ func (a *App) initTray(ctx context.Context) {
 				}
 				a.notify("Exit node", "Disabled")
 			})
+		},
 
-		case <-a.tray.ShowChan():
+		OnSelfNode: func() {
 			glib.IdleAdd(func() {
-				if a.app != nil {
-					a.app.Activate()
+				s := <-a.poller.Get()
+				addr, ok := s.SelfAddr()
+				if !ok {
+					return
+				}
+				a.clip(glib.NewValue(addr.String()))
+				if a.win != nil {
+					a.notify("Trayscale", "Copied address to clipboard")
 				}
 			})
+		},
 
-		case <-a.tray.QuitChan():
+		OnQuit: func() {
 			a.Quit()
-		}
+		},
+	}
+
+	err := a.tray.Start(a.online)
+	if err != nil {
+		slog.Error("failed to start tray icon", "err", err)
 	}
 }
 
 // Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
-	tray.Stop()
 	a.app.Quit()
 }
 

@@ -457,6 +457,7 @@ func (a *App) initTray(ctx context.Context) {
 
 // Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
+	a.tray.Close()
 	a.app.Quit()
 }
 

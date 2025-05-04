@@ -89,13 +89,13 @@ func (t *Tray) Start(online bool) error {
 
 	menu := item.Menu()
 
-	t.showItem, _ = menu.AddItem(tray.MenuItemLabel("Show"), handler(t.OnShow))
-	menu.AddItem(tray.MenuItemType(tray.Separator))
-	t.connToggleItem, _ = menu.AddItem(tray.MenuItemLabel(connToggleText(online)), handler(t.OnConnToggle))
-	t.exitToggleItem, _ = menu.AddItem(tray.MenuItemLabel(exitToggleText(tsutil.Status{})), handler(t.OnExitToggle))
-	t.selfNodeItem, _ = menu.AddItem(tray.MenuItemLabel(""), handler(t.OnSelfNode))
-	menu.AddItem(tray.MenuItemType(tray.Separator))
-	t.quitItem, _ = menu.AddItem(tray.MenuItemLabel("Quit"), handler(t.OnQuit))
+	t.showItem, _ = menu.AddChild(tray.MenuItemLabel("Show"), handler(t.OnShow))
+	menu.AddChild(tray.MenuItemType(tray.Separator))
+	t.connToggleItem, _ = menu.AddChild(tray.MenuItemLabel(connToggleText(online)), handler(t.OnConnToggle))
+	t.exitToggleItem, _ = menu.AddChild(tray.MenuItemLabel(exitToggleText(tsutil.Status{})), handler(t.OnExitToggle))
+	t.selfNodeItem, _ = menu.AddChild(tray.MenuItemLabel(""), handler(t.OnSelfNode))
+	menu.AddChild(tray.MenuItemType(tray.Separator))
+	t.quitItem, _ = menu.AddChild(tray.MenuItemLabel("Quit"), handler(t.OnQuit))
 
 	return nil
 }

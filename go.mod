@@ -4,13 +4,13 @@ go 1.24.2
 
 require (
 	deedles.dev/mk v0.1.0
-	deedles.dev/tray v0.0.0-20250502214209-1be0a369a521
+	deedles.dev/tray v0.0.0-20250504034327-8034fb5f5f89
 	deedles.dev/xiter v0.2.1
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250223021911-503726bcfce6
 	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	golang.org/x/net v0.39.0
-	tailscale.com v1.82.4
+	tailscale.com v1.82.5
 )
 
 require (
@@ -24,7 +24,7 @@ require (
 	github.com/coreos/go-iptables v0.8.0 // indirect
 	github.com/dblohm7/wingoes v0.0.0-20240820181039-f2b84150679e // indirect
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
-	github.com/go-json-experiment/json v0.0.0-20250223041408-d3c622f1b874 // indirect
+	github.com/go-json-experiment/json v0.0.0-20250417205406-170dfdcf87d1 // indirect
 	github.com/godbus/dbus/v5 v5.1.1-0.20241109141217-c266b19b28e9 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -65,7 +65,7 @@ require (
 	golang.org/x/tools v0.32.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	honnef.co/go/tools v0.6.1 // indirect
-	k8s.io/client-go v0.32.3 // indirect
+	k8s.io/client-go v0.33.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 	software.sslmate.com/src/go-pkcs12 v0.5.0 // indirect
 )

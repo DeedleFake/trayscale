@@ -72,7 +72,7 @@ type Tray struct {
 	quitItem       *tray.MenuItem
 }
 
-func (t *Tray) Start(online bool) error {
+func (t *Tray) Start(s tsutil.Status) error {
 	if t.item != nil {
 		return nil
 	}
@@ -80,7 +80,6 @@ func (t *Tray) Start(online bool) error {
 	item, err := tray.New(
 		tray.ItemID("dev.deedles.Trayscale"),
 		tray.ItemTitle("Trayscale"),
-		tray.ItemIconPixmap(statusIcon(tsutil.Status{})),
 	)
 	if err != nil {
 		return err
@@ -91,11 +90,13 @@ func (t *Tray) Start(online bool) error {
 
 	t.showItem, _ = menu.AddChild(tray.MenuItemLabel("Show"), handler(t.OnShow))
 	menu.AddChild(tray.MenuItemType(tray.Separator))
-	t.connToggleItem, _ = menu.AddChild(tray.MenuItemLabel(connToggleText(online)), handler(t.OnConnToggle))
-	t.exitToggleItem, _ = menu.AddChild(tray.MenuItemLabel(exitToggleText(tsutil.Status{})), handler(t.OnExitToggle))
-	t.selfNodeItem, _ = menu.AddChild(tray.MenuItemLabel(""), handler(t.OnSelfNode))
+	t.connToggleItem, _ = menu.AddChild(handler(t.OnConnToggle))
+	t.exitToggleItem, _ = menu.AddChild(handler(t.OnExitToggle))
+	t.selfNodeItem, _ = menu.AddChild(handler(t.OnSelfNode))
 	menu.AddChild(tray.MenuItemType(tray.Separator))
 	t.quitItem, _ = menu.AddChild(tray.MenuItemLabel("Quit"), handler(t.OnQuit))
+
+	t.Update(s)
 
 	return nil
 }

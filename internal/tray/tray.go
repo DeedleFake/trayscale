@@ -101,7 +101,7 @@ func (t *Tray) Start(online bool) error {
 }
 
 func (t *Tray) Close() error {
-	if t.item == nil {
+	if t == nil || t.item == nil {
 		return nil
 	}
 

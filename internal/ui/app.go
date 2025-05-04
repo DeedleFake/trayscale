@@ -370,7 +370,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray != nil {
-		err := a.tray.Start(a.online)
+		err := a.tray.Start(<-a.poller.Get())
 		if err != nil {
 			slog.Error("failed to start tray icon", "err", err)
 		}
@@ -449,7 +449,7 @@ func (a *App) initTray(ctx context.Context) {
 		},
 	}
 
-	err := a.tray.Start(a.online)
+	err := a.tray.Start(<-a.poller.Get())
 	if err != nil {
 		slog.Error("failed to start tray icon", "err", err)
 	}

@@ -29,6 +29,7 @@ func (a *App) initSettings(ctx context.Context) {
 			if a.settings.Boolean("tray-icon") {
 				glib.IdleAdd(func() {
 					a.initTray(ctx)
+					a.tray.Update(<-a.poller.Get())
 				})
 				return
 			}

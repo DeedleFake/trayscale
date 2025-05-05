@@ -1,7 +1,7 @@
 deedles.dev/mk v0.1.0 h1:xrvuJA3+R/j6/6AZPc+o31I1rotdKLrAYJxhZJwdOuc=
 deedles.dev/mk v0.1.0/go.mod h1:TSFsz0T+BvhNqJae0yrj+KadkN4elx248PCpq2Ol4ME=
-deedles.dev/tray v0.1.2 h1:tcGneE2bqKy3YNS8+Pi1JGi9Oxu882CBqmx0Tdv1t/s=
-deedles.dev/tray v0.1.2/go.mod h1:ryOsEHPasw7gl7GVgc0u+zWae/v/6iBnYgMBo6UrtDQ=
+deedles.dev/tray v0.1.4 h1:nMVBk48sPJnrLJgtIFmXBXIGQZpM/9kH7pE9lPFe5a4=
+deedles.dev/tray v0.1.4/go.mod h1:ryOsEHPasw7gl7GVgc0u+zWae/v/6iBnYgMBo6UrtDQ=
 deedles.dev/ximage v0.0.0-20250321223218-e433919886dd h1:idpMQR6xGdQEyl1QshL2TRF8dp9jBJ3ndcn5CdV/YhE=
 deedles.dev/ximage v0.0.0-20250321223218-e433919886dd/go.mod h1:YnxyYpjiUD7yhS14uOWihIJ+GaB6wZFeOk3RwR8p4SM=
 deedles.dev/xiter v0.2.1 h1:yyyfo1sDwARp5lyMvILBJpEI28sIFN0TNYagAdBUa+s=

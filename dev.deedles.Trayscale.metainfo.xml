@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.15.0" date="2025-05-04">
+			<description>
+				<ul>Switch system tray packages and generally clean up tray icon handling massively.</ul>
+				<ul>Update dependencies.</ul>
+			</description>
+		</release>
 		<release version="v0.14.3" date="2025-04-16">
 			<description>
 				<ul>Add exit node toggle to tray icon menu.</ul>

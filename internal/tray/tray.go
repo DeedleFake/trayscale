@@ -33,16 +33,6 @@ func decode(data []byte) image.Image {
 	return img
 }
 
-func statusIcon(s tsutil.Status) image.Image {
-	if !s.Online() {
-		return statusIconInactive
-	}
-	if s.Status.ExitNodeStatus != nil {
-		return statusIconExitNode
-	}
-	return statusIconActive
-}
-
 func handler(f func()) tray.MenuItemProp {
 	return tray.MenuItemHandler(tray.ClickedHandler(func(data any, timestamp uint32) error {
 		f()
@@ -58,6 +48,7 @@ type Tray struct {
 	OnQuit       func()
 
 	item *tray.Item
+	icon image.Image
 
 	showItem       *tray.MenuItem
 	connToggleItem *tray.MenuItem
@@ -102,6 +93,7 @@ func (t *Tray) Close() error {
 
 	err := t.item.Close()
 	t.item = nil
+	t.icon = nil
 	return err
 }
 
@@ -112,7 +104,7 @@ func (t *Tray) Update(s tsutil.Status) {
 
 	selfTitle, connected := selfTitle(s)
 
-	t.item.SetProps(tray.ItemIconPixmap(statusIcon(s)))
+	t.updateStatusIcon(s)
 
 	t.connToggleItem.SetProps(tray.MenuItemLabel(connToggleText(s.Online())))
 	t.exitToggleItem.SetProps(
@@ -123,6 +115,26 @@ func (t *Tray) Update(s tsutil.Status) {
 		tray.MenuItemLabel(fmt.Sprintf("This machine: %v", selfTitle)),
 		tray.MenuItemEnabled(connected),
 	)
+}
+
+func (t *Tray) updateStatusIcon(s tsutil.Status) {
+	newIcon := statusIcon(s)
+	if newIcon == t.icon {
+		return
+	}
+	t.icon = newIcon
+
+	t.item.SetProps(tray.ItemIconPixmap(newIcon))
+}
+
+func statusIcon(s tsutil.Status) image.Image {
+	if !s.Online() {
+		return statusIconInactive
+	}
+	if s.Status.ExitNodeStatus != nil {
+		return statusIconExitNode
+	}
+	return statusIconActive
 }
 
 func selfTitle(s tsutil.Status) (string, bool) {

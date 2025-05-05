@@ -4,7 +4,7 @@ go 1.24.2
 
 require (
 	deedles.dev/mk v0.1.0
-	deedles.dev/tray v0.1.1
+	deedles.dev/tray v0.1.2
 	deedles.dev/xiter v0.2.1
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250223021911-503726bcfce6
 	github.com/diamondburned/gotk4/pkg v0.3.1

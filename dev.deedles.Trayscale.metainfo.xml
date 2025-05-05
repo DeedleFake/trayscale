@@ -54,6 +54,11 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.15.1" date="2025-05-05">
+			<description>
+				<ul>Fix some tray icon bugs, including one that broke it completely in Flatpak.</ul>
+			</description>
+		</release>
 		<release version="v0.15.0" date="2025-05-04">
 			<description>
 				<ul>Switch system tray packages and generally clean up tray icon handling massively.</ul>

@@ -133,7 +133,7 @@ func fillObjects(dst any, builder *gtk.Builder) {
 	v := reflect.ValueOf(dst).Elem()
 	t := v.Type()
 
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		fv := v.Field(i)
 		ft := t.Field(i)
 

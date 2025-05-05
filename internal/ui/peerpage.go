@@ -247,8 +247,7 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 		if peer.PrimaryRoutes == nil {
 			return
 		}
-		for i := 0; i < peer.PrimaryRoutes.Len(); i++ {
-			r := peer.PrimaryRoutes.At(i)
+		for _, r := range peer.PrimaryRoutes.All() {
 			if r.Bits() == 0 {
 				continue
 			}

@@ -14,29 +14,23 @@ import (
 var (
 	//go:embed status-icon-active.png
 	statusIconActiveData []byte
-	statusIconActive     image.Image
+	statusIconActive     = decode(statusIconActiveData)
 
 	//go:embed status-icon-inactive.png
 	statusIconInactiveData []byte
-	statusIconInactive     image.Image
+	statusIconInactive     = decode(statusIconInactiveData)
 
 	//go:embed status-icon-exit-node.png
 	statusIconExitNodeData []byte
-	statusIconExitNode     image.Image
+	statusIconExitNode     = decode(statusIconExitNodeData)
 )
 
-func init() {
-	decode := func(data []byte) image.Image {
-		img, err := png.Decode(bytes.NewReader(data))
-		if err != nil {
-			panic(err)
-		}
-		return img
+func decode(data []byte) image.Image {
+	img, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		panic(err)
 	}
-
-	statusIconActive = decode(statusIconActiveData)
-	statusIconInactive = decode(statusIconInactiveData)
-	statusIconExitNode = decode(statusIconExitNodeData)
+	return img
 }
 
 func statusIcon(s tsutil.Status) image.Image {

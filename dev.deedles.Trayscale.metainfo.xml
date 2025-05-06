@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.15.3" date="2025-05-06">
+			<description>
+				<ul>Fix incorrect tray menu update signaling on KDE.</ul>
+				<ul>Handle tray icon activation.</ul>
+			</description>
+		</release>
 		<release version="v0.15.2" date="2025-05-05">
 			<description>
 				<ul>Don't attempt to detect StatusNotifierWatcher name.</ul>

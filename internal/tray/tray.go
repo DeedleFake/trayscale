@@ -65,6 +65,10 @@ func (t *Tray) Start(s tsutil.Status) error {
 	item, err := tray.New(
 		tray.ItemID("dev.deedles.Trayscale"),
 		tray.ItemTitle("Trayscale"),
+		tray.ItemHandler(tray.ActivateHandler(func(x, y int) error {
+			t.OnShow()
+			return nil
+		})),
 	)
 	if err != nil {
 		return err

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
@@ -19,6 +20,7 @@ import (
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
+	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
 
@@ -67,14 +69,18 @@ func (a *App) notify(title, body string) {
 func (a *App) spin() {
 	glib.IdleAdd(func() {
 		a.spinnum++
-		a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+		if a.win != nil {
+			a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+		}
 	})
 }
 
 func (a *App) stopSpin() {
 	glib.IdleAdd(func() {
 		a.spinnum--
-		a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+		if a.win != nil {
+			a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+		}
 	})
 }
 
@@ -242,8 +248,7 @@ func (a *App) init(ctx context.Context) {
 	})
 
 	a.app.ConnectOpen(func(files []gio.Filer, hint string) {
-		slog.Info("open", "files", files, "hint", hint)
-		a.app.Activate()
+		a.onAppOpen(ctx, files)
 	})
 
 	a.app.ConnectStartup(func() {
@@ -292,6 +297,45 @@ func (a *App) stopTS(ctx context.Context) error {
 	}
 	a.poller.Poll() <- struct{}{}
 	return nil
+}
+
+func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
+	type selectOption = SelectOption[*ipnstate.PeerStatus]
+
+	s := <-a.poller.Get()
+	if !s.Online() {
+		return
+	}
+	options := func(yield func(selectOption) bool) {
+		for _, peer := range s.Status.Peer {
+			if tsutil.IsMullvad(peer) || !tsutil.CanReceiveFiles(peer) {
+				continue
+			}
+
+			option := selectOption{
+				Title: tsutil.DNSOrQuoteHostname(s.Status, peer),
+				Value: peer,
+			}
+			fmt.Printf("%v: %v\n", option.Title, peer.TaildropTarget)
+			if !yield(option) {
+				return
+			}
+		}
+	}
+
+	Select[*ipnstate.PeerStatus]{
+		Heading: "Send file(s) to...",
+		Options: slices.SortedFunc(options, func(o1, o2 selectOption) int {
+			return cmp.Compare(o1.Title, o2.Title)
+		}),
+	}.Show(a, func(options []selectOption) {
+		for _, option := range options {
+			a.notify("Taildrop", fmt.Sprintf("Sending %v file(s) to %v...", len(files), option.Title))
+			for _, file := range files {
+				go a.pushFile(ctx, option.Value.ID, file)
+			}
+		}
+	})
 }
 
 func (a *App) onAppActivate(ctx context.Context) {

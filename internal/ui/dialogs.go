@@ -5,6 +5,17 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
+func (a *App) getGtkWindow() *gtk.Window {
+	if a == nil {
+		return nil
+	}
+	if a.win == nil {
+		return nil
+	}
+
+	return &a.win.Window
+}
+
 type Confirmation struct {
 	Heading string
 	Body    string
@@ -13,7 +24,7 @@ type Confirmation struct {
 }
 
 func (d Confirmation) Show(a *App, res func(bool)) {
-	dialog := adw.NewMessageDialog(&a.win.Window, d.Heading, d.Body)
+	dialog := adw.NewMessageDialog(a.getGtkWindow(), d.Heading, d.Body)
 	dialog.AddResponse("reject", d.Reject)
 	dialog.SetCloseResponse("reject")
 	dialog.AddResponse("accept", d.Accept)
@@ -46,7 +57,7 @@ func (d Prompt) Show(a *App, initialValue string, res func(response, val string)
 		input.Buffer().SetText(initialValue, len(initialValue))
 	}
 
-	dialog := adw.NewMessageDialog(&a.win.Window, d.Heading, d.Body)
+	dialog := adw.NewMessageDialog(a.getGtkWindow(), d.Heading, d.Body)
 	dialog.SetExtraChild(input)
 
 	def := "activate"
@@ -76,7 +87,7 @@ type Info struct {
 }
 
 func (d Info) Show(a *App, closed func()) {
-	dialog := adw.NewMessageDialog(&a.win.Window, d.Heading, d.Body)
+	dialog := adw.NewMessageDialog(a.getGtkWindow(), d.Heading, d.Body)
 	dialog.SetBodyUseMarkup(true)
 	dialog.AddResponse("close", "_Close")
 	dialog.SetDefaultResponse("close")
@@ -103,7 +114,7 @@ type SelectOption[T any] struct {
 	Value    T
 }
 
-func (d Select[T]) Show(a *App, res func([]T)) {
+func (d Select[T]) Show(a *App, res func([]SelectOption[T])) {
 	options := gtk.NewListBox()
 	options.AddCSSClass("boxed-list")
 	options.SetSelectionMode(gtk.SelectionSingle)
@@ -120,11 +131,11 @@ func (d Select[T]) Show(a *App, res func([]T)) {
 	}
 
 	scroll := gtk.NewScrolledWindow()
-	scroll.SetMaxContentHeight(500)
 	scroll.SetPropagateNaturalHeight(true)
 	scroll.SetChild(options)
 
-	dialog := adw.NewMessageDialog(&a.win.Window, d.Heading, d.Body)
+	dialog := adw.NewMessageDialog(a.getGtkWindow(), d.Heading, d.Body)
+	dialog.SetResizable(true)
 	dialog.SetExtraChild(scroll)
 
 	dialog.AddResponse("select", "Select")
@@ -140,10 +151,10 @@ func (d Select[T]) Show(a *App, res func([]T)) {
 		}
 
 		rows := options.SelectedRows()
-		selected := make([]T, 0, len(rows))
+		selected := make([]SelectOption[T], 0, len(rows))
 		for _, row := range rows {
 			option := d.Options[row.Index()]
-			selected = append(selected, option.Value)
+			selected = append(selected, option)
 		}
 		res(selected)
 	})

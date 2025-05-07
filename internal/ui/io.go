@@ -15,7 +15,7 @@ func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file gi
 	a.spin()
 	defer a.stopSpin()
 
-	slog := slog.With("path", file.Path())
+	slog := slog.With("peer", peerID, "path", file.Path())
 	slog.Info("starting file push")
 
 	s, err := file.Read(ctx)

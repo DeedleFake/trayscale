@@ -77,3 +77,9 @@ func CompareWaitingFiles(f1, f2 apitype.WaitingFile) int {
 		cmp.Compare(f1.Size, f2.Size),
 	)
 }
+
+// CanReceiveFiles returns true if peer can be sent files via
+// Taildrop.
+func CanReceiveFiles(peer *ipnstate.PeerStatus) bool {
+	return peer.NoFileSharingReason == ""
+}

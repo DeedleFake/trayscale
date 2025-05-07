@@ -16,6 +16,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/types/key"
@@ -208,7 +209,8 @@ func (a *App) update(s tsutil.Status) {
 	if a.files != nil {
 		for _, file := range s.Files {
 			if !slices.Contains(*a.files, file) {
-				a.notify("New Incoming File", fmt.Sprintf("%v (%v)", file.Name, file.Size))
+				body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
+				a.notify("New Incoming File", body)
 			}
 		}
 	}

@@ -123,7 +123,6 @@ func (t *Tray) Update(s tsutil.Status) {
 func (t *Tray) updateStatusIcon(s tsutil.Status) {
 	newIcon := statusIcon(s)
 	if newIcon == t.icon {
-		println(1)
 		return
 	}
 	t.icon = newIcon

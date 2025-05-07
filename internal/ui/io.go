@@ -11,7 +11,7 @@ import (
 	"tailscale.com/tailcfg"
 )
 
-func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file *gio.File) {
+func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file gio.Filer) {
 	a.spin()
 	defer a.stopSpin()
 
@@ -41,7 +41,7 @@ func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file *g
 	slog.Info("done pushing file")
 }
 
-func (a *App) saveFile(ctx context.Context, name string, file *gio.File) {
+func (a *App) saveFile(ctx context.Context, name string, file gio.Filer) {
 	a.spin()
 	defer a.stopSpin()
 

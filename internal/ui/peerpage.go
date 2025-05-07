@@ -113,7 +113,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 			}
 
 			for file := range listModelObjects(files) {
-				go a.pushFile(context.TODO(), peer.ID, file.Cast().(*gio.File))
+				go a.pushFile(context.TODO(), peer.ID, file.Cast().(gio.Filer))
 			}
 		})
 	})
@@ -122,7 +122,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.AddController(page.DropTarget)
 	page.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
 	page.DropTarget.ConnectDrop(func(val *glib.Value, x, y float64) bool {
-		file, ok := val.Object().Cast().(*gio.File)
+		file, ok := val.Object().Cast().(gio.Filer)
 		if !ok {
 			return true
 		}

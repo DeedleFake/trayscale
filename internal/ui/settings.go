@@ -9,6 +9,7 @@ import (
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
+	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -18,8 +19,10 @@ import (
 
 func (a *App) initSettings(ctx context.Context) {
 	nonreloc, reloc := gio.SettingsSchemaSourceGetDefault().ListSchemas(true)
-	if !slices.Contains(nonreloc, appID) && !slices.Contains(reloc, appID) {
-		goto init
+	schemas := xiter.Concat(slices.Values(nonreloc), slices.Values(reloc))
+	if !xiter.Contains(schemas, appID) {
+		a.runSettings(ctx)
+		return
 	}
 
 	a.settings = gio.NewSettings(appID)
@@ -42,7 +45,10 @@ func (a *App) initSettings(ctx context.Context) {
 		}
 	})
 
-init:
+	a.runSettings(ctx)
+}
+
+func (a *App) runSettings(ctx context.Context) {
 	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
 		glib.IdleAdd(func() {
 			a.initTray(ctx)

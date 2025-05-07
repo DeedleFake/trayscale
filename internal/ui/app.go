@@ -214,7 +214,7 @@ func (a *App) update(s tsutil.Status) {
 }
 
 func (a *App) init(ctx context.Context) {
-	a.app = adw.NewApplication(appID, 0)
+	a.app = adw.NewApplication(appID, gio.ApplicationHandlesOpen)
 	mk.Map(&a.peerPages, 0)
 
 	var hideWindow bool
@@ -225,6 +225,11 @@ func (a *App) init(ctx context.Context) {
 		}
 
 		return -1
+	})
+
+	a.app.ConnectOpen(func(files []gio.Filer, hint string) {
+		slog.Info("open", "files", files, "hint", hint)
+		a.app.Activate()
 	})
 
 	a.app.ConnectStartup(func() {

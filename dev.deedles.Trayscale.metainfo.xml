@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.16.0" date="2025-05-07">
+			<description>
+				<ul>Show notification when receiving a file via Taildrop.</ul>
+				<ul>Add ability to send files via Taildrop by specifying them on the command line.</ul>
+			</description>
+		</release>
 		<release version="v0.15.4" date="2025-05-07">
 			<description>
 				<ul>Preconvert icons to tray format to optimize changes.</ul>

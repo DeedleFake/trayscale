@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"cmp"
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"slices"
@@ -15,7 +17,10 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/inhies/go-bytesize"
+	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
+	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
 )
 
@@ -42,6 +47,7 @@ type App struct {
 	spinnum       int
 	operatorCheck bool
 	profiles      []ipn.LoginProfile
+	files         *[]apitype.WaitingFile
 }
 
 func (a *App) clip(v *glib.Value) {
@@ -63,14 +69,18 @@ func (a *App) notify(title, body string) {
 func (a *App) spin() {
 	glib.IdleAdd(func() {
 		a.spinnum++
-		a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+		if a.win != nil {
+			a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+		}
 	})
 }
 
 func (a *App) stopSpin() {
 	glib.IdleAdd(func() {
 		a.spinnum--
-		a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+		if a.win != nil {
+			a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+		}
 	})
 }
 
@@ -202,6 +212,16 @@ func (a *App) update(s tsutil.Status) {
 	a.updatePeers(s)
 	a.updateProfiles(s)
 
+	if a.files != nil {
+		for _, file := range s.Files {
+			if !slices.Contains(*a.files, file) {
+				body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
+				a.notify("New Incoming File", body)
+			}
+		}
+	}
+	a.files = &s.Files
+
 	if a.online && !a.operatorCheck {
 		a.operatorCheck = true
 		if !s.OperatorIsCurrent() {
@@ -214,7 +234,7 @@ func (a *App) update(s tsutil.Status) {
 }
 
 func (a *App) init(ctx context.Context) {
-	a.app = adw.NewApplication(appID, 0)
+	a.app = adw.NewApplication(appID, gio.ApplicationHandlesOpen)
 	mk.Map(&a.peerPages, 0)
 
 	var hideWindow bool
@@ -225,6 +245,10 @@ func (a *App) init(ctx context.Context) {
 		}
 
 		return -1
+	})
+
+	a.app.ConnectOpen(func(files []gio.Filer, hint string) {
+		a.onAppOpen(ctx, files)
 	})
 
 	a.app.ConnectStartup(func() {
@@ -273,6 +297,44 @@ func (a *App) stopTS(ctx context.Context) error {
 	}
 	a.poller.Poll() <- struct{}{}
 	return nil
+}
+
+func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
+	type selectOption = SelectOption[*ipnstate.PeerStatus]
+
+	s := <-a.poller.Get()
+	if !s.Online() {
+		return
+	}
+	options := func(yield func(selectOption) bool) {
+		for _, peer := range s.Status.Peer {
+			if tsutil.IsMullvad(peer) || !tsutil.CanReceiveFiles(peer) {
+				continue
+			}
+
+			option := selectOption{
+				Title: tsutil.DNSOrQuoteHostname(s.Status, peer),
+				Value: peer,
+			}
+			if !yield(option) {
+				return
+			}
+		}
+	}
+
+	Select[*ipnstate.PeerStatus]{
+		Heading: "Send file(s) to...",
+		Options: slices.SortedFunc(options, func(o1, o2 selectOption) int {
+			return cmp.Compare(o1.Title, o2.Title)
+		}),
+	}.Show(a, func(options []selectOption) {
+		for _, option := range options {
+			a.notify("Taildrop", fmt.Sprintf("Sending %v file(s) to %v...", len(files), option.Title))
+			for _, file := range files {
+				go a.pushFile(ctx, option.Value.ID, file)
+			}
+		}
+	})
 }
 
 func (a *App) onAppActivate(ctx context.Context) {

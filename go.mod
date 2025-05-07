@@ -4,7 +4,7 @@ go 1.24.2
 
 require (
 	deedles.dev/mk v0.1.0
-	deedles.dev/tray v0.1.6
+	deedles.dev/tray v0.1.7
 	deedles.dev/xiter v0.2.1
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250223021911-503726bcfce6
 	github.com/diamondburned/gotk4/pkg v0.3.1
@@ -14,7 +14,6 @@ require (
 )
 
 require (
-	deedles.dev/ximage v0.0.0-20250321223218-e433919886dd // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.4.1-0.20240615085220-eb727477b3f7 // indirect
 	github.com/KarpelesLab/weak v0.1.1 // indirect
@@ -64,6 +63,7 @@ require (
 	golang.org/x/time v0.11.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	honnef.co/go/tools v0.6.1 // indirect
 	k8s.io/client-go v0.33.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect

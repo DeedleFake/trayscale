@@ -4,7 +4,6 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"image"
 	"image/png"
 
 	"deedles.dev/tray"
@@ -25,12 +24,12 @@ var (
 	statusIconExitNode     = decode(statusIconExitNodeData)
 )
 
-func decode(data []byte) image.Image {
+func decode(data []byte) tray.Pixmap {
 	img, err := png.Decode(bytes.NewReader(data))
 	if err != nil {
 		panic(err)
 	}
-	return img
+	return tray.ToPixmap(img)
 }
 
 func handler(f func()) tray.MenuItemProp {
@@ -48,7 +47,7 @@ type Tray struct {
 	OnQuit       func()
 
 	item *tray.Item
-	icon image.Image
+	icon *tray.Pixmap
 
 	showItem       *tray.MenuItem
 	connToggleItem *tray.MenuItem
@@ -131,14 +130,14 @@ func (t *Tray) updateStatusIcon(s tsutil.Status) {
 	t.item.SetProps(tray.ItemIconPixmap(newIcon))
 }
 
-func statusIcon(s tsutil.Status) image.Image {
+func statusIcon(s tsutil.Status) *tray.Pixmap {
 	if !s.Online() {
-		return statusIconInactive
+		return &statusIconInactive
 	}
 	if s.Status.ExitNodeStatus != nil {
-		return statusIconExitNode
+		return &statusIconExitNode
 	}
-	return statusIconActive
+	return &statusIconActive
 }
 
 func selfTitle(s tsutil.Status) (string, bool) {

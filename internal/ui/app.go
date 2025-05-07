@@ -316,7 +316,6 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 				Title: tsutil.DNSOrQuoteHostname(s.Status, peer),
 				Value: peer,
 			}
-			fmt.Printf("%v: %v\n", option.Title, peer.TaildropTarget)
 			if !yield(option) {
 				return
 			}

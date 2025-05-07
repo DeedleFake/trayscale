@@ -54,6 +54,12 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.15.4" date="2025-05-07">
+			<description>
+				<ul>Preconvert icons to tray format to optimize changes.</ul>
+				<ul>Fix crash that can happen when StatusNotifierItem properties are updated.</ul>
+			</description>
+		</release>
 		<release version="v0.15.3" date="2025-05-06">
 			<description>
 				<ul>Fix incorrect tray menu update signaling on KDE.</ul>

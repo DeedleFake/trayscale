@@ -89,3 +89,64 @@ func (d Info) Show(a *App, closed func()) {
 
 	dialog.SetVisible(true)
 }
+
+type Select[T any] struct {
+	Heading  string
+	Body     string
+	Options  []SelectOption[T]
+	Multiple bool
+}
+
+type SelectOption[T any] struct {
+	Title    string
+	Subtitle string
+	Value    T
+}
+
+func (d Select[T]) Show(a *App, res func([]T)) {
+	options := gtk.NewListBox()
+	options.AddCSSClass("boxed-list")
+	options.SetSelectionMode(gtk.SelectionSingle)
+	if d.Multiple {
+		// BUG: See https://gitlab.gnome.org/GNOME/gtk/-/issues/552.
+		options.SetSelectionMode(gtk.SelectionMultiple)
+	}
+	for _, option := range d.Options {
+		row := adw.NewActionRow()
+		row.SetTitle(option.Title)
+		row.SetSubtitle(option.Subtitle)
+		row.SetSelectable(true)
+		options.Append(row)
+	}
+
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetMaxContentHeight(500)
+	scroll.SetPropagateNaturalHeight(true)
+	scroll.SetChild(options)
+
+	dialog := adw.NewMessageDialog(&a.win.Window, d.Heading, d.Body)
+	dialog.SetExtraChild(scroll)
+
+	dialog.AddResponse("select", "Select")
+	dialog.SetResponseAppearance("select", adw.ResponseSuggested)
+	dialog.SetDefaultResponse("select")
+
+	dialog.AddResponse("cancel", "Cancel")
+
+	dialog.ConnectResponse(func(response string) {
+		if response != "select" {
+			res(nil)
+			return
+		}
+
+		rows := options.SelectedRows()
+		selected := make([]T, 0, len(rows))
+		for _, row := range rows {
+			option := d.Options[row.Index()]
+			selected = append(selected, option.Value)
+		}
+		res(selected)
+	})
+
+	dialog.SetVisible(true)
+}

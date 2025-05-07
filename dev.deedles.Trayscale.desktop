@@ -9,7 +9,7 @@ Categories=System;GNOME;GTK;
 Keywords=tailscale;vpn;
 
 Icon=dev.deedles.Trayscale
-Exec=trayscale
+Exec=trayscale %F
 Terminal=false
 
 SingleMainWindow=true

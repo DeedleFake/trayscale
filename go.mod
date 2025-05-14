@@ -6,8 +6,8 @@ require (
 	deedles.dev/mk v0.1.0
 	deedles.dev/tray v0.1.8
 	deedles.dev/xiter v0.2.1
-	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250223021911-503726bcfce6
 	github.com/diamondburned/gotk4/pkg v0.3.1
+	github.com/efogdev/gotk4-adwaita/pkg v0.0.0-20241107224354-1d53d3fb8980
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	golang.org/x/net v0.40.0
 	tailscale.com v1.82.5

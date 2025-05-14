@@ -91,30 +91,13 @@ func (fsys *gioFS) Open(fpath string) (fs.File, error) {
 		return nil, &fs.PathError{Op: "open", Path: fpath, Err: fs.ErrInvalid}
 	}
 
-	file := fsys.root.ResolveRelativePath(fpath)
-	dir := file.QueryFileType(context.TODO(), 0) == gio.FileTypeDirectory
-
-	wrapper := gioFile{
-		file: file,
+	file := gioFile{file: fsys.root.ResolveRelativePath(fpath)}
+	err := file.init(fpath)
+	if err != nil {
+		return nil, err
 	}
 
-	if !dir {
-		stream, err := file.Read(context.TODO())
-		if err != nil {
-			return nil, &fs.PathError{Op: "open", Path: fpath, Err: err}
-		}
-		wrapper.stream = gioutil.Reader(context.TODO(), stream)
-	}
-
-	if dir {
-		children, err := file.EnumerateChildren(context.TODO(), "*", 0)
-		if err != nil {
-			return nil, &fs.PathError{Op: "open", Path: fpath, Err: err}
-		}
-		wrapper.children = children
-	}
-
-	return &wrapper, nil
+	return &file, nil
 }
 
 type gioFile struct {
@@ -123,8 +106,29 @@ type gioFile struct {
 	children *gio.FileEnumerator
 }
 
+func (file *gioFile) init(fpath string) error {
+	dir := file.file.QueryFileType(context.TODO(), 0) == gio.FileTypeDirectory
+	if dir {
+		children, err := file.file.EnumerateChildren(context.TODO(), "*", 0)
+		if err != nil {
+			return &fs.PathError{Op: "open", Path: fpath, Err: err}
+		}
+		file.children = children
+
+		return nil
+	}
+
+	stream, err := file.file.Read(context.TODO())
+	if err != nil {
+		return &fs.PathError{Op: "open", Path: fpath, Err: err}
+	}
+	file.stream = gioutil.Reader(context.TODO(), stream)
+
+	return nil
+}
+
 func (file *gioFile) Stat() (fs.FileInfo, error) {
-	info, err := file.file.QueryFilesystemInfo(context.TODO(), "*")
+	info, err := file.file.QueryInfo(context.TODO(), "*", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -143,16 +147,20 @@ func (file *gioFile) ReadDir(n int) (entries []fs.DirEntry, err error) {
 		return nil, fs.ErrInvalid
 	}
 
-	for n > 0 {
+	for n != 0 {
 		info, err := file.children.NextFile(context.TODO())
 		if err != nil {
 			return entries, err
 		}
 		if info == nil {
+			if n < 0 {
+				return entries, nil
+			}
 			return entries, io.EOF
 		}
 
 		entries = append(entries, fs.FileInfoToDirEntry(&gioFileInfo{FileInfo: info}))
+		n--
 	}
 
 	return entries, nil
@@ -192,7 +200,7 @@ func (info *gioFileInfo) Mode() (mode fs.FileMode) {
 		panic(fmt.Errorf("unexpected file type: %v", ftype))
 	}
 
-	return mode | 0755 // TODO: Properly handle permissions?
+	return mode | fs.FileMode(info.AttributeUint32(gio.FILE_ATTRIBUTE_UNIX_MODE))
 }
 
 func (info *gioFileInfo) ModTime() time.Time {

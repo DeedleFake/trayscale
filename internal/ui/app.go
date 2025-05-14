@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"slices"
@@ -320,22 +319,6 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 			if !yield(option) {
 				return
 			}
-		}
-	}
-
-	for _, file := range files {
-		root := gioFS{root: file}
-		err := fs.WalkDir(&root, ".", func(path string, entry fs.DirEntry, err error) error {
-			if err != nil {
-				fmt.Printf("%#v\n", err)
-				slog.Error("walk", "path", path, "err", err)
-				return err
-			}
-			slog.Info("walk", "path", path, "type", entry.Type())
-			return nil
-		})
-		if err != nil {
-			panic(err)
 		}
 	}
 

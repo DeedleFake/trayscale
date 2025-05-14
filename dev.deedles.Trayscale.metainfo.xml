@@ -54,6 +54,13 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.16.1" date="2025-05-14">
+			<description>
+				<ul>
+					<li>Add support for sending directories as tar files over Taildrop.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.16.0" date="2025-05-07">
 			<description>
 				<ul>

@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -15,6 +17,55 @@ import (
 	"tailscale.com/tailcfg"
 )
 
+func gioReader(ctx context.Context, file gio.Filer) (io.ReadCloser, string, int64, error) {
+	if file.QueryFileType(ctx, 0) == gio.FileTypeDirectory {
+		return dirReader(ctx, file)
+	}
+
+	info, err := file.QueryInfo(ctx, gio.FILE_ATTRIBUTE_STANDARD_SIZE, 0)
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("query file size: %w", err)
+	}
+
+	s, err := file.Read(ctx)
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("open: %w", err)
+	}
+
+	return gioutil.Reader(ctx, s), file.Basename(), info.Size(), nil
+}
+
+func dirReader(ctx context.Context, file gio.Filer) (io.ReadCloser, string, int64, error) {
+	done := make(chan struct{})
+
+	r, w := io.Pipe()
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-done:
+		}
+		w.Close()
+	}()
+
+	go func() {
+		defer close(done)
+
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+
+		w := tar.NewWriter(gz)
+		defer w.Close()
+
+		root := gioFS{root: file}
+		err := w.AddFS(&root)
+		if err != nil {
+			slog.Error("write tar file", "source", file.Path(), "err", err)
+		}
+	}()
+
+	return r, file.Basename() + ".tar.gz", -1, nil
+}
+
 func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file gio.Filer) {
 	a.spin()
 	defer a.stopSpin()
@@ -22,21 +73,14 @@ func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file gi
 	slog := slog.With("peer", peerID, "path", file.Path())
 	slog.Info("starting file push")
 
-	s, err := file.Read(ctx)
+	r, name, size, err := gioReader(ctx, file)
 	if err != nil {
 		slog.Error("open file", "err", err)
 		return
 	}
-	defer s.Close(ctx)
+	defer r.Close()
 
-	info, err := s.QueryInfo(ctx, gio.FILE_ATTRIBUTE_STANDARD_SIZE)
-	if err != nil {
-		slog.Error("query file info", "err", err)
-		return
-	}
-
-	r := gioutil.Reader(ctx, s)
-	err = tsutil.PushFile(ctx, peerID, info.Size(), file.Basename(), r)
+	err = tsutil.PushFile(ctx, peerID, size, name, r)
 	if err != nil {
 		slog.Error("push file", "err", err)
 		return

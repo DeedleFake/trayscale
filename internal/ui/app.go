@@ -170,6 +170,11 @@ func (a *App) updatePeers(status tsutil.Status) {
 	if stack.Page(a.statusPage).Object != nil {
 		stack.Remove(a.statusPage)
 	}
+
+	// This awkward piece of code makes sure that things that had their
+	// titles changed stay sorted correctly.
+	a.win.PeersSortModel.SetSorter(nil)
+	a.win.PeersSortModel.SetSorter(&peersListSorter.Sorter)
 }
 
 func (a *App) updateProfiles(s tsutil.Status) {

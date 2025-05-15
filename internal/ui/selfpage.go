@@ -80,7 +80,7 @@ func (page *SelfPage) Root() gtk.Widgetter {
 }
 
 func (page *SelfPage) ID() string {
-	return string(page.peer.ID)
+	return "self"
 }
 
 func (page *SelfPage) Name() string {

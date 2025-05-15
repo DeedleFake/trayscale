@@ -20,9 +20,7 @@
                 <property name="child">
                   <object class="AdwToolbarView">
                     <property name="content">
-                      <object class="GtkStack" id="PeersStack">
-                        <property name="transition-type">slide-up-down</property>
-                      </object>
+                      <object class="AdwViewStack" id="PeersStack"/>
                     </property>
                     <child type="top">
                       <object class="AdwHeaderBar">
@@ -46,8 +44,10 @@
                 <property name="child">
                   <object class="AdwToolbarView">
                     <property name="content">
-                      <object class="GtkStackSidebar">
-                        <property name="stack">PeersStack</property>
+                      <object class="GtkScrolledWindow">
+                        <property name="child">
+                          <object class="GtkListBox" id="PeersList"/>
+                        </property>
                       </object>
                     </property>
                     <child type="top">

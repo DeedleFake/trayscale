@@ -20,6 +20,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/opt"
@@ -38,7 +39,30 @@ var (
 	stringListSorter = gtk.NewCustomSorter(glib.NewObjectComparer(func(s1, s2 *gtk.StringObject) int {
 		return cmp.Compare(s1.String(), s2.String())
 	}))
+
+	peersListSorter = gtk.NewCustomSorter(glib.NewObjectComparer(func(p1, p2 *adw.ViewStackPage) int {
+		if v, ok := prioritize("self", p1.Name(), p2.Name()); ok {
+			return v
+		}
+		if v, ok := prioritize("mullvad", p1.Name(), p2.Name()); ok {
+			return v
+		}
+		return strings.Compare(p1.Title(), p2.Title())
+	}))
 )
+
+func prioritize[T comparable](target, v1, v2 T) (int, bool) {
+	if v1 == target {
+		if v1 == v2 {
+			return 0, true
+		}
+		return -1, true
+	}
+	if v2 == target {
+		return 1, true
+	}
+	return 0, false
+}
 
 func formatTime(t time.Time) string {
 	if t.IsZero() {
@@ -253,6 +277,10 @@ func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 
 func BindListBoxModel[T any](lb *gtk.ListBox, m gio.ListModeller, f func(T) gtk.Widgetter) {
 	lb.BindModel(m, func(obj *glib.Object) gtk.Widgetter {
+		if obj, ok := obj.Cast().(T); ok {
+			return f(obj)
+		}
+
 		return f(gioutil.ObjectValue[T](obj))
 	})
 }

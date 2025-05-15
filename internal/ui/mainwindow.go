@@ -22,9 +22,13 @@ type MainWindow struct {
 	SplitView       *adw.NavigationSplitView
 	StatusSwitch    *gtk.Switch
 	MainMenuButton  *gtk.MenuButton
-	PeersStack      *gtk.Stack
+	PeersList       *gtk.ListBox
+	PeersStack      *adw.ViewStack
 	WorkSpinner     *gtk.Spinner
 	ProfileDropDown *gtk.DropDown
+
+	PeersModel     *gtk.SelectionModel
+	PeersSortModel *gtk.SortListModel
 
 	ProfileModel     *gtk.StringList
 	ProfileSortModel *gtk.SortListModel
@@ -36,9 +40,27 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 
 	win.SetApplication(app)
 
+	win.PeersModel = win.PeersStack.Pages()
+	win.PeersSortModel = gtk.NewSortListModel(win.PeersModel, &peersListSorter.Sorter)
+	BindListBoxModel(win.PeersList, win.PeersSortModel, win.createPeersRow)
+	win.PeersList.ConnectRowSelected(func(row *gtk.ListBoxRow) {
+		win.PeersModel.SelectItem(uint(row.Index()), true)
+	})
+
 	win.ProfileModel = gtk.NewStringList(nil)
 	win.ProfileSortModel = gtk.NewSortListModel(win.ProfileModel, &stringListSorter.Sorter)
 	win.ProfileDropDown.SetModel(win.ProfileSortModel)
 
 	return &win
+}
+
+func (win *MainWindow) createPeersRow(page *adw.ViewStackPage) gtk.Widgetter {
+	row := adw.NewActionRow()
+
+	row.SetTitle(page.Title())
+	page.NotifyProperty("title", func() {
+		row.SetTitle(page.Title())
+	})
+
+	return row
 }

@@ -5,7 +5,6 @@
   <requires lib="gtk" version="4.0"/>
   <requires lib="libadwaita" version="1.6"/>
   <object class="AdwPreferencesDialog" id="PreferencesDialog">
-    <property name="search-enabled">True</property>
     <property name="visible-page">PreferencesPage</property>
     <child>
       <object class="AdwPreferencesPage" id="PreferencesPage">

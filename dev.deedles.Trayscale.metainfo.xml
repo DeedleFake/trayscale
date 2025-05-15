@@ -54,151 +54,209 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.16.1" date="2025-05-14">
+			<description>
+				<ul>
+					<li>Add support for sending directories as tar files over Taildrop.</li>
+					<li>Upgrade to Libadwaita 1.6 and use AdwButtonRow.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.16.0" date="2025-05-07">
 			<description>
-				<ul>Show notification when receiving a file via Taildrop.</ul>
-				<ul>Add ability to send files via Taildrop by specifying them on the command line.</ul>
+				<ul>
+					<li>Show notification when receiving a file via Taildrop.</li>
+					<li>Add ability to send files via Taildrop by specifying them on the command line.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.15.4" date="2025-05-07">
 			<description>
-				<ul>Preconvert icons to tray format to optimize changes.</ul>
-				<ul>Fix crash that can happen when StatusNotifierItem properties are updated.</ul>
+				<ul>
+					<li>Preconvert icons to tray format to optimize changes.</li>
+					<li>Fix crash that can happen when StatusNotifierItem properties are updated.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.15.3" date="2025-05-06">
 			<description>
-				<ul>Fix incorrect tray menu update signaling on KDE.</ul>
-				<ul>Handle tray icon activation.</ul>
+				<ul>
+					<li>Fix incorrect tray menu update signaling on KDE.</li>
+					<li>Handle tray icon activation.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.15.2" date="2025-05-05">
 			<description>
-				<ul>Don't attempt to detect StatusNotifierWatcher name.</ul>
+				<ul>
+					<li>Don't attempt to detect StatusNotifierWatcher name.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.15.1" date="2025-05-05">
 			<description>
-				<ul>Fix some tray icon bugs, including one that broke it completely in Flatpak.</ul>
+				<ul>
+					<li>Fix some tray icon bugs, including one that broke it completely in Flatpak.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.15.0" date="2025-05-04">
 			<description>
-				<ul>Switch system tray packages and generally clean up tray icon handling massively.</ul>
-				<ul>Update dependencies.</ul>
+				<ul>
+					<li>Switch system tray packages and generally clean up tray icon handling massively.</li>
+					<li>Update dependencies.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.14.3" date="2025-04-16">
 			<description>
-				<ul>Add exit node toggle to tray icon menu.</ul>
-				<ul>Update dependencies.</ul>
+				<ul>
+					<li>Add exit node toggle to tray icon menu.</li>
+					<li>Update dependencies.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.14.2" date="2025-02-11">
 			<description>
-				<ul>Update Go to 1.24.</ul>
-				<ul>Update some dependencies.</ul>
+				<ul>
+					<li>Update Go to 1.24.</li>
+					<li>Update some dependencies.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.14.1" date="2024-12-20">
 			<description>
-				<ul>Poll manually after switching profiles.</ul>
+				<ul>
+					<li>Poll manually after switching profiles.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.14.0" date="2024-11-11">
 			<description>
-				<ul>Add multi-profile support.</ul>
-				<ul>Internal cleanup.</ul>
+				<ul>
+					<li>Add multi-profile support.</li>
+					<li>Internal cleanup.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.13.5" date="2024-09-23">
 			<description>
-				<ul>Fix Taildrop log spam when Taildrop is disabled.</ul>
-				<ul>Internal cleanup.</ul>
+				<ul>
+					<li>Fix Taildrop log spam when Taildrop is disabled.</li>
+					<li>Internal cleanup.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.13.4" date="2024-08-22">
 			<description>
-				<ul>Change tray icon when exit node is in use.</ul>
-				<ul>Bug fixes and performance improvements.</ul>
+				<ul>
+					<li>Change tray icon when exit node is in use.</li>
+					<li>Bug fixes and performance improvements.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.13.3" date="2024-08-16">
 			<description>
-				<ul>Reorder tray menu items.</ul>
-				<ul>Skip polling for waiting files if Taildrop isn't turned on.</ul>
+				<ul>
+					<li>Reorder tray menu items.</li>
+					<li>Skip polling for waiting files if Taildrop isn't turned on.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.13.2" date="2024-08-14">
 			<description>
-				<ul>Update to Go 1.23.</ul>
-				<ul>Replace some deprecated code with the new API.</ul>
+				<ul>
+					<li>Update to Go 1.23.</li>
+					<li>Replace some deprecated code with the new API.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.13.1" date="2024-08-12">
 			<description>
-				<ul>Restructured Mullvad list to categorize per-country.</ul>
-				<ul>Updated dependencies.</ul>
+				<ul>
+					<li>Restructured Mullvad list to categorize per-country.</li>
+					<li>Updated dependencies.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.13.0" date="2024-07-12">
 			<description>
-				<ul>Remove control server dconf setting and instead use a new dialog.</ul>
-				<ul>Make Mullvad peer list hierarchical.</ul>
+				<ul>
+					<li>Remove control server dconf setting and instead use a new dialog.</li>
+					<li>Make Mullvad peer list hierarchical.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.12.7" date="2024-07-09">
 			<description>
-				<ul>Add a connection toggle to the tray icon menu.</ul>
+				<ul>
+					<li>Add a connection toggle to the tray icon menu.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.12.6" date="2024-07-03">
 			<description>
-				<ul>Add online status indicators to peer list.</ul>
-				<ul>Use node IDs to identify them instead of keys.</ul>
+				<ul>
+					<li>Add online status indicators to peer list.</li>
+					<li>Use node IDs to identify them instead of keys.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.12.5" date="2024-07-01">
 			<description>
-				<ul>Remove calls to tailscale command.</ul>
-				<ul>Update dependencies.</ul>
+				<ul>
+					<li>Remove calls to tailscale command.</li>
+					<li>Update dependencies.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.12.4" date="2024-06-21">
 			<description>
-				<ul>Update to use new Libadwaita widgets.</ul>
-				<ul>Fix a bug with ordering of Mullvad nodes.</ul>
-				<ul>Remove deprecated hair pinning from netcheck and add captive portal detection.</ul>
-				<ul>Fix bug with netcheck that caused it to essentially not work and to be extremely slow.</ul>
-				<ul>Update dependencies.</ul>
+				<ul>
+					<li>Update to use new Libadwaita widgets.</li>
+					<li>Fix a bug with ordering of Mullvad nodes.</li>
+					<li>Remove deprecated hair pinning from netcheck and add captive portal detection.</li>
+					<li>Fix bug with netcheck that caused it to essentially not work and to be extremely slow.</li>
+					<li>Update dependencies.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.12.3" date="2024-05-04">
 			<description>
-				<ul>Fix self and Mullvad pages disappearing when re-opening the window.</ul>
+				<ul>
+					<li>Fix self and Mullvad pages disappearing when re-opening the window.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.12.2" date="2024-05-03">
 			<description>
-				<ul>Nicer sorting and display of Mullvad nodes.</ul>
+				<ul>
+					<li>Nicer sorting and display of Mullvad nodes.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.12.1" date="2024-05-02">
 			<description>
-				<ul>Strip debugging symbols to reduce binary size.</ul>
-				<ul>Remove Mullvad page when switching to offline.</ul>
+				<ul>
+					<li>Strip debugging symbols to reduce binary size.</li>
+					<li>Remove Mullvad page when switching to offline.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.12.0" date="2024-05-02">
 			<description>
-				<ul>Move all Mullvad nodes into their own page.</ul>
-				<ul>Cleanup a large amount of code for handling pages in the UI.</ul>
+				<ul>
+					<li>Move all Mullvad nodes into their own page.</li>
+					<li>Cleanup a large amount of code for handling pages in the UI.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.11.2" date="2024-04-07">
 			<description>
-				<ul>Fix warning about a missing title at startup.</ul>
-				<ul>Update a number of pieces of metadata for Flathub.</ul>
+				<ul>
+					<li>Fix warning about a missing title at startup.</li>
+					<li>Update a number of pieces of metadata for Flathub.</li>
+				</ul>
 			</description>
 		</release>
 		<release version="v0.11.1" date="2024-04-04">

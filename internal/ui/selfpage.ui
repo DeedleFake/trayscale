@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Created with Cambalache 0.91.3 -->
+<!-- Created with Cambalache 0.96.0 -->
 <interface>
-  <requires lib="gtk" version="4.12"/>
-  <requires lib="libadwaita" version="1.4"/>
+  <requires lib="gtk" version="4.18"/>
+  <requires lib="libadwaita" version="1.6"/>
   <object class="AdwStatusPage" id="Page">
     <child>
       <object class="AdwClamp">

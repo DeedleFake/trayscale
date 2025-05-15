@@ -10,16 +10,16 @@ import (
 //go:embed preferences.ui
 var preferencesXML string
 
-type PreferencesWindow struct {
-	*adw.PreferencesWindow `gtk:"PreferencesWindow"`
+type PreferencesDialog struct {
+	*adw.PreferencesDialog `gtk:"PreferencesDialog"`
 
 	UseTrayIconRow            *adw.SwitchRow
 	PollingIntervalRow        *adw.SpinRow
 	PollingIntervalAdjustment *gtk.Adjustment
 }
 
-func NewPreferencesWindow() *PreferencesWindow {
-	var win PreferencesWindow
+func NewPreferencesDialog() *PreferencesDialog {
+	var win PreferencesDialog
 	fillFromBuilder(&win, preferencesXML)
 	return &win
 }

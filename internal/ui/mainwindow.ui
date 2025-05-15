@@ -59,9 +59,9 @@
                         <child type="end">
                           <object class="GtkMenuButton" id="MainMenuButton">
                             <property name="icon-name">open-menu-symbolic</property>
-                            <property name="primary">True</property>
                             <!-- Custom object fragments -->
                             <property name="menu-model">MainMenu</property>
+                            <property name="primary">True</property>
                           </object>
                         </child>
                         <child type="title">

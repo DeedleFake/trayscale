@@ -130,12 +130,8 @@ func (d Select[T]) Show(a *App, res func([]SelectOption[T])) {
 		options.Append(row)
 	}
 
-	scroll := gtk.NewScrolledWindow()
-	scroll.SetPropagateNaturalHeight(true)
-	scroll.SetChild(options)
-
 	dialog := adw.NewAlertDialog(d.Heading, d.Body)
-	dialog.SetExtraChild(scroll)
+	dialog.SetExtraChild(options)
 
 	dialog.AddResponse("select", "Select")
 	dialog.SetResponseAppearance("select", adw.ResponseSuggested)

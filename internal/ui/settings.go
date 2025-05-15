@@ -94,6 +94,7 @@ func (a *App) showPreferences() {
 
 	win := NewPreferencesWindow()
 	a.settings.Bind("tray-icon", win.UseTrayIconRow.Object, "active", gio.SettingsBindDefault)
+	a.settings.Bind("show-notification-on-startup", win.ShowNotificationOnStartupRow.Object, "active", gio.SettingsBindDefault)
 	a.settings.Bind("polling-interval", win.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
 	win.SetTransientFor(&a.win.Window)
 	win.SetVisible(true)

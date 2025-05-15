@@ -16,6 +16,12 @@
               </object>
             </child>
             <child>
+            <object class="AdwSwitchRow" id="ShowNotificationOnStartupRow">
+                <property name="subtitle">When enabled, shows a notification when the application starts</property>
+                <property name="title">Show Notification on Startup</property>
+              </object>
+            </child>
+            <child>
               <object class="AdwSpinRow" id="PollingIntervalRow">
                 <property name="adjustment">
                   <object class="GtkAdjustment" id="PollingIntervalAdjustment">

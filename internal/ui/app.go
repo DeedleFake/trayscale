@@ -199,7 +199,11 @@ func (a *App) update(s tsutil.Status) {
 		if online {
 			body = "Tailscale is connected."
 		}
-		a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
+		showNotification := a.settings.Boolean("show-notification-on-startup")
+		if showNotification {
+			a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
+
+		}
 	}
 	if a.win == nil {
 		return

@@ -63,8 +63,8 @@ type PeerPage struct {
 	RxBytes               *gtk.Label
 	TxBytesRow            *adw.ActionRow
 	TxBytes               *gtk.Label
-	SendFileGroup         *adw.PreferencesGroup
-	SendFileRow           *adw.ActionRow
+	SendFileBurron        *adw.ButtonRow
+	SendDirButton         *adw.ButtonRow
 	DropTarget            *gtk.DropTarget
 
 	peer *ipnstate.PeerStatus
@@ -99,12 +99,18 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	actions := gio.NewSimpleActionGroup()
 	page.InsertActionGroup("peer", actions)
 
-	sendFileAction := gio.NewSimpleAction("sendfile", nil)
+	sendFileAction := gio.NewSimpleAction("sendfile", glib.NewVariantType("s"))
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
 		dialog := gtk.NewFileDialog()
 		dialog.SetModal(true)
-		dialog.OpenMultiple(context.TODO(), &a.win.Window, func(res gio.AsyncResulter) {
-			files, err := dialog.OpenMultipleFinish(res)
+
+		open, finish := dialog.OpenMultiple, dialog.OpenMultipleFinish
+		if p.String() == "dir" {
+			open, finish = dialog.SelectMultipleFolders, dialog.SelectMultipleFoldersFinish
+		}
+
+		open(context.TODO(), &a.win.Window, func(res gio.AsyncResulter) {
+			files, err := finish(res)
 			if err != nil {
 				if !errHasCode(err, int(gtk.DialogErrorDismissed)) {
 					slog.Error("open files", "err", err)

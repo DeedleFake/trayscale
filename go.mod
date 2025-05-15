@@ -4,7 +4,7 @@ go 1.24.2
 
 require (
 	deedles.dev/mk v0.1.0
-	deedles.dev/tray v0.1.8
+	deedles.dev/tray v0.1.9
 	deedles.dev/xiter v0.2.1
 	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/efogdev/gotk4-adwaita/pkg v0.0.0-20241107224354-1d53d3fb8980
@@ -38,7 +38,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
-	github.com/miekg/dns v1.1.65 // indirect
+	github.com/miekg/dns v1.1.66 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect

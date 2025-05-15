@@ -15,7 +15,7 @@ import (
 	"tailscale.com/tailcfg"
 )
 
-const mullvadPageBaseName = "🟡 Mullvad Exit Nodes"
+const mullvadPageBaseName = "Mullvad Exit Nodes"
 
 //go:embed mullvadpage.ui
 var mullvadPageXML string
@@ -52,6 +52,10 @@ func (page *MullvadPage) ID() string {
 
 func (page *MullvadPage) Name() string {
 	return page.name
+}
+
+func (page *MullvadPage) Icon() string {
+	return "network-vpn-symbolic"
 }
 
 func (page *MullvadPage) init(a *App, status tsutil.Status) {

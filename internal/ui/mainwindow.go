@@ -55,7 +55,13 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 }
 
 func (win *MainWindow) createPeersRow(page *adw.ViewStackPage) gtk.Widgetter {
+	icon := gtk.NewImageFromIconName(page.IconName())
+	page.NotifyProperty("icon-name", func() {
+		icon.SetFromIconName(page.IconName())
+	})
+
 	row := adw.NewActionRow()
+	row.AddPrefix(icon)
 
 	row.SetTitle(page.Title())
 	page.NotifyProperty("title", func() {

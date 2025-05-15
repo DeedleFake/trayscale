@@ -87,6 +87,10 @@ func (page *SelfPage) Name() string {
 	return page.name
 }
 
+func (page *SelfPage) Icon() string {
+	return "computer-symbolic"
+}
+
 func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
 	page.peer = peer
 

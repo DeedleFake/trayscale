@@ -69,6 +69,7 @@ type PeerPage struct {
 
 	peer *ipnstate.PeerStatus
 	name string
+	icon string
 
 	addrModel  *gioutil.ListModel[netip.Addr]
 	routeModel *gioutil.ListModel[netip.Prefix]
@@ -91,6 +92,10 @@ func (page *PeerPage) ID() string {
 
 func (page *PeerPage) Name() string {
 	return page.name
+}
+
+func (page *PeerPage) Icon() string {
+	return page.icon
 }
 
 func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
@@ -233,6 +238,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
 	page.peer = peer
 	page.name = peerName(status, peer)
+	page.icon = peerIcon(peer)
 
 	page.SetTitle(peer.HostName)
 	page.SetDescription(peer.DNSName)

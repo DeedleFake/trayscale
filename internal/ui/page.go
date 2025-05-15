@@ -19,6 +19,9 @@ type Page interface {
 	// Name returns a displayable name for the page.
 	Name() string
 
+	// Icon returns the name of an icon for the page.
+	Icon() string
+
 	// Update performs an update of the UI to match new state.
 	Update(*App, *ipnstate.PeerStatus, tsutil.Status)
 }
@@ -42,6 +45,6 @@ func newStackPage(a *App, page Page) *stackPage {
 func (page *stackPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
 	page.page.Update(a, peer, status)
 
-	page.stackPage.SetIconName(peerIcon(peer))
 	page.stackPage.SetTitle(page.page.Name())
+	page.stackPage.SetIconName(page.page.Icon())
 }

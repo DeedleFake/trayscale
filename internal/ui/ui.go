@@ -95,15 +95,6 @@ func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
 
 	var buf strings.Builder
 
-	switch {
-	case self, peer == nil:
-		buf.WriteString("🔵 ")
-	case peer.Online:
-		buf.WriteString("🟢 ")
-	default:
-		buf.WriteString("🔴 ")
-	}
-
 	name := tsutil.DNSOrQuoteHostname(status.Status, peer)
 	if len(name) > maxNameLength {
 		name = name[:maxNameLength-3] + "..."
@@ -124,12 +115,11 @@ func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
 }
 
 func peerIcon(peer *ipnstate.PeerStatus) string {
-	if peer == nil {
-		return ""
-	}
-
 	if peer.ExitNode {
 		return "network-workgroup-symbolic"
+	}
+	if !peer.Online {
+		return "network-offline-symbolic"
 	}
 	if peer.ExitNodeOption {
 		return "network-server-symbolic"

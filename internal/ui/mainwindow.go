@@ -44,7 +44,9 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 	win.PeersSortModel = gtk.NewSortListModel(win.PeersModel, &peersListSorter.Sorter)
 	BindListBoxModel(win.PeersList, win.PeersSortModel, win.createPeersRow)
 	win.PeersList.ConnectRowSelected(func(row *gtk.ListBoxRow) {
-		win.PeersModel.SelectItem(uint(row.Index()), true)
+		if row != nil {
+			win.PeersModel.SelectItem(uint(row.Index()), true)
+		}
 	})
 
 	win.ProfileModel = gtk.NewStringList(nil)

@@ -9,6 +9,7 @@ require (
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250310094704-65bb91d1403f
 	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
+	github.com/klauspost/compress v1.18.0
 	golang.org/x/net v0.40.0
 	tailscale.com v1.82.5
 )

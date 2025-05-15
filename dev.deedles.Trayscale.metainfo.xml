@@ -58,6 +58,7 @@
 			<description>
 				<ul>
 					<li>Add support for sending directories as tar files over Taildrop.</li>
+					<li>Upgrade to Libadwaita 1.6 and use AdwButtonRow.</li>
 				</ul>
 			</description>
 		</release>

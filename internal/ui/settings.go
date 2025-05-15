@@ -103,7 +103,7 @@ func (a *App) showPreferences() {
 
 // showAbout shows the app's about dialog.
 func (a *App) showAbout() {
-	dialog := adw.NewAboutWindow()
+	dialog := adw.NewAboutDialog()
 	dialog.SetDevelopers([]string{"DeedleFake"})
 	dialog.SetCopyright("Copyright (c) 2023 DeedleFake")
 	dialog.SetLicense(readAssetString("LICENSE"))
@@ -115,10 +115,9 @@ func (a *App) showAbout() {
 	if v, ok := version.Get(); ok {
 		dialog.SetVersion(v)
 	}
-	dialog.SetTransientFor(&a.win.Window)
 	dialog.SetVisible(true)
 
-	a.app.AddWindow(&dialog.Window.Window)
+	dialog.Present(a.window())
 }
 
 func (a *App) getInterval() time.Duration {

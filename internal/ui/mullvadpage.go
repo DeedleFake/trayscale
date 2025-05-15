@@ -9,8 +9,8 @@ import (
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
 )

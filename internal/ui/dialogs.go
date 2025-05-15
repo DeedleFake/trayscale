@@ -1,8 +1,8 @@
 package ui
 
 import (
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 )
 
 func (a *App) window() gtk.Widgetter {

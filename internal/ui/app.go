@@ -173,8 +173,9 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 	// This awkward piece of code makes sure that things that had their
 	// titles changed stay sorted correctly.
-	a.win.PeersSortModel.SetSorter(nil)
-	a.win.PeersSortModel.SetSorter(&peersListSorter.Sorter)
+	// BUG: This causes the currently selected peer to get deselected.
+	//a.win.PeersSortModel.SetSorter(nil)
+	//a.win.PeersSortModel.SetSorter(&peersListSorter.Sorter)
 }
 
 func (a *App) updateProfiles(s tsutil.Status) {

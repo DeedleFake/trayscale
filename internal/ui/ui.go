@@ -91,41 +91,29 @@ func readAssetString(file string) string {
 
 func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
 	const maxNameLength = 30
-	self := peer.ID == status.Status.Self.ID
-
-	var buf strings.Builder
 
 	name := tsutil.DNSOrQuoteHostname(status.Status, peer)
 	if len(name) > maxNameLength {
-		name = name[:maxNameLength-3] + "..."
+		return name[:maxNameLength-3] + "..."
 	}
-	buf.WriteString(name)
-
-	if self {
-		buf.WriteString(" [This machine]")
-	}
-	if peer.ExitNode {
-		buf.WriteString(" [Exit node]")
-	}
-	if peer.ExitNodeOption {
-		buf.WriteString(" [Exit node option]")
-	}
-
-	return buf.String()
+	return name
 }
 
 func peerIcon(peer *ipnstate.PeerStatus) string {
 	if peer.ExitNode {
-		return "network-workgroup-symbolic"
+		if !peer.Online {
+			return "network-vpn-acquiring-symbolic"
+		}
+		return "network-vpn-symbolic"
 	}
 	if !peer.Online {
-		return "network-offline-symbolic"
+		return "network-wired-offline-symbolic"
 	}
 	if peer.ExitNodeOption {
-		return "network-server-symbolic"
+		return "folder-remote-symbolic"
 	}
 
-	return "folder-remote-symbolic"
+	return "network-wired-symbolic"
 }
 
 func boolIcon(v bool) string {

@@ -26,6 +26,7 @@ type MullvadPage struct {
 	ExitNodesGroup *adw.PreferencesGroup
 
 	name string
+	icon string
 
 	nodeLocationRows rowManager[[]*ipnstate.PeerStatus]
 
@@ -55,7 +56,7 @@ func (page *MullvadPage) Name() string {
 }
 
 func (page *MullvadPage) Icon() string {
-	return "network-vpn-symbolic"
+	return page.icon
 }
 
 func (page *MullvadPage) init(a *App, status tsutil.Status) {
@@ -114,6 +115,7 @@ func (page *MullvadPage) init(a *App, status tsutil.Status) {
 
 func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
 	page.name = mullvadPageBaseName
+	page.icon = "network-workgroup-symbolic"
 
 	var exitNodeID tailcfg.StableNodeID
 	if status.Status.ExitNodeStatus != nil {
@@ -125,6 +127,7 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 			page.nodes = append(page.nodes, peer)
 			if peer.ID == exitNodeID {
 				page.name = fmt.Sprintf("%v [%v]", mullvadPageBaseName, mullvadLongLocationName(peer.Location))
+				page.icon = "channel-secure-symbolic"
 			}
 		}
 	}

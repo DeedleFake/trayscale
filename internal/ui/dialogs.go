@@ -5,7 +5,7 @@ import (
 	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 )
 
-func (a *App) getGtkWindow() *gtk.Window {
+func (a *App) window() gtk.Widgetter {
 	if a == nil {
 		return nil
 	}
@@ -13,7 +13,7 @@ func (a *App) getGtkWindow() *gtk.Window {
 		return nil
 	}
 
-	return &a.win.Window
+	return a.win
 }
 
 type Confirmation struct {
@@ -24,7 +24,7 @@ type Confirmation struct {
 }
 
 func (d Confirmation) Show(a *App, res func(bool)) {
-	dialog := adw.NewMessageDialog(a.getGtkWindow(), d.Heading, d.Body)
+	dialog := adw.NewAlertDialog(d.Heading, d.Body)
 	dialog.AddResponse("reject", d.Reject)
 	dialog.SetCloseResponse("reject")
 	dialog.AddResponse("accept", d.Accept)
@@ -35,7 +35,7 @@ func (d Confirmation) Show(a *App, res func(bool)) {
 		res(response == "accept")
 	})
 
-	dialog.SetVisible(true)
+	dialog.Present(a.window())
 }
 
 type Prompt struct {
@@ -57,7 +57,7 @@ func (d Prompt) Show(a *App, initialValue string, res func(response, val string)
 		input.Buffer().SetText(initialValue, len(initialValue))
 	}
 
-	dialog := adw.NewMessageDialog(a.getGtkWindow(), d.Heading, d.Body)
+	dialog := adw.NewAlertDialog(d.Heading, d.Body)
 	dialog.SetExtraChild(input)
 
 	def := "activate"
@@ -78,7 +78,7 @@ func (d Prompt) Show(a *App, initialValue string, res func(response, val string)
 		res(def, input.Buffer().Text())
 	})
 
-	dialog.SetVisible(true)
+	dialog.Present(a.window())
 }
 
 type Info struct {
@@ -87,7 +87,7 @@ type Info struct {
 }
 
 func (d Info) Show(a *App, closed func()) {
-	dialog := adw.NewMessageDialog(a.getGtkWindow(), d.Heading, d.Body)
+	dialog := adw.NewAlertDialog(d.Heading, d.Body)
 	dialog.SetBodyUseMarkup(true)
 	dialog.AddResponse("close", "_Close")
 	dialog.SetDefaultResponse("close")
@@ -98,7 +98,7 @@ func (d Info) Show(a *App, closed func()) {
 		})
 	}
 
-	dialog.SetVisible(true)
+	dialog.Present(a.window())
 }
 
 type Select[T any] struct {
@@ -134,8 +134,7 @@ func (d Select[T]) Show(a *App, res func([]SelectOption[T])) {
 	scroll.SetPropagateNaturalHeight(true)
 	scroll.SetChild(options)
 
-	dialog := adw.NewMessageDialog(a.getGtkWindow(), d.Heading, d.Body)
-	dialog.SetResizable(true)
+	dialog := adw.NewAlertDialog(d.Heading, d.Body)
 	dialog.SetExtraChild(scroll)
 
 	dialog.AddResponse("select", "Select")
@@ -159,5 +158,5 @@ func (d Select[T]) Show(a *App, res func([]SelectOption[T])) {
 		res(selected)
 	})
 
-	dialog.SetVisible(true)
+	dialog.Present(a.window())
 }

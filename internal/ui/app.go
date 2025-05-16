@@ -155,14 +155,16 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 	// This awkward piece of code makes sure that things that had their
 	// titles changed stay sorted correctly.
-	name := a.win.PeersModel.Item(a.win.PeersModel.Selection().Minimum()).Cast().(*adw.ViewStackPage).Name()
+	page, ok := a.win.PeersModel.Item(a.win.PeersModel.Selection().Minimum()).Cast().(*adw.ViewStackPage)
 	a.win.PeersSortModel.SetSorter(nil)
 	a.win.PeersSortModel.SetSorter(&peersListSorter.Sorter)
-	i, ok := listmodels.Index(a.win.PeersSortModel, func(vp *adw.ViewStackPage) bool {
-		return vp.Name() == name
-	})
 	if ok {
-		a.win.PeersList.SelectRow(a.win.PeersList.RowAtIndex(int(i)))
+		i, ok := listmodels.Index(a.win.PeersSortModel, func(vp *adw.ViewStackPage) bool {
+			return vp.Name() == page.Name()
+		})
+		if ok {
+			a.win.PeersList.SelectRow(a.win.PeersList.RowAtIndex(int(i)))
+		}
 	}
 }
 
@@ -415,6 +417,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 	a.win.MainWindow.ConnectCloseRequest(func() bool {
 		a.win = nil
+		clear(a.pages)
 		return false
 	})
 	a.poller.Poll() <- struct{}{}

@@ -113,7 +113,7 @@ func (page *MullvadPage) Update(a *App, vp *adw.ViewStackPage, status tsutil.Sta
 			page.nodes = append(page.nodes, peer)
 			if peer.ID == exitNodeID {
 				name = fmt.Sprintf("%v [%v]", mullvadPageBaseName, mullvadLongLocationName(peer.Location))
-				icon = "channel-secure-symbolic"
+				icon = "network-vpn-symbolic"
 			}
 		}
 	}

@@ -96,7 +96,7 @@ func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStat
 			open, finish = dialog.SelectMultipleFolders, dialog.SelectMultipleFoldersFinish
 		}
 
-		open(context.TODO(), &a.win.Window, func(res gio.AsyncResulter) {
+		open(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 			files, err := finish(res)
 			if err != nil {
 				if !errHasCode(err, int(gtk.DialogErrorDismissed)) {

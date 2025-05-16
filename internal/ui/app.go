@@ -115,7 +115,9 @@ func (a *App) updatePeers(status tsutil.Status) {
 	}
 
 	stack := a.win.PeersStack
-	stack.Remove(a.statusPage)
+	if stack.ChildByName("status") != nil {
+		stack.Remove(a.statusPage)
+	}
 
 	found := make(set.Set[string])
 	for name, page := range a.pages {
@@ -153,9 +155,15 @@ func (a *App) updatePeers(status tsutil.Status) {
 
 	// This awkward piece of code makes sure that things that had their
 	// titles changed stay sorted correctly.
-	// BUG: This causes the currently selected peer to get deselected.
-	//a.win.PeersSortModel.SetSorter(nil)
-	//a.win.PeersSortModel.SetSorter(&peersListSorter.Sorter)
+	name := a.win.PeersModel.Item(a.win.PeersModel.Selection().Minimum()).Cast().(*adw.ViewStackPage).Name()
+	a.win.PeersSortModel.SetSorter(nil)
+	a.win.PeersSortModel.SetSorter(&peersListSorter.Sorter)
+	i, ok := listmodels.Index(a.win.PeersSortModel, func(vp *adw.ViewStackPage) bool {
+		return vp.Name() == name
+	})
+	if ok {
+		a.win.PeersList.SelectRow(a.win.PeersList.RowAtIndex(int(i)))
+	}
 }
 
 func (a *App) updateProfiles(s tsutil.Status) {
@@ -262,7 +270,7 @@ func (a *App) startTS(ctx context.Context) error {
 			Reject:  "_Cancel",
 		}.Show(a, func(accept bool) {
 			if accept {
-				gtk.NewURILauncher(status.Status.AuthURL).Launch(ctx, &a.win.Window, nil)
+				gtk.NewURILauncher(status.Status.AuthURL).Launch(ctx, &a.win.MainWindow.Window, nil)
 			}
 		})
 		return nil
@@ -325,7 +333,7 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 
 func (a *App) onAppActivate(ctx context.Context) {
 	if a.win != nil {
-		a.win.Present()
+		a.win.MainWindow.Present()
 		return
 	}
 
@@ -405,12 +413,12 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.win.SplitView.ActivateAction("navigation.push", contentVariant)
 	})
 
-	a.win.ConnectCloseRequest(func() bool {
+	a.win.MainWindow.ConnectCloseRequest(func() bool {
 		a.win = nil
 		return false
 	})
 	a.poller.Poll() <- struct{}{}
-	a.win.SetVisible(true)
+	a.win.MainWindow.Present()
 }
 
 func (a *App) initTray(ctx context.Context) {

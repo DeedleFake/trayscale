@@ -155,7 +155,7 @@ func (page *SelfPage) init(a *App, status tsutil.Status) {
 				dialog := gtk.NewFileDialog()
 				dialog.SetModal(true)
 				dialog.SetInitialName(file.Name)
-				dialog.Save(context.TODO(), &a.win.Window, func(res gio.AsyncResulter) {
+				dialog.Save(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 					f, err := dialog.SaveFinish(res)
 					if err != nil {
 						if !errHasCode(err, int(gtk.DialogErrorDismissed)) {

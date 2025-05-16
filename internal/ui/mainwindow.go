@@ -17,8 +17,7 @@ var (
 )
 
 type MainWindow struct {
-	*adw.ApplicationWindow `gtk:"MainWindow"`
-
+	MainWindow      *adw.ApplicationWindow
 	ToastOverlay    *adw.ToastOverlay
 	SplitView       *adw.NavigationSplitView
 	StatusSwitch    *gtk.Switch
@@ -39,7 +38,7 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 	var win MainWindow
 	fillFromBuilder(&win, menuXML, mainWindowXML)
 
-	win.SetApplication(app)
+	win.MainWindow.SetApplication(app)
 
 	win.PeersModel = win.PeersStack.Pages()
 	win.PeersSortModel = gtk.NewSortListModel(win.PeersModel, &peersListSorter.Sorter)

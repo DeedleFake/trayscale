@@ -13,7 +13,7 @@ func (a *App) window() gtk.Widgetter {
 		return nil
 	}
 
-	return a.win
+	return a.win.MainWindow
 }
 
 type Confirmation struct {

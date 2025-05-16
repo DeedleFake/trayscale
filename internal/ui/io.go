@@ -2,7 +2,6 @@ package ui
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/klauspost/compress/zstd"
 	"tailscale.com/tailcfg"
 )
 
@@ -50,10 +50,10 @@ func dirReader(ctx context.Context, file gio.Filer) (io.ReadCloser, string, int6
 	go func() {
 		defer close(done)
 
-		gz := gzip.NewWriter(w)
-		defer gz.Close()
+		z, _ := zstd.NewWriter(w)
+		defer z.Close()
 
-		w := tar.NewWriter(gz)
+		w := tar.NewWriter(z)
 		defer w.Close()
 
 		root := gioFS{root: file}
@@ -63,7 +63,7 @@ func dirReader(ctx context.Context, file gio.Filer) (io.ReadCloser, string, int6
 		}
 	}()
 
-	return r, file.Basename() + ".tar.gz", -1, nil
+	return r, file.Basename() + ".tar.zst", -1, nil
 }
 
 func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file gio.Filer) {

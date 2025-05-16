@@ -2,7 +2,9 @@ package ui
 
 import (
 	_ "embed"
+	"log/slog"
 
+	"deedles.dev/trayscale/internal/listmodels"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
@@ -42,11 +44,22 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 
 	win.PeersModel = win.PeersStack.Pages()
 	win.PeersSortModel = gtk.NewSortListModel(win.PeersModel, &peersListSorter.Sorter)
-	BindListBoxModel(win.PeersList, win.PeersSortModel, win.createPeersRow)
+	listmodels.BindListBox(win.PeersList, win.PeersSortModel, win.createPeersRow)
 	win.PeersList.ConnectRowSelected(func(row *gtk.ListBoxRow) {
-		if row != nil {
-			win.PeersModel.SelectItem(uint(row.Index()), true)
+		if row == nil {
+			win.PeersModel.UnselectAll()
+			return
 		}
+
+		i, ok := listmodels.Index(win.PeersModel, func(page *adw.ViewStackPage) bool {
+			slog.Info("find row", "page", page.Name(), "row", row.Name())
+			return page.Name() == row.Name()
+		})
+		if !ok {
+			return
+		}
+
+		win.PeersModel.SelectItem(i, true)
 	})
 
 	win.ProfileModel = gtk.NewStringList(nil)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -179,7 +180,7 @@ func (a *App) updatePeers(status tsutil.Status) {
 }
 
 func (a *App) updateProfiles(s tsutil.Status) {
-	updateStringList(a.win.ProfileModel, func(yield func(string) bool) {
+	listmodels.UpdateStrings(a.win.ProfileModel, func(yield func(string) bool) {
 		for _, profile := range s.Profiles {
 			if !yield(profile.Name) {
 				return
@@ -187,8 +188,8 @@ func (a *App) updateProfiles(s tsutil.Status) {
 		}
 	})
 
-	profileIndex, ok := listModelIndex(a.win.ProfileSortModel, func(obj *glib.Object) bool {
-		return obj.Cast().(*gtk.StringObject).String() == s.Profile.Name
+	profileIndex, ok := listmodels.Index(a.win.ProfileSortModel, func(obj *gtk.StringObject) bool {
+		return obj.String() == s.Profile.Name
 	})
 	if ok {
 		a.win.ProfileDropDown.SetSelected(uint(profileIndex))

@@ -4,21 +4,17 @@ import (
 	"cmp"
 	"errors"
 	"io"
-	"iter"
 	"net/netip"
 	"reflect"
-	"slices"
 	"strings"
 	"time"
 
 	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
-	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gerror"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/client/tailscale/apitype"
@@ -161,18 +157,6 @@ func fillFromBuilder(into any, xml ...string) {
 	fillObjects(into, builder)
 }
 
-func listModelObjects(list *gio.ListModel) iter.Seq[*glib.Object] {
-	return func(yield func(*glib.Object) bool) {
-		length := list.NItems()
-		for i := uint(0); i < length; i++ {
-			item := list.Item(i)
-			if !yield(item) {
-				return
-			}
-		}
-	}
-}
-
 func errHasCode(err error, code int) bool {
 	var gerr *gerror.GError
 	if !errors.As(err, &gerr) {
@@ -181,113 +165,17 @@ func errHasCode(err error, code int) bool {
 	return gerr.ErrorCode() == code
 }
 
-func listModelBackward[T any](m *gioutil.ListModel[T]) iter.Seq2[int, T] {
-	return func(yield func(int, T) bool) {
-		for i := int(m.NItems()) - 1; i >= 0; i-- {
-			if !yield(i, m.At(i)) {
-				return
-			}
-		}
+func convertObject[T any](obj *glib.Object) T {
+	if v, ok := obj.Cast().(T); ok {
+		return v
 	}
-}
-
-func stringListBackward(m *gtk.StringList) iter.Seq2[uint, string] {
-	return func(yield func(uint, string) bool) {
-		for i := m.NItems(); i > 0; i-- {
-			if !yield(i-1, m.String(i-1)) {
-				return
-			}
-		}
-	}
-}
-
-func listModelIndex(m gio.ListModeller, f func(obj *glib.Object) bool) (uint, bool) {
-	length := m.NItems()
-	for i := uint(0); i < length; i++ {
-		if f(m.Item(i)) {
-			return i, true
-		}
-	}
-	return 0, false
-}
-
-func updateStringList(m *gtk.StringList, s iter.Seq[string]) {
-	m.FreezeNotify()
-	defer m.ThawNotify()
-
-	for i, v := range stringListBackward(m) {
-		if !xiter.Contains(s, v) {
-			m.Remove(i)
-		}
-	}
-
-	for v := range s {
-		if !xiter.Contains(xiter.V2(stringListBackward(m)), v) {
-			m.Append(v)
-		}
-	}
-}
-
-func updateListModel[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
-	m.FreezeNotify()
-	defer m.ThawNotify()
-
-	for i, v := range listModelBackward(m) {
-		if !xiter.Contains(s, v) {
-			m.Remove(i)
-		}
-	}
-
-	for v := range s {
-		if !xiter.Contains(m.All(), v) {
-			m.Append(v)
-		}
-	}
+	return gioutil.ObjectValue[T](obj)
 }
 
 func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 	return glib.NewObjectComparer(func(o1, o2 *glib.Object) int {
-		v1 := gioutil.ObjectValue[T](o1)
-		v2 := gioutil.ObjectValue[T](o2)
+		v1 := convertObject[T](o1)
+		v2 := convertObject[T](o2)
 		return f(v1, v2)
 	})
-}
-
-func BindListBoxModel[T any](lb *gtk.ListBox, m gio.ListModeller, f func(T) gtk.Widgetter) {
-	lb.BindModel(m, func(obj *glib.Object) gtk.Widgetter {
-		if obj, ok := obj.Cast().(T); ok {
-			return f(obj)
-		}
-
-		return f(gioutil.ObjectValue[T](obj))
-	})
-}
-
-func BindModel[T any](
-	add func(int, gtk.Widgetter),
-	remove func(int, gtk.Widgetter),
-	m gio.ListModeller,
-	f func(T) gtk.Widgetter,
-) func() {
-	widgets := make([]gtk.Widgetter, 0, m.NItems())
-	h := m.ConnectItemsChanged(func(index, removed, added uint) {
-		for i, w := range widgets[index : index+removed] {
-			remove(int(index)+i, w)
-		}
-
-		new := make([]gtk.Widgetter, 0, added)
-		for i := index; i < added; i++ {
-			item := m.Item(i)
-			new = append(new, f(gioutil.ObjectValue[T](item)))
-		}
-		widgets = slices.Replace(widgets, int(index), int(removed), new...)
-
-		for i, w := range new {
-			add(int(index)+i, w)
-		}
-	})
-
-	return func() {
-		m.HandlerDisconnect(h)
-	}
 }

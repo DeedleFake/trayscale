@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
 	"deedles.dev/xiter"
@@ -98,7 +99,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.InsertActionGroup("peer", actions)
 
 	page.addrModel = gioutil.NewListModel[netip.Addr]()
-	BindListBoxModel(
+	listmodels.BindListBox(
 		page.IPList,
 		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
 		func(addr netip.Addr) gtk.Widgetter {
@@ -128,7 +129,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.IPList.SetPlaceholder(ipListPlaceholder)
 
 	page.routeModel = gioutil.NewListModel[netip.Prefix]()
-	BindListBoxModel(
+	listmodels.BindListBox(
 		page.AdvertisedRoutesList,
 		gtk.NewSortListModel(page.routeModel, &prefixSorter.Sorter),
 		func(route netip.Prefix) gtk.Widgetter {
@@ -164,7 +165,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.AdvertisedRoutesList.SetPlaceholder(advertisedRoutesListPlaceholder)
 
 	page.fileModel = gioutil.NewListModel[apitype.WaitingFile]()
-	BindListBoxModel(
+	listmodels.BindListBox(
 		page.FilesList,
 		gtk.NewSortListModel(page.fileModel, &waitingFileSorter.Sorter),
 		func(file apitype.WaitingFile) gtk.Widgetter {
@@ -407,7 +408,7 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 		}
 	}
 
-	updateListModel(page.addrModel, slices.Values(peer.TailscaleIPs))
-	updateListModel(page.fileModel, slices.Values(status.Files))
-	updateListModel(page.routeModel, routes)
+	listmodels.Update(page.addrModel, slices.Values(peer.TailscaleIPs))
+	listmodels.Update(page.fileModel, slices.Values(status.Files))
+	listmodels.Update(page.routeModel, routes)
 }

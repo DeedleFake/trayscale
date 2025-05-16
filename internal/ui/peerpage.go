@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 
+	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
 	"deedles.dev/xiter"
@@ -123,7 +124,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 				return
 			}
 
-			for file := range listModelObjects(files) {
+			for file := range listmodels.Objects(files) {
 				go a.pushFile(context.TODO(), peer.ID, file.Cast().(gio.Filer))
 			}
 		})
@@ -142,7 +143,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	})
 
 	page.addrModel = gioutil.NewListModel[netip.Addr]()
-	BindListBoxModel(
+	listmodels.BindListBox(
 		page.IPList,
 		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
 		func(addr netip.Addr) gtk.Widgetter {
@@ -172,7 +173,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.IPList.SetPlaceholder(ipListPlaceholder)
 
 	page.routeModel = gioutil.NewListModel[netip.Prefix]()
-	BindListBoxModel(
+	listmodels.BindListBox(
 		page.AdvertisedRoutesList,
 		gtk.NewSortListModel(page.routeModel, &prefixSorter.Sorter),
 		func(route netip.Prefix) gtk.Widgetter {
@@ -269,6 +270,6 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 		}
 	}
 
-	updateListModel(page.addrModel, slices.Values(peer.TailscaleIPs))
-	updateListModel(page.routeModel, routes)
+	listmodels.Update(page.addrModel, slices.Values(peer.TailscaleIPs))
+	listmodels.Update(page.routeModel, routes)
 }

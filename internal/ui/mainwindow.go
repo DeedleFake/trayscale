@@ -46,7 +46,6 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 	listmodels.BindListBox(win.PeersList, win.PeersSortModel, win.createPeersRow)
 	win.PeersList.ConnectRowSelected(func(row *gtk.ListBoxRow) {
 		if row == nil {
-			win.PeersModel.UnselectAll()
 			return
 		}
 

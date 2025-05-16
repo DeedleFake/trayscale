@@ -2,7 +2,6 @@ package ui
 
 import (
 	_ "embed"
-	"log/slog"
 
 	"deedles.dev/trayscale/internal/listmodels"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -31,6 +30,7 @@ type MainWindow struct {
 
 	PeersModel     *gtk.SelectionModel
 	PeersSortModel *gtk.SortListModel
+	peers          map[*adw.ActionRow]uintptr
 
 	ProfileModel     *gtk.StringList
 	ProfileSortModel *gtk.SortListModel
@@ -51,9 +51,10 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 			return
 		}
 
+		arow := row.Cast().(*adw.ActionRow)
+		target := win.peers[arow]
 		i, ok := listmodels.Index(win.PeersModel, func(page *adw.ViewStackPage) bool {
-			slog.Info("find row", "page", page.Name(), "row", row.Name())
-			return page.Name() == row.Name()
+			return page.Native() == target
 		})
 		if !ok {
 			return
@@ -61,6 +62,7 @@ func NewMainWindow(app *gtk.Application) *MainWindow {
 
 		win.PeersModel.SelectItem(i, true)
 	})
+	win.peers = make(map[*adw.ActionRow]uintptr)
 
 	win.ProfileModel = gtk.NewStringList(nil)
 	win.ProfileSortModel = gtk.NewSortListModel(win.ProfileModel, &stringListSorter.Sorter)
@@ -75,13 +77,19 @@ func (win *MainWindow) createPeersRow(page *adw.ViewStackPage) gtk.Widgetter {
 		icon.SetFromIconName(page.IconName())
 	})
 
+	awkward := gtk.NewLabel(page.Name())
+	awkward.SetVisible(false)
+
 	row := adw.NewActionRow()
 	row.AddPrefix(icon)
+	row.AddSuffix(awkward)
 
 	row.SetTitle(page.Title())
 	page.NotifyProperty("title", func() {
 		row.SetTitle(page.Title())
 	})
+
+	win.peers[row] = page.Native()
 
 	return row
 }

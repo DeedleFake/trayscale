@@ -30,10 +30,30 @@ func Objects(list gio.ListModeller) iter.Seq[*glib.Object] {
 	}
 }
 
-func Backward[T any](m *gioutil.ListModel[T]) iter.Seq2[int, T] {
+func Values[T any](list gio.ListModeller) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for obj := range Objects(list) {
+			if !yield(convertObject[T](obj)) {
+				return
+			}
+		}
+	}
+}
+
+func Backward(list gio.ListModeller) iter.Seq2[int, *glib.Object] {
+	return func(yield func(int, *glib.Object) bool) {
+		for i := int(list.NItems()) - 1; i >= 0; i-- {
+			if !yield(i, list.Item(uint(i))) {
+				return
+			}
+		}
+	}
+}
+
+func ValuesBackward[T any](list gio.ListModeller) iter.Seq2[int, T] {
 	return func(yield func(int, T) bool) {
-		for i := int(m.NItems()) - 1; i >= 0; i-- {
-			if !yield(i, m.At(i)) {
+		for i, obj := range Backward(list) {
+			if !yield(i, convertObject[T](obj)) {
 				return
 			}
 		}
@@ -71,9 +91,9 @@ func Update[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
 	m.FreezeNotify()
 	defer m.ThawNotify()
 
-	for i, v := range Backward(m) {
+	for i, v := range ValuesBackward[T](m) {
 		if !xiter.Contains(s, v) {
-			m.Remove(i)
+			m.Remove(int(i))
 		}
 	}
 

@@ -14,7 +14,6 @@ import (
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
-	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -24,11 +23,7 @@ import (
 //go:embed peerpage.ui
 var peerPageXML string
 
-var PeerPageClass = coreglib.RegisterSubclass[*PeerPage]()
-
 type PeerPage struct {
-	gtk.Widget `gtk:"-"`
-
 	Page                  *adw.StatusPage
 	IPList                *gtk.ListBox
 	AdvertisedRoutesGroup *adw.PreferencesGroup
@@ -79,18 +74,17 @@ type PeerPage struct {
 }
 
 func NewPeerPage(a *App, status tsutil.Status, peer *ipnstate.PeerStatus) *PeerPage {
-	page := PeerPageClass.New()
-	fillFromBuilder(page, peerPageXML)
-	page.Page.SetParent(page)
+	var page PeerPage
+	fillFromBuilder(&page, peerPageXML)
 	page.init(a, status, peer)
-	return page
+	return &page
 }
 
 func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStatus) {
 	page.peer = peer
 
 	actions := gio.NewSimpleActionGroup()
-	page.InsertActionGroup("peer", actions)
+	page.Page.InsertActionGroup("peer", actions)
 
 	sendFileAction := gio.NewSimpleAction("sendfile", glib.NewVariantType("s"))
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
@@ -118,7 +112,7 @@ func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStat
 	})
 	actions.AddAction(sendFileAction)
 
-	page.AddController(page.DropTarget)
+	page.Page.AddController(page.DropTarget)
 	page.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
 	page.DropTarget.ConnectDrop(func(val *glib.Value, x, y float64) bool {
 		file, ok := val.Object().Cast().(gio.Filer)
@@ -221,6 +215,10 @@ func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStat
 		a.poller.Poll() <- struct{}{}
 		return true
 	})
+}
+
+func (page *PeerPage) Widget() gtk.Widgetter {
+	return page.Page
 }
 
 func (page *PeerPage) Update(a *App, vp *adw.ViewStackPage, status tsutil.Status) bool {

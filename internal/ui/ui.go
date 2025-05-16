@@ -186,6 +186,6 @@ func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 // Page represents the UI for a single page of the app. This usually
 // corresponds to information about a specific peer in the tailnet.
 type Page interface {
-	gtk.Widgetter
+	Widget() gtk.Widgetter
 	Update(*App, *adw.ViewStackPage, tsutil.Status) bool
 }

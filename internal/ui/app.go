@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -40,6 +41,7 @@ type App struct {
 	settings *gio.Settings
 	tray     *tray.Tray
 
+	pages         map[string]Page
 	statusPage    *adw.StatusPage
 	spinnum       int
 	operatorCheck bool
@@ -90,16 +92,16 @@ func (a *App) toast(msg string) *adw.Toast {
 
 func (a *App) updatePeersOffline() {
 	stack := a.win.PeersStack
-	pages := stack.Pages()
 
 	var found bool
-	for page := range listmodels.Values[*adw.ViewStackPage](pages) {
-		if page.Name() == "status" {
+	for name, page := range a.pages {
+		if name == "status" {
 			found = true
 			continue
 		}
 
-		stack.Remove(page.Child())
+		stack.Remove(page.Widget())
+		delete(a.pages, name)
 	}
 	if !found {
 		stack.AddTitled(a.statusPage, "status", "Not Connected")
@@ -113,36 +115,39 @@ func (a *App) updatePeers(status tsutil.Status) {
 	}
 
 	stack := a.win.PeersStack
-	pages := stack.Pages()
+	stack.Remove(a.statusPage)
 
 	found := make(set.Set[string])
-	for _, page := range listmodels.ValuesBackward[*adw.ViewStackPage](pages) {
-		slog.Info("update", "page", page.Name())
-		w := page.Child().(Page)
-		ok := w.Update(a, page, status)
+	for name, page := range a.pages {
+		vp := stack.Page(page.Widget())
+		ok := page.Update(a, vp, status)
 		if !ok {
-			stack.Remove(w)
+			stack.Remove(vp.Child())
+			delete(a.pages, name)
 			continue
 		}
-		found.Add(page.Name())
+		found.Add(name)
 	}
 
 	if !found.Contains("self") {
 		page := NewSelfPage(a, status)
-		vp := stack.AddNamed(page, "self")
+		vp := stack.AddNamed(page.Widget(), "self")
 		page.Update(a, vp, status)
+		a.pages["self"] = page
 	}
 	if !found.Contains("mullvad") && tsutil.CanMullvad(status.Status.Self) {
 		page := NewMullvadPage(a, status)
-		vp := stack.AddNamed(page, "mullvad")
+		vp := stack.AddNamed(page.Widget(), "mullvad")
 		page.Update(a, vp, status)
+		a.pages["mullvad"] = page
 	}
 
 	for _, peer := range status.Status.Peer {
-		if !found.Contains(string(peer.ID)) {
+		if !found.Contains(string(peer.ID)) && !tsutil.IsMullvad(peer) {
 			page := NewPeerPage(a, status, peer)
-			vp := stack.AddNamed(page, string(peer.ID))
+			vp := stack.AddNamed(page.Widget(), string(peer.ID))
 			page.Update(a, vp, status)
+			a.pages[string(peer.ID)] = page
 		}
 	}
 
@@ -216,6 +221,7 @@ func (a *App) update(s tsutil.Status) {
 
 func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, gio.ApplicationHandlesOpen)
+	mk.Map(&a.pages, 0)
 
 	var hideWindow bool
 	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, "Hide window on initial start", "")

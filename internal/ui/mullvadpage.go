@@ -10,7 +10,6 @@ import (
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
@@ -21,11 +20,7 @@ const mullvadPageBaseName = "Mullvad Exit Nodes"
 //go:embed mullvadpage.ui
 var mullvadPageXML string
 
-var MullvadPageClass = coreglib.RegisterSubclass[*MullvadPage]()
-
 type MullvadPage struct {
-	gtk.Widget `gtk:"-"`
-
 	Page           *adw.StatusPage
 	ExitNodesGroup *adw.PreferencesGroup
 
@@ -38,11 +33,10 @@ type MullvadPage struct {
 }
 
 func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
-	page := MullvadPageClass.New()
-	fillFromBuilder(page, mullvadPageXML)
-	page.Page.SetParent(page)
+	var page MullvadPage
+	fillFromBuilder(&page, mullvadPageXML)
 	page.init(a, status)
-	return page
+	return &page
 }
 
 func (page *MullvadPage) init(a *App, status tsutil.Status) {
@@ -95,6 +89,10 @@ func (page *MullvadPage) init(a *App, status tsutil.Status) {
 
 		return &r
 	}
+}
+
+func (page *MullvadPage) Widget() gtk.Widgetter {
+	return page.Page
 }
 
 func (page *MullvadPage) Update(a *App, vp *adw.ViewStackPage, status tsutil.Status) bool {

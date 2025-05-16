@@ -15,7 +15,6 @@ import (
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
-	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -26,11 +25,7 @@ import (
 //go:embed selfpage.ui
 var selfPageXML string
 
-var SelfPageClass = coreglib.RegisterSubclass[*SelfPage]()
-
 type SelfPage struct {
-	gtk.Widget `gtk:"-"`
-
 	Page                 *adw.StatusPage
 	IPList               *gtk.ListBox
 	OptionsGroup         *adw.PreferencesGroup
@@ -70,16 +65,15 @@ type SelfPage struct {
 }
 
 func NewSelfPage(a *App, status tsutil.Status) *SelfPage {
-	page := SelfPageClass.New()
-	fillFromBuilder(page, selfPageXML)
-	page.Page.SetParent(page)
+	var page SelfPage
+	fillFromBuilder(&page, selfPageXML)
 	page.init(a, status)
-	return page
+	return &page
 }
 
 func (page *SelfPage) init(a *App, status tsutil.Status) {
 	actions := gio.NewSimpleActionGroup()
-	page.InsertActionGroup("peer", actions)
+	page.Page.InsertActionGroup("peer", actions)
 
 	page.addrModel = gioutil.NewListModel[netip.Addr]()
 	listmodels.BindListBox(
@@ -365,6 +359,10 @@ func (page *SelfPage) init(a *App, status tsutil.Status) {
 		sortedLats := slices.SortedFunc(namedLats, func(p1, p2 latencyEntry) int { return cmp.Compare(p1.V2, p2.V2) })
 		latencyRows.Update(sortedLats)
 	})
+}
+
+func (page *SelfPage) Widget() gtk.Widgetter {
+	return page.Page
 }
 
 func (page *SelfPage) Update(a *App, vp *adw.ViewStackPage, status tsutil.Status) bool {

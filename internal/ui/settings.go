@@ -10,10 +10,10 @@ import (
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/xiter"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 	"tailscale.com/ipn"
 )
 
@@ -92,13 +92,10 @@ func (a *App) showPreferences() {
 		return
 	}
 
-	win := NewPreferencesWindow()
-	a.settings.Bind("tray-icon", win.UseTrayIconRow.Object, "active", gio.SettingsBindDefault)
-	a.settings.Bind("polling-interval", win.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
-	win.SetTransientFor(&a.win.Window)
-	win.SetVisible(true)
-
-	a.app.AddWindow(&win.Window.Window)
+	dialog := NewPreferencesDialog()
+	a.settings.Bind("tray-icon", dialog.UseTrayIconRow.Object, "active", gio.SettingsBindDefault)
+	a.settings.Bind("polling-interval", dialog.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
+	dialog.PreferencesDialog.Present(a.window())
 }
 
 // showAbout shows the app's about dialog.
@@ -115,8 +112,6 @@ func (a *App) showAbout() {
 	if v, ok := version.Get(); ok {
 		dialog.SetVersion(v)
 	}
-	dialog.SetVisible(true)
-
 	dialog.Present(a.window())
 }
 

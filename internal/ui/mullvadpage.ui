@@ -1,6 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!-- Created with Cambalache 0.96.0 -->
 <interface>
+  <!-- interface-name mullvadpage.ui -->
   <requires lib="gtk" version="4.12"/>
   <requires lib="libadwaita" version="1.0"/>
   <object class="AdwStatusPage" id="Page">

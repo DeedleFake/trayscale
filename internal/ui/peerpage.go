@@ -8,14 +8,15 @@ import (
 	"slices"
 	"strconv"
 
+	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
 	"deedles.dev/xiter"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 	"tailscale.com/ipn/ipnstate"
 )
 
@@ -23,8 +24,7 @@ import (
 var peerPageXML string
 
 type PeerPage struct {
-	*adw.StatusPage `gtk:"Page"`
-
+	Page                  *adw.StatusPage
 	IPList                *gtk.ListBox
 	AdvertisedRoutesGroup *adw.PreferencesGroup
 	AdvertisedRoutesList  *gtk.ListBox
@@ -68,36 +68,23 @@ type PeerPage struct {
 	DropTarget            *gtk.DropTarget
 
 	peer *ipnstate.PeerStatus
-	name string
 
 	addrModel  *gioutil.ListModel[netip.Addr]
 	routeModel *gioutil.ListModel[netip.Prefix]
 }
 
-func NewPeerPage(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) *PeerPage {
+func NewPeerPage(a *App, status tsutil.Status, peer *ipnstate.PeerStatus) *PeerPage {
 	var page PeerPage
 	fillFromBuilder(&page, peerPageXML)
-	page.init(a, peer, status)
+	page.init(a, status, peer)
 	return &page
 }
 
-func (page *PeerPage) Root() gtk.Widgetter {
-	return page.StatusPage
-}
-
-func (page *PeerPage) ID() string {
-	return string(page.peer.ID)
-}
-
-func (page *PeerPage) Name() string {
-	return page.name
-}
-
-func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
+func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStatus) {
 	page.peer = peer
 
 	actions := gio.NewSimpleActionGroup()
-	page.InsertActionGroup("peer", actions)
+	page.Page.InsertActionGroup("peer", actions)
 
 	sendFileAction := gio.NewSimpleAction("sendfile", glib.NewVariantType("s"))
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
@@ -109,7 +96,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 			open, finish = dialog.SelectMultipleFolders, dialog.SelectMultipleFoldersFinish
 		}
 
-		open(context.TODO(), &a.win.Window, func(res gio.AsyncResulter) {
+		open(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 			files, err := finish(res)
 			if err != nil {
 				if !errHasCode(err, int(gtk.DialogErrorDismissed)) {
@@ -118,26 +105,26 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 				return
 			}
 
-			for file := range listModelObjects(files) {
-				go a.pushFile(context.TODO(), peer.ID, file.Cast().(gio.Filer))
+			for file := range listmodels.Objects(files) {
+				go a.pushFile(context.TODO(), page.peer.ID, file.Cast().(gio.Filer))
 			}
 		})
 	})
 	actions.AddAction(sendFileAction)
 
-	page.AddController(page.DropTarget)
+	page.Page.AddController(page.DropTarget)
 	page.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
 	page.DropTarget.ConnectDrop(func(val *glib.Value, x, y float64) bool {
 		file, ok := val.Object().Cast().(gio.Filer)
 		if !ok {
 			return true
 		}
-		go a.pushFile(context.TODO(), peer.ID, file)
+		go a.pushFile(context.TODO(), page.peer.ID, file)
 		return true
 	})
 
 	page.addrModel = gioutil.NewListModel[netip.Addr]()
-	BindListBoxModel(
+	listmodels.BindListBox(
 		page.IPList,
 		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
 		func(addr netip.Addr) gtk.Widgetter {
@@ -167,7 +154,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.IPList.SetPlaceholder(ipListPlaceholder)
 
 	page.routeModel = gioutil.NewListModel[netip.Prefix]()
-	BindListBoxModel(
+	listmodels.BindListBox(
 		page.AdvertisedRoutesList,
 		gtk.NewSortListModel(page.routeModel, &prefixSorter.Sorter),
 		func(route netip.Prefix) gtk.Widgetter {
@@ -217,7 +204,7 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 
 		var node *ipnstate.PeerStatus
 		if s {
-			node = peer
+			node = page.peer
 		}
 		err := tsutil.ExitNode(context.TODO(), node)
 		if err != nil {
@@ -230,30 +217,39 @@ func (page *PeerPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	})
 }
 
-func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.peer = peer
-	page.name = peerName(status, peer)
+func (page *PeerPage) Widget() gtk.Widgetter {
+	return page.Page
+}
 
-	page.SetTitle(peer.HostName)
-	page.SetDescription(peer.DNSName)
+func (page *PeerPage) Update(a *App, vp *adw.ViewStackPage, status tsutil.Status) bool {
+	page.peer = status.Status.Peer[page.peer.PublicKey]
+	if page.peer == nil {
+		return false
+	}
 
-	page.ExitNodeRow.SetVisible(peer.ExitNodeOption)
-	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(peer.ExitNode)
-	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(peer.ExitNode)
-	page.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
-	page.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
-	page.Created.SetText(formatTime(peer.Created))
-	page.LastSeen.SetText(formatTime(peer.LastSeen))
-	page.LastSeenRow.SetVisible(!peer.Online)
-	page.LastWrite.SetText(formatTime(peer.LastWrite))
-	page.LastHandshake.SetText(formatTime(peer.LastHandshake))
-	page.Online.SetFromIconName(boolIcon(peer.Online))
+	vp.SetTitle(peerName(status, page.peer))
+	vp.SetIconName(peerIcon(page.peer))
+
+	page.Page.SetTitle(page.peer.HostName)
+	page.Page.SetDescription(page.peer.DNSName)
+
+	page.ExitNodeRow.SetVisible(page.peer.ExitNodeOption)
+	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(page.peer.ExitNode)
+	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(page.peer.ExitNode)
+	page.RxBytes.SetText(strconv.FormatInt(page.peer.RxBytes, 10))
+	page.TxBytes.SetText(strconv.FormatInt(page.peer.TxBytes, 10))
+	page.Created.SetText(formatTime(page.peer.Created))
+	page.LastSeen.SetText(formatTime(page.peer.LastSeen))
+	page.LastSeenRow.SetVisible(!page.peer.Online)
+	page.LastWrite.SetText(formatTime(page.peer.LastWrite))
+	page.LastHandshake.SetText(formatTime(page.peer.LastHandshake))
+	page.Online.SetFromIconName(boolIcon(page.peer.Online))
 
 	routes := func(yield func(netip.Prefix) bool) {
-		if peer.PrimaryRoutes == nil {
+		if page.peer.PrimaryRoutes == nil {
 			return
 		}
-		for _, r := range peer.PrimaryRoutes.All() {
+		for _, r := range page.peer.PrimaryRoutes.All() {
 			if r.Bits() == 0 {
 				continue
 			}
@@ -263,6 +259,8 @@ func (page *PeerPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 		}
 	}
 
-	updateListModel(page.addrModel, slices.Values(peer.TailscaleIPs))
-	updateListModel(page.routeModel, routes)
+	listmodels.Update(page.addrModel, slices.Values(page.peer.TailscaleIPs))
+	listmodels.Update(page.routeModel, routes)
+
+	return true
 }

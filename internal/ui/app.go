@@ -10,18 +10,19 @@ import (
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
-	"tailscale.com/types/key"
+	"tailscale.com/util/set"
 )
 
 const (
@@ -40,10 +41,8 @@ type App struct {
 	settings *gio.Settings
 	tray     *tray.Tray
 
+	pages         map[string]Page
 	statusPage    *adw.StatusPage
-	selfPage      *stackPage
-	mullvadPage   *stackPage
-	peerPages     map[key.NodePublic]*stackPage
 	spinnum       int
 	operatorCheck bool
 	profiles      []ipn.LoginProfile
@@ -94,22 +93,17 @@ func (a *App) toast(msg string) *adw.Toast {
 func (a *App) updatePeersOffline() {
 	stack := a.win.PeersStack
 
-	for _, page := range a.peerPages {
-		stack.Remove(page.page.Root())
-	}
-	clear(a.peerPages)
+	var found bool
+	for name, page := range a.pages {
+		if name == "status" {
+			found = true
+			continue
+		}
 
-	if a.selfPage != nil {
-		stack.Remove(a.selfPage.page.Root())
-		a.selfPage = nil
+		stack.Remove(page.Widget())
+		delete(a.pages, name)
 	}
-
-	if a.mullvadPage != nil {
-		stack.Remove(a.mullvadPage.page.Root())
-		a.mullvadPage = nil
-	}
-
-	if stack.Page(a.statusPage).Object == nil {
+	if !found {
 		stack.AddTitled(a.statusPage, "status", "Not Connected")
 	}
 }
@@ -121,59 +115,61 @@ func (a *App) updatePeers(status tsutil.Status) {
 	}
 
 	stack := a.win.PeersStack
-
-	if a.selfPage == nil {
-		a.selfPage = newStackPage(a, NewSelfPage(a, status.Status.Self, status))
-	}
-	a.selfPage.Update(a, status.Status.Self, status)
-
-	switch {
-	case tsutil.CanMullvad(status.Status.Self):
-		if a.mullvadPage == nil {
-			a.mullvadPage = newStackPage(a, NewMullvadPage(a, status))
-		}
-		a.mullvadPage.Update(a, nil, status)
-	case a.mullvadPage != nil:
-		stack.Remove(a.mullvadPage.page.Root())
-		a.mullvadPage = nil
+	if stack.ChildByName("status") != nil {
+		stack.Remove(a.statusPage)
 	}
 
-	peerMap := status.Status.Peer
-	peers := make([]key.NodePublic, 0, len(status.Status.Peer))
-	for k, p := range peerMap {
-		if tsutil.IsMullvad(p) {
+	found := make(set.Set[string])
+	for name, page := range a.pages {
+		vp := stack.Page(page.Widget())
+		ok := page.Update(a, vp, status)
+		if !ok {
+			stack.Remove(vp.Child())
+			delete(a.pages, name)
 			continue
 		}
-		peers = append(peers, k)
+		found.Add(name)
 	}
-	slices.SortFunc(peers, key.NodePublic.Compare)
 
-	for key, page := range a.peerPages {
-		if _, ok := peerMap[key]; !ok {
-			stack.Remove(page.page.Root())
-			delete(a.peerPages, key)
+	if !found.Contains("self") {
+		page := NewSelfPage(a, status)
+		vp := stack.AddNamed(page.Widget(), "self")
+		page.Update(a, vp, status)
+		a.pages["self"] = page
+	}
+	if !found.Contains("mullvad") && tsutil.CanMullvad(status.Status.Self) {
+		page := NewMullvadPage(a, status)
+		vp := stack.AddNamed(page.Widget(), "mullvad")
+		page.Update(a, vp, status)
+		a.pages["mullvad"] = page
+	}
+
+	for _, peer := range status.Status.Peer {
+		if !found.Contains(string(peer.ID)) && !tsutil.IsMullvad(peer) {
+			page := NewPeerPage(a, status, peer)
+			vp := stack.AddNamed(page.Widget(), string(peer.ID))
+			page.Update(a, vp, status)
+			a.pages[string(peer.ID)] = page
 		}
 	}
 
-	for _, p := range peers {
-		peerStatus := peerMap[p]
-
-		page, ok := a.peerPages[p]
-		if !ok {
-			page = newStackPage(a, NewPeerPage(a, peerStatus, status))
-			a.peerPages[p] = page
+	// This awkward piece of code makes sure that things that had their
+	// titles changed stay sorted correctly.
+	page, ok := a.win.PeersModel.Item(a.win.PeersModel.Selection().Minimum()).Cast().(*adw.ViewStackPage)
+	a.win.PeersSortModel.SetSorter(nil)
+	a.win.PeersSortModel.SetSorter(&peersListSorter.Sorter)
+	if ok {
+		i, ok := listmodels.Index(a.win.PeersSortModel, func(vp *adw.ViewStackPage) bool {
+			return vp.Name() == page.Name()
+		})
+		if ok {
+			a.win.PeersList.SelectRow(a.win.PeersList.RowAtIndex(int(i)))
 		}
-
-		page.Update(a, peerStatus, status)
-	}
-
-	if stack.Page(a.statusPage).Object != nil {
-		stack.Remove(a.statusPage)
 	}
 }
 
 func (a *App) updateProfiles(s tsutil.Status) {
-	updateStringList(a.win.ProfileModel, func(yield func(string) bool) {
+	listmodels.UpdateStrings(a.win.ProfileModel, func(yield func(string) bool) {
 		for _, profile := range s.Profiles {
 			if !yield(profile.Name) {
 				return
@@ -181,8 +177,8 @@ func (a *App) updateProfiles(s tsutil.Status) {
 		}
 	})
 
-	profileIndex, ok := listModelIndex(a.win.ProfileSortModel, func(obj *glib.Object) bool {
-		return obj.Cast().(*gtk.StringObject).String() == s.Profile.Name
+	profileIndex, ok := listmodels.Index(a.win.ProfileSortModel, func(obj *gtk.StringObject) bool {
+		return obj.String() == s.Profile.Name
 	})
 	if ok {
 		a.win.ProfileDropDown.SetSelected(uint(profileIndex))
@@ -235,7 +231,7 @@ func (a *App) update(s tsutil.Status) {
 
 func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, gio.ApplicationHandlesOpen)
-	mk.Map(&a.peerPages, 0)
+	mk.Map(&a.pages, 0)
 
 	var hideWindow bool
 	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, "Hide window on initial start", "")
@@ -276,7 +272,7 @@ func (a *App) startTS(ctx context.Context) error {
 			Reject:  "_Cancel",
 		}.Show(a, func(accept bool) {
 			if accept {
-				gtk.NewURILauncher(status.Status.AuthURL).Launch(ctx, &a.win.Window, nil)
+				gtk.NewURILauncher(status.Status.AuthURL).Launch(ctx, &a.win.MainWindow.Window, nil)
 			}
 		})
 		return nil
@@ -339,7 +335,7 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 
 func (a *App) onAppActivate(ctx context.Context) {
 	if a.win != nil {
-		a.win.Present()
+		a.win.MainWindow.Present()
 		return
 	}
 
@@ -419,15 +415,13 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.win.SplitView.ActivateAction("navigation.push", contentVariant)
 	})
 
-	a.win.ConnectCloseRequest(func() bool {
-		clear(a.peerPages)
-		a.mullvadPage = nil
-		a.selfPage = nil
+	a.win.MainWindow.ConnectCloseRequest(func() bool {
 		a.win = nil
+		clear(a.pages)
 		return false
 	})
 	a.poller.Poll() <- struct{}{}
-	a.win.SetVisible(true)
+	a.win.MainWindow.Present()
 }
 
 func (a *App) initTray(ctx context.Context) {

@@ -15,20 +15,23 @@ import (
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
+	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
-	"tailscale.com/ipn/ipnstate"
 )
 
 //go:embed selfpage.ui
 var selfPageXML string
 
-type SelfPage struct {
-	*adw.StatusPage `gtk:"Page"`
+var SelfPageClass = coreglib.RegisterSubclass[*SelfPage]()
 
+type SelfPage struct {
+	gtk.Widget `gtk:"-"`
+
+	Page                 *adw.StatusPage
 	IPList               *gtk.ListBox
 	OptionsGroup         *adw.PreferencesGroup
 	AdvertiseExitNodeRow *adw.SwitchRow
@@ -61,40 +64,20 @@ type SelfPage struct {
 	DERPLatencies        *adw.ExpanderRow
 	FilesList            *gtk.ListBox
 
-	peer *ipnstate.PeerStatus
-	name string
-
 	addrModel  *gioutil.ListModel[netip.Addr]
 	routeModel *gioutil.ListModel[netip.Prefix]
 	fileModel  *gioutil.ListModel[apitype.WaitingFile]
 }
 
-func NewSelfPage(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) *SelfPage {
-	var page SelfPage
-	fillFromBuilder(&page, selfPageXML)
-	page.init(a, peer, status)
-	return &page
+func NewSelfPage(a *App, status tsutil.Status) *SelfPage {
+	page := SelfPageClass.New()
+	fillFromBuilder(page, selfPageXML)
+	page.Page.SetParent(page)
+	page.init(a, status)
+	return page
 }
 
-func (page *SelfPage) Root() gtk.Widgetter {
-	return page.StatusPage
-}
-
-func (page *SelfPage) ID() string {
-	return "self"
-}
-
-func (page *SelfPage) Name() string {
-	return page.name
-}
-
-func (page *SelfPage) Icon() string {
-	return "computer-symbolic"
-}
-
-func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.peer = peer
-
+func (page *SelfPage) init(a *App, status tsutil.Status) {
 	actions := gio.NewSimpleActionGroup()
 	page.InsertActionGroup("peer", actions)
 
@@ -384,12 +367,14 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	})
 }
 
-func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.peer = peer
-	page.name = peerName(status, peer)
+func (page *SelfPage) Update(a *App, vp *adw.ViewStackPage, status tsutil.Status) bool {
+	peer := status.Status.Self
 
-	page.SetTitle(peer.HostName)
-	page.SetDescription(peer.DNSName)
+	vp.SetTitle(peerName(status, peer))
+	vp.SetIconName("computer-symbolic")
+
+	page.Page.SetTitle(peer.HostName)
+	page.Page.SetDescription(peer.DNSName)
 
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.AdvertisesExitNode())
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.AdvertisesExitNode())
@@ -411,4 +396,6 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 	listmodels.Update(page.addrModel, slices.Values(peer.TailscaleIPs))
 	listmodels.Update(page.fileModel, slices.Values(status.Files))
 	listmodels.Update(page.routeModel, routes)
+
+	return true
 }

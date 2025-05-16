@@ -137,6 +137,9 @@ func fillObjects(dst any, builder *gtk.Builder) {
 
 		name := ft.Name
 		if tag, ok := ft.Tag.Lookup("gtk"); ok {
+			if tag == "-" {
+				continue
+			}
 			name = tag
 		}
 		obj := builder.GetObject(name)
@@ -178,4 +181,11 @@ func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 		v2 := convertObject[T](o2)
 		return f(v1, v2)
 	})
+}
+
+// Page represents the UI for a single page of the app. This usually
+// corresponds to information about a specific peer in the tailnet.
+type Page interface {
+	gtk.Widgetter
+	Update(*App, *adw.ViewStackPage, tsutil.Status) bool
 }

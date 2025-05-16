@@ -9,7 +9,6 @@ import (
 	"slices"
 	"time"
 
-	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -22,7 +21,7 @@ import (
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
-	"tailscale.com/types/key"
+	"tailscale.com/util/set"
 )
 
 const (
@@ -42,9 +41,6 @@ type App struct {
 	tray     *tray.Tray
 
 	statusPage    *adw.StatusPage
-	selfPage      *stackPage
-	mullvadPage   *stackPage
-	peerPages     map[key.NodePublic]*stackPage
 	spinnum       int
 	operatorCheck bool
 	profiles      []ipn.LoginProfile
@@ -94,23 +90,18 @@ func (a *App) toast(msg string) *adw.Toast {
 
 func (a *App) updatePeersOffline() {
 	stack := a.win.PeersStack
+	pages := stack.Pages()
 
-	for _, page := range a.peerPages {
-		stack.Remove(page.page.Root())
+	var found bool
+	for page := range listmodels.Values[*adw.ViewStackPage](pages) {
+		if page.Name() == "status" {
+			found = true
+			continue
+		}
+
+		stack.Remove(page.Child())
 	}
-	clear(a.peerPages)
-
-	if a.selfPage != nil {
-		stack.Remove(a.selfPage.page.Root())
-		a.selfPage = nil
-	}
-
-	if a.mullvadPage != nil {
-		stack.Remove(a.mullvadPage.page.Root())
-		a.mullvadPage = nil
-	}
-
-	if stack.Page(a.statusPage).Object == nil {
+	if !found {
 		stack.AddTitled(a.statusPage, "status", "Not Connected")
 	}
 }
@@ -122,54 +113,37 @@ func (a *App) updatePeers(status tsutil.Status) {
 	}
 
 	stack := a.win.PeersStack
+	pages := stack.Pages()
 
-	if a.selfPage == nil {
-		a.selfPage = newStackPage(a, NewSelfPage(a, status.Status.Self, status))
-	}
-	a.selfPage.Update(a, status.Status.Self, status)
-
-	switch {
-	case tsutil.CanMullvad(status.Status.Self):
-		if a.mullvadPage == nil {
-			a.mullvadPage = newStackPage(a, NewMullvadPage(a, status))
-		}
-		a.mullvadPage.Update(a, nil, status)
-	case a.mullvadPage != nil:
-		stack.Remove(a.mullvadPage.page.Root())
-		a.mullvadPage = nil
-	}
-
-	peerMap := status.Status.Peer
-	peers := make([]key.NodePublic, 0, len(status.Status.Peer))
-	for k, p := range peerMap {
-		if tsutil.IsMullvad(p) {
+	found := make(set.Set[string])
+	for _, page := range listmodels.ValuesBackward[*adw.ViewStackPage](pages) {
+		slog.Info("update", "page", page.Name())
+		w := page.Child().(Page)
+		ok := w.Update(a, page, status)
+		if !ok {
+			stack.Remove(w)
 			continue
 		}
-		peers = append(peers, k)
+		found.Add(page.Name())
 	}
-	slices.SortFunc(peers, key.NodePublic.Compare)
 
-	for key, page := range a.peerPages {
-		if _, ok := peerMap[key]; !ok {
-			stack.Remove(page.page.Root())
-			delete(a.peerPages, key)
+	if !found.Contains("self") {
+		page := NewSelfPage(a, status)
+		vp := stack.AddNamed(page, "self")
+		page.Update(a, vp, status)
+	}
+	if !found.Contains("mullvad") && tsutil.CanMullvad(status.Status.Self) {
+		page := NewMullvadPage(a, status)
+		vp := stack.AddNamed(page, "mullvad")
+		page.Update(a, vp, status)
+	}
+
+	for _, peer := range status.Status.Peer {
+		if !found.Contains(string(peer.ID)) {
+			page := NewPeerPage(a, status, peer)
+			vp := stack.AddNamed(page, string(peer.ID))
+			page.Update(a, vp, status)
 		}
-	}
-
-	for _, p := range peers {
-		peerStatus := peerMap[p]
-
-		page, ok := a.peerPages[p]
-		if !ok {
-			page = newStackPage(a, NewPeerPage(a, peerStatus, status))
-			a.peerPages[p] = page
-		}
-
-		page.Update(a, peerStatus, status)
-	}
-
-	if stack.Page(a.statusPage).Object != nil {
-		stack.Remove(a.statusPage)
 	}
 
 	// This awkward piece of code makes sure that things that had their
@@ -242,7 +216,6 @@ func (a *App) update(s tsutil.Status) {
 
 func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, gio.ApplicationHandlesOpen)
-	mk.Map(&a.peerPages, 0)
 
 	var hideWindow bool
 	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, "Hide window on initial start", "")
@@ -427,9 +400,6 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 
 	a.win.ConnectCloseRequest(func() bool {
-		clear(a.peerPages)
-		a.mullvadPage = nil
-		a.selfPage = nil
 		a.win = nil
 		return false
 	})

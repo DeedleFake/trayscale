@@ -11,8 +11,7 @@ import (
 var preferencesXML string
 
 type PreferencesDialog struct {
-	*adw.PreferencesDialog `gtk:"PreferencesDialog"`
-
+	PreferencesDialog         *adw.PreferencesDialog
 	UseTrayIconRow            *adw.SwitchRow
 	PollingIntervalRow        *adw.SpinRow
 	PollingIntervalAdjustment *gtk.Adjustment

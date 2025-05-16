@@ -95,7 +95,7 @@ func (a *App) showPreferences() {
 	dialog := NewPreferencesDialog()
 	a.settings.Bind("tray-icon", dialog.UseTrayIconRow.Object, "active", gio.SettingsBindDefault)
 	a.settings.Bind("polling-interval", dialog.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
-	dialog.Present(a.window())
+	dialog.PreferencesDialog.Present(a.window())
 }
 
 // showAbout shows the app's about dialog.

@@ -57,7 +57,7 @@
 		<release version="v0.17.0" date="2025-05-18">
 			<description>
 				<ul>
-					<li>Overhaul peer list. It now uses a GtkListBox, allowing for icons, subtitles, and other features.</li>
+					<li>Overhaul peer list. It now uses a GtkListBox, allowing for icons, subtitles, sorting, and other features.</li>
 					<li>Internal cleanup.</li>
 					<li>Change directory tarball compression to zstd.</li>
 				</ul>

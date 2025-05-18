@@ -61,12 +61,12 @@ func NewMainWindow(app *App) *MainWindow {
 		pagesModel,
 		NewPageRow,
 		func(i uint, row *PageRow) {
+			delete(win.pageRows, row.Page().Name())
 			delete(pages, row.Row().Object.Native())
 			win.PeersList.Remove(row.Row())
 		},
 		func(i uint, row *PageRow) {
 			win.pageRows[row.Page().Name()] = row
-
 			pages[row.Row().Object.Native()] = row
 			win.PeersList.Append(row.Row())
 		},
@@ -105,7 +105,6 @@ func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
 }
 
 func (win *MainWindow) removePage(name string, page Page) {
-	delete(win.pageRows, name)
 	delete(win.pages, name)
 	win.PeersStack.Remove(page.Widget())
 }

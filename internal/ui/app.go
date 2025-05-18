@@ -9,19 +9,17 @@ import (
 	"slices"
 	"time"
 
-	"deedles.dev/mk"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
-	"tailscale.com/types/key"
 )
 
 const (
@@ -40,10 +38,6 @@ type App struct {
 	settings *gio.Settings
 	tray     *tray.Tray
 
-	statusPage    *adw.StatusPage
-	selfPage      *stackPage
-	mullvadPage   *stackPage
-	peerPages     map[key.NodePublic]*stackPage
 	spinnum       int
 	operatorCheck bool
 	profiles      []ipn.LoginProfile
@@ -84,111 +78,6 @@ func (a *App) stopSpin() {
 	})
 }
 
-func (a *App) toast(msg string) *adw.Toast {
-	toast := adw.NewToast(msg)
-	toast.SetTimeout(3)
-	a.win.ToastOverlay.AddToast(toast)
-	return toast
-}
-
-func (a *App) updatePeersOffline() {
-	stack := a.win.PeersStack
-
-	for _, page := range a.peerPages {
-		stack.Remove(page.page.Root())
-	}
-	clear(a.peerPages)
-
-	if a.selfPage != nil {
-		stack.Remove(a.selfPage.page.Root())
-		a.selfPage = nil
-	}
-
-	if a.mullvadPage != nil {
-		stack.Remove(a.mullvadPage.page.Root())
-		a.mullvadPage = nil
-	}
-
-	if stack.Page(a.statusPage).Object == nil {
-		stack.AddTitled(a.statusPage, "status", "Not Connected")
-	}
-}
-
-func (a *App) updatePeers(status tsutil.Status) {
-	if !status.Online() {
-		a.updatePeersOffline()
-		return
-	}
-
-	stack := a.win.PeersStack
-
-	if a.selfPage == nil {
-		a.selfPage = newStackPage(a, NewSelfPage(a, status.Status.Self, status))
-	}
-	a.selfPage.Update(a, status.Status.Self, status)
-
-	switch {
-	case tsutil.CanMullvad(status.Status.Self):
-		if a.mullvadPage == nil {
-			a.mullvadPage = newStackPage(a, NewMullvadPage(a, status))
-		}
-		a.mullvadPage.Update(a, nil, status)
-	case a.mullvadPage != nil:
-		stack.Remove(a.mullvadPage.page.Root())
-		a.mullvadPage = nil
-	}
-
-	peerMap := status.Status.Peer
-	peers := make([]key.NodePublic, 0, len(status.Status.Peer))
-	for k, p := range peerMap {
-		if tsutil.IsMullvad(p) {
-			continue
-		}
-		peers = append(peers, k)
-	}
-	slices.SortFunc(peers, key.NodePublic.Compare)
-
-	for key, page := range a.peerPages {
-		if _, ok := peerMap[key]; !ok {
-			stack.Remove(page.page.Root())
-			delete(a.peerPages, key)
-		}
-	}
-
-	for _, p := range peers {
-		peerStatus := peerMap[p]
-
-		page, ok := a.peerPages[p]
-		if !ok {
-			page = newStackPage(a, NewPeerPage(a, peerStatus, status))
-			a.peerPages[p] = page
-		}
-
-		page.Update(a, peerStatus, status)
-	}
-
-	if stack.Page(a.statusPage).Object != nil {
-		stack.Remove(a.statusPage)
-	}
-}
-
-func (a *App) updateProfiles(s tsutil.Status) {
-	updateStringList(a.win.ProfileModel, func(yield func(string) bool) {
-		for _, profile := range s.Profiles {
-			if !yield(profile.Name) {
-				return
-			}
-		}
-	})
-
-	profileIndex, ok := listModelIndex(a.win.ProfileSortModel, func(obj *glib.Object) bool {
-		return obj.Cast().(*gtk.StringObject).String() == s.Profile.Name
-	})
-	if ok {
-		a.win.ProfileDropDown.SetSelected(uint(profileIndex))
-	}
-}
-
 func (a *App) update(s tsutil.Status) {
 	online := s.Online()
 	a.tray.Update(s)
@@ -207,10 +96,7 @@ func (a *App) update(s tsutil.Status) {
 
 	a.profiles = s.Profiles
 
-	a.win.StatusSwitch.SetState(online)
-	a.win.StatusSwitch.SetActive(online)
-	a.updatePeers(s)
-	a.updateProfiles(s)
+	a.win.Update(s)
 
 	if a.files != nil {
 		for _, file := range s.Files {
@@ -235,7 +121,6 @@ func (a *App) update(s tsutil.Status) {
 
 func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, gio.ApplicationHandlesOpen)
-	mk.Map(&a.peerPages, 0)
 
 	var hideWindow bool
 	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, "Hide window on initial start", "")
@@ -276,7 +161,7 @@ func (a *App) startTS(ctx context.Context) error {
 			Reject:  "_Cancel",
 		}.Show(a, func(accept bool) {
 			if accept {
-				gtk.NewURILauncher(status.Status.AuthURL).Launch(ctx, &a.win.Window, nil)
+				gtk.NewURILauncher(status.Status.AuthURL).Launch(ctx, &a.win.MainWindow.Window, nil)
 			}
 		})
 		return nil
@@ -339,7 +224,7 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 
 func (a *App) onAppActivate(ctx context.Context) {
 	if a.win != nil {
-		a.win.Present()
+		a.win.MainWindow.Present()
 		return
 	}
 
@@ -360,12 +245,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.app.AddAction(quitAction)
 	a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
 
-	a.statusPage = adw.NewStatusPage()
-	a.statusPage.SetTitle("Not Connected")
-	a.statusPage.SetIconName("network-offline-symbolic")
-	a.statusPage.SetDescription("Tailscale is not connected")
-
-	a.win = NewMainWindow(&a.app.Application)
+	a.win = NewMainWindow(a)
 
 	a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
 		if s == a.win.StatusSwitch.State() {
@@ -419,15 +299,12 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.win.SplitView.ActivateAction("navigation.push", contentVariant)
 	})
 
-	a.win.ConnectCloseRequest(func() bool {
-		clear(a.peerPages)
-		a.mullvadPage = nil
-		a.selfPage = nil
+	a.win.MainWindow.ConnectCloseRequest(func() bool {
 		a.win = nil
 		return false
 	})
 	a.poller.Poll() <- struct{}{}
-	a.win.SetVisible(true)
+	a.win.MainWindow.Present()
 }
 
 func (a *App) initTray(ctx context.Context) {

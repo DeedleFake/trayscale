@@ -30,11 +30,11 @@
 	<launchable type="desktop-id">dev.deedles.Trayscale.desktop</launchable>
 	<screenshots>
 		<screenshot type="default">
-			<image>https://github.com/user-attachments/assets/712b0447-16bc-4e17-bd4f-675f6728ba46</image>
+			<image>https://github.com/user-attachments/assets/8088edb9-3e80-4183-95a3-01843de867fc</image>
 			<caption>Connected to Tailscale</caption>
 		</screenshot>
 		<screenshot>
-			<image>https://github.com/user-attachments/assets/bdb14ea5-56bc-418b-aec3-b92c6528c2db</image>
+			<image>https://github.com/user-attachments/assets/7d1bfa36-a02b-46bf-95de-f2e9bbc4a06c</image>
 			<caption>Not connected to Tailscale</caption>
 		</screenshot>
 	</screenshots>
@@ -54,6 +54,15 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.17.0" date="2025-05-18">
+			<description>
+				<ul>
+					<li>Overhaul peer list. It now uses a GtkListBox, allowing for icons, subtitles, sorting, and other features.</li>
+					<li>Internal cleanup.</li>
+					<li>Change directory tarball compression to zstd.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.16.1" date="2025-05-14">
 			<description>
 				<ul>

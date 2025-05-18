@@ -9,25 +9,26 @@ import (
 	"slices"
 	"time"
 
+	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
 	"deedles.dev/xiter"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
-	"tailscale.com/ipn/ipnstate"
 )
 
 //go:embed selfpage.ui
 var selfPageXML string
 
 type SelfPage struct {
-	*adw.StatusPage `gtk:"Page"`
+	app *App
 
+	Page                 *adw.StatusPage
 	IPList               *gtk.ListBox
 	OptionsGroup         *adw.PreferencesGroup
 	AdvertiseExitNodeRow *adw.SwitchRow
@@ -60,41 +61,26 @@ type SelfPage struct {
 	DERPLatencies        *adw.ExpanderRow
 	FilesList            *gtk.ListBox
 
-	peer *ipnstate.PeerStatus
-	name string
-
 	addrModel  *gioutil.ListModel[netip.Addr]
 	routeModel *gioutil.ListModel[netip.Prefix]
 	fileModel  *gioutil.ListModel[apitype.WaitingFile]
 }
 
-func NewSelfPage(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) *SelfPage {
+func NewSelfPage(a *App, status tsutil.Status) *SelfPage {
 	var page SelfPage
 	fillFromBuilder(&page, selfPageXML)
-	page.init(a, peer, status)
+	page.init(a, status)
 	return &page
 }
 
-func (page *SelfPage) Root() gtk.Widgetter {
-	return page.StatusPage
-}
-
-func (page *SelfPage) ID() string {
-	return string(page.peer.ID)
-}
-
-func (page *SelfPage) Name() string {
-	return page.name
-}
-
-func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.peer = peer
+func (page *SelfPage) init(a *App, status tsutil.Status) {
+	page.app = a
 
 	actions := gio.NewSimpleActionGroup()
-	page.InsertActionGroup("peer", actions)
+	page.Page.InsertActionGroup("peer", actions)
 
 	page.addrModel = gioutil.NewListModel[netip.Addr]()
-	BindListBoxModel(
+	listmodels.BindListBox(
 		page.IPList,
 		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
 		func(addr netip.Addr) gtk.Widgetter {
@@ -106,7 +92,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 			copyButton.SetTooltipText("Copy to Clipboard")
 			copyButton.ConnectClicked(func() {
 				a.clip(glib.NewValue(addr.String()))
-				a.toast("Copied to clipboard")
+				a.win.Toast("Copied to clipboard")
 			})
 
 			row := adw.NewActionRow()
@@ -124,7 +110,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.IPList.SetPlaceholder(ipListPlaceholder)
 
 	page.routeModel = gioutil.NewListModel[netip.Prefix]()
-	BindListBoxModel(
+	listmodels.BindListBox(
 		page.AdvertisedRoutesList,
 		gtk.NewSortListModel(page.routeModel, &prefixSorter.Sorter),
 		func(route netip.Prefix) gtk.Widgetter {
@@ -160,7 +146,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	page.AdvertisedRoutesList.SetPlaceholder(advertisedRoutesListPlaceholder)
 
 	page.fileModel = gioutil.NewListModel[apitype.WaitingFile]()
-	BindListBoxModel(
+	listmodels.BindListBox(
 		page.FilesList,
 		gtk.NewSortListModel(page.fileModel, &waitingFileSorter.Sorter),
 		func(file apitype.WaitingFile) gtk.Widgetter {
@@ -173,7 +159,7 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 				dialog := gtk.NewFileDialog()
 				dialog.SetModal(true)
 				dialog.SetInitialName(file.Name)
-				dialog.Save(context.TODO(), &a.win.Window, func(res gio.AsyncResulter) {
+				dialog.Save(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 					f, err := dialog.SaveFinish(res)
 					if err != nil {
 						if !errHasCode(err, int(gtk.DialogErrorDismissed)) {
@@ -379,12 +365,19 @@ func (page *SelfPage) init(a *App, peer *ipnstate.PeerStatus, status tsutil.Stat
 	})
 }
 
-func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.peer = peer
-	page.name = peerName(status, peer)
+func (page *SelfPage) Widget() gtk.Widgetter {
+	return page.Page
+}
 
-	page.SetTitle(peer.HostName)
-	page.SetDescription(peer.DNSName)
+func (page *SelfPage) Update(row *PageRow, status tsutil.Status) bool {
+	peer := status.Status.Self
+
+	row.SetTitle(peerName(status, peer))
+	row.SetSubtitle("This machine")
+	row.SetIconName("computer-symbolic")
+
+	page.Page.SetTitle(peer.HostName)
+	page.Page.SetDescription(peer.DNSName)
 
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.AdvertisesExitNode())
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.AdvertisesExitNode())
@@ -403,7 +396,9 @@ func (page *SelfPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.St
 		}
 	}
 
-	updateListModel(page.addrModel, slices.Values(peer.TailscaleIPs))
-	updateListModel(page.fileModel, slices.Values(status.Files))
-	updateListModel(page.routeModel, routes)
+	listmodels.Update(page.addrModel, slices.Values(peer.TailscaleIPs))
+	listmodels.Update(page.fileModel, slices.Values(status.Files))
+	listmodels.Update(page.routeModel, routes)
+
+	return true
 }

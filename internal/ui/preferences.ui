@@ -1,11 +1,13 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!-- Created with Cambalache 0.96.0 -->
 <interface>
+  <!-- interface-name preferences.ui -->
   <requires lib="gtk" version="4.0"/>
   <requires lib="libadwaita" version="1.6"/>
-  <object class="AdwPreferencesWindow" id="PreferencesWindow">
+  <object class="AdwPreferencesDialog" id="PreferencesDialog">
+    <property name="visible-page">PreferencesPage</property>
     <child>
-      <object class="AdwPreferencesPage">
+      <object class="AdwPreferencesPage" id="PreferencesPage">
         <child>
           <object class="AdwPreferencesGroup">
             <property name="title">General</property>

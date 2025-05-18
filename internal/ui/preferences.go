@@ -3,23 +3,22 @@ package ui
 import (
 	_ "embed"
 
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 )
 
 //go:embed preferences.ui
 var preferencesXML string
 
-type PreferencesWindow struct {
-	*adw.PreferencesWindow `gtk:"PreferencesWindow"`
-
+type PreferencesDialog struct {
+	PreferencesDialog         *adw.PreferencesDialog
 	UseTrayIconRow            *adw.SwitchRow
 	PollingIntervalRow        *adw.SpinRow
 	PollingIntervalAdjustment *gtk.Adjustment
 }
 
-func NewPreferencesWindow() *PreferencesWindow {
-	var win PreferencesWindow
+func NewPreferencesDialog() *PreferencesDialog {
+	var win PreferencesDialog
 	fillFromBuilder(&win, preferencesXML)
 	return &win
 }

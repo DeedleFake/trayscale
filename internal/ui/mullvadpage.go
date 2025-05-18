@@ -9,23 +9,22 @@ import (
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/efogdev/gotk4-adwaita/pkg/adw"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
 )
 
-const mullvadPageBaseName = "🟡 Mullvad Exit Nodes"
+const mullvadPageBaseName = "Mullvad Exit Nodes"
 
 //go:embed mullvadpage.ui
 var mullvadPageXML string
 
 type MullvadPage struct {
-	*adw.StatusPage `gtk:"Page"`
+	app *App
 
+	Page           *adw.StatusPage
 	ExitNodesGroup *adw.PreferencesGroup
-
-	name string
 
 	nodeLocationRows rowManager[[]*ipnstate.PeerStatus]
 
@@ -42,20 +41,8 @@ func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
 	return &page
 }
 
-func (page *MullvadPage) Root() gtk.Widgetter {
-	return page.StatusPage
-}
-
-func (page *MullvadPage) ID() string {
-	return "mullvad"
-}
-
-func (page *MullvadPage) Name() string {
-	return page.name
-}
-
 func (page *MullvadPage) init(a *App, status tsutil.Status) {
-	page.name = mullvadPageBaseName
+	page.app = a
 
 	page.nodeLocationRows.Parent = page.ExitNodesGroup
 	page.nodeLocationRows.New = func(peers []*ipnstate.PeerStatus) row[[]*ipnstate.PeerStatus] {
@@ -108,8 +95,17 @@ func (page *MullvadPage) init(a *App, status tsutil.Status) {
 	}
 }
 
-func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil.Status) {
-	page.name = mullvadPageBaseName
+func (page *MullvadPage) Widget() gtk.Widgetter {
+	return page.Page
+}
+
+func (page *MullvadPage) Update(row *PageRow, status tsutil.Status) bool {
+	if !tsutil.CanMullvad(status.Status.Self) {
+		return false
+	}
+
+	var subtitle string
+	icon := "network-workgroup-symbolic"
 
 	var exitNodeID tailcfg.StableNodeID
 	if status.Status.ExitNodeStatus != nil {
@@ -120,7 +116,8 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 		if tsutil.IsMullvad(peer) {
 			page.nodes = append(page.nodes, peer)
 			if peer.ID == exitNodeID {
-				page.name = fmt.Sprintf("%v [%v]", mullvadPageBaseName, mullvadLongLocationName(peer.Location))
+				subtitle = mullvadLongLocationName(peer.Location)
+				icon = "network-vpn-symbolic"
 			}
 		}
 	}
@@ -135,6 +132,12 @@ func (page *MullvadPage) Update(a *App, peer *ipnstate.PeerStatus, status tsutil
 
 	clear(page.nodes)
 	page.nodes = page.nodes[:0]
+
+	row.SetTitle(mullvadPageBaseName)
+	row.SetSubtitle(subtitle)
+	row.SetIconName(icon)
+
+	return true
 }
 
 type nodeLocationRow struct {

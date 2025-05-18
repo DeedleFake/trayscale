@@ -267,3 +267,40 @@ func (page *PeerPage) Update(row *PageRow, status tsutil.Status) bool {
 
 	return true
 }
+
+func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
+	const maxNameLength = 30
+
+	name := tsutil.DNSOrQuoteHostname(status.Status, peer)
+	if len(name) > maxNameLength {
+		return name[:maxNameLength-3] + "..."
+	}
+	return name
+}
+
+func peerSubtitle(peer *ipnstate.PeerStatus) string {
+	if peer.ExitNode {
+		return "Current exit node"
+	}
+	if peer.ExitNodeOption {
+		return "Exit node option"
+	}
+	return ""
+}
+
+func peerIcon(peer *ipnstate.PeerStatus) string {
+	if peer.ExitNode {
+		if !peer.Online {
+			return "network-vpn-acquiring-symbolic"
+		}
+		return "network-vpn-symbolic"
+	}
+	if !peer.Online {
+		return "network-wired-offline-symbolic"
+	}
+	if peer.ExitNodeOption {
+		return "folder-remote-symbolic"
+	}
+
+	return "network-wired-symbolic"
+}

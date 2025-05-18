@@ -1,10 +1,13 @@
-package version
+package metadata
 
-import "runtime/debug"
+import (
+	"os"
+	"runtime/debug"
+)
 
 var version = ""
 
-func Get() (string, bool) {
+func Version() (string, bool) {
 	if version != "" {
 		return version, true
 	}
@@ -16,3 +19,5 @@ func Get() (string, bool) {
 
 	return info.Main.Version, true
 }
+
+var Private = os.Getenv("TRAYSCALE_PRIVATE") == "1"

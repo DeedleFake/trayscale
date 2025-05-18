@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"deedles.dev/trayscale"
+	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gerror"
-	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/client/tailscale/apitype"
@@ -34,16 +34,6 @@ var (
 
 	stringListSorter = gtk.NewCustomSorter(glib.NewObjectComparer(func(s1, s2 *gtk.StringObject) int {
 		return cmp.Compare(s1.String(), s2.String())
-	}))
-
-	peersListSorter = gtk.NewCustomSorter(glib.NewObjectComparer(func(p1, p2 *adw.ViewStackPage) int {
-		if v, ok := prioritize("self", p1.Name(), p2.Name()); ok {
-			return v
-		}
-		if v, ok := prioritize("mullvad", p1.Name(), p2.Name()); ok {
-			return v
-		}
-		return strings.Compare(p1.Title(), p2.Title())
 	}))
 )
 
@@ -168,17 +158,10 @@ func errHasCode(err error, code int) bool {
 	return gerr.ErrorCode() == code
 }
 
-func convertObject[T any](obj *glib.Object) T {
-	if v, ok := obj.Cast().(T); ok {
-		return v
-	}
-	return gioutil.ObjectValue[T](obj)
-}
-
 func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 	return glib.NewObjectComparer(func(o1, o2 *glib.Object) int {
-		v1 := convertObject[T](o1)
-		v2 := convertObject[T](o2)
+		v1 := listmodels.Convert[T](o1)
+		v2 := listmodels.Convert[T](o2)
 		return f(v1, v2)
 	})
 }
@@ -191,6 +174,26 @@ type Page interface {
 }
 
 type PageRow struct {
+	Page *adw.ViewStackPage
 	Row  *adw.ActionRow
 	Icon *gtk.Image
+}
+
+func NewPageRow(page *adw.ViewStackPage) *PageRow {
+	icon := gtk.NewImage()
+	icon.NotifyProperty("icon-name", func() {
+		page.SetIconName(icon.IconName())
+	})
+
+	row := adw.NewActionRow()
+	row.AddPrefix(icon)
+	row.NotifyProperty("title", func() {
+		page.SetTitle(row.Title())
+	})
+
+	return &PageRow{
+		Page: page,
+		Row:  row,
+		Icon: icon,
+	}
 }

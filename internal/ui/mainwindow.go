@@ -2,6 +2,7 @@ package ui
 
 import (
 	_ "embed"
+	"strings"
 
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -30,11 +31,9 @@ type MainWindow struct {
 	WorkSpinner     *gtk.Spinner
 	ProfileDropDown *gtk.DropDown
 
-	PeersModel     *gtk.SelectionModel
-	PeersSortModel *gtk.SortListModel
-	pages          map[string]Page
-	rows           map[string]*PageRow
-	statusPage     *adw.StatusPage
+	pages      map[string]Page
+	pageRows   map[string]*PageRow
+	statusPage *adw.StatusPage
 
 	ProfileModel     *gtk.StringList
 	ProfileSortModel *gtk.SortListModel
@@ -42,9 +41,9 @@ type MainWindow struct {
 
 func NewMainWindow(app *App) *MainWindow {
 	win := MainWindow{
-		app:   app,
-		pages: make(map[string]Page),
-		rows:  make(map[string]*PageRow),
+		app:      app,
+		pages:    make(map[string]Page),
+		pageRows: make(map[string]*PageRow),
 	}
 	fillFromBuilder(&win, menuXML, mainWindowXML)
 
@@ -55,16 +54,41 @@ func NewMainWindow(app *App) *MainWindow {
 	win.statusPage.SetIconName("network-offline-symbolic")
 	win.statusPage.SetDescription("Tailscale is not connected")
 
-	win.PeersModel = win.PeersStack.Pages()
-	win.PeersSortModel = gtk.NewSortListModel(win.PeersModel, &peersListSorter.Sorter)
-	listmodels.BindListBox(win.PeersList, win.PeersSortModel, win.createPeersRow)
+	pages := make(map[uintptr]*PageRow)
+	pagesModel := win.PeersStack.Pages()
+	listmodels.Bind(
+		pagesModel,
+		NewPageRow,
+		func(i uint, row *PageRow) {
+			delete(pages, row.Row.Object.Native())
+			win.PeersList.Remove(row.Row)
+		},
+		func(i uint, row *PageRow) {
+			win.pageRows[row.Page.Name()] = row
+
+			pages[row.Row.Object.Native()] = row
+			win.PeersList.Append(row.Row)
+		},
+	)
+	win.PeersList.SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
+		p1 := pages[r1.Object.Native()].Page
+		p2 := pages[r2.Object.Native()].Page
+
+		if v, ok := prioritize("self", p1.Name(), p2.Name()); ok {
+			return v
+		}
+		if v, ok := prioritize("mullvad", p1.Name(), p2.Name()); ok {
+			return v
+		}
+		return strings.Compare(p1.Title(), p2.Title())
+	})
 	win.PeersList.ConnectRowSelected(func(row *gtk.ListBoxRow) {
 		if row == nil {
 			return
 		}
 
-		page := win.PeersSortModel.Item(uint(row.Index())).Cast().(*adw.ViewStackPage)
-		win.PeersStack.SetVisibleChildName(page.Name())
+		page := pages[row.Object.Native()]
+		win.PeersStack.SetVisibleChildName(page.Page.Name())
 	})
 
 	win.ProfileModel = gtk.NewStringList(nil)
@@ -74,33 +98,13 @@ func NewMainWindow(app *App) *MainWindow {
 	return &win
 }
 
-func (win *MainWindow) createPeersRow(page *adw.ViewStackPage) gtk.Widgetter {
-	icon := gtk.NewImage()
-	icon.NotifyProperty("icon-name", func() {
-		page.SetIconName(icon.IconName())
-	})
-
-	row := adw.NewActionRow()
-	row.AddPrefix(icon)
-	row.NotifyProperty("title", func() {
-		page.SetTitle(row.Title())
-	})
-
-	win.rows[page.Name()] = &PageRow{
-		Row:  row,
-		Icon: icon,
-	}
-
-	return row
-}
-
 func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
 	win.pages[name] = page
 	return win.PeersStack.AddNamed(page.Widget(), name)
 }
 
 func (win *MainWindow) removePage(name string, page Page) {
-	delete(win.rows, name)
+	delete(win.pageRows, name)
 	delete(win.pages, name)
 	win.PeersStack.Remove(page.Widget())
 }
@@ -163,7 +167,7 @@ func (win *MainWindow) updatePeers(status tsutil.Status) {
 
 	var remove []string
 	for name, page := range win.pages {
-		row := win.rows[name]
+		row := win.pageRows[name]
 		ok := page.Update(row, status)
 		if !ok {
 			remove = append(remove, name)

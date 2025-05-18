@@ -33,6 +33,7 @@ type MainWindow struct {
 	PeersModel     *gtk.SelectionModel
 	PeersSortModel *gtk.SortListModel
 	pages          map[string]Page
+	rows           map[string]*PageRow
 	statusPage     *adw.StatusPage
 
 	ProfileModel     *gtk.StringList
@@ -43,6 +44,7 @@ func NewMainWindow(app *App) *MainWindow {
 	win := MainWindow{
 		app:   app,
 		pages: make(map[string]Page),
+		rows:  make(map[string]*PageRow),
 	}
 	fillFromBuilder(&win, menuXML, mainWindowXML)
 
@@ -73,18 +75,21 @@ func NewMainWindow(app *App) *MainWindow {
 }
 
 func (win *MainWindow) createPeersRow(page *adw.ViewStackPage) gtk.Widgetter {
-	icon := gtk.NewImageFromIconName(page.IconName())
-	page.NotifyProperty("icon-name", func() {
-		icon.SetFromIconName(page.IconName())
+	icon := gtk.NewImage()
+	icon.NotifyProperty("icon-name", func() {
+		page.SetIconName(icon.IconName())
 	})
 
 	row := adw.NewActionRow()
 	row.AddPrefix(icon)
-
-	row.SetTitle(page.Title())
-	page.NotifyProperty("title", func() {
-		row.SetTitle(page.Title())
+	row.NotifyProperty("title", func() {
+		page.SetTitle(row.Title())
 	})
+
+	win.rows[page.Name()] = &PageRow{
+		Row:  row,
+		Icon: icon,
+	}
 
 	return row
 }
@@ -95,6 +100,7 @@ func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
 }
 
 func (win *MainWindow) removePage(name string, page Page) {
+	delete(win.rows, name)
 	delete(win.pages, name)
 	win.PeersStack.Remove(page.Widget())
 }
@@ -131,6 +137,10 @@ func (win *MainWindow) updatePeers(status tsutil.Status) {
 		return
 	}
 
+	if win.PeersStack.ChildByName("status") != nil {
+		win.PeersStack.Remove(win.statusPage)
+	}
+
 	if _, ok := win.pages["self"]; !ok {
 		win.addPage("self", NewSelfPage(win.app, status))
 	}
@@ -151,15 +161,10 @@ func (win *MainWindow) updatePeers(status tsutil.Status) {
 		win.addPage(name, NewPeerPage(win.app, status, peer))
 	}
 
-	stack := win.PeersStack
-	if stack.ChildByName("status") != nil {
-		stack.Remove(win.statusPage)
-	}
-
 	var remove []string
 	for name, page := range win.pages {
-		vp := stack.Page(page.Widget())
-		ok := page.Update(win.app, vp, status)
+		row := win.rows[name]
+		ok := page.Update(row, status)
 		if !ok {
 			remove = append(remove, name)
 		}
@@ -168,7 +173,7 @@ func (win *MainWindow) updatePeers(status tsutil.Status) {
 		win.removePage(name, win.pages[name])
 	}
 
-	win.SortPeers()
+	win.PeersList.InvalidateSort()
 }
 
 func (win *MainWindow) updateProfiles(s tsutil.Status) {
@@ -185,19 +190,5 @@ func (win *MainWindow) updateProfiles(s tsutil.Status) {
 	})
 	if ok {
 		win.ProfileDropDown.SetSelected(uint(profileIndex))
-	}
-}
-
-func (win *MainWindow) SortPeers() {
-	page, ok := win.PeersModel.Item(win.PeersModel.Selection().Minimum()).Cast().(*adw.ViewStackPage)
-	win.PeersSortModel.SetSorter(nil)
-	win.PeersSortModel.SetSorter(&peersListSorter.Sorter)
-	if ok {
-		i, ok := listmodels.Index(win.PeersSortModel, func(vp *adw.ViewStackPage) bool {
-			return vp.Name() == page.Name()
-		})
-		if ok {
-			win.PeersList.SelectRow(win.PeersList.RowAtIndex(int(i)))
-		}
 	}
 }

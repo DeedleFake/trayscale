@@ -26,6 +26,8 @@ import (
 var selfPageXML string
 
 type SelfPage struct {
+	app *App
+
 	Page                 *adw.StatusPage
 	IPList               *gtk.ListBox
 	OptionsGroup         *adw.PreferencesGroup
@@ -72,6 +74,8 @@ func NewSelfPage(a *App, status tsutil.Status) *SelfPage {
 }
 
 func (page *SelfPage) init(a *App, status tsutil.Status) {
+	page.app = a
+
 	actions := gio.NewSimpleActionGroup()
 	page.Page.InsertActionGroup("peer", actions)
 
@@ -365,11 +369,11 @@ func (page *SelfPage) Widget() gtk.Widgetter {
 	return page.Page
 }
 
-func (page *SelfPage) Update(a *App, vp *adw.ViewStackPage, status tsutil.Status) bool {
+func (page *SelfPage) Update(row *PageRow, status tsutil.Status) bool {
 	peer := status.Status.Self
 
-	vp.SetTitle(peerName(status, peer))
-	vp.SetIconName("computer-symbolic")
+	row.Row.SetTitle(peerName(status, peer))
+	row.Icon.SetFromIconName("computer-symbolic")
 
 	page.Page.SetTitle(peer.HostName)
 	page.Page.SetDescription(peer.DNSName)

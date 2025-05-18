@@ -24,6 +24,9 @@ import (
 var peerPageXML string
 
 type PeerPage struct {
+	app  *App
+	peer *ipnstate.PeerStatus
+
 	Page                  *adw.StatusPage
 	IPList                *gtk.ListBox
 	AdvertisedRoutesGroup *adw.PreferencesGroup
@@ -67,8 +70,6 @@ type PeerPage struct {
 	SendDirButton         *adw.ButtonRow
 	DropTarget            *gtk.DropTarget
 
-	peer *ipnstate.PeerStatus
-
 	addrModel  *gioutil.ListModel[netip.Addr]
 	routeModel *gioutil.ListModel[netip.Prefix]
 }
@@ -81,6 +82,7 @@ func NewPeerPage(a *App, status tsutil.Status, peer *ipnstate.PeerStatus) *PeerP
 }
 
 func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStatus) {
+	page.app = a
 	page.peer = peer
 
 	actions := gio.NewSimpleActionGroup()
@@ -105,8 +107,8 @@ func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStat
 				return
 			}
 
-			for file := range listmodels.Objects(files) {
-				go a.pushFile(context.TODO(), page.peer.ID, file.Cast().(gio.Filer))
+			for _, file := range listmodels.Values[gio.Filer](files) {
+				go a.pushFile(context.TODO(), page.peer.ID, file)
 			}
 		})
 	})
@@ -221,14 +223,14 @@ func (page *PeerPage) Widget() gtk.Widgetter {
 	return page.Page
 }
 
-func (page *PeerPage) Update(a *App, vp *adw.ViewStackPage, status tsutil.Status) bool {
+func (page *PeerPage) Update(row *PageRow, status tsutil.Status) bool {
 	page.peer = status.Status.Peer[page.peer.PublicKey]
 	if page.peer == nil {
 		return false
 	}
 
-	vp.SetTitle(peerName(status, page.peer))
-	vp.SetIconName(peerIcon(page.peer))
+	row.Row.SetTitle(peerName(status, page.peer))
+	row.Icon.SetFromIconName(peerIcon(page.peer))
 
 	page.Page.SetTitle(page.peer.HostName)
 	page.Page.SetDescription(page.peer.DNSName)

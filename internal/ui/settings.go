@@ -7,8 +7,8 @@ import (
 	"slices"
 	"time"
 
+	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/trayscale/internal/version"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -109,7 +109,7 @@ func (a *App) showAbout() {
 	dialog.SetApplicationName("Trayscale")
 	dialog.SetWebsite("https://github.com/DeedleFake/trayscale")
 	dialog.SetIssueURL("https://github.com/DeedleFake/trayscale/issues")
-	if v, ok := version.Get(); ok {
+	if v, ok := metadata.Version(); ok {
 		dialog.SetVersion(v)
 	}
 	dialog.Present(a.window())

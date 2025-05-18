@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"deedles.dev/trayscale/internal/listmodels"
+	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -183,7 +184,11 @@ func (win *MainWindow) updatePeers(status tsutil.Status) {
 func (win *MainWindow) updateProfiles(s tsutil.Status) {
 	listmodels.UpdateStrings(win.ProfileModel, func(yield func(string) bool) {
 		for _, profile := range s.Profiles {
-			if !yield(profile.Name) {
+			name := profile.Name
+			if metadata.Private {
+				name = "profile@example.com"
+			}
+			if !yield(name) {
 				return
 			}
 		}

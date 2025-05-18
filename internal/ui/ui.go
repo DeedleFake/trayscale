@@ -142,7 +142,8 @@ func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 // corresponds to information about a specific peer in the tailnet.
 type Page interface {
 	Widget() gtk.Widgetter
-	Update(*PageRow, tsutil.Status) bool
+	Init(*PageRow)
+	Update(tsutil.Status) bool
 }
 
 type PageRow struct {

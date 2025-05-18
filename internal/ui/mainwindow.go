@@ -33,7 +33,6 @@ type MainWindow struct {
 	ProfileDropDown *gtk.DropDown
 
 	pages      map[string]Page
-	pageRows   map[string]*PageRow
 	statusPage *adw.StatusPage
 
 	ProfileModel     *gtk.StringList
@@ -42,9 +41,8 @@ type MainWindow struct {
 
 func NewMainWindow(app *App) *MainWindow {
 	win := MainWindow{
-		app:      app,
-		pages:    make(map[string]Page),
-		pageRows: make(map[string]*PageRow),
+		app:   app,
+		pages: make(map[string]Page),
 	}
 	fillFromBuilder(&win, menuXML, mainWindowXML)
 
@@ -61,12 +59,12 @@ func NewMainWindow(app *App) *MainWindow {
 		pagesModel,
 		NewPageRow,
 		func(i uint, row *PageRow) {
-			delete(win.pageRows, row.Page().Name())
 			delete(pages, row.Row().Object.Native())
 			win.PeersList.Remove(row.Row())
 		},
 		func(i uint, row *PageRow) {
-			win.pageRows[row.Page().Name()] = row
+			win.pages[row.Page().Name()].Init(row)
+
 			pages[row.Row().Object.Native()] = row
 			win.PeersList.Append(row.Row())
 		},
@@ -167,8 +165,7 @@ func (win *MainWindow) updatePeers(status tsutil.Status) {
 
 	var remove []string
 	for name, page := range win.pages {
-		row := win.pageRows[name]
-		ok := page.Update(row, status)
+		ok := page.Update(status)
 		if !ok {
 			remove = append(remove, name)
 		}

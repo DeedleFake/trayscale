@@ -27,6 +27,7 @@ var selfPageXML string
 
 type SelfPage struct {
 	app *App
+	row *PageRow
 
 	Page                 *adw.StatusPage
 	IPList               *gtk.ListBox
@@ -369,12 +370,16 @@ func (page *SelfPage) Widget() gtk.Widgetter {
 	return page.Page
 }
 
-func (page *SelfPage) Update(row *PageRow, status tsutil.Status) bool {
+func (page *SelfPage) Init(row *PageRow) {
+	page.row = row
+	row.SetSubtitle("This machine")
+}
+
+func (page *SelfPage) Update(status tsutil.Status) bool {
 	peer := status.Status.Self
 
-	row.SetTitle(peerName(status, peer))
-	row.SetSubtitle("This machine")
-	row.SetIconName("computer-symbolic")
+	page.row.SetTitle(peerName(status, peer))
+	page.row.SetIconName("computer-symbolic")
 
 	page.Page.SetTitle(peer.HostName)
 	page.Page.SetDescription(peer.DNSName)

@@ -274,13 +274,7 @@ func (page *PeerPage) Update(status tsutil.Status) bool {
 }
 
 func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
-	const maxNameLength = 30
-
-	name := tsutil.DNSOrQuoteHostname(status.Status, peer)
-	if len(name) > maxNameLength {
-		return name[:maxNameLength-3] + "..."
-	}
-	return name
+	return tsutil.DNSOrQuoteHostname(status.Status, peer)
 }
 
 func peerSubtitle(peer *ipnstate.PeerStatus) string {

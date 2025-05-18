@@ -31,7 +31,7 @@ First, make sure that you have dependencies installed:
 
 * Go >= 1.24
 * GTK >= 4.0
-* Libadwaita >= 1.5
+* Libadwaita >= 1.6
 
 The main Trayscale binary can be installed with `go install`:
 

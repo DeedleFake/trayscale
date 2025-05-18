@@ -63,7 +63,10 @@ func NewMainWindow(app *App) *MainWindow {
 			win.PeersList.Remove(row.Row())
 		},
 		func(i uint, row *PageRow) {
-			win.pages[row.Page().Name()].Init(row)
+			page := win.pages[row.Page().Name()]
+			if page != nil {
+				page.Init(row)
+			}
 
 			pages[row.Row().Object.Native()] = row
 			win.PeersList.Append(row.Row())

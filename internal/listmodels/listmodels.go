@@ -120,15 +120,20 @@ func BindListBox[T any](lb *gtk.ListBox, m gio.ListModeller, f func(T) gtk.Widge
 	})
 }
 
+type Binding[V any] struct {
+	vals   []V
+	handle glib.SignalHandle
+}
+
 func Bind[T, V any](
 	m gio.ListModeller,
 	f func(T) V,
 	remove func(uint, V),
 	add func(uint, V),
-) func() {
-	vals := make([]V, 0, m.NItems())
-	h := m.ConnectItemsChanged(func(index, removed, added uint) {
-		for i, w := range vals[index : index+removed] {
+) *Binding[V] {
+	var binding Binding[V]
+	binding.handle = m.ConnectItemsChanged(func(index, removed, added uint) {
+		for i, w := range binding.vals[index : index+removed] {
 			remove(index+uint(i), w)
 		}
 
@@ -140,10 +145,16 @@ func Bind[T, V any](
 
 			newVals = append(newVals, w)
 		}
-		vals = slices.Replace(vals, int(index), int(index+removed), newVals...)
+		binding.vals = slices.Replace(binding.vals, int(index), int(index+removed), newVals...)
 	})
 
-	return func() {
-		m.HandlerDisconnect(h)
-	}
+	return &binding
+}
+
+func (b *Binding[V]) Vals() []V {
+	return b.vals
+}
+
+func (b *Binding[V]) SignalHandle() glib.SignalHandle {
+	return b.handle
 }

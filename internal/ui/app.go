@@ -78,13 +78,6 @@ func (a *App) stopSpin() {
 	})
 }
 
-func (a *App) toast(msg string) *adw.Toast {
-	toast := adw.NewToast(msg)
-	toast.SetTimeout(3)
-	a.win.ToastOverlay.AddToast(toast)
-	return toast
-}
-
 func (a *App) update(s tsutil.Status) {
 	online := s.Online()
 	a.tray.Update(s)

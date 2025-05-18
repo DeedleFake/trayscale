@@ -138,7 +138,7 @@ func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStat
 			copyButton.SetTooltipText("Copy to Clipboard")
 			copyButton.ConnectClicked(func() {
 				a.clip(glib.NewValue(addr.String()))
-				a.toast("Copied to clipboard")
+				a.win.Toast("Copied to clipboard")
 			})
 
 			row := adw.NewActionRow()

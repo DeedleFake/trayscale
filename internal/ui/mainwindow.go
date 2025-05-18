@@ -196,3 +196,10 @@ func (win *MainWindow) updateProfiles(s tsutil.Status) {
 		win.ProfileDropDown.SetSelected(uint(profileIndex))
 	}
 }
+
+func (win *MainWindow) Toast(msg string) *adw.Toast {
+	toast := adw.NewToast(msg)
+	toast.SetTimeout(3)
+	win.ToastOverlay.AddToast(toast)
+	return toast
+}

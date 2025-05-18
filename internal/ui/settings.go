@@ -78,7 +78,7 @@ func (a *App) showChangeControlServer() {
 			err := tsutil.SetControlURL(ctx, val)
 			if err != nil {
 				slog.Error("update control plane server URL", "err", err, "url", val)
-				a.toast(fmt.Sprintf("Error setting control URL: %v", err))
+				a.win.Toast(fmt.Sprintf("Error setting control URL: %v", err))
 				return
 			}
 			a.poller.Poll() <- struct{}{}
@@ -88,7 +88,7 @@ func (a *App) showChangeControlServer() {
 
 func (a *App) showPreferences() {
 	if a.settings == nil {
-		a.toast("Settings schema not found")
+		a.win.Toast("Settings schema not found")
 		return
 	}
 

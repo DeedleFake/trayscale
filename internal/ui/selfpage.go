@@ -373,6 +373,7 @@ func (page *SelfPage) Update(row *PageRow, status tsutil.Status) bool {
 	peer := status.Status.Self
 
 	row.SetTitle(peerName(status, peer))
+	row.SetSubtitle("This machine")
 	row.SetIconName("computer-symbolic")
 
 	page.Page.SetTitle(peer.HostName)

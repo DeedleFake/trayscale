@@ -85,6 +85,16 @@ func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
 	return name
 }
 
+func peerSubtitle(peer *ipnstate.PeerStatus) string {
+	if peer.ExitNode {
+		return "Current exit node"
+	}
+	if peer.ExitNodeOption {
+		return "Exit node option"
+	}
+	return ""
+}
+
 func peerIcon(peer *ipnstate.PeerStatus) string {
 	if peer.ExitNode {
 		if !peer.Online {

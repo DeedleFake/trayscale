@@ -230,6 +230,7 @@ func (page *PeerPage) Update(row *PageRow, status tsutil.Status) bool {
 	}
 
 	row.SetTitle(peerName(status, page.peer))
+	row.SetSubtitle(peerSubtitle(page.peer))
 	row.SetIconName(peerIcon(page.peer))
 
 	page.Page.SetTitle(page.peer.HostName)

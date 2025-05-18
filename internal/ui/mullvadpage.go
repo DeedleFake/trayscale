@@ -40,22 +40,19 @@ type MullvadPage struct {
 
 func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
 	page := MullvadPage{
+		app:   a,
 		rows:  make(map[city]*mullvadLocationRow),
 		found: make(set.Set[*mullvadLocationRow]),
 	}
 	fillFromBuilder(&page, mullvadPageXML)
-	page.init(a, status)
-	return &page
-}
-
-func (page *MullvadPage) init(a *App, status tsutil.Status) {
-	page.app = a
 
 	page.LocationList.SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
 		e1 := r1.Cast().(*adw.ExpanderRow)
 		e2 := r2.Cast().(*adw.ExpanderRow)
 		return strings.Compare(e1.Title(), e2.Title())
 	})
+
+	return &page
 }
 
 func (page *MullvadPage) Widget() gtk.Widgetter {

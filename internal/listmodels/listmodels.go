@@ -18,40 +18,40 @@ func convertObject[T any](obj *glib.Object) T {
 	return gioutil.ObjectValue[T](obj)
 }
 
-func Objects(list gio.ListModeller) iter.Seq[*glib.Object] {
-	return func(yield func(*glib.Object) bool) {
+func Objects(list gio.ListModeller) iter.Seq2[uint, *glib.Object] {
+	return func(yield func(uint, *glib.Object) bool) {
 		length := list.NItems()
 		for i := uint(0); i < length; i++ {
 			item := list.Item(i)
-			if !yield(item) {
+			if !yield(i, item) {
 				return
 			}
 		}
 	}
 }
 
-func Values[T any](list gio.ListModeller) iter.Seq[T] {
-	return func(yield func(T) bool) {
-		for obj := range Objects(list) {
-			if !yield(convertObject[T](obj)) {
+func Values[T any](list gio.ListModeller) iter.Seq2[uint, T] {
+	return func(yield func(uint, T) bool) {
+		for i, obj := range Objects(list) {
+			if !yield(i, convertObject[T](obj)) {
 				return
 			}
 		}
 	}
 }
 
-func Backward(list gio.ListModeller) iter.Seq2[int, *glib.Object] {
-	return func(yield func(int, *glib.Object) bool) {
+func Backward(list gio.ListModeller) iter.Seq2[uint, *glib.Object] {
+	return func(yield func(uint, *glib.Object) bool) {
 		for i := int(list.NItems()) - 1; i >= 0; i-- {
-			if !yield(i, list.Item(uint(i))) {
+			if !yield(uint(i), list.Item(uint(i))) {
 				return
 			}
 		}
 	}
 }
 
-func ValuesBackward[T any](list gio.ListModeller) iter.Seq2[int, T] {
-	return func(yield func(int, T) bool) {
+func ValuesBackward[T any](list gio.ListModeller) iter.Seq2[uint, T] {
+	return func(yield func(uint, T) bool) {
 		for i, obj := range Backward(list) {
 			if !yield(i, convertObject[T](obj)) {
 				return

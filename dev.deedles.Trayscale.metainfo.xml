@@ -54,6 +54,13 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.17.1" date="2025-05-18">
+			<description>
+				<ul>
+					<li>Fix notifications for incoming files not showing when the window isn't open.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.17.0" date="2025-05-18">
 			<description>
 				<ul>

@@ -30,11 +30,11 @@
 	<launchable type="desktop-id">dev.deedles.Trayscale.desktop</launchable>
 	<screenshots>
 		<screenshot type="default">
-			<image>https://github.com/user-attachments/assets/8088edb9-3e80-4183-95a3-01843de867fc</image>
+			<image>https://github.com/user-attachments/assets/7dde12aa-f858-484c-a9f6-36fb70c0cc75</image>
 			<caption>Connected to Tailscale</caption>
 		</screenshot>
 		<screenshot>
-			<image>https://github.com/user-attachments/assets/7d1bfa36-a02b-46bf-95de-f2e9bbc4a06c</image>
+			<image>https://github.com/user-attachments/assets/1e0756ad-d68f-45f0-a9f7-892cf59dec2f</image>
 			<caption>Not connected to Tailscale</caption>
 		</screenshot>
 	</screenshots>
@@ -54,6 +54,14 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.17.2" date="2025-05-18">
+			<description>
+				<ul>
+					<li>Adjust styling of peer list, shrinking rows a bit.</li>
+					<li>Internal cleanup.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.17.1" date="2025-05-18">
 			<description>
 				<ul>

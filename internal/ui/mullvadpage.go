@@ -22,6 +22,7 @@ var mullvadPageXML string
 
 type MullvadPage struct {
 	app *App
+	row *PageRow
 
 	Page           *adw.StatusPage
 	ExitNodesGroup *adw.PreferencesGroup
@@ -99,7 +100,12 @@ func (page *MullvadPage) Widget() gtk.Widgetter {
 	return page.Page
 }
 
-func (page *MullvadPage) Update(row *PageRow, status tsutil.Status) bool {
+func (page *MullvadPage) Init(row *PageRow) {
+	page.row = row
+	row.SetTitle(mullvadPageBaseName)
+}
+
+func (page *MullvadPage) Update(status tsutil.Status) bool {
 	if !tsutil.CanMullvad(status.Status.Self) {
 		return false
 	}
@@ -133,9 +139,8 @@ func (page *MullvadPage) Update(row *PageRow, status tsutil.Status) bool {
 	clear(page.nodes)
 	page.nodes = page.nodes[:0]
 
-	row.SetTitle(mullvadPageBaseName)
-	row.SetSubtitle(subtitle)
-	row.SetIconName(icon)
+	page.row.SetSubtitle(subtitle)
+	page.row.SetIconName(icon)
 
 	return true
 }

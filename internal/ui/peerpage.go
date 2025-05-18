@@ -25,6 +25,7 @@ var peerPageXML string
 
 type PeerPage struct {
 	app  *App
+	row  *PageRow
 	peer *ipnstate.PeerStatus
 
 	Page                  *adw.StatusPage
@@ -223,15 +224,19 @@ func (page *PeerPage) Widget() gtk.Widgetter {
 	return page.Page
 }
 
-func (page *PeerPage) Update(row *PageRow, status tsutil.Status) bool {
+func (page *PeerPage) Init(row *PageRow) {
+	page.row = row
+}
+
+func (page *PeerPage) Update(status tsutil.Status) bool {
 	page.peer = status.Status.Peer[page.peer.PublicKey]
 	if page.peer == nil {
 		return false
 	}
 
-	row.SetTitle(peerName(status, page.peer))
-	row.SetSubtitle(peerSubtitle(page.peer))
-	row.SetIconName(peerIcon(page.peer))
+	page.row.SetTitle(peerName(status, page.peer))
+	page.row.SetSubtitle(peerSubtitle(page.peer))
+	page.row.SetIconName(peerIcon(page.peer))
 
 	page.Page.SetTitle(page.peer.HostName)
 	page.Page.SetDescription(page.peer.DNSName)
@@ -269,13 +274,7 @@ func (page *PeerPage) Update(row *PageRow, status tsutil.Status) bool {
 }
 
 func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
-	const maxNameLength = 30
-
-	name := tsutil.DNSOrQuoteHostname(status.Status, peer)
-	if len(name) > maxNameLength {
-		return name[:maxNameLength-3] + "..."
-	}
-	return name
+	return tsutil.DNSOrQuoteHostname(status.Status, peer)
 }
 
 func peerSubtitle(peer *ipnstate.PeerStatus) string {

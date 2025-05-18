@@ -3,6 +3,7 @@ package ui
 import (
 	"cmp"
 	"context"
+	_ "embed"
 	"fmt"
 	"log/slog"
 	"os"
@@ -26,6 +27,9 @@ const (
 	appID                 = "dev.deedles.Trayscale"
 	prefShowWindowAtStart = "showWindowAtStart"
 )
+
+//go:embed app.css
+var appCSS string
 
 // App is the main type for the app, containing all of the state
 // necessary to run it.
@@ -121,7 +125,13 @@ func (a *App) update(s tsutil.Status) {
 }
 
 func (a *App) init(ctx context.Context) {
+	gtk.Init()
+
 	a.app = adw.NewApplication(appID, gio.ApplicationHandlesOpen)
+
+	css := gtk.NewCSSProvider()
+	css.LoadFromString(appCSS)
+	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
 	var hideWindow bool
 	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, "Hide window on initial start", "")

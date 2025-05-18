@@ -29,19 +29,19 @@ type MullvadPage struct {
 	Page         *adw.StatusPage
 	LocationList *gtk.ListBox
 
-	rows map[city]*locationRow
+	rows map[city]*mullvadLocationRow
 
 	// These are used to cache some intermediate variables between
 	// updates to cut down on the number of necessary allocations.
 	nodes []*ipnstate.PeerStatus
 	locs  [][]*ipnstate.PeerStatus
-	found set.Set[*locationRow]
+	found set.Set[*mullvadLocationRow]
 }
 
 func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
 	page := MullvadPage{
-		rows:  make(map[city]*locationRow),
-		found: make(set.Set[*locationRow]),
+		rows:  make(map[city]*mullvadLocationRow),
+		found: make(set.Set[*mullvadLocationRow]),
 	}
 	fillFromBuilder(&page, mullvadPageXML)
 	page.init(a, status)
@@ -118,7 +118,7 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 	return true
 }
 
-func (page *MullvadPage) getRow(loc *tailcfg.Location) *locationRow {
+func (page *MullvadPage) getRow(loc *tailcfg.Location) *mullvadLocationRow {
 	city := cityFromLocation(loc)
 	if row, ok := page.rows[city]; ok {
 		return row
@@ -127,13 +127,13 @@ func (page *MullvadPage) getRow(loc *tailcfg.Location) *locationRow {
 	erow := adw.NewExpanderRow()
 	erow.SetTitle(mullvadLocationName(loc))
 
-	lrow := locationRow{
+	lrow := mullvadLocationRow{
 		Row: erow,
 	}
 
 	lrow.Manager.Parent = rowAdderParent{erow}
 	lrow.Manager.New = func(peer *ipnstate.PeerStatus) row[*ipnstate.PeerStatus] {
-		row := exitNodeRow{
+		row := mullvadExitNodeRow{
 			peer: peer,
 
 			w: adw.NewSwitchRow(),
@@ -178,24 +178,12 @@ func (page *MullvadPage) getRow(loc *tailcfg.Location) *locationRow {
 	return &lrow
 }
 
-type city struct {
-	Country string
-	City    string
-}
-
-func cityFromLocation(loc *tailcfg.Location) city {
-	return city{
-		Country: loc.CountryCode,
-		City:    loc.City,
-	}
-}
-
-type locationRow struct {
+type mullvadLocationRow struct {
 	Row     *adw.ExpanderRow
 	Manager rowManager[*ipnstate.PeerStatus]
 }
 
-func (row *locationRow) Update(nodes []*ipnstate.PeerStatus) {
+func (row *mullvadLocationRow) Update(nodes []*ipnstate.PeerStatus) {
 	row.Row.SetSubtitle("")
 	for _, peer := range nodes {
 		if peer.ExitNode {
@@ -207,21 +195,21 @@ func (row *locationRow) Update(nodes []*ipnstate.PeerStatus) {
 	row.Manager.Update(nodes)
 }
 
-func (row *locationRow) Widget() gtk.Widgetter {
+func (row *mullvadLocationRow) Widget() gtk.Widgetter {
 	return row.Row
 }
 
-type exitNodeRow struct {
+type mullvadExitNodeRow struct {
 	peer *ipnstate.PeerStatus
 
 	w *adw.SwitchRow
 }
 
-func (row *exitNodeRow) r() *gtk.Switch {
+func (row *mullvadExitNodeRow) r() *gtk.Switch {
 	return row.w.ActivatableWidget().(*gtk.Switch)
 }
 
-func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
+func (row *mullvadExitNodeRow) Update(peer *ipnstate.PeerStatus) {
 	row.peer = peer
 
 	row.w.SetTitle(mullvadNodeName(peer))
@@ -230,7 +218,7 @@ func (row *exitNodeRow) Update(peer *ipnstate.PeerStatus) {
 	row.r().SetActive(peer.ExitNode)
 }
 
-func (row *exitNodeRow) Widget() gtk.Widgetter {
+func (row *mullvadExitNodeRow) Widget() gtk.Widgetter {
 	return row.w
 }
 
@@ -266,4 +254,16 @@ func countryCodeToFlag(code string) string {
 	}
 
 	return string(raw[:])
+}
+
+type city struct {
+	Country string
+	City    string
+}
+
+func cityFromLocation(loc *tailcfg.Location) city {
+	return city{
+		Country: loc.CountryCode,
+		City:    loc.City,
+	}
 }

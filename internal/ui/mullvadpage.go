@@ -133,9 +133,9 @@ func (page *MullvadPage) Update(row *PageRow, status tsutil.Status) bool {
 	clear(page.nodes)
 	page.nodes = page.nodes[:0]
 
-	row.Row.SetTitle(mullvadPageBaseName)
-	row.Row.SetSubtitle(subtitle)
-	row.Icon.SetFromIconName(icon)
+	row.SetTitle(mullvadPageBaseName)
+	row.SetSubtitle(subtitle)
+	row.SetIconName(icon)
 
 	return true
 }

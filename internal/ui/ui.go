@@ -174,9 +174,9 @@ type Page interface {
 }
 
 type PageRow struct {
-	Page *adw.ViewStackPage
-	Row  *adw.ActionRow
-	Icon *gtk.Image
+	page *adw.ViewStackPage
+	row  *adw.ActionRow
+	icon *gtk.Image
 }
 
 func NewPageRow(page *adw.ViewStackPage) *PageRow {
@@ -192,8 +192,28 @@ func NewPageRow(page *adw.ViewStackPage) *PageRow {
 	})
 
 	return &PageRow{
-		Page: page,
-		Row:  row,
-		Icon: icon,
+		page: page,
+		row:  row,
+		icon: icon,
 	}
+}
+
+func (row *PageRow) Page() *adw.ViewStackPage {
+	return row.page
+}
+
+func (row *PageRow) Row() *adw.ActionRow {
+	return row.row
+}
+
+func (row *PageRow) SetTitle(title string) {
+	row.row.SetTitle(title)
+}
+
+func (row *PageRow) SetSubtitle(subtitle string) {
+	row.row.SetSubtitle(subtitle)
+}
+
+func (row *PageRow) SetIconName(icon string) {
+	row.icon.SetFromIconName(icon)
 }

@@ -60,19 +60,19 @@ func NewMainWindow(app *App) *MainWindow {
 		pagesModel,
 		NewPageRow,
 		func(i uint, row *PageRow) {
-			delete(pages, row.Row.Object.Native())
-			win.PeersList.Remove(row.Row)
+			delete(pages, row.Row().Object.Native())
+			win.PeersList.Remove(row.Row())
 		},
 		func(i uint, row *PageRow) {
-			win.pageRows[row.Page.Name()] = row
+			win.pageRows[row.Page().Name()] = row
 
-			pages[row.Row.Object.Native()] = row
-			win.PeersList.Append(row.Row)
+			pages[row.Row().Object.Native()] = row
+			win.PeersList.Append(row.Row())
 		},
 	)
 	win.PeersList.SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
-		p1 := pages[r1.Object.Native()].Page
-		p2 := pages[r2.Object.Native()].Page
+		p1 := pages[r1.Object.Native()].Page()
+		p2 := pages[r2.Object.Native()].Page()
 
 		if v, ok := prioritize("self", p1.Name(), p2.Name()); ok {
 			return v
@@ -88,7 +88,7 @@ func NewMainWindow(app *App) *MainWindow {
 		}
 
 		page := pages[row.Object.Native()]
-		win.PeersStack.SetVisibleChildName(page.Page.Name())
+		win.PeersStack.SetVisibleChildName(page.Page().Name())
 	})
 
 	win.ProfileModel = gtk.NewStringList(nil)

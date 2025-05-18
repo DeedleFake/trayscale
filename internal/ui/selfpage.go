@@ -372,8 +372,8 @@ func (page *SelfPage) Widget() gtk.Widgetter {
 func (page *SelfPage) Update(row *PageRow, status tsutil.Status) bool {
 	peer := status.Status.Self
 
-	row.Row.SetTitle(peerName(status, peer))
-	row.Icon.SetFromIconName("computer-symbolic")
+	row.SetTitle(peerName(status, peer))
+	row.SetIconName("computer-symbolic")
 
 	page.Page.SetTitle(peer.HostName)
 	page.Page.SetDescription(peer.DNSName)

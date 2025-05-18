@@ -229,8 +229,8 @@ func (page *PeerPage) Update(row *PageRow, status tsutil.Status) bool {
 		return false
 	}
 
-	row.Row.SetTitle(peerName(status, page.peer))
-	row.Icon.SetFromIconName(peerIcon(page.peer))
+	row.SetTitle(peerName(status, page.peer))
+	row.SetIconName(peerIcon(page.peer))
 
 	page.Page.SetTitle(page.peer.HostName)
 	page.Page.SetDescription(page.peer.DNSName)

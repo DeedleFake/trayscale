@@ -99,14 +99,7 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 	for _, peers := range page.locs {
 		row := page.getRow(peers[0].Location)
 		page.found.Add(row)
-		row.Manager.Update(peers)
-
-		row.Row.SetSubtitle("")
-		for _, peer := range peers {
-			if peer.ExitNode {
-				row.Row.SetSubtitle("Current exit node location")
-			}
-		}
+		row.Update(peers)
 	}
 	for city, row := range page.rows {
 		if !page.found.Contains(row) {
@@ -203,9 +196,6 @@ type locationRow struct {
 }
 
 func (row *locationRow) Update(nodes []*ipnstate.PeerStatus) {
-	loc := nodes[0].Location
-
-	row.Row.SetTitle(mullvadLocationName(loc))
 	row.Row.SetSubtitle("")
 	for _, peer := range nodes {
 		if peer.ExitNode {

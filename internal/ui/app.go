@@ -9,8 +9,6 @@ import (
 	"slices"
 	"time"
 
-	"deedles.dev/mk"
-	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -22,7 +20,6 @@ import (
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
-	"tailscale.com/util/set"
 )
 
 const (
@@ -41,8 +38,6 @@ type App struct {
 	settings *gio.Settings
 	tray     *tray.Tray
 
-	pages         map[string]Page
-	statusPage    *adw.StatusPage
 	spinnum       int
 	operatorCheck bool
 	profiles      []ipn.LoginProfile
@@ -90,101 +85,6 @@ func (a *App) toast(msg string) *adw.Toast {
 	return toast
 }
 
-func (a *App) updatePeersOffline() {
-	stack := a.win.PeersStack
-
-	var found bool
-	for name, page := range a.pages {
-		if name == "status" {
-			found = true
-			continue
-		}
-
-		stack.Remove(page.Widget())
-		delete(a.pages, name)
-	}
-	if !found {
-		stack.AddTitled(a.statusPage, "status", "Not Connected")
-	}
-}
-
-func (a *App) updatePeers(status tsutil.Status) {
-	if !status.Online() {
-		a.updatePeersOffline()
-		return
-	}
-
-	stack := a.win.PeersStack
-	if stack.ChildByName("status") != nil {
-		stack.Remove(a.statusPage)
-	}
-
-	found := make(set.Set[string])
-	for name, page := range a.pages {
-		vp := stack.Page(page.Widget())
-		ok := page.Update(a, vp, status)
-		if !ok {
-			stack.Remove(vp.Child())
-			delete(a.pages, name)
-			continue
-		}
-		found.Add(name)
-	}
-
-	if !found.Contains("self") {
-		page := NewSelfPage(a, status)
-		vp := stack.AddNamed(page.Widget(), "self")
-		page.Update(a, vp, status)
-		a.pages["self"] = page
-	}
-	if !found.Contains("mullvad") && tsutil.CanMullvad(status.Status.Self) {
-		page := NewMullvadPage(a, status)
-		vp := stack.AddNamed(page.Widget(), "mullvad")
-		page.Update(a, vp, status)
-		a.pages["mullvad"] = page
-	}
-
-	for _, peer := range status.Status.Peer {
-		if !found.Contains(string(peer.ID)) && !tsutil.IsMullvad(peer) {
-			page := NewPeerPage(a, status, peer)
-			vp := stack.AddNamed(page.Widget(), string(peer.ID))
-			page.Update(a, vp, status)
-			a.pages[string(peer.ID)] = page
-		}
-	}
-
-	// This awkward piece of code makes sure that things that had their
-	// titles changed stay sorted correctly.
-	page, ok := a.win.PeersModel.Item(a.win.PeersModel.Selection().Minimum()).Cast().(*adw.ViewStackPage)
-	a.win.PeersSortModel.SetSorter(nil)
-	a.win.PeersSortModel.SetSorter(&peersListSorter.Sorter)
-	if ok {
-		i, ok := listmodels.Index(a.win.PeersSortModel, func(vp *adw.ViewStackPage) bool {
-			return vp.Name() == page.Name()
-		})
-		if ok {
-			a.win.PeersList.SelectRow(a.win.PeersList.RowAtIndex(int(i)))
-		}
-	}
-}
-
-func (a *App) updateProfiles(s tsutil.Status) {
-	listmodels.UpdateStrings(a.win.ProfileModel, func(yield func(string) bool) {
-		for _, profile := range s.Profiles {
-			if !yield(profile.Name) {
-				return
-			}
-		}
-	})
-
-	profileIndex, ok := listmodels.Index(a.win.ProfileSortModel, func(obj *gtk.StringObject) bool {
-		return obj.String() == s.Profile.Name
-	})
-	if ok {
-		a.win.ProfileDropDown.SetSelected(uint(profileIndex))
-	}
-}
-
 func (a *App) update(s tsutil.Status) {
 	online := s.Online()
 	a.tray.Update(s)
@@ -203,10 +103,7 @@ func (a *App) update(s tsutil.Status) {
 
 	a.profiles = s.Profiles
 
-	a.win.StatusSwitch.SetState(online)
-	a.win.StatusSwitch.SetActive(online)
-	a.updatePeers(s)
-	a.updateProfiles(s)
+	a.win.Update(s)
 
 	if a.files != nil {
 		for _, file := range s.Files {
@@ -231,7 +128,6 @@ func (a *App) update(s tsutil.Status) {
 
 func (a *App) init(ctx context.Context) {
 	a.app = adw.NewApplication(appID, gio.ApplicationHandlesOpen)
-	mk.Map(&a.pages, 0)
 
 	var hideWindow bool
 	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, "Hide window on initial start", "")
@@ -356,12 +252,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.app.AddAction(quitAction)
 	a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
 
-	a.statusPage = adw.NewStatusPage()
-	a.statusPage.SetTitle("Not Connected")
-	a.statusPage.SetIconName("network-offline-symbolic")
-	a.statusPage.SetDescription("Tailscale is not connected")
-
-	a.win = NewMainWindow(&a.app.Application)
+	a.win = NewMainWindow(a)
 
 	a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
 		if s == a.win.StatusSwitch.State() {
@@ -417,7 +308,6 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 	a.win.MainWindow.ConnectCloseRequest(func() bool {
 		a.win = nil
-		clear(a.pages)
 		return false
 	})
 	a.poller.Poll() <- struct{}{}

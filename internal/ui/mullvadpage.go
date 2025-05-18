@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
@@ -13,6 +14,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
+	"tailscale.com/util/set"
 )
 
 const mullvadPageBaseName = "Mullvad Exit Nodes"
@@ -24,19 +26,23 @@ type MullvadPage struct {
 	app *App
 	row *PageRow
 
-	Page           *adw.StatusPage
-	ExitNodesGroup *adw.PreferencesGroup
+	Page         *adw.StatusPage
+	LocationList *gtk.ListBox
 
-	nodeLocationRows rowManager[[]*ipnstate.PeerStatus]
+	rows map[city]*locationRow
 
 	// These are used to cache some intermediate variables between
 	// updates to cut down on the number of necessary allocations.
 	nodes []*ipnstate.PeerStatus
 	locs  [][]*ipnstate.PeerStatus
+	found set.Set[*locationRow]
 }
 
 func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
-	var page MullvadPage
+	page := MullvadPage{
+		rows:  make(map[city]*locationRow),
+		found: make(set.Set[*locationRow]),
+	}
 	fillFromBuilder(&page, mullvadPageXML)
 	page.init(a, status)
 	return &page
@@ -45,55 +51,11 @@ func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
 func (page *MullvadPage) init(a *App, status tsutil.Status) {
 	page.app = a
 
-	page.nodeLocationRows.Parent = page.ExitNodesGroup
-	page.nodeLocationRows.New = func(peers []*ipnstate.PeerStatus) row[[]*ipnstate.PeerStatus] {
-		r := nodeLocationRow{
-			w: adw.NewExpanderRow(),
-		}
-		r.m.Parent = rowAdderParent{r.w}
-		r.m.New = func(peer *ipnstate.PeerStatus) row[*ipnstate.PeerStatus] {
-			row := exitNodeRow{
-				peer: peer,
-
-				w: adw.NewSwitchRow(),
-			}
-
-			row.w.SetTitle(peer.HostName)
-
-			row.r().SetMarginTop(12)
-			row.r().SetMarginBottom(12)
-			row.r().ConnectStateSet(func(s bool) bool {
-				if s == row.r().State() {
-					return false
-				}
-
-				if s {
-					err := tsutil.AdvertiseExitNode(context.TODO(), false)
-					if err != nil {
-						slog.Error("disable exit node advertisement", "err", err)
-						// Continue anyways.
-					}
-				}
-
-				var node *ipnstate.PeerStatus
-				if s {
-					node = row.peer
-				}
-				err := tsutil.ExitNode(context.TODO(), node)
-				if err != nil {
-					slog.Error("set exit node", "err", err)
-					row.r().SetActive(!s)
-					return true
-				}
-				a.poller.Poll() <- struct{}{}
-				return true
-			})
-
-			return &row
-		}
-
-		return &r
-	}
+	page.LocationList.SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
+		e1 := r1.Cast().(*adw.ExpanderRow)
+		e2 := r2.Cast().(*adw.ExpanderRow)
+		return strings.Compare(e1.Title(), e2.Title())
+	})
 }
 
 func (page *MullvadPage) Widget() gtk.Widgetter {
@@ -129,12 +91,30 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 	}
 	slices.SortFunc(page.nodes, tsutil.ComparePeers)
 
-	page.locs = page.locs[:0]
-	page.locs = slices.AppendSeq(page.locs, xiter.SliceChunksFunc(page.nodes, func(peer *ipnstate.PeerStatus) string {
+	clear(page.locs)
+	page.locs = slices.AppendSeq(page.locs[:0], xiter.SliceChunksFunc(page.nodes, func(peer *ipnstate.PeerStatus) string {
 		return peer.Location.CountryCode
 	}))
 
-	page.nodeLocationRows.Update(page.locs)
+	for _, peers := range page.locs {
+		row := page.getRow(peers[0].Location)
+		page.found.Add(row)
+		row.Manager.Update(peers)
+
+		row.Row.SetSubtitle("")
+		for _, peer := range peers {
+			if peer.ExitNode {
+				row.Row.SetSubtitle("Current exit node location")
+			}
+		}
+	}
+	for city, row := range page.rows {
+		if !page.found.Contains(row) {
+			delete(page.rows, city)
+			page.LocationList.Remove(row.Row)
+		}
+	}
+	clear(page.found)
 
 	clear(page.nodes)
 	page.nodes = page.nodes[:0]
@@ -145,28 +125,100 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 	return true
 }
 
-type nodeLocationRow struct {
-	w *adw.ExpanderRow
-	m rowManager[*ipnstate.PeerStatus]
+func (page *MullvadPage) getRow(loc *tailcfg.Location) *locationRow {
+	city := cityFromLocation(loc)
+	if row, ok := page.rows[city]; ok {
+		return row
+	}
+
+	erow := adw.NewExpanderRow()
+	erow.SetTitle(mullvadLocationName(loc))
+
+	lrow := locationRow{
+		Row: erow,
+	}
+
+	lrow.Manager.Parent = rowAdderParent{erow}
+	lrow.Manager.New = func(peer *ipnstate.PeerStatus) row[*ipnstate.PeerStatus] {
+		row := exitNodeRow{
+			peer: peer,
+
+			w: adw.NewSwitchRow(),
+		}
+
+		row.w.SetTitle(peer.HostName)
+
+		row.r().SetMarginTop(12)
+		row.r().SetMarginBottom(12)
+		row.r().ConnectStateSet(func(s bool) bool {
+			if s == row.r().State() {
+				return false
+			}
+
+			if s {
+				err := tsutil.AdvertiseExitNode(context.TODO(), false)
+				if err != nil {
+					slog.Error("disable exit node advertisement", "err", err)
+					// Continue anyways.
+				}
+			}
+
+			var node *ipnstate.PeerStatus
+			if s {
+				node = row.peer
+			}
+			err := tsutil.ExitNode(context.TODO(), node)
+			if err != nil {
+				slog.Error("set exit node", "err", err)
+				row.r().SetActive(!s)
+				return true
+			}
+			page.app.poller.Poll() <- struct{}{}
+			return true
+		})
+
+		return &row
+	}
+
+	page.rows[city] = &lrow
+	page.LocationList.Append(erow)
+	return &lrow
 }
 
-func (row *nodeLocationRow) Update(nodes []*ipnstate.PeerStatus) {
+type city struct {
+	Country string
+	City    string
+}
+
+func cityFromLocation(loc *tailcfg.Location) city {
+	return city{
+		Country: loc.CountryCode,
+		City:    loc.City,
+	}
+}
+
+type locationRow struct {
+	Row     *adw.ExpanderRow
+	Manager rowManager[*ipnstate.PeerStatus]
+}
+
+func (row *locationRow) Update(nodes []*ipnstate.PeerStatus) {
 	loc := nodes[0].Location
 
-	row.w.SetTitle(mullvadLocationName(loc))
-	row.w.SetSubtitle("")
+	row.Row.SetTitle(mullvadLocationName(loc))
+	row.Row.SetSubtitle("")
 	for _, peer := range nodes {
 		if peer.ExitNode {
-			row.w.SetSubtitle("Current exit node location")
+			row.Row.SetSubtitle("Current exit node location")
 			break
 		}
 	}
 
-	row.m.Update(nodes)
+	row.Manager.Update(nodes)
 }
 
-func (row *nodeLocationRow) Widget() gtk.Widgetter {
-	return row.w
+func (row *locationRow) Widget() gtk.Widgetter {
+	return row.Row
 }
 
 type exitNodeRow struct {

@@ -6,5 +6,5 @@
   <ui filename="peerpage.ui" sha256="5ea26b11277d58e2573f2a31f9d3b2b86355c992b9e1d4649bae91d4a64d85bf"/>
   <ui filename="preferences.ui" sha256="4a3a945d243e586bf4f12767f1d1e15df5355b156ec33c72d05d636b4c1b66f5"/>
   <ui filename="selfpage.ui" sha256="a69d5b87a32918950fd7990043d1d34e8532a1d8af100ee3c35d928d9e9d9217"/>
-  <ui filename="mullvadpage.ui" sha256="710a1d4e092d42067c905bbb076e8a0ec15faf00b466dec76a1b2c49f0e93cc7"/>
+  <ui filename="mullvadpage.ui" sha256="f92befae6868e0766e20740e96b77e31e991e17f6329e85d1ef675921d7e4ef6"/>
 </cambalache-project>

@@ -7,7 +7,6 @@ import (
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"tailscale.com/util/set"
 )
 
 var (
@@ -90,6 +89,16 @@ func (win *MainWindow) createPeersRow(page *adw.ViewStackPage) gtk.Widgetter {
 	return row
 }
 
+func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
+	win.pages[name] = page
+	return win.PeersStack.AddNamed(page.Widget(), name)
+}
+
+func (win *MainWindow) removePage(name string, page Page) {
+	delete(win.pages, name)
+	win.PeersStack.Remove(page.Widget())
+}
+
 func (win *MainWindow) Update(status tsutil.Status) {
 	online := status.Online()
 	win.StatusSwitch.SetState(online)
@@ -109,8 +118,7 @@ func (win *MainWindow) updatePeersOffline() {
 			continue
 		}
 
-		stack.Remove(page.Widget())
-		delete(win.pages, name)
+		win.removePage(name, page)
 	}
 	if !found {
 		stack.AddTitled(win.statusPage, "status", "Not Connected")
@@ -123,43 +131,41 @@ func (win *MainWindow) updatePeers(status tsutil.Status) {
 		return
 	}
 
+	if _, ok := win.pages["self"]; !ok {
+		win.addPage("self", NewSelfPage(win.app, status))
+	}
+	if _, ok := win.pages["mullvad"]; !ok && tsutil.CanMullvad(status.Status.Self) {
+		win.addPage("mullvad", NewMullvadPage(win.app, status))
+	}
+
+	for _, peer := range status.Status.Peer {
+		if tsutil.IsMullvad(peer) {
+			continue
+		}
+
+		name := string(peer.ID)
+		if _, ok := win.pages[name]; ok {
+			continue
+		}
+
+		win.addPage(name, NewPeerPage(win.app, status, peer))
+	}
+
 	stack := win.PeersStack
 	if stack.ChildByName("status") != nil {
 		stack.Remove(win.statusPage)
 	}
 
-	found := make(set.Set[string])
+	var remove []string
 	for name, page := range win.pages {
 		vp := stack.Page(page.Widget())
 		ok := page.Update(win.app, vp, status)
 		if !ok {
-			stack.Remove(vp.Child())
-			delete(win.pages, name)
-			continue
+			remove = append(remove, name)
 		}
-		found.Add(name)
 	}
-
-	if !found.Contains("self") {
-		page := NewSelfPage(win.app, status)
-		vp := stack.AddNamed(page.Widget(), "self")
-		page.Update(win.app, vp, status)
-		win.pages["self"] = page
-	}
-	if !found.Contains("mullvad") && tsutil.CanMullvad(status.Status.Self) {
-		page := NewMullvadPage(win.app, status)
-		vp := stack.AddNamed(page.Widget(), "mullvad")
-		page.Update(win.app, vp, status)
-		win.pages["mullvad"] = page
-	}
-
-	for _, peer := range status.Status.Peer {
-		if !found.Contains(string(peer.ID)) && !tsutil.IsMullvad(peer) {
-			page := NewPeerPage(win.app, status, peer)
-			vp := stack.AddNamed(page.Widget(), string(peer.ID))
-			page.Update(win.app, vp, status)
-			win.pages[string(peer.ID)] = page
-		}
+	for _, name := range remove {
+		win.removePage(name, win.pages[name])
 	}
 
 	win.SortPeers()

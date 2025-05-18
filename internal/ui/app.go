@@ -90,13 +90,6 @@ func (a *App) update(s tsutil.Status) {
 		}
 		a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
 	}
-	if a.win == nil {
-		return
-	}
-
-	a.profiles = s.Profiles
-
-	a.win.Update(s)
 
 	if a.files != nil {
 		for _, file := range s.Files {
@@ -107,6 +100,14 @@ func (a *App) update(s tsutil.Status) {
 		}
 	}
 	a.files = &s.Files
+
+	a.profiles = s.Profiles
+
+	if a.win == nil {
+		return
+	}
+
+	a.win.Update(s)
 
 	if a.online && !a.operatorCheck {
 		a.operatorCheck = true

@@ -209,14 +209,6 @@ func mullvadLocationName(loc *tailcfg.Location) string {
 	)
 }
 
-func mullvadNodeName(peer *ipnstate.PeerStatus) string {
-	if peer.Location == nil {
-		return peer.HostName
-	}
-
-	return fmt.Sprintf("%v (%v)", peer.Location.City, peer.HostName)
-}
-
 func countryCodeToFlag(code string) string {
 	var raw [2]rune
 	for i, c := range code {

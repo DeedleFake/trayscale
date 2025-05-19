@@ -54,6 +54,16 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.17.4" date="2025-05-19">
+			<description>
+				<ul>
+					<li>Adjust Mullvad page node info formatting.</li>
+					<li>Fix sorting of US Mullvad nodes.</li>
+					<li>Fix build script setting version incorrectly.</li>
+					<li>Add changes to about dialog.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.17.3" date="2025-05-18">
 			<description>
 				<ul>

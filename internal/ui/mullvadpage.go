@@ -112,7 +112,7 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 }
 
 func (page *MullvadPage) getLocationRow(loc *tailcfg.Location) *adw.ExpanderRow {
-	if row, ok := page.locations[loc.Country]; ok {
+	if row, ok := page.locations[loc.CountryCode]; ok {
 		return row
 	}
 
@@ -130,7 +130,7 @@ func (page *MullvadPage) getLocationRow(loc *tailcfg.Location) *adw.ExpanderRow 
 		)
 	})
 
-	page.locations[loc.Country] = row
+	page.locations[loc.CountryCode] = row
 	page.LocationList.Append(row)
 	return row
 }
@@ -176,7 +176,7 @@ func (page *MullvadPage) getExitNodeRow(peer *ipnstate.PeerStatus) *mullvadExitN
 	page.getLocationRow(peer.Location).AddRow(row)
 
 	exitNodeRow := mullvadExitNodeRow{
-		country: peer.Location.Country,
+		country: peer.Location.CountryCode,
 		row:     row,
 	}
 	page.exitNodes[peer.ID] = &exitNodeRow

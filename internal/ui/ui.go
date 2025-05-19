@@ -3,14 +3,11 @@ package ui
 import (
 	"cmp"
 	"errors"
-	"io"
 	"iter"
 	"net/netip"
 	"reflect"
-	"strings"
 	"time"
 
-	"deedles.dev/trayscale"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
@@ -55,24 +52,6 @@ func formatTime(t time.Time) string {
 		return ""
 	}
 	return t.Format(time.StampMilli)
-}
-
-// must returns v if err is nil. If err is not nil, it panics with
-// err's value.
-func must[T any](v T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// readAssetString returns the contents of the given embedded asset as
-// a string. It panics if there are any errors.
-func readAssetString(file string) string {
-	var str strings.Builder
-	f := must(trayscale.Assets().Open(file))
-	must(io.Copy(&str, f))
-	return str.String()
 }
 
 func boolIcon(v bool) string {

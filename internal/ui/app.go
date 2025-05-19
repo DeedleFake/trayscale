@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -24,7 +25,6 @@ import (
 )
 
 const (
-	appID                 = "dev.deedles.Trayscale"
 	prefShowWindowAtStart = "showWindowAtStart"
 )
 
@@ -53,7 +53,7 @@ func (a *App) clip(v *glib.Value) {
 }
 
 func (a *App) notify(title, body string) {
-	icon, iconerr := gio.NewIconForString(appID)
+	icon, iconerr := gio.NewIconForString(metadata.AppID)
 
 	n := gio.NewNotification(title)
 	n.SetBody(body)
@@ -127,7 +127,7 @@ func (a *App) update(s tsutil.Status) {
 func (a *App) init(ctx context.Context) {
 	gtk.Init()
 
-	a.app = adw.NewApplication(appID, gio.ApplicationHandlesOpen)
+	a.app = adw.NewApplication(metadata.AppID, gio.ApplicationHandlesOpen)
 
 	css := gtk.NewCSSProvider()
 	css.LoadFromString(appCSS)

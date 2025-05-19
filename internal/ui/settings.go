@@ -20,12 +20,12 @@ import (
 func (a *App) initSettings(ctx context.Context) {
 	nonreloc, reloc := gio.SettingsSchemaSourceGetDefault().ListSchemas(true)
 	schemas := xiter.Concat(slices.Values(nonreloc), slices.Values(reloc))
-	if !xiter.Contains(schemas, appID) {
+	if !xiter.Contains(schemas, metadata.AppID) {
 		a.runSettings(ctx)
 		return
 	}
 
-	a.settings = gio.NewSettings(appID)
+	a.settings = gio.NewSettings(metadata.AppID)
 	a.settings.ConnectChanged(func(key string) {
 		switch key {
 		case "tray-icon":
@@ -101,17 +101,23 @@ func (a *App) showPreferences() {
 // showAbout shows the app's about dialog.
 func (a *App) showAbout() {
 	dialog := adw.NewAboutDialog()
-	dialog.SetDevelopers([]string{"DeedleFake"})
-	dialog.SetCopyright("Copyright (c) 2023 DeedleFake")
-	dialog.SetLicense(readAssetString("LICENSE"))
+	dialog.SetDeveloperName("DeedleFake")
+	dialog.SetCopyright("Copyright (c) 2025 DeedleFake")
+	dialog.SetLicense(metadata.License())
 	dialog.SetLicenseType(gtk.LicenseCustom)
-	dialog.SetApplicationIcon(appID)
+	dialog.SetApplicationIcon(metadata.AppID)
 	dialog.SetApplicationName("Trayscale")
 	dialog.SetWebsite("https://github.com/DeedleFake/trayscale")
 	dialog.SetIssueURL("https://github.com/DeedleFake/trayscale/issues")
+
+	rnv, rn := metadata.ReleaseNotes()
+	dialog.SetReleaseNotesVersion(rnv)
+	dialog.SetReleaseNotes(rn)
+
 	if v, ok := metadata.Version(); ok {
 		dialog.SetVersion(v)
 	}
+
 	dialog.Present(a.window())
 }
 

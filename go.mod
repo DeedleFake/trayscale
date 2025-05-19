@@ -10,6 +10,7 @@ require (
 	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	github.com/klauspost/compress v1.18.0
+	github.com/stretchr/testify v1.10.0
 	golang.org/x/net v0.40.0
 	tailscale.com v1.82.5
 )
@@ -22,6 +23,7 @@ require (
 	github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa // indirect
 	github.com/coder/websocket v1.8.13 // indirect
 	github.com/coreos/go-iptables v0.8.0 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dblohm7/wingoes v0.0.0-20240820181039-f2b84150679e // indirect
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
 	github.com/go-json-experiment/json v0.0.0-20250517221953-25912455fbc8 // indirect
@@ -42,6 +44,7 @@ require (
 	github.com/miekg/dns v1.1.66 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
 	github.com/tailscale/go-winio v0.0.0-20231025203758-c4f33415bf55 // indirect
 	github.com/tailscale/goupnp v1.0.1-0.20210804030727-66b27ba4e403 // indirect
@@ -65,6 +68,7 @@ require (
 	golang.org/x/tools v0.33.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/tools v0.6.1 // indirect
 	k8s.io/client-go v0.33.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect

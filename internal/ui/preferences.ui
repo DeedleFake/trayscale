@@ -21,7 +21,7 @@
               <object class="AdwSpinRow" id="PollingIntervalRow">
                 <property name="adjustment">
                   <object class="GtkAdjustment" id="PollingIntervalAdjustment">
-                    <property name="lower">0.5</property>
+                    <property name="lower">1.0</property>
                     <property name="step-increment">1.0</property>
                     <property name="upper">100.0</property>
                     <property name="value">5.0</property>

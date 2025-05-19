@@ -72,6 +72,7 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 		exitNodeID = status.Status.ExitNodeStatus.ID
 	}
 
+	var exitNodeCountryCode string
 	found := make(set.Set[tailcfg.StableNodeID])
 	for _, peer := range status.Status.Peer {
 		if tsutil.IsMullvad(peer) {
@@ -81,15 +82,14 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 			row := page.getExitNodeRow(peer)
 			sw := row.row.ActivatableWidget().(*gtk.Switch)
 			sw.SetState(exitNode)
-			sw.SetState(exitNode)
+			sw.SetActive(exitNode)
 
-			var locSubtitle string
 			if exitNode {
 				subtitle = mullvadLongLocationName(peer.Location)
 				icon = "network-vpn-symbolic"
-				locSubtitle = "Current exit node location"
+				exitNodeCountryCode = peer.Location.CountryCode
 			}
-			page.getLocationRow(peer.Location).SetSubtitle(locSubtitle)
+			page.locations[peer.Location.CountryCode].SetSubtitle("")
 		}
 	}
 	for id, row := range page.exitNodes {
@@ -107,6 +107,9 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 
 	page.row.SetSubtitle(subtitle)
 	page.row.SetIconName(icon)
+	if exitNodeCountryCode != "" {
+		page.locations[exitNodeCountryCode].SetSubtitle("Current exit node location")
+	}
 
 	return true
 }

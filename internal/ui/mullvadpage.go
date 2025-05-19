@@ -6,7 +6,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
-	"slices"
+	"regexp"
 	"strings"
 
 	"deedles.dev/trayscale/internal/tsutil"
@@ -98,7 +98,7 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 
 			locRow := page.locations[row.country]
 			locRow.Remove(row.row)
-			if slices.Contains(locRow.CSSClasses(), "empty") {
+			if locRow.HasCSSClass("empty") {
 				delete(page.locations, row.country)
 				page.LocationList.Remove(locRow)
 			}
@@ -122,14 +122,14 @@ func (page *MullvadPage) getLocationRow(loc *tailcfg.Location) *adw.ExpanderRow 
 	row := adw.NewExpanderRow()
 	row.SetTitle(mullvadLocationName(loc))
 	expanderRowListBox(row).SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
-		t1 := r1.Cast().(*adw.SwitchRow).Title()
-		t2 := r2.Cast().(*adw.SwitchRow).Title()
-		c1, s1, t1 := parseCityState(t1)
-		c2, s2, t2 := parseCityState(t2)
+		sw1 := r1.Cast().(*adw.SwitchRow)
+		sw2 := r2.Cast().(*adw.SwitchRow)
+		c1, s1 := splitCityState(sw1.Title())
+		c2, s2 := splitCityState(sw2.Title())
 		return cmp.Or(
 			strings.Compare(s1, s2),
 			strings.Compare(c1, c2),
-			strings.Compare(t1, t2),
+			strings.Compare(sw1.Subtitle(), sw2.Subtitle()),
 		)
 	})
 
@@ -144,7 +144,8 @@ func (page *MullvadPage) getExitNodeRow(peer *ipnstate.PeerStatus) *mullvadExitN
 	}
 
 	row := adw.NewSwitchRow()
-	row.SetTitle(mullvadNodeName(peer))
+	row.SetTitle(peer.Location.City)
+	row.SetSubtitle(peer.HostName)
 
 	sw := row.ActivatableWidget().(*gtk.Switch)
 	sw.SetMarginTop(12)
@@ -225,11 +226,12 @@ func countryCodeToFlag(code string) string {
 	return string(raw[:])
 }
 
-func parseCityState(str string) (city, state, rest string) {
-	city, rest, ok := strings.Cut(str, ", ")
-	if !ok {
-		return "", "", str
+var cityStateRE = regexp.MustCompile(`^(.*),?\s+([A-Z]{2})$`)
+
+func splitCityState(str string) (city, state string) {
+	parts := cityStateRE.FindStringSubmatch(str)
+	if len(parts) == 0 {
+		return str, ""
 	}
-	state, rest, _ = strings.Cut(rest, " ")
-	return city, state, rest
+	return parts[1], parts[2]
 }

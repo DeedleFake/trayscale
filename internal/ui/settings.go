@@ -101,8 +101,8 @@ func (a *App) showPreferences() {
 // showAbout shows the app's about dialog.
 func (a *App) showAbout() {
 	dialog := adw.NewAboutDialog()
-	dialog.SetDevelopers([]string{"DeedleFake"})
-	dialog.SetCopyright("Copyright (c) 2023 DeedleFake")
+	dialog.SetDeveloperName("DeedleFake")
+	dialog.SetCopyright("Copyright (c) 2025 DeedleFake")
 	dialog.SetLicense(metadata.License())
 	dialog.SetLicenseType(gtk.LicenseCustom)
 	dialog.SetApplicationIcon(metadata.AppID)

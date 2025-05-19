@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"context"
 	_ "embed"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"strings"
 
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
@@ -29,20 +29,15 @@ type MullvadPage struct {
 	Page         *adw.StatusPage
 	LocationList *gtk.ListBox
 
-	rows map[city]*mullvadLocationRow
-
-	// These are used to cache some intermediate variables between
-	// updates to cut down on the number of necessary allocations.
-	nodes []*ipnstate.PeerStatus
-	locs  [][]*ipnstate.PeerStatus
-	found set.Set[*mullvadLocationRow]
+	locations map[string]*adw.ExpanderRow
+	exitNodes map[tailcfg.StableNodeID]*mullvadExitNodeRow
 }
 
 func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
 	page := MullvadPage{
-		app:   a,
-		rows:  make(map[city]*mullvadLocationRow),
-		found: make(set.Set[*mullvadLocationRow]),
+		app:       a,
+		locations: make(map[string]*adw.ExpanderRow),
+		exitNodes: make(map[tailcfg.StableNodeID]*mullvadExitNodeRow),
 	}
 	fillFromBuilder(&page, mullvadPageXML)
 
@@ -77,37 +72,38 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 		exitNodeID = status.Status.ExitNodeStatus.ID
 	}
 
+	found := make(set.Set[tailcfg.StableNodeID])
 	for _, peer := range status.Status.Peer {
 		if tsutil.IsMullvad(peer) {
-			page.nodes = append(page.nodes, peer)
-			if peer.ID == exitNodeID {
+			found.Add(peer.ID)
+			exitNode := peer.ID == exitNodeID
+
+			row := page.getExitNodeRow(peer)
+			sw := row.row.ActivatableWidget().(*gtk.Switch)
+			sw.SetState(exitNode)
+			sw.SetState(exitNode)
+
+			var locSubtitle string
+			if exitNode {
 				subtitle = mullvadLongLocationName(peer.Location)
 				icon = "network-vpn-symbolic"
+				locSubtitle = "Current exit node location"
+			}
+			page.getLocationRow(peer.Location).SetSubtitle(locSubtitle)
+		}
+	}
+	for id, row := range page.exitNodes {
+		if !found.Contains(id) {
+			delete(page.exitNodes, id)
+
+			locRow := page.locations[row.country]
+			locRow.Remove(row.row)
+			if slices.Contains(locRow.CSSClasses(), "empty") {
+				delete(page.locations, row.country)
+				page.LocationList.Remove(locRow)
 			}
 		}
 	}
-	slices.SortFunc(page.nodes, tsutil.ComparePeers)
-
-	clear(page.locs)
-	page.locs = slices.AppendSeq(page.locs[:0], xiter.SliceChunksFunc(page.nodes, func(peer *ipnstate.PeerStatus) string {
-		return peer.Location.CountryCode
-	}))
-
-	for _, peers := range page.locs {
-		row := page.getRow(peers[0].Location)
-		page.found.Add(row)
-		row.Update(peers)
-	}
-	for city, row := range page.rows {
-		if !page.found.Contains(row) {
-			delete(page.rows, city)
-			page.LocationList.Remove(row.Row)
-		}
-	}
-	clear(page.found)
-
-	clear(page.nodes)
-	page.nodes = page.nodes[:0]
 
 	page.row.SetSubtitle(subtitle)
 	page.row.SetIconName(icon)
@@ -115,108 +111,81 @@ func (page *MullvadPage) Update(status tsutil.Status) bool {
 	return true
 }
 
-func (page *MullvadPage) getRow(loc *tailcfg.Location) *mullvadLocationRow {
-	city := cityFromLocation(loc)
-	if row, ok := page.rows[city]; ok {
+func (page *MullvadPage) getLocationRow(loc *tailcfg.Location) *adw.ExpanderRow {
+	if row, ok := page.locations[loc.Country]; ok {
 		return row
 	}
 
-	erow := adw.NewExpanderRow()
-	erow.SetTitle(mullvadLocationName(loc))
+	row := adw.NewExpanderRow()
+	row.SetTitle(mullvadLocationName(loc))
+	expanderRowListBox(row).SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
+		t1 := r1.Cast().(*adw.SwitchRow).Title()
+		t2 := r2.Cast().(*adw.SwitchRow).Title()
+		c1, s1, t1 := parseCityState(t1)
+		c2, s2, t2 := parseCityState(t2)
+		return cmp.Or(
+			strings.Compare(s1, s2),
+			strings.Compare(c1, c2),
+			strings.Compare(t1, t2),
+		)
+	})
 
-	lrow := mullvadLocationRow{
-		Row: erow,
+	page.locations[loc.Country] = row
+	page.LocationList.Append(row)
+	return row
+}
+
+func (page *MullvadPage) getExitNodeRow(peer *ipnstate.PeerStatus) *mullvadExitNodeRow {
+	if row, ok := page.exitNodes[peer.ID]; ok {
+		return row
 	}
 
-	lrow.Manager.Parent = rowAdderParent{erow}
-	lrow.Manager.New = func(peer *ipnstate.PeerStatus) row[*ipnstate.PeerStatus] {
-		row := mullvadExitNodeRow{
-			peer: peer,
+	row := adw.NewSwitchRow()
+	row.SetTitle(mullvadNodeName(peer))
 
-			w: adw.NewSwitchRow(),
+	sw := row.ActivatableWidget().(*gtk.Switch)
+	sw.SetMarginTop(12)
+	sw.SetMarginBottom(12)
+	sw.ConnectStateSet(func(s bool) bool {
+		if s == sw.State() {
+			return false
 		}
 
-		row.w.SetTitle(peer.HostName)
-
-		row.r().SetMarginTop(12)
-		row.r().SetMarginBottom(12)
-		row.r().ConnectStateSet(func(s bool) bool {
-			if s == row.r().State() {
-				return false
-			}
-
-			if s {
-				err := tsutil.AdvertiseExitNode(context.TODO(), false)
-				if err != nil {
-					slog.Error("disable exit node advertisement", "err", err)
-					// Continue anyways.
-				}
-			}
-
-			var node *ipnstate.PeerStatus
-			if s {
-				node = row.peer
-			}
-			err := tsutil.ExitNode(context.TODO(), node)
+		if s {
+			err := tsutil.AdvertiseExitNode(context.TODO(), false)
 			if err != nil {
-				slog.Error("set exit node", "err", err)
-				row.r().SetActive(!s)
-				return true
+				slog.Error("disable exit node advertisement", "err", err)
+				// Continue anyways.
 			}
-			page.app.poller.Poll() <- struct{}{}
-			return true
-		})
-
-		return &row
-	}
-
-	page.rows[city] = &lrow
-	page.LocationList.Append(erow)
-	return &lrow
-}
-
-type mullvadLocationRow struct {
-	Row     *adw.ExpanderRow
-	Manager rowManager[*ipnstate.PeerStatus]
-}
-
-func (row *mullvadLocationRow) Update(nodes []*ipnstate.PeerStatus) {
-	row.Row.SetSubtitle("")
-	for _, peer := range nodes {
-		if peer.ExitNode {
-			row.Row.SetSubtitle("Current exit node location")
-			break
 		}
+
+		var node *ipnstate.PeerStatus
+		if s {
+			node = peer
+		}
+		err := tsutil.ExitNode(context.TODO(), node)
+		if err != nil {
+			slog.Error("set exit node", "err", err)
+			sw.SetActive(!s)
+			return true
+		}
+		page.app.poller.Poll() <- struct{}{}
+		return true
+	})
+
+	page.getLocationRow(peer.Location).AddRow(row)
+
+	exitNodeRow := mullvadExitNodeRow{
+		country: peer.Location.Country,
+		row:     row,
 	}
-
-	row.Manager.Update(nodes)
-}
-
-func (row *mullvadLocationRow) Widget() gtk.Widgetter {
-	return row.Row
+	page.exitNodes[peer.ID] = &exitNodeRow
+	return &exitNodeRow
 }
 
 type mullvadExitNodeRow struct {
-	peer *ipnstate.PeerStatus
-
-	w *adw.SwitchRow
-}
-
-func (row *mullvadExitNodeRow) r() *gtk.Switch {
-	return row.w.ActivatableWidget().(*gtk.Switch)
-}
-
-func (row *mullvadExitNodeRow) Update(peer *ipnstate.PeerStatus) {
-	row.peer = peer
-
-	row.w.SetTitle(mullvadNodeName(peer))
-
-	row.r().SetState(peer.ExitNode)
-	row.r().SetActive(peer.ExitNode)
-}
-
-func (row *mullvadExitNodeRow) Widget() gtk.Widgetter {
-	return row.w
+	country string
+	row     *adw.SwitchRow
 }
 
 func mullvadLongLocationName(loc *tailcfg.Location) string {
@@ -253,14 +222,11 @@ func countryCodeToFlag(code string) string {
 	return string(raw[:])
 }
 
-type city struct {
-	Country string
-	City    string
-}
-
-func cityFromLocation(loc *tailcfg.Location) city {
-	return city{
-		Country: loc.CountryCode,
-		City:    loc.City,
+func parseCityState(str string) (city, state, rest string) {
+	city, rest, ok := strings.Cut(str, ", ")
+	if !ok {
+		return "", "", str
 	}
+	state, rest, _ = strings.Cut(rest, " ")
+	return city, state, rest
 }

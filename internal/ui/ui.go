@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"io"
+	"iter"
 	"net/netip"
 	"reflect"
 	"strings"
@@ -128,6 +129,44 @@ func errHasCode(err error, code int) bool {
 		return false
 	}
 	return gerr.ErrorCode() == code
+}
+
+type widgetParent interface {
+	FirstChild() gtk.Widgetter
+}
+
+func widgetChildren(w widgetParent) iter.Seq[gtk.Widgetter] {
+	type siblingNexter interface{ NextSibling() gtk.Widgetter }
+	return func(yield func(gtk.Widgetter) bool) {
+		cur := w.FirstChild()
+		for cur != nil {
+			if !yield(cur) {
+				return
+			}
+
+			for child := range widgetChildren(cur.(widgetParent)) {
+				if !yield(child) {
+					return
+				}
+			}
+
+			cur = cur.(siblingNexter).NextSibling()
+		}
+	}
+}
+
+func expanderRowListBox(row *adw.ExpanderRow) *gtk.ListBox {
+	type caster interface{ Cast() glib.Objector }
+	for child := range widgetChildren(row) {
+		if r, ok := child.(caster).Cast().(*gtk.Revealer); ok {
+			for child := range widgetChildren(r) {
+				if box, ok := child.(caster).Cast().(*gtk.ListBox); ok {
+					return box
+				}
+			}
+		}
+	}
+	panic("ExpanderRow ListBox not found")
 }
 
 func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {

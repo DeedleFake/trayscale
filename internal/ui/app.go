@@ -24,10 +24,6 @@ import (
 	"tailscale.com/ipn/ipnstate"
 )
 
-const (
-	prefShowWindowAtStart = "showWindowAtStart"
-)
-
 //go:embed app.css
 var appCSS string
 

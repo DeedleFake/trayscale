@@ -30,11 +30,11 @@
 	<launchable type="desktop-id">dev.deedles.Trayscale.desktop</launchable>
 	<screenshots>
 		<screenshot type="default">
-			<image>https://github.com/user-attachments/assets/7dde12aa-f858-484c-a9f6-36fb70c0cc75</image>
+			<image>https://github.com/user-attachments/assets/2d5467cc-a4fb-44e7-876e-04e9232b01c1</image>
 			<caption>Connected to Tailscale</caption>
 		</screenshot>
 		<screenshot>
-			<image>https://github.com/user-attachments/assets/1e0756ad-d68f-45f0-a9f7-892cf59dec2f</image>
+			<image>https://github.com/user-attachments/assets/41d25bdf-8f09-45c8-bc9f-97dc8cd9f3d6</image>
 			<caption>Not connected to Tailscale</caption>
 		</screenshot>
 	</screenshots>
@@ -54,6 +54,16 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.17.6" date="2025-05-20">
+			<description>
+				<ul>
+					<li>Fix a crash that can happen when disconnecting from Tailscale.</li>
+					<li>Add title and icon to the Not Connected pseudo entry's row.</li>
+					<li>Disable page menu button if the current page has no actions anyways.</li>
+					<li>Fix incorrect minimum polling interval in the preferences window.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.17.5" date="2025-05-20">
 			<description>
 				<ul>

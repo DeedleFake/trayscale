@@ -32,10 +32,24 @@
                             <property name="icon-name">open-menu-symbolic</property>
                             <property name="menu-model">
                               <menu>
-                                <item>
-                                  <attribute name="action">peer.copyFQDN</attribute>
-                                  <attribute name="label">Copy FQDN</attribute>
-                                </item>
+                                <section>
+                                  <item>
+                                    <attribute name="action">peer.copyFQDN</attribute>
+                                    <attribute name="label">_Copy FQDN</attribute>
+                                  </item>
+                                </section>
+                                <section>
+                                  <item>
+                                    <attribute name="action">peer.sendFile</attribute>
+                                    <attribute name="label">Send _file...</attribute>
+                                    <attribute name="target">file</attribute>
+                                  </item>
+                                  <item>
+                                    <attribute name="action">peer.sendFile</attribute>
+                                    <attribute name="label">Send _directory...</attribute>
+                                    <attribute name="target">dir</attribute>
+                                  </item>
+                                </section>
                               </menu>
                             </property>
                           </object>

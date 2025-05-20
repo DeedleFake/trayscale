@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"log/slog"
 	"net/netip"
 	"slices"
@@ -93,18 +94,22 @@ func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStat
 	copyFQDNAction := gio.NewSimpleAction("copyFQDN", nil)
 	copyFQDNAction.ConnectActivate(func(p *glib.Variant) {
 		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.DNSName, ".")))
+		a.win.Toast("Copied FQDN to clipboard")
 	})
 	page.actions.AddAction(copyFQDNAction)
 
-	sendFileAction := gio.NewSimpleAction("sendfile", glib.NewVariantType("s"))
+	sendFileAction := gio.NewSimpleAction("sendFile", glib.NewVariantType("s"))
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
 		dialog := gtk.NewFileDialog()
 		dialog.SetModal(true)
 
+		mode := p.String()
 		open, finish := dialog.OpenMultiple, dialog.OpenMultipleFinish
-		if p.String() == "dir" {
+		if mode == "dir" {
 			open, finish = dialog.SelectMultipleFolders, dialog.SelectMultipleFoldersFinish
 		}
+
+		dialog.SetTitle(fmt.Sprintf("Select %v(s) to send to %v", mode, page.peer.HostName))
 
 		open(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 			files, err := finish(res)

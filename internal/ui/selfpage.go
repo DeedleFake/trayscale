@@ -87,6 +87,7 @@ func (page *SelfPage) init(a *App, status tsutil.Status) {
 	copyFQDN := gio.NewSimpleAction("copyFQDN", nil)
 	copyFQDN.ConnectActivate(func(p *glib.Variant) {
 		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.DNSName, ".")))
+		a.win.Toast("Copied FQDN to clipboard")
 	})
 	page.actions.AddAction(copyFQDN)
 

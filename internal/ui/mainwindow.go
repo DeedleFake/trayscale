@@ -11,13 +11,8 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
-var (
-	//go:embed mainwindow.ui
-	mainWindowXML string
-
-	//go:embed menu.ui
-	menuXML string
-)
+//go:embed mainwindow.ui
+var mainWindowXML string
 
 type MainWindow struct {
 	app *App
@@ -45,7 +40,7 @@ func NewMainWindow(app *App) *MainWindow {
 		app:   app,
 		pages: make(map[string]Page),
 	}
-	fillFromBuilder(&win, menuXML, mainWindowXML)
+	fillFromBuilder(&win, mainWindowXML)
 
 	win.MainWindow.SetApplication(&app.app.Application)
 

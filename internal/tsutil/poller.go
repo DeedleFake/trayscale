@@ -198,15 +198,15 @@ type Status struct {
 
 // Online returns true if s indicates that the local node is online
 // and connected to the tailnet.
-func (s Status) Online() bool {
+func (s *Status) Online() bool {
 	return (s.Status != nil) && (s.Status.BackendState == ipn.Running.String())
 }
 
-func (s Status) NeedsAuth() bool {
+func (s *Status) NeedsAuth() bool {
 	return (s.Status != nil) && (s.Status.BackendState == ipn.NeedsLogin.String())
 }
 
-func (s Status) OperatorIsCurrent() bool {
+func (s *Status) OperatorIsCurrent() bool {
 	current, err := user.Current()
 	if err != nil {
 		slog.Error("get current user", "err", err)
@@ -216,7 +216,7 @@ func (s Status) OperatorIsCurrent() bool {
 	return s.Prefs.OperatorUser == current.Username
 }
 
-func (s Status) SelfAddr() (netip.Addr, bool) {
+func (s *Status) SelfAddr() (netip.Addr, bool) {
 	if s.Status == nil {
 		return netip.Addr{}, false
 	}

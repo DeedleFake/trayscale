@@ -4,6 +4,7 @@
   <!-- interface-name mainwindow.ui -->
   <requires lib="gtk" version="4.18"/>
   <requires lib="libadwaita" version="1.7"/>
+  <requires lib="gio" version="2.0"/>
   <object class="AdwApplicationWindow" id="MainWindow">
     <property name="content">ToastOverlay</property>
     <property name="default-height">600</property>
@@ -23,11 +24,40 @@
                       <object class="AdwViewStack" id="PeersStack"/>
                     </property>
                     <child type="top">
-                      <object class="AdwHeaderBar">
+                      <object class="AdwHeaderBar" id="PageHeaderBar">
                         <property name="show-start-title-buttons">False</property>
                         <property name="show-title">False</property>
                         <child type="end">
-                          <object class="GtkSpinner" id="WorkSpinner"/>
+                          <object class="GtkMenuButton" id="PageMenuButton">
+                            <property name="icon-name">open-menu-symbolic</property>
+                            <property name="menu-model">
+                              <menu>
+                                <section>
+                                  <item>
+                                    <attribute name="action">peer.copyFQDN</attribute>
+                                    <attribute name="label">_Copy FQDN</attribute>
+                                  </item>
+                                </section>
+                                <section>
+                                  <item>
+                                    <attribute name="action">peer.sendFile</attribute>
+                                    <attribute name="label">Send _file...</attribute>
+                                    <attribute name="target">file</attribute>
+                                  </item>
+                                  <item>
+                                    <attribute name="action">peer.sendFile</attribute>
+                                    <attribute name="label">Send _directory...</attribute>
+                                    <attribute name="target">dir</attribute>
+                                  </item>
+                                </section>
+                              </menu>
+                            </property>
+                          </object>
+                        </child>
+                        <child type="end">
+                          <object class="AdwSpinner" id="WorkSpinner">
+                            <property name="visible">False</property>
+                          </object>
                         </child>
                       </object>
                     </child>
@@ -61,8 +91,30 @@
                         <child type="end">
                           <object class="GtkMenuButton" id="MainMenuButton">
                             <property name="icon-name">open-menu-symbolic</property>
-                            <!-- Custom object fragments -->
-                            <property name="menu-model">MainMenu</property>
+                            <property name="menu-model">
+                              <menu>
+                                <section>
+                                  <item>
+                                    <attribute name="action">app.change_control_server</attribute>
+                                    <attribute name="label">Change Control _Server</attribute>
+                                  </item>
+                                  <item>
+                                    <attribute name="action">app.preferences</attribute>
+                                    <attribute name="label">_Preferences</attribute>
+                                  </item>
+                                </section>
+                                <section>
+                                  <item>
+                                    <attribute name="action">app.about</attribute>
+                                    <attribute name="label">_About</attribute>
+                                  </item>
+                                  <item>
+                                    <attribute name="action">app.quit</attribute>
+                                    <attribute name="label">_Quit</attribute>
+                                  </item>
+                                </section>
+                              </menu>
+                            </property>
                             <property name="primary">True</property>
                           </object>
                         </child>

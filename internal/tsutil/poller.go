@@ -33,11 +33,11 @@ type Poller struct {
 
 	// If non-nil, New will be called when a new status is received from
 	// Tailscale.
-	New func(Status)
+	New func(*Status)
 
 	once     sync.Once
 	poll     chan struct{}
-	get      chan Status
+	get      chan *Status
 	interval chan time.Duration
 }
 
@@ -131,7 +131,7 @@ func (p *Poller) Run(ctx context.Context) {
 			}
 		}
 
-		s := Status{Status: status, Prefs: prefs, Files: files, Profile: profile, Profiles: profiles}
+		s := &Status{Status: status, Prefs: prefs, Files: files, Profile: profile, Profiles: profiles}
 		if p.New != nil {
 			// TODO: Only call this if the status changed from the previous
 			// poll? Is that remotely feasible?
@@ -171,7 +171,7 @@ func (p *Poller) Poll() chan<- struct{} {
 // Get returns a channel that will yield the latest Status fetched. If
 // a new Status is in the process of being fetched, it will wait for
 // that to finish and then yield that.
-func (p *Poller) Get() <-chan Status {
+func (p *Poller) Get() <-chan *Status {
 	p.init()
 
 	return p.get

@@ -168,7 +168,7 @@ type Page interface {
 	Actions() gio.ActionGrouper
 
 	Init(*PageRow)
-	Update(tsutil.Status) bool
+	Update(*tsutil.Status) bool
 }
 
 type PageRow struct {

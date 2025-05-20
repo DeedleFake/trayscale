@@ -78,7 +78,7 @@ func (a *App) stopSpin() {
 	})
 }
 
-func (a *App) update(s tsutil.Status) {
+func (a *App) update(s *tsutil.Status) {
 	online := s.Online()
 	a.tray.Update(s)
 	if a.online != online {
@@ -424,7 +424,7 @@ func (a *App) Run(ctx context.Context) {
 
 	a.poller = &tsutil.Poller{
 		Interval: a.getInterval(),
-		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		New:      func(s *tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
 

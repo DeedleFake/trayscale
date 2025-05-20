@@ -71,14 +71,14 @@ type SelfPage struct {
 	fileModel  *gioutil.ListModel[apitype.WaitingFile]
 }
 
-func NewSelfPage(a *App, status tsutil.Status) *SelfPage {
+func NewSelfPage(a *App, status *tsutil.Status) *SelfPage {
 	var page SelfPage
 	fillFromBuilder(&page, selfPageXML)
 	page.init(a, status)
 	return &page
 }
 
-func (page *SelfPage) init(a *App, status tsutil.Status) {
+func (page *SelfPage) init(a *App, status *tsutil.Status) {
 	page.app = a
 	page.peer = status.Status.Self
 
@@ -390,7 +390,7 @@ func (page *SelfPage) Init(row *PageRow) {
 	row.SetSubtitle("This machine")
 }
 
-func (page *SelfPage) Update(status tsutil.Status) bool {
+func (page *SelfPage) Update(status *tsutil.Status) bool {
 	page.peer = status.Status.Self
 
 	page.row.SetTitle(peerName(status, page.peer))

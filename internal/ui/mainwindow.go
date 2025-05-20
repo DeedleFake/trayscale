@@ -116,7 +116,7 @@ func (win *MainWindow) removePage(name string, page Page) {
 	win.PeersStack.Remove(page.Widget())
 }
 
-func (win *MainWindow) Update(status tsutil.Status) {
+func (win *MainWindow) Update(status *tsutil.Status) {
 	online := status.Online()
 	win.StatusSwitch.SetState(online)
 	win.StatusSwitch.SetActive(online)
@@ -142,7 +142,7 @@ func (win *MainWindow) updatePeersOffline() {
 	}
 }
 
-func (win *MainWindow) updatePeers(status tsutil.Status) {
+func (win *MainWindow) updatePeers(status *tsutil.Status) {
 	if !status.Online() {
 		win.updatePeersOffline()
 		return
@@ -186,7 +186,7 @@ func (win *MainWindow) updatePeers(status tsutil.Status) {
 	win.PeersList.InvalidateSort()
 }
 
-func (win *MainWindow) updateProfiles(s tsutil.Status) {
+func (win *MainWindow) updateProfiles(s *tsutil.Status) {
 	listmodels.UpdateStrings(win.ProfileModel, func(yield func(string) bool) {
 		for _, profile := range s.Profiles {
 			name := profile.Name

@@ -34,7 +34,7 @@ type MullvadPage struct {
 	exitNodes map[tailcfg.StableNodeID]*mullvadExitNodeRow
 }
 
-func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
+func NewMullvadPage(a *App, status *tsutil.Status) *MullvadPage {
 	page := MullvadPage{
 		app:       a,
 		locations: make(map[string]*adw.ExpanderRow),
@@ -64,7 +64,7 @@ func (page *MullvadPage) Init(row *PageRow) {
 	row.SetTitle(mullvadPageBaseName)
 }
 
-func (page *MullvadPage) Update(status tsutil.Status) bool {
+func (page *MullvadPage) Update(status *tsutil.Status) bool {
 	if !tsutil.CanMullvad(status.Status.Self) {
 		return false
 	}

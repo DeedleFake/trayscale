@@ -54,6 +54,16 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.17.6" date="2025-05-20">
+			<description>
+				<ul>
+					<li>Fix a crash that can happen when disconnecting from Tailscale.</li>
+					<li>Add title and icon to the Not Connected pseudo entry's row.</li>
+					<li>Disable page menu button if the current page has no actions anyways.</li>
+					<li>Fix incorrect minimum polling interval in the preferences window.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.17.5" date="2025-05-20">
 			<description>
 				<ul>

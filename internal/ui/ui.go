@@ -13,6 +13,7 @@ import (
 	"deedles.dev/trayscale/internal/xnetip"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gerror"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/client/tailscale/apitype"
@@ -164,6 +165,8 @@ func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 // corresponds to information about a specific peer in the tailnet.
 type Page interface {
 	Widget() gtk.Widgetter
+	Actions() gio.ActionGrouper
+
 	Init(*PageRow)
 	Update(tsutil.Status) bool
 }

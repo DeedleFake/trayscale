@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"strings"
 
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -24,9 +25,10 @@ import (
 var peerPageXML string
 
 type PeerPage struct {
-	app  *App
-	row  *PageRow
-	peer *ipnstate.PeerStatus
+	app     *App
+	row     *PageRow
+	peer    *ipnstate.PeerStatus
+	actions *gio.SimpleActionGroup
 
 	Page                  *adw.StatusPage
 	IPList                *gtk.ListBox
@@ -86,8 +88,13 @@ func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStat
 	page.app = a
 	page.peer = peer
 
-	actions := gio.NewSimpleActionGroup()
-	page.Page.InsertActionGroup("peer", actions)
+	page.actions = gio.NewSimpleActionGroup()
+
+	copyFQDNAction := gio.NewSimpleAction("copyFQDN", nil)
+	copyFQDNAction.ConnectActivate(func(p *glib.Variant) {
+		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.DNSName, ".")))
+	})
+	page.actions.AddAction(copyFQDNAction)
 
 	sendFileAction := gio.NewSimpleAction("sendfile", glib.NewVariantType("s"))
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
@@ -113,7 +120,7 @@ func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStat
 			}
 		})
 	})
-	actions.AddAction(sendFileAction)
+	page.actions.AddAction(sendFileAction)
 
 	page.Page.AddController(page.DropTarget)
 	page.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
@@ -222,6 +229,10 @@ func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStat
 
 func (page *PeerPage) Widget() gtk.Widgetter {
 	return page.Page
+}
+
+func (page *PeerPage) Actions() gio.ActionGrouper {
+	return page.actions
 }
 
 func (page *PeerPage) Init(row *PageRow) {

@@ -49,6 +49,13 @@ func NewMainWindow(app *App) *MainWindow {
 	win.statusPage.SetIconName("network-offline-symbolic")
 	win.statusPage.SetDescription("Tailscale is not connected")
 
+	win.PeersStack.NotifyProperty("visible-child-name", func() {
+		page := win.pages[win.PeersStack.VisibleChildName()]
+		if page != nil {
+			win.MainWindow.InsertActionGroup("peer", page.Actions())
+		}
+	})
+
 	pages := make(map[uintptr]*PageRow)
 	pagesModel := win.PeersStack.Pages()
 	listmodels.Bind(
@@ -86,7 +93,10 @@ func NewMainWindow(app *App) *MainWindow {
 		}
 
 		page := pages[row.Object.Native()]
-		win.PeersStack.SetVisibleChildName(page.Page().Name())
+		name := page.Page().Name()
+
+		win.PeersStack.SetVisibleChildName(name)
+		win.MainWindow.InsertActionGroup("peer", win.pages[name].Actions())
 	})
 
 	win.ProfileModel = gtk.NewStringList(nil)

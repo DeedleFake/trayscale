@@ -11,6 +11,7 @@ import (
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
@@ -52,6 +53,10 @@ func NewMullvadPage(a *App, status tsutil.Status) *MullvadPage {
 
 func (page *MullvadPage) Widget() gtk.Widgetter {
 	return page.Page
+}
+
+func (page *MullvadPage) Actions() gio.ActionGrouper {
+	return nil
 }
 
 func (page *MullvadPage) Init(row *PageRow) {

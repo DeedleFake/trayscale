@@ -71,13 +71,25 @@ func NewMainWindow(app *App) *MainWindow {
 			win.PeersList.Remove(row.Row())
 		},
 		func(i uint, row *PageRow) {
-			page := win.pages[row.Page().Name()]
-			if page != nil {
-				page.Init(row)
-			}
+			vp := row.Page()
+			row.SetTitle(vp.Title())
+			row.SetIconName(vp.IconName())
 
 			pages[row.Row().Object.Native()] = row
 			win.PeersList.Append(row.Row())
+
+			page := win.pages[vp.Name()]
+			if page != nil {
+				page.Init(row)
+				return
+			}
+
+			vp.NotifyProperty("title", func() {
+				row.SetTitle(vp.Title())
+			})
+			vp.NotifyProperty("icon-name", func() {
+				row.SetIconName(vp.IconName())
+			})
 		},
 	)
 	win.PeersList.SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
@@ -130,8 +142,6 @@ func (win *MainWindow) Update(status *tsutil.Status) {
 }
 
 func (win *MainWindow) updatePeersOffline() {
-	stack := win.PeersStack
-
 	var found bool
 	for name, page := range win.pages {
 		if name == "status" {
@@ -142,7 +152,8 @@ func (win *MainWindow) updatePeersOffline() {
 		win.removePage(name, page)
 	}
 	if !found {
-		stack.AddTitled(win.statusPage, "status", "Not Connected")
+		vp := win.PeersStack.AddTitled(win.statusPage, "status", "Not Connected")
+		vp.SetIconName("network-offline-symbolic")
 	}
 }
 

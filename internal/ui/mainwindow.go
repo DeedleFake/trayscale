@@ -8,6 +8,7 @@ import (
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
@@ -51,9 +52,12 @@ func NewMainWindow(app *App) *MainWindow {
 
 	win.PeersStack.NotifyProperty("visible-child-name", func() {
 		page := win.pages[win.PeersStack.VisibleChildName()]
+
+		var actions gio.ActionGrouper
 		if page != nil {
-			win.MainWindow.InsertActionGroup("peer", page.Actions())
+			actions = page.Actions()
 		}
+		win.MainWindow.InsertActionGroup("peer", actions)
 	})
 
 	pages := make(map[uintptr]*PageRow)

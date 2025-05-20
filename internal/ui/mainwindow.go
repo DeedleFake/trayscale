@@ -27,7 +27,7 @@ type MainWindow struct {
 	PeersStack      *adw.ViewStack
 	WorkSpinner     *adw.Spinner
 	ProfileDropDown *gtk.DropDown
-	PageHeaderBar   *adw.HeaderBar
+	PageMenuButton  *gtk.MenuButton
 
 	pages      map[string]Page
 	statusPage *adw.StatusPage
@@ -58,6 +58,7 @@ func NewMainWindow(app *App) *MainWindow {
 			actions = page.Actions()
 		}
 		win.MainWindow.InsertActionGroup("peer", actions)
+		win.PageMenuButton.SetSensitive(actions != nil)
 	})
 
 	pages := make(map[uintptr]*PageRow)
@@ -100,7 +101,6 @@ func NewMainWindow(app *App) *MainWindow {
 		name := page.Page().Name()
 
 		win.PeersStack.SetVisibleChildName(name)
-		win.MainWindow.InsertActionGroup("peer", win.pages[name].Actions())
 	})
 
 	win.ProfileModel = gtk.NewStringList(nil)

@@ -29,8 +29,9 @@ type MainWindow struct {
 	MainMenuButton  *gtk.MenuButton
 	PeersList       *gtk.ListBox
 	PeersStack      *adw.ViewStack
-	WorkSpinner     *gtk.Spinner
+	WorkSpinner     *adw.Spinner
 	ProfileDropDown *gtk.DropDown
+	PageHeaderBar   *adw.HeaderBar
 
 	pages      map[string]Page
 	statusPage *adw.StatusPage

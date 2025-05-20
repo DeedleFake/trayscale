@@ -68,7 +68,7 @@ func (a *App) spin() {
 	glib.IdleAdd(func() {
 		a.spinnum++
 		if a.win != nil {
-			a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+			a.win.WorkSpinner.SetVisible(a.spinnum > 0)
 		}
 	})
 }
@@ -77,7 +77,7 @@ func (a *App) stopSpin() {
 	glib.IdleAdd(func() {
 		a.spinnum--
 		if a.win != nil {
-			a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+			a.win.WorkSpinner.SetVisible(a.spinnum > 0)
 		}
 	})
 }

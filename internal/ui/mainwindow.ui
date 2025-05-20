@@ -23,11 +23,13 @@
                       <object class="AdwViewStack" id="PeersStack"/>
                     </property>
                     <child type="top">
-                      <object class="AdwHeaderBar">
+                      <object class="AdwHeaderBar" id="PageHeaderBar">
                         <property name="show-start-title-buttons">False</property>
                         <property name="show-title">False</property>
                         <child type="end">
-                          <object class="GtkSpinner" id="WorkSpinner"/>
+                          <object class="AdwSpinner" id="WorkSpinner">
+                            <property name="visible">False</property>
+                          </object>
                         </child>
                       </object>
                     </child>

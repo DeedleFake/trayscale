@@ -35,11 +35,12 @@ func dirReader(ctx context.Context, file gio.Filer) (io.ReadCloser, int64, strin
 
 	r, w := io.Pipe()
 	go func() {
+		defer w.Close()
+
 		select {
 		case <-ctx.Done():
 		case <-done:
 		}
-		w.Close()
 	}()
 
 	go func() {

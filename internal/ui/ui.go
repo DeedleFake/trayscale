@@ -115,23 +115,27 @@ type widgetParent interface {
 }
 
 func widgetChildren(w widgetParent) iter.Seq[gtk.Widgetter] {
-	type siblingNexter interface{ NextSibling() gtk.Widgetter }
 	return func(yield func(gtk.Widgetter) bool) {
-		cur := w.FirstChild()
-		for cur != nil {
-			if !yield(cur) {
-				return
-			}
-
-			for child := range widgetChildren(cur.(widgetParent)) {
-				if !yield(child) {
-					return
-				}
-			}
-
-			cur = cur.(siblingNexter).NextSibling()
-		}
+		widgetChildrenPush(yield, w)
 	}
+}
+
+func widgetChildrenPush(yield func(gtk.Widgetter) bool, w widgetParent) bool {
+	type siblingNexter interface{ NextSibling() gtk.Widgetter }
+
+	cur := w.FirstChild()
+	for cur != nil {
+		if !yield(cur) {
+			return false
+		}
+		if !widgetChildrenPush(yield, cur.(widgetParent)) {
+			return false
+		}
+
+		cur = cur.(siblingNexter).NextSibling()
+	}
+
+	return true
 }
 
 func expanderRowListBox(row *adw.ExpanderRow) *gtk.ListBox {

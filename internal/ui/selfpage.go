@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"slices"
+	"strings"
 	"time"
 
 	"deedles.dev/trayscale/internal/listmodels"
@@ -20,14 +21,17 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
+	"tailscale.com/ipn/ipnstate"
 )
 
 //go:embed selfpage.ui
 var selfPageXML string
 
 type SelfPage struct {
-	app *App
-	row *PageRow
+	app     *App
+	row     *PageRow
+	peer    *ipnstate.PeerStatus
+	actions *gio.SimpleActionGroup
 
 	Page                 *adw.StatusPage
 	IPList               *gtk.ListBox
@@ -67,18 +71,25 @@ type SelfPage struct {
 	fileModel  *gioutil.ListModel[apitype.WaitingFile]
 }
 
-func NewSelfPage(a *App, status tsutil.Status) *SelfPage {
+func NewSelfPage(a *App, status *tsutil.Status) *SelfPage {
 	var page SelfPage
 	fillFromBuilder(&page, selfPageXML)
 	page.init(a, status)
 	return &page
 }
 
-func (page *SelfPage) init(a *App, status tsutil.Status) {
+func (page *SelfPage) init(a *App, status *tsutil.Status) {
 	page.app = a
+	page.peer = status.Status.Self
 
-	actions := gio.NewSimpleActionGroup()
-	page.Page.InsertActionGroup("peer", actions)
+	page.actions = gio.NewSimpleActionGroup()
+
+	copyFQDN := gio.NewSimpleAction("copyFQDN", nil)
+	copyFQDN.ConnectActivate(func(p *glib.Variant) {
+		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.DNSName, ".")))
+		a.win.Toast("Copied FQDN to clipboard")
+	})
+	page.actions.AddAction(copyFQDN)
 
 	page.addrModel = gioutil.NewListModel[netip.Addr]()
 	listmodels.BindListBox(
@@ -370,19 +381,23 @@ func (page *SelfPage) Widget() gtk.Widgetter {
 	return page.Page
 }
 
+func (page *SelfPage) Actions() gio.ActionGrouper {
+	return page.actions
+}
+
 func (page *SelfPage) Init(row *PageRow) {
 	page.row = row
 	row.SetSubtitle("This machine")
 }
 
-func (page *SelfPage) Update(status tsutil.Status) bool {
-	peer := status.Status.Self
+func (page *SelfPage) Update(status *tsutil.Status) bool {
+	page.peer = status.Status.Self
 
-	page.row.SetTitle(peerName(status, peer))
+	page.row.SetTitle(peerName(status, page.peer))
 	page.row.SetIconName("computer-symbolic")
 
-	page.Page.SetTitle(peer.HostName)
-	page.Page.SetDescription(peer.DNSName)
+	page.Page.SetTitle(page.peer.HostName)
+	page.Page.SetDescription(page.peer.DNSName)
 
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.AdvertisesExitNode())
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.AdvertisesExitNode())
@@ -401,7 +416,7 @@ func (page *SelfPage) Update(status tsutil.Status) bool {
 		}
 	}
 
-	listmodels.Update(page.addrModel, slices.Values(peer.TailscaleIPs))
+	listmodels.Update(page.addrModel, slices.Values(page.peer.TailscaleIPs))
 	listmodels.Update(page.fileModel, slices.Values(status.Files))
 	listmodels.Update(page.routeModel, routes)
 

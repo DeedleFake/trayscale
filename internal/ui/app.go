@@ -24,10 +24,6 @@ import (
 	"tailscale.com/ipn/ipnstate"
 )
 
-const (
-	prefShowWindowAtStart = "showWindowAtStart"
-)
-
 //go:embed app.css
 var appCSS string
 
@@ -68,7 +64,7 @@ func (a *App) spin() {
 	glib.IdleAdd(func() {
 		a.spinnum++
 		if a.win != nil {
-			a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+			a.win.WorkSpinner.SetVisible(a.spinnum > 0)
 		}
 	})
 }
@@ -77,12 +73,12 @@ func (a *App) stopSpin() {
 	glib.IdleAdd(func() {
 		a.spinnum--
 		if a.win != nil {
-			a.win.WorkSpinner.SetSpinning(a.spinnum > 0)
+			a.win.WorkSpinner.SetVisible(a.spinnum > 0)
 		}
 	})
 }
 
-func (a *App) update(s tsutil.Status) {
+func (a *App) update(s *tsutil.Status) {
 	online := s.Online()
 	a.tray.Update(s)
 	if a.online != online {
@@ -428,7 +424,7 @@ func (a *App) Run(ctx context.Context) {
 
 	a.poller = &tsutil.Poller{
 		Interval: a.getInterval(),
-		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		New:      func(s *tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
 

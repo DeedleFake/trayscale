@@ -3,10 +3,12 @@ package ui
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"log/slog"
 	"net/netip"
 	"slices"
 	"strconv"
+	"strings"
 
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -24,9 +26,10 @@ import (
 var peerPageXML string
 
 type PeerPage struct {
-	app  *App
-	row  *PageRow
-	peer *ipnstate.PeerStatus
+	app     *App
+	row     *PageRow
+	peer    *ipnstate.PeerStatus
+	actions *gio.SimpleActionGroup
 
 	Page                  *adw.StatusPage
 	IPList                *gtk.ListBox
@@ -75,29 +78,38 @@ type PeerPage struct {
 	routeModel *gioutil.ListModel[netip.Prefix]
 }
 
-func NewPeerPage(a *App, status tsutil.Status, peer *ipnstate.PeerStatus) *PeerPage {
+func NewPeerPage(a *App, status *tsutil.Status, peer *ipnstate.PeerStatus) *PeerPage {
 	var page PeerPage
 	fillFromBuilder(&page, peerPageXML)
 	page.init(a, status, peer)
 	return &page
 }
 
-func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStatus) {
+func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerStatus) {
 	page.app = a
 	page.peer = peer
 
-	actions := gio.NewSimpleActionGroup()
-	page.Page.InsertActionGroup("peer", actions)
+	page.actions = gio.NewSimpleActionGroup()
 
-	sendFileAction := gio.NewSimpleAction("sendfile", glib.NewVariantType("s"))
+	copyFQDNAction := gio.NewSimpleAction("copyFQDN", nil)
+	copyFQDNAction.ConnectActivate(func(p *glib.Variant) {
+		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.DNSName, ".")))
+		a.win.Toast("Copied FQDN to clipboard")
+	})
+	page.actions.AddAction(copyFQDNAction)
+
+	sendFileAction := gio.NewSimpleAction("sendFile", glib.NewVariantType("s"))
 	sendFileAction.ConnectActivate(func(p *glib.Variant) {
 		dialog := gtk.NewFileDialog()
 		dialog.SetModal(true)
 
+		mode := p.String()
 		open, finish := dialog.OpenMultiple, dialog.OpenMultipleFinish
-		if p.String() == "dir" {
+		if mode == "dir" {
 			open, finish = dialog.SelectMultipleFolders, dialog.SelectMultipleFoldersFinish
 		}
+
+		dialog.SetTitle(fmt.Sprintf("Select %v(s) to send to %v", mode, page.peer.HostName))
 
 		open(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 			files, err := finish(res)
@@ -113,7 +125,7 @@ func (page *PeerPage) init(a *App, status tsutil.Status, peer *ipnstate.PeerStat
 			}
 		})
 	})
-	actions.AddAction(sendFileAction)
+	page.actions.AddAction(sendFileAction)
 
 	page.Page.AddController(page.DropTarget)
 	page.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
@@ -224,11 +236,15 @@ func (page *PeerPage) Widget() gtk.Widgetter {
 	return page.Page
 }
 
+func (page *PeerPage) Actions() gio.ActionGrouper {
+	return page.actions
+}
+
 func (page *PeerPage) Init(row *PageRow) {
 	page.row = row
 }
 
-func (page *PeerPage) Update(status tsutil.Status) bool {
+func (page *PeerPage) Update(status *tsutil.Status) bool {
 	page.peer = status.Status.Peer[page.peer.PublicKey]
 	if page.peer == nil {
 		return false
@@ -273,7 +289,7 @@ func (page *PeerPage) Update(status tsutil.Status) bool {
 	return true
 }
 
-func peerName(status tsutil.Status, peer *ipnstate.PeerStatus) string {
+func peerName(status *tsutil.Status, peer *ipnstate.PeerStatus) string {
 	return tsutil.DNSOrQuoteHostname(status.Status, peer)
 }
 

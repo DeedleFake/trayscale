@@ -56,7 +56,7 @@ type Tray struct {
 	quitItem       *tray.MenuItem
 }
 
-func (t *Tray) Start(s tsutil.Status) error {
+func (t *Tray) Start(s *tsutil.Status) error {
 	if t.item != nil {
 		return nil
 	}
@@ -100,7 +100,7 @@ func (t *Tray) Close() error {
 	return err
 }
 
-func (t *Tray) Update(s tsutil.Status) {
+func (t *Tray) Update(s *tsutil.Status) {
 	if t == nil || t.item == nil {
 		return
 	}
@@ -120,7 +120,7 @@ func (t *Tray) Update(s tsutil.Status) {
 	)
 }
 
-func (t *Tray) updateStatusIcon(s tsutil.Status) {
+func (t *Tray) updateStatusIcon(s *tsutil.Status) {
 	newIcon := statusIcon(s)
 	if newIcon == t.icon {
 		return
@@ -130,7 +130,7 @@ func (t *Tray) updateStatusIcon(s tsutil.Status) {
 	t.item.SetProps(tray.ItemIconPixmap(newIcon))
 }
 
-func statusIcon(s tsutil.Status) *tray.Pixmap {
+func statusIcon(s *tsutil.Status) *tray.Pixmap {
 	if !s.Online() {
 		return &statusIconInactive
 	}
@@ -140,7 +140,7 @@ func statusIcon(s tsutil.Status) *tray.Pixmap {
 	return &statusIconActive
 }
 
-func selfTitle(s tsutil.Status) (string, bool) {
+func selfTitle(s *tsutil.Status) (string, bool) {
 	addr, ok := s.SelfAddr()
 	if !ok {
 		if len(s.Status.Self.TailscaleIPs) == 0 {
@@ -160,7 +160,7 @@ func connToggleText(online bool) string {
 	return "Connect"
 }
 
-func exitToggleText(s tsutil.Status) string {
+func exitToggleText(s *tsutil.Status) string {
 	if s.Status != nil && s.Status.ExitNodeStatus != nil {
 		// TODO: Show some actual information about the current exit node?
 		return "Disable exit node"

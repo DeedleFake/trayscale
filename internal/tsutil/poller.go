@@ -33,11 +33,11 @@ type Poller struct {
 
 	// If non-nil, New will be called when a new status is received from
 	// Tailscale.
-	New func(Status)
+	New func(*Status)
 
 	once     sync.Once
 	poll     chan struct{}
-	get      chan Status
+	get      chan *Status
 	interval chan time.Duration
 }
 
@@ -131,7 +131,7 @@ func (p *Poller) Run(ctx context.Context) {
 			}
 		}
 
-		s := Status{Status: status, Prefs: prefs, Files: files, Profile: profile, Profiles: profiles}
+		s := &Status{Status: status, Prefs: prefs, Files: files, Profile: profile, Profiles: profiles}
 		if p.New != nil {
 			// TODO: Only call this if the status changed from the previous
 			// poll? Is that remotely feasible?
@@ -171,7 +171,7 @@ func (p *Poller) Poll() chan<- struct{} {
 // Get returns a channel that will yield the latest Status fetched. If
 // a new Status is in the process of being fetched, it will wait for
 // that to finish and then yield that.
-func (p *Poller) Get() <-chan Status {
+func (p *Poller) Get() <-chan *Status {
 	p.init()
 
 	return p.get
@@ -198,15 +198,15 @@ type Status struct {
 
 // Online returns true if s indicates that the local node is online
 // and connected to the tailnet.
-func (s Status) Online() bool {
+func (s *Status) Online() bool {
 	return (s.Status != nil) && (s.Status.BackendState == ipn.Running.String())
 }
 
-func (s Status) NeedsAuth() bool {
+func (s *Status) NeedsAuth() bool {
 	return (s.Status != nil) && (s.Status.BackendState == ipn.NeedsLogin.String())
 }
 
-func (s Status) OperatorIsCurrent() bool {
+func (s *Status) OperatorIsCurrent() bool {
 	current, err := user.Current()
 	if err != nil {
 		slog.Error("get current user", "err", err)
@@ -216,7 +216,7 @@ func (s Status) OperatorIsCurrent() bool {
 	return s.Prefs.OperatorUser == current.Username
 }
 
-func (s Status) SelfAddr() (netip.Addr, bool) {
+func (s *Status) SelfAddr() (netip.Addr, bool) {
 	if s.Status == nil {
 		return netip.Addr{}, false
 	}

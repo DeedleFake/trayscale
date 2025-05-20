@@ -13,6 +13,7 @@ import (
 	"deedles.dev/trayscale/internal/xnetip"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gerror"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/client/tailscale/apitype"
@@ -115,23 +116,27 @@ type widgetParent interface {
 }
 
 func widgetChildren(w widgetParent) iter.Seq[gtk.Widgetter] {
-	type siblingNexter interface{ NextSibling() gtk.Widgetter }
 	return func(yield func(gtk.Widgetter) bool) {
-		cur := w.FirstChild()
-		for cur != nil {
-			if !yield(cur) {
-				return
-			}
-
-			for child := range widgetChildren(cur.(widgetParent)) {
-				if !yield(child) {
-					return
-				}
-			}
-
-			cur = cur.(siblingNexter).NextSibling()
-		}
+		widgetChildrenPush(yield, w)
 	}
+}
+
+func widgetChildrenPush(yield func(gtk.Widgetter) bool, w widgetParent) bool {
+	type siblingNexter interface{ NextSibling() gtk.Widgetter }
+
+	cur := w.FirstChild()
+	for cur != nil {
+		if !yield(cur) {
+			return false
+		}
+		if !widgetChildrenPush(yield, cur.(widgetParent)) {
+			return false
+		}
+
+		cur = cur.(siblingNexter).NextSibling()
+	}
+
+	return true
 }
 
 func expanderRowListBox(row *adw.ExpanderRow) *gtk.ListBox {
@@ -160,8 +165,10 @@ func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 // corresponds to information about a specific peer in the tailnet.
 type Page interface {
 	Widget() gtk.Widgetter
+	Actions() gio.ActionGrouper
+
 	Init(*PageRow)
-	Update(tsutil.Status) bool
+	Update(*tsutil.Status) bool
 }
 
 type PageRow struct {

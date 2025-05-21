@@ -308,7 +308,7 @@ func peerIcon(peer *ipnstate.PeerStatus) string {
 		if !peer.Online {
 			return "network-vpn-acquiring-symbolic"
 		}
-		return "network-vpn-symbolic"
+		return "security-high-symbolic"
 	}
 	if !peer.Online {
 		return "network-wired-offline-symbolic"

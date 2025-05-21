@@ -91,7 +91,7 @@ func (page *MullvadPage) Update(status *tsutil.Status) bool {
 
 			if exitNode {
 				subtitle = mullvadLongLocationName(peer.Location)
-				icon = "security-high-symbolic"
+				icon = "network-vpn-symbolic"
 				exitNodeCountryCode = peer.Location.CountryCode
 			}
 			page.locations[peer.Location.CountryCode].SetSubtitle("")

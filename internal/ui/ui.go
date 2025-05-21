@@ -6,6 +6,7 @@ import (
 	"iter"
 	"net/netip"
 	"reflect"
+	"slices"
 	"time"
 
 	"deedles.dev/trayscale/internal/listmodels"
@@ -212,6 +213,14 @@ func (row *PageRow) SetSubtitle(subtitle string) {
 	row.row.SetSubtitle(subtitle)
 }
 
-func (row *PageRow) SetIconName(icon string) {
-	row.icon.SetFromIconName(icon)
+var emptyIconNameSlice = []string{""}
+
+func (row *PageRow) SetIconName(names ...string) {
+	if len(names) == 0 || slices.Equal(names, emptyIconNameSlice) {
+		row.icon.SetFromIconName("")
+		return
+	}
+
+	icon := gio.NewThemedIconFromNames(names)
+	row.icon.SetFromGIcon(icon)
 }

@@ -252,7 +252,7 @@ func (page *PeerPage) Update(status *tsutil.Status) bool {
 
 	page.row.SetTitle(peerName(status, page.peer))
 	page.row.SetSubtitle(peerSubtitle(page.peer))
-	page.row.SetIconName(peerIcon(page.peer))
+	page.row.SetIconName(peerIcons(page.peer)...)
 
 	page.Page.SetTitle(page.peer.HostName)
 	page.Page.SetDescription(page.peer.DNSName)
@@ -303,19 +303,19 @@ func peerSubtitle(peer *ipnstate.PeerStatus) string {
 	return ""
 }
 
-func peerIcon(peer *ipnstate.PeerStatus) string {
+func peerIcons(peer *ipnstate.PeerStatus) []string {
 	if peer.ExitNode {
 		if !peer.Online {
-			return "network-vpn-acquiring-symbolic"
+			return []string{"network-vpn-acquiring-symbolic"}
 		}
-		return "network-vpn-symbolic"
+		return []string{"network-vpn-symbolic", "security-high-symbolic"}
 	}
 	if !peer.Online {
-		return "network-wired-disconnected-symbolic"
+		return []string{"network-wired-disconnected-symbolic"}
 	}
 	if peer.ExitNodeOption {
-		return "network-workgroup-symbolic"
+		return []string{"network-workgroup-symbolic"}
 	}
 
-	return "network-wired-symbolic"
+	return []string{"network-wired-symbolic"}
 }

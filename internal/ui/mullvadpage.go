@@ -20,6 +20,11 @@ import (
 
 const mullvadPageBaseName = "Mullvad Exit Nodes"
 
+var (
+	mullvadIconDefault  = peerIconExitNodeOption
+	mullvadIconExitNode = peerIconExitNodeOnline
+)
+
 //go:embed mullvadpage.ui
 var mullvadPageXML string
 
@@ -70,7 +75,7 @@ func (page *MullvadPage) Update(status *tsutil.Status) bool {
 	}
 
 	var subtitle string
-	icon := "network-workgroup-symbolic"
+	icon := mullvadIconDefault
 
 	var exitNodeID tailcfg.StableNodeID
 	if status.Status.ExitNodeStatus != nil {
@@ -91,7 +96,7 @@ func (page *MullvadPage) Update(status *tsutil.Status) bool {
 
 			if exitNode {
 				subtitle = mullvadLongLocationName(peer.Location)
-				icon = "network-vpn-symbolic"
+				icon = mullvadIconExitNode
 				exitNodeCountryCode = peer.Location.CountryCode
 			}
 			page.locations[peer.Location.CountryCode].SetSubtitle("")
@@ -111,7 +116,7 @@ func (page *MullvadPage) Update(status *tsutil.Status) bool {
 	}
 
 	page.row.SetSubtitle(subtitle)
-	page.row.SetIconName(icon)
+	page.row.SetIcon(icon)
 	if exitNodeCountryCode != "" {
 		page.locations[exitNodeCountryCode].SetSubtitle("Current exit node location")
 	}

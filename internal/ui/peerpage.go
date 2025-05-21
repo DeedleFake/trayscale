@@ -252,7 +252,7 @@ func (page *PeerPage) Update(status *tsutil.Status) bool {
 
 	page.row.SetTitle(peerName(status, page.peer))
 	page.row.SetSubtitle(peerSubtitle(page.peer))
-	page.row.SetIconName(peerIcons(page.peer)...)
+	page.row.SetIcon(peerIcons(page.peer))
 
 	page.Page.SetTitle(page.peer.HostName)
 	page.Page.SetDescription(page.peer.DNSName)
@@ -303,19 +303,27 @@ func peerSubtitle(peer *ipnstate.PeerStatus) string {
 	return ""
 }
 
-func peerIcons(peer *ipnstate.PeerStatus) []string {
+var (
+	peerIconExitNodeOffline = gio.NewThemedIconFromNames([]string{"network-vpn-acquiring-symbolic"})
+	peerIconExitNodeOnline  = gio.NewThemedIconFromNames([]string{"network-vpn-symbolic", "security-high-symbolic"})
+	peerIconOffline         = gio.NewThemedIconFromNames([]string{"network-wired-disconnected-symbolic"})
+	peerIconExitNodeOption  = gio.NewThemedIconFromNames([]string{"network-workgroup-symbolic"})
+	peerIconDefault         = gio.NewThemedIconFromNames([]string{"network-wired-symbolic"})
+)
+
+func peerIcons(peer *ipnstate.PeerStatus) gio.Iconner {
 	if peer.ExitNode {
 		if !peer.Online {
-			return []string{"network-vpn-acquiring-symbolic"}
+			return peerIconExitNodeOffline
 		}
-		return []string{"network-vpn-symbolic", "security-high-symbolic"}
+		return peerIconExitNodeOnline
 	}
 	if !peer.Online {
-		return []string{"network-wired-disconnected-symbolic"}
+		return peerIconOffline
 	}
 	if peer.ExitNodeOption {
-		return []string{"network-workgroup-symbolic"}
+		return peerIconExitNodeOption
 	}
 
-	return []string{"network-wired-symbolic"}
+	return peerIconDefault
 }

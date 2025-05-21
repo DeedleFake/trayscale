@@ -306,12 +306,12 @@ func peerSubtitle(peer *ipnstate.PeerStatus) string {
 func peerIcon(peer *ipnstate.PeerStatus) string {
 	if peer.ExitNode {
 		if !peer.Online {
-			return "network-vpn-acquiring-symbolic"
+			return "security-low-symbolic"
 		}
 		return "security-high-symbolic"
 	}
 	if !peer.Online {
-		return "network-wired-offline-symbolic"
+		return "network-wired-disconnected-symbolic"
 	}
 	if peer.ExitNodeOption {
 		return "folder-remote-symbolic"

@@ -388,13 +388,13 @@ func (page *SelfPage) Actions() gio.ActionGrouper {
 func (page *SelfPage) Init(row *PageRow) {
 	page.row = row
 	row.SetSubtitle("This machine")
+	page.row.SetIconName("computer-symbolic")
 }
 
 func (page *SelfPage) Update(status *tsutil.Status) bool {
 	page.peer = status.Status.Self
 
 	page.row.SetTitle(peerName(status, page.peer))
-	page.row.SetIconName("computer-symbolic")
 
 	page.Page.SetTitle(page.peer.HostName)
 	page.Page.SetDescription(page.peer.DNSName)

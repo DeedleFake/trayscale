@@ -78,14 +78,14 @@ type PeerPage struct {
 	routeModel *gioutil.ListModel[netip.Prefix]
 }
 
-func NewPeerPage(a *App, status *tsutil.Status, peer *ipnstate.PeerStatus) *PeerPage {
+func NewPeerPage(a *App, status *tsutil.NetStatus, peer *ipnstate.PeerStatus) *PeerPage {
 	var page PeerPage
 	fillFromBuilder(&page, peerPageXML)
 	page.init(a, status, peer)
 	return &page
 }
 
-func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerStatus) {
+func (page *PeerPage) init(a *App, status *tsutil.NetStatus, peer *ipnstate.PeerStatus) {
 	page.app = a
 	page.peer = peer
 
@@ -244,7 +244,11 @@ func (page *PeerPage) Init(row *PageRow) {
 	page.row = row
 }
 
-func (page *PeerPage) Update(status *tsutil.Status) bool {
+func (page *PeerPage) Update(s tsutil.Status) bool {
+	status, ok := s.(*tsutil.NetStatus)
+	if !ok {
+		return true
+	}
 	if !status.Online() {
 		return false
 	}
@@ -293,7 +297,7 @@ func (page *PeerPage) Update(status *tsutil.Status) bool {
 	return true
 }
 
-func peerName(status *tsutil.Status, peer *ipnstate.PeerStatus) string {
+func peerName(status *tsutil.NetStatus, peer *ipnstate.PeerStatus) string {
 	return tsutil.DNSOrQuoteHostname(status.Status, peer)
 }
 

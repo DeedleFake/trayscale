@@ -71,14 +71,14 @@ type SelfPage struct {
 	fileModel  *gioutil.ListModel[apitype.WaitingFile]
 }
 
-func NewSelfPage(a *App, status *tsutil.Status) *SelfPage {
+func NewSelfPage(a *App, status *tsutil.NetStatus) *SelfPage {
 	var page SelfPage
 	fillFromBuilder(&page, selfPageXML)
 	page.init(a, status)
 	return &page
 }
 
-func (page *SelfPage) init(a *App, status *tsutil.Status) {
+func (page *SelfPage) init(a *App, status *tsutil.NetStatus) {
 	page.app = a
 	page.peer = status.Status.Self
 
@@ -390,7 +390,18 @@ func (page *SelfPage) Init(row *PageRow) {
 	row.SetSubtitle("This machine")
 }
 
-func (page *SelfPage) Update(status *tsutil.Status) bool {
+func (page *SelfPage) Update(status tsutil.Status) bool {
+	switch status := status.(type) {
+	case *tsutil.NetStatus:
+		return page.UpdateNet(status)
+	case *tsutil.FileStatus:
+		return page.UpdateFiles(status)
+	default:
+		return true
+	}
+}
+
+func (page *SelfPage) UpdateNet(status *tsutil.NetStatus) bool {
 	if !status.Online() {
 		return false
 	}
@@ -421,8 +432,12 @@ func (page *SelfPage) Update(status *tsutil.Status) bool {
 	}
 
 	listmodels.Update(page.addrModel, slices.Values(page.peer.TailscaleIPs))
-	listmodels.Update(page.fileModel, slices.Values(status.Files))
 	listmodels.Update(page.routeModel, routes)
 
+	return true
+}
+
+func (page *SelfPage) UpdateFiles(status *tsutil.FileStatus) bool {
+	listmodels.Update(page.fileModel, slices.Values(status.Files))
 	return true
 }

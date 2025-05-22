@@ -185,16 +185,26 @@ func (win *MainWindow) removePage(name string, page Page) {
 	win.PeersStack.Remove(page.Widget())
 }
 
-func (win *MainWindow) Update(status *tsutil.Status) {
-	online := status.Online()
-	win.StatusSwitch.SetState(online)
-	win.StatusSwitch.SetActive(online)
+func (win *MainWindow) Update(status tsutil.Status) {
+	switch status := status.(type) {
+	case *tsutil.NetStatus:
+		online := status.Online()
+		win.StatusSwitch.SetState(online)
+		win.StatusSwitch.SetActive(online)
 
-	win.updateProfiles(status)
-	win.updatePeers(status)
+		win.updatePeers(status)
+
+	case *tsutil.FileStatus:
+		if self, ok := win.pages["self"].(*SelfPage); ok {
+			self.UpdateFiles(status)
+		}
+
+	case *tsutil.ProfileStatus:
+		win.updateProfiles(status)
+	}
 }
 
-func (win *MainWindow) updatePeers(status *tsutil.Status) {
+func (win *MainWindow) updatePeers(status *tsutil.NetStatus) {
 	if !status.Online() {
 		if _, ok := win.pages["offline"]; !ok {
 			win.addPage("offline", NewOfflinePage(win.app))
@@ -226,7 +236,7 @@ func (win *MainWindow) updatePeers(status *tsutil.Status) {
 	win.updatePages(status)
 }
 
-func (win *MainWindow) updatePages(status *tsutil.Status) {
+func (win *MainWindow) updatePages(status *tsutil.NetStatus) {
 	var remove []string
 	for name, page := range win.pages {
 		ok := page.Update(status)
@@ -241,7 +251,7 @@ func (win *MainWindow) updatePages(status *tsutil.Status) {
 	win.PeersList.InvalidateSort()
 }
 
-func (win *MainWindow) updateProfiles(status *tsutil.Status) {
+func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {
 	win.profiles = status.Profiles
 	listmodels.UpdateStrings(win.profileModel, func(yield func(string) bool) {
 		for _, profile := range status.Profiles {

@@ -15,7 +15,6 @@ import (
 	"tailscale.com/feature/taildrop"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
-	"tailscale.com/tailcfg"
 )
 
 // A Poller gets the latest Tailscale status at regular intervals or
@@ -33,11 +32,12 @@ type Poller struct {
 
 	// If non-nil, New will be called when a new status is received from
 	// Tailscale.
-	New func(*Status)
+	New func(Status)
 
-	once     sync.Once
+	once sync.Once
+
 	poll     chan struct{}
-	get      chan *Status
+	get      chan *NetStatus
 	interval chan time.Duration
 }
 
@@ -57,112 +57,132 @@ func (p *Poller) init() {
 func (p *Poller) Run(ctx context.Context) {
 	p.init()
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	n := newNotifier()
+	go p.watchStatus(ctx, n)
+	go p.watchFiles(ctx, n)
+	go p.watchProfiles(ctx, n)
+
 	interval := p.Interval
 	if interval < 0 {
 		interval = 5 * time.Second
 	}
-	retry := interval
 
 	check := time.NewTicker(interval)
 	defer check.Stop()
 
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		case p.poll <- struct{}{}:
+			n = n.Notify()
+			check.Reset(interval)
+		case interval = <-p.interval:
+			check.Reset(interval)
+		}
+	}
+}
+
+func (p *Poller) watchStatus(ctx context.Context, n *notifier) {
+	s := new(NetStatus)
+	for {
+		var status *ipnstate.Status
+		var prefs *ipn.Prefs
+
 		status, err := GetStatus(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
 			slog.Error("get Tailscale status", "err", err)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(retry):
-				if retry < 30*time.Second {
-					retry *= 2
-				}
-				continue
-			}
+			goto wait
 		}
 
-		prefs, err := Prefs(ctx)
+		prefs, err = Prefs(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
 			slog.Error("get Tailscale prefs", "err", err)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(retry):
-				if retry < 30*time.Second {
-					retry *= 2
-				}
-				continue
-			}
+			goto wait
 		}
 
-		profile, profiles, err := ProfileStatus(ctx)
+		s = &NetStatus{Status: status, Prefs: prefs}
+		p.New(s)
+
+	wait:
+		select {
+		case <-ctx.Done():
+			return
+		case p.get <- s:
+			goto wait
+		case <-n.notify:
+			n = n.next
+		}
+	}
+}
+
+func (p *Poller) watchFiles(ctx context.Context, n *notifier) {
+	for {
+		files, err := WaitingFiles(ctx)
+		if err != nil && !errors.Is(err, taildrop.ErrNoTaildrop) {
+			if ctx.Err() != nil {
+				return
+			}
+			slog.Error("get waiting files", "err", err)
+			goto wait
+		}
+
+		p.New(&FileStatus{Files: files})
+
+	wait:
+		select {
+		case <-ctx.Done():
+			return
+		case <-n.notify:
+			n = n.next
+		}
+	}
+}
+
+func (p *Poller) watchProfiles(ctx context.Context, n *notifier) {
+	for {
+		profile, profiles, err := GetProfileStatus(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
 			slog.Error("get profile status", "err", err)
+			goto wait
 		}
 
-		retry = interval
+		p.New(&ProfileStatus{Profile: profile, Profiles: profiles})
 
-		var files []apitype.WaitingFile
-		if status.Self.HasCap(tailcfg.CapabilityFileSharing) {
-			files, err = WaitingFiles(ctx)
-			if err != nil && !errors.Is(err, taildrop.ErrNoTaildrop) {
-				if ctx.Err() != nil {
-					return
-				}
-				slog.Error("get waiting files", "err", err)
-			}
-		}
-
-		s := &Status{Status: status, Prefs: prefs, Files: files, Profile: profile, Profiles: profiles}
-		if p.New != nil {
-			// TODO: Only call this if the status changed from the previous
-			// poll? Is that remotely feasible?
-			p.New(s)
-		}
-
-	send:
+	wait:
 		select {
 		case <-ctx.Done():
 			return
-		case <-check.C:
-		case p.poll <- struct{}{}:
-			check.Reset(interval)
-		case interval = <-p.interval:
-			check.Reset(interval)
-			goto send
-		case p.get <- s:
-			goto send // I've never used a goto before.
+		case <-n.notify:
+			n = n.next
 		}
 	}
 }
 
 // Poll returns a channel that, when received from, causes a new
-// status to be fetched from Tailscale. A receive from the channel
-// does not resolve until the poller begins to fetch the status,
-// meaning that a receive from Poll followed immediately by a receive
-// from Get will always result in the new Status.
+// status to be fetched from Tailscale.
 func (p *Poller) Poll() <-chan struct{} {
 	p.init()
 
 	return p.poll
 }
 
-// Get returns a channel that will yield the latest Status fetched. If
-// a new Status is in the process of being fetched, it will wait for
-// that to finish and then yield that.
-//
-// Note that receiving from this channel does not trigger a poll. To
-// do that, receive from [Poll] first.
-func (p *Poller) Get() <-chan *Status {
+// GetNet returns a channel that yields the most recently fetched
+// network status. It will block until the network status has been
+// fetched successfully once.
+func (p *Poller) GetNet() <-chan *NetStatus {
 	p.init()
 
 	return p.get
@@ -177,27 +197,24 @@ func (p *Poller) SetInterval() chan<- time.Duration {
 	return p.interval
 }
 
-// Status is a type that wraps various status-related types that
-// Tailscale provides.
-type Status struct {
-	Status   *ipnstate.Status
-	Prefs    *ipn.Prefs
-	Files    []apitype.WaitingFile
-	Profile  ipn.LoginProfile
-	Profiles []ipn.LoginProfile
+type Status any
+
+type NetStatus struct {
+	Status *ipnstate.Status
+	Prefs  *ipn.Prefs
 }
 
 // Online returns true if s indicates that the local node is online
 // and connected to the tailnet.
-func (s *Status) Online() bool {
-	return (s.Status != nil) && (s.Status.BackendState == ipn.Running.String())
+func (s *NetStatus) Online() bool {
+	return s.Status.BackendState == ipn.Running.String()
 }
 
-func (s *Status) NeedsAuth() bool {
-	return (s.Status != nil) && (s.Status.BackendState == ipn.NeedsLogin.String())
+func (s *NetStatus) NeedsAuth() bool {
+	return s.Status.BackendState == ipn.NeedsLogin.String()
 }
 
-func (s *Status) OperatorIsCurrent() bool {
+func (s *NetStatus) OperatorIsCurrent() bool {
 	current, err := user.Current()
 	if err != nil {
 		slog.Error("get current user", "err", err)
@@ -207,10 +224,7 @@ func (s *Status) OperatorIsCurrent() bool {
 	return s.Prefs.OperatorUser == current.Username
 }
 
-func (s *Status) SelfAddr() (netip.Addr, bool) {
-	if s.Status == nil {
-		return netip.Addr{}, false
-	}
+func (s *NetStatus) SelfAddr() (netip.Addr, bool) {
 	if s.Status.Self == nil {
 		return netip.Addr{}, false
 	}
@@ -219,4 +233,30 @@ func (s *Status) SelfAddr() (netip.Addr, bool) {
 	}
 
 	return slices.MinFunc(s.Status.Self.TailscaleIPs, netip.Addr.Compare), true
+}
+
+type FileStatus struct {
+	Files []apitype.WaitingFile
+}
+
+type ProfileStatus struct {
+	Profile  ipn.LoginProfile
+	Profiles []ipn.LoginProfile
+}
+
+type notifier struct {
+	notify chan struct{}
+	next   *notifier
+}
+
+func newNotifier() *notifier {
+	return &notifier{
+		notify: make(chan struct{}),
+	}
+}
+
+func (n *notifier) Notify() *notifier {
+	n.next = newNotifier()
+	close(n.notify)
+	return n.next
 }

@@ -76,42 +76,55 @@ func (a *App) stopSpin() {
 	})
 }
 
-func (a *App) update(s *tsutil.Status) {
-	online := s.Online()
-	a.tray.Update(s)
-	if a.online != online {
-		a.online = online
+func (a *App) update(status tsutil.Status) {
+	switch status := status.(type) {
+	case *tsutil.NetStatus:
+		online := status.Online()
+		a.tray.Update(status)
+		if a.online != online {
+			a.online = online
 
-		body := "Tailscale is not connected."
-		if online {
-			body = "Tailscale is connected."
+			body := "Tailscale is not connected."
+			if online {
+				body = "Tailscale is connected."
+			}
+			a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
 		}
-		a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
-	}
 
-	if a.files != nil {
-		for _, file := range s.Files {
-			if !slices.Contains(*a.files, file) {
-				body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
-				a.notify("New Incoming File", body)
+		if a.win == nil {
+			return
+		}
+
+		a.win.Update(status)
+
+		if a.online && !a.operatorCheck {
+			a.operatorCheck = true
+			if !status.OperatorIsCurrent() {
+				Info{
+					Heading: "User is not Tailscale Operator",
+					Body:    "Some functionality may not work as expected. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
+				}.Show(a, nil)
 			}
 		}
-	}
-	a.files = &s.Files
 
-	if a.win == nil {
-		return
-	}
+	case *tsutil.FileStatus:
+		if a.files != nil {
+			for _, file := range status.Files {
+				if !slices.Contains(*a.files, file) {
+					body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
+					a.notify("New Incoming File", body)
+				}
+			}
+		}
+		a.files = &status.Files
 
-	a.win.Update(s)
+		if a.win != nil {
+			a.win.Update(status)
+		}
 
-	if a.online && !a.operatorCheck {
-		a.operatorCheck = true
-		if !s.OperatorIsCurrent() {
-			Info{
-				Heading: "User is not Tailscale Operator",
-				Body:    "Some functionality may not work as expected. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
-			}.Show(a, nil)
+	case *tsutil.ProfileStatus:
+		if a.win != nil {
+			a.win.Update(status)
 		}
 	}
 }
@@ -155,7 +168,7 @@ func (a *App) init(ctx context.Context) {
 }
 
 func (a *App) startTS(ctx context.Context) error {
-	status := <-a.poller.Get()
+	status := <-a.poller.GetNet()
 	if status.NeedsAuth() {
 		Confirmation{
 			Heading: "Login Required",
@@ -190,7 +203,7 @@ func (a *App) stopTS(ctx context.Context) error {
 func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 	type selectOption = SelectOption[*ipnstate.PeerStatus]
 
-	s := <-a.poller.Get()
+	s := <-a.poller.GetNet()
 	if !s.Online() {
 		return
 	}
@@ -260,7 +273,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray != nil {
-		err := a.tray.Start(<-a.poller.Get())
+		err := a.tray.Start(<-a.poller.GetNet())
 		if err != nil {
 			slog.Error("failed to start tray icon", "err", err)
 		}
@@ -299,7 +312,7 @@ func (a *App) initTray(ctx context.Context) {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 
-				s := <-a.poller.Get()
+				s := <-a.poller.GetNet()
 				if s.Status == nil {
 					return
 				}
@@ -322,7 +335,7 @@ func (a *App) initTray(ctx context.Context) {
 
 		OnSelfNode: func() {
 			glib.IdleAdd(func() {
-				s := <-a.poller.Get()
+				s := <-a.poller.GetNet()
 				addr, ok := s.SelfAddr()
 				if !ok {
 					return
@@ -339,7 +352,7 @@ func (a *App) initTray(ctx context.Context) {
 		},
 	}
 
-	err := a.tray.Start(<-a.poller.Get())
+	err := a.tray.Start(<-a.poller.GetNet())
 	if err != nil {
 		slog.Error("failed to start tray icon", "err", err)
 	}
@@ -368,7 +381,7 @@ func (a *App) Run(ctx context.Context) {
 
 	a.poller = &tsutil.Poller{
 		Interval: a.getInterval(),
-		New:      func(s *tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
 

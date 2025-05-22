@@ -57,7 +57,7 @@ func (a *App) runSettings(ctx context.Context) {
 }
 
 func (a *App) showChangeControlServer() {
-	status := <-a.poller.Get()
+	status := <-a.poller.GetNet()
 
 	Prompt{
 		Heading: "Control Server URL",

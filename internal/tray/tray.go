@@ -56,7 +56,7 @@ type Tray struct {
 	quitItem       *tray.MenuItem
 }
 
-func (t *Tray) Start(s *tsutil.Status) error {
+func (t *Tray) Start(s *tsutil.NetStatus) error {
 	if t.item != nil {
 		return nil
 	}
@@ -100,18 +100,18 @@ func (t *Tray) Close() error {
 	return err
 }
 
-func (t *Tray) Update(s *tsutil.Status) {
+func (t *Tray) Update(status *tsutil.NetStatus) {
 	if t == nil || t.item == nil {
 		return
 	}
 
-	selfTitle, connected := selfTitle(s)
+	selfTitle, connected := selfTitle(status)
 
-	t.updateStatusIcon(s)
+	t.updateStatusIcon(status)
 
-	t.connToggleItem.SetProps(tray.MenuItemLabel(connToggleText(s.Online())))
+	t.connToggleItem.SetProps(tray.MenuItemLabel(connToggleText(status.Online())))
 	t.exitToggleItem.SetProps(
-		tray.MenuItemLabel(exitToggleText(s)),
+		tray.MenuItemLabel(exitToggleText(status)),
 		tray.MenuItemEnabled(connected),
 	)
 	t.selfNodeItem.SetProps(
@@ -120,7 +120,7 @@ func (t *Tray) Update(s *tsutil.Status) {
 	)
 }
 
-func (t *Tray) updateStatusIcon(s *tsutil.Status) {
+func (t *Tray) updateStatusIcon(s *tsutil.NetStatus) {
 	newIcon := statusIcon(s)
 	if newIcon == t.icon {
 		return
@@ -130,7 +130,7 @@ func (t *Tray) updateStatusIcon(s *tsutil.Status) {
 	t.item.SetProps(tray.ItemIconPixmap(newIcon))
 }
 
-func statusIcon(s *tsutil.Status) *tray.Pixmap {
+func statusIcon(s *tsutil.NetStatus) *tray.Pixmap {
 	if !s.Online() {
 		return &statusIconInactive
 	}
@@ -140,7 +140,7 @@ func statusIcon(s *tsutil.Status) *tray.Pixmap {
 	return &statusIconActive
 }
 
-func selfTitle(s *tsutil.Status) (string, bool) {
+func selfTitle(s *tsutil.NetStatus) (string, bool) {
 	addr, ok := s.SelfAddr()
 	if !ok {
 		if len(s.Status.Self.TailscaleIPs) == 0 {
@@ -160,7 +160,7 @@ func connToggleText(online bool) string {
 	return "Connect"
 }
 
-func exitToggleText(s *tsutil.Status) string {
+func exitToggleText(s *tsutil.NetStatus) string {
 	if s.Status != nil && s.Status.ExitNodeStatus != nil {
 		// TODO: Show some actual information about the current exit node?
 		return "Disable exit node"

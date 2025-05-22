@@ -37,6 +37,9 @@ func (page *OfflinePage) Init(row *PageRow) {
 	row.SetIconName(page.Page.IconName())
 }
 
-func (page *OfflinePage) Update(status *tsutil.Status) bool {
-	return !status.Online()
+func (page *OfflinePage) Update(status tsutil.Status) bool {
+	if status, ok := status.(*tsutil.NetStatus); ok {
+		return !status.Online()
+	}
+	return true
 }

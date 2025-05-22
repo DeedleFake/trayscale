@@ -35,8 +35,7 @@ type MainWindow struct {
 	ProfileDropDown *gtk.DropDown
 	PageMenuButton  *gtk.MenuButton
 
-	pages      map[string]Page
-	statusPage *adw.StatusPage
+	pages map[string]Page
 
 	profiles         []ipn.LoginProfile
 	profileModel     *gtk.StringList
@@ -51,11 +50,6 @@ func NewMainWindow(app *App) *MainWindow {
 	fillFromBuilder(&win, mainWindowXML)
 
 	win.MainWindow.SetApplication(&app.app.Application)
-
-	win.statusPage = adw.NewStatusPage()
-	win.statusPage.SetTitle("Not Connected")
-	win.statusPage.SetIconName("network-offline-symbolic")
-	win.statusPage.SetDescription("Tailscale is not connected")
 
 	win.PeersStack.NotifyProperty("visible-child-name", func() {
 		page := win.pages[win.PeersStack.VisibleChildName()]
@@ -203,7 +197,7 @@ func (win *MainWindow) Update(status *tsutil.Status) {
 func (win *MainWindow) updatePeersOffline() {
 	var found bool
 	for name, page := range win.pages {
-		if name == "status" {
+		if name == "offline" {
 			found = true
 			continue
 		}
@@ -211,8 +205,7 @@ func (win *MainWindow) updatePeersOffline() {
 		win.removePage(name, page)
 	}
 	if !found {
-		vp := win.PeersStack.AddTitled(win.statusPage, "status", "Not Connected")
-		vp.SetIconName("network-offline-symbolic")
+		win.addPage("offline", NewOfflinePage(win.app))
 	}
 }
 
@@ -222,8 +215,8 @@ func (win *MainWindow) updatePeers(status *tsutil.Status) {
 		return
 	}
 
-	if win.PeersStack.ChildByName("status") != nil {
-		win.PeersStack.Remove(win.statusPage)
+	if page := win.pages["offline"]; page != nil {
+		win.removePage("offline", page)
 	}
 
 	if _, ok := win.pages["self"]; !ok {

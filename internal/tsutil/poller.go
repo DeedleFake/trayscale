@@ -107,15 +107,6 @@ func (p *Poller) Run(ctx context.Context) {
 				return
 			}
 			slog.Error("get profile status", "err", err)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(retry):
-				if retry < 30*time.Second {
-					retry *= 2
-				}
-				continue
-			}
 		}
 
 		retry = interval

@@ -20,7 +20,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
-	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 )
 
@@ -40,7 +39,6 @@ type App struct {
 
 	spinnum       int
 	operatorCheck bool
-	profiles      []ipn.LoginProfile
 	files         *[]apitype.WaitingFile
 }
 
@@ -100,8 +98,6 @@ func (a *App) update(s *tsutil.Status) {
 		}
 	}
 	a.files = &s.Files
-
-	a.profiles = s.Profiles
 
 	if a.win == nil {
 		return
@@ -253,63 +249,11 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
 
 	a.win = NewMainWindow(a)
-
-	a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
-		if s == a.win.StatusSwitch.State() {
-			return false
-		}
-
-		// TODO: Handle this, and other switches, asynchrounously instead
-		// of freezing the entire UI.
-		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		defer cancel()
-
-		f := a.stopTS
-		if s {
-			f = a.startTS
-		}
-
-		err := f(ctx)
-		if err != nil {
-			slog.Error("set Tailscale status", "err", err)
-			a.win.StatusSwitch.SetActive(!s)
-			return true
-		}
-		return true
-	})
-
-	a.win.ProfileDropDown.NotifyProperty("selected-item", func() {
-		item := a.win.ProfileDropDown.SelectedItem().Cast().(*gtk.StringObject).String()
-		index := slices.IndexFunc(a.profiles, func(p ipn.LoginProfile) bool {
-			// TODO: Find a reasonable way to do this by profile ID instead.
-			return p.Name == item
-		})
-		if index < 0 {
-			slog.Error("selected unknown profile", "name", item)
-			return
-		}
-		profile := a.profiles[index]
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		err := tsutil.SwitchProfile(ctx, profile.ID)
-		if err != nil {
-			slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
-			return
-		}
-		<-a.poller.Poll()
-	})
-
-	contentVariant := glib.NewVariantString("content")
-	a.win.PeersStack.NotifyProperty("visible-child", func() {
-		a.win.SplitView.ActivateAction("navigation.push", contentVariant)
-	})
-
 	a.win.MainWindow.ConnectCloseRequest(func() bool {
 		a.win = nil
 		return false
 	})
+
 	<-a.poller.Poll()
 	a.win.MainWindow.Present()
 }

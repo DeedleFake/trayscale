@@ -1,15 +1,21 @@
 package ui
 
 import (
+	"context"
 	_ "embed"
+	"log/slog"
+	"slices"
 	"strings"
+	"time"
 
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/ipn"
 )
 
 //go:embed mainwindow.ui
@@ -32,8 +38,9 @@ type MainWindow struct {
 	pages      map[string]Page
 	statusPage *adw.StatusPage
 
-	ProfileModel     *gtk.StringList
-	ProfileSortModel *gtk.SortListModel
+	profiles         []ipn.LoginProfile
+	profileModel     *gtk.StringList
+	profileSortModel *gtk.SortListModel
 }
 
 func NewMainWindow(app *App) *MainWindow {
@@ -115,9 +122,61 @@ func NewMainWindow(app *App) *MainWindow {
 		win.PeersStack.SetVisibleChildName(name)
 	})
 
-	win.ProfileModel = gtk.NewStringList(nil)
-	win.ProfileSortModel = gtk.NewSortListModel(win.ProfileModel, &stringListSorter.Sorter)
-	win.ProfileDropDown.SetModel(win.ProfileSortModel)
+	win.profileModel = gtk.NewStringList(nil)
+	win.profileSortModel = gtk.NewSortListModel(win.profileModel, &stringListSorter.Sorter)
+	win.ProfileDropDown.SetModel(win.profileSortModel)
+
+	win.StatusSwitch.ConnectStateSet(func(s bool) bool {
+		if s == win.StatusSwitch.State() {
+			return false
+		}
+
+		// TODO: Handle this, and other switches, asynchrounously instead
+		// of freezing the entire UI.
+		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+		defer cancel()
+
+		f := app.stopTS
+		if s {
+			f = app.startTS
+		}
+
+		err := f(ctx)
+		if err != nil {
+			slog.Error("set Tailscale status", "err", err)
+			win.StatusSwitch.SetActive(!s)
+			return true
+		}
+		return true
+	})
+
+	win.ProfileDropDown.NotifyProperty("selected-item", func() {
+		item := win.ProfileDropDown.SelectedItem().Cast().(*gtk.StringObject).String()
+		index := slices.IndexFunc(win.profiles, func(p ipn.LoginProfile) bool {
+			// TODO: Find a reasonable way to do this by profile ID instead.
+			return p.Name == item
+		})
+		if index < 0 {
+			slog.Error("selected unknown profile", "name", item)
+			return
+		}
+		profile := win.profiles[index]
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		err := tsutil.SwitchProfile(ctx, profile.ID)
+		if err != nil {
+			slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
+			return
+		}
+		<-app.poller.Poll()
+	})
+
+	contentVariant := glib.NewVariantString("content")
+	win.PeersStack.NotifyProperty("visible-child", func() {
+		win.SplitView.ActivateAction("navigation.push", contentVariant)
+	})
 
 	return &win
 }
@@ -202,7 +261,8 @@ func (win *MainWindow) updatePeers(status *tsutil.Status) {
 }
 
 func (win *MainWindow) updateProfiles(s *tsutil.Status) {
-	listmodels.UpdateStrings(win.ProfileModel, func(yield func(string) bool) {
+	win.profiles = s.Profiles
+	listmodels.UpdateStrings(win.profileModel, func(yield func(string) bool) {
 		for _, profile := range s.Profiles {
 			name := profile.Name
 			if metadata.Private {
@@ -214,7 +274,7 @@ func (win *MainWindow) updateProfiles(s *tsutil.Status) {
 		}
 	})
 
-	profileIndex, ok := listmodels.Index(win.ProfileSortModel, func(obj *gtk.StringObject) bool {
+	profileIndex, ok := listmodels.Index(win.profileSortModel, func(obj *gtk.StringObject) bool {
 		return obj.String() == s.Profile.Name
 	})
 	if ok {

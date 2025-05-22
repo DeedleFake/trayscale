@@ -68,6 +68,6 @@ func (a *App) saveFile(ctx context.Context, name string, file gio.Filer) {
 		return
 	}
 
-	a.poller.Poll() <- struct{}{}
+	<-a.poller.Poll()
 	slog.Info("done saving file")
 }

@@ -143,7 +143,7 @@ func (p *Poller) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-check.C:
-		case <-p.poll:
+		case p.poll <- struct{}{}:
 			check.Reset(interval)
 		case interval = <-p.interval:
 			check.Reset(interval)
@@ -154,15 +154,12 @@ func (p *Poller) Run(ctx context.Context) {
 	}
 }
 
-// Poll returns a channel that, when sent to, causes a new status to
-// be fetched from Tailscale. A send to the channel does not resolve
-// until the poller begins to fetch the status, meaning that a send to
-// Poll followed immediately by a receive from Get will always result
-// in the new Status.
-//
-// Do not close the returned channel. Doing so will result in
-// undefined behavior.
-func (p *Poller) Poll() chan<- struct{} {
+// Poll returns a channel that, when received from, causes a new
+// status to be fetched from Tailscale. A receive from the channel
+// does not resolve until the poller begins to fetch the status,
+// meaning that a receive from Poll followed immediately by a receive
+// from Get will always result in the new Status.
+func (p *Poller) Poll() <-chan struct{} {
 	p.init()
 
 	return p.poll

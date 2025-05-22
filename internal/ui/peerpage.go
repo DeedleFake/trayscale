@@ -188,7 +188,7 @@ func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerSta
 					slog.Error("advertise routes", "err", err)
 					return
 				}
-				a.poller.Poll() <- struct{}{}
+				<-a.poller.Poll()
 			})
 
 			row := adw.NewActionRow()
@@ -227,7 +227,7 @@ func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerSta
 			page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
+		<-a.poller.Poll()
 		return true
 	})
 }

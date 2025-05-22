@@ -178,7 +178,7 @@ func (page *MullvadPage) getExitNodeRow(peer *ipnstate.PeerStatus) *mullvadExitN
 			sw.SetActive(!s)
 			return true
 		}
-		page.app.poller.Poll() <- struct{}{}
+		<-page.app.poller.Poll()
 		return true
 	})
 

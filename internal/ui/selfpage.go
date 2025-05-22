@@ -141,7 +141,7 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 					slog.Error("advertise routes", "err", err)
 					return
 				}
-				a.poller.Poll() <- struct{}{}
+				<-a.poller.Poll()
 			})
 
 			row := adw.NewActionRow()
@@ -202,7 +202,7 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 							slog.Error("delete file", "err", err)
 							return
 						}
-						a.poller.Poll() <- struct{}{}
+						<-a.poller.Poll()
 					}
 				})
 			})
@@ -240,7 +240,7 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 			page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
+		<-a.poller.Poll()
 		return true
 	})
 
@@ -255,7 +255,7 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 			page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
+		<-a.poller.Poll()
 		return true
 	})
 
@@ -270,7 +270,7 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 			page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
+		<-a.poller.Poll()
 		return true
 	})
 
@@ -308,7 +308,7 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 				return
 			}
 
-			a.poller.Poll() <- struct{}{}
+			<-a.poller.Poll()
 		})
 	})
 

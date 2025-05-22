@@ -178,7 +178,7 @@ func (a *App) startTS(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	a.poller.Poll() <- struct{}{}
+	<-a.poller.Poll()
 	return nil
 }
 
@@ -187,7 +187,7 @@ func (a *App) stopTS(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	a.poller.Poll() <- struct{}{}
+	<-a.poller.Poll()
 	return nil
 }
 
@@ -298,7 +298,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 			slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
 			return
 		}
-		a.poller.Poll() <- struct{}{}
+		<-a.poller.Poll()
 	})
 
 	contentVariant := glib.NewVariantString("content")
@@ -310,7 +310,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.win = nil
 		return false
 	})
-	a.poller.Poll() <- struct{}{}
+	<-a.poller.Poll()
 	a.win.MainWindow.Present()
 }
 
@@ -366,7 +366,7 @@ func (a *App) initTray(ctx context.Context) {
 					slog.Error("toggle exit node from tray", "err", err)
 					return
 				}
-				a.poller.Poll() <- struct{}{}
+				<-a.poller.Poll()
 
 				if toggle {
 					a.notify("Exit node", "Enabled")

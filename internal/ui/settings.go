@@ -81,7 +81,7 @@ func (a *App) showChangeControlServer() {
 				a.win.Toast(fmt.Sprintf("Error setting control URL: %v", err))
 				return
 			}
-			a.poller.Poll() <- struct{}{}
+			<-a.poller.Poll()
 		}
 	})
 }

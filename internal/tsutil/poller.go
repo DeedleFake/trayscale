@@ -168,6 +168,9 @@ func (p *Poller) Poll() <-chan struct{} {
 // Get returns a channel that will yield the latest Status fetched. If
 // a new Status is in the process of being fetched, it will wait for
 // that to finish and then yield that.
+//
+// Note that receiving from this channel does not trigger a poll. To
+// do that, receive from [Poll] first.
 func (p *Poller) Get() <-chan *Status {
 	p.init()
 

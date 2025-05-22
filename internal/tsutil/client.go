@@ -17,10 +17,12 @@ import (
 	"tailscale.com/net/netmon"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/logger"
+	"tailscale.com/util/eventbus"
 )
 
 var (
 	localClient    local.Client
+	bus            = eventbus.New()
 	monitor        = initMonitor()
 	netcheckClient = netcheck.Client{
 		NetMon: monitor,
@@ -29,7 +31,7 @@ var (
 )
 
 func initMonitor() *netmon.Monitor {
-	monitor, err := netmon.New(logger.Discard)
+	monitor, err := netmon.New(bus, logger.Discard)
 	if err != nil {
 		slog.Error("init netmon monitor", "err", err)
 	}

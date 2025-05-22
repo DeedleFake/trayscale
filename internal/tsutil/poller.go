@@ -12,10 +12,10 @@ import (
 
 	"deedles.dev/mk"
 	"tailscale.com/client/tailscale/apitype"
+	"tailscale.com/feature/taildrop"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
-	"tailscale.com/taildrop"
 )
 
 // A Poller gets the latest Tailscale status at regular intervals or

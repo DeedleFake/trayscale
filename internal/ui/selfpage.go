@@ -391,6 +391,10 @@ func (page *SelfPage) Init(row *PageRow) {
 }
 
 func (page *SelfPage) Update(status *tsutil.Status) bool {
+	if !status.Online() {
+		return false
+	}
+
 	page.peer = status.Status.Self
 
 	page.row.SetTitle(peerName(status, page.peer))

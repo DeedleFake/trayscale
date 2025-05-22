@@ -245,6 +245,10 @@ func (page *PeerPage) Init(row *PageRow) {
 }
 
 func (page *PeerPage) Update(status *tsutil.Status) bool {
+	if !status.Online() {
+		return false
+	}
+
 	page.peer = status.Status.Peer[page.peer.PublicKey]
 	if page.peer == nil {
 		return false

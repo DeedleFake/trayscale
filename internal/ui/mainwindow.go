@@ -194,29 +194,13 @@ func (win *MainWindow) Update(status *tsutil.Status) {
 	win.updatePeers(status)
 }
 
-func (win *MainWindow) updatePeersOffline() {
-	var found bool
-	for name, page := range win.pages {
-		if name == "offline" {
-			found = true
-			continue
-		}
-
-		win.removePage(name, page)
-	}
-	if !found {
-		win.addPage("offline", NewOfflinePage(win.app))
-	}
-}
-
 func (win *MainWindow) updatePeers(status *tsutil.Status) {
 	if !status.Online() {
-		win.updatePeersOffline()
+		if _, ok := win.pages["offline"]; !ok {
+			win.addPage("offline", NewOfflinePage(win.app))
+		}
+		win.updatePages(status)
 		return
-	}
-
-	if page := win.pages["offline"]; page != nil {
-		win.removePage("offline", page)
 	}
 
 	if _, ok := win.pages["self"]; !ok {
@@ -239,6 +223,10 @@ func (win *MainWindow) updatePeers(status *tsutil.Status) {
 		win.addPage(name, NewPeerPage(win.app, status, peer))
 	}
 
+	win.updatePages(status)
+}
+
+func (win *MainWindow) updatePages(status *tsutil.Status) {
 	var remove []string
 	for name, page := range win.pages {
 		ok := page.Update(status)
@@ -253,10 +241,10 @@ func (win *MainWindow) updatePeers(status *tsutil.Status) {
 	win.PeersList.InvalidateSort()
 }
 
-func (win *MainWindow) updateProfiles(s *tsutil.Status) {
-	win.profiles = s.Profiles
+func (win *MainWindow) updateProfiles(status *tsutil.Status) {
+	win.profiles = status.Profiles
 	listmodels.UpdateStrings(win.profileModel, func(yield func(string) bool) {
-		for _, profile := range s.Profiles {
+		for _, profile := range status.Profiles {
 			name := profile.Name
 			if metadata.Private {
 				name = "profile@example.com"
@@ -268,7 +256,7 @@ func (win *MainWindow) updateProfiles(s *tsutil.Status) {
 	})
 
 	profileIndex, ok := listmodels.Index(win.profileSortModel, func(obj *gtk.StringObject) bool {
-		return obj.String() == s.Profile.Name
+		return obj.String() == status.Profile.Name
 	})
 	if ok {
 		win.ProfileDropDown.SetSelected(uint(profileIndex))

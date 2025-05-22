@@ -65,6 +65,10 @@ func (page *MullvadPage) Init(row *PageRow) {
 }
 
 func (page *MullvadPage) Update(status *tsutil.Status) bool {
+	if !status.Online() {
+		return false
+	}
+
 	if !tsutil.CanMullvad(status.Status.Self) {
 		return false
 	}

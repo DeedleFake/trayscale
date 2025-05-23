@@ -101,6 +101,10 @@ func (a *App) update(status tsutil.Status) {
 			}
 		}
 
+		if !online {
+			a.files = nil
+		}
+
 		if a.win != nil {
 			a.win.Update(status)
 		}

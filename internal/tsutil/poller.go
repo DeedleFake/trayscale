@@ -8,7 +8,6 @@ import (
 	"maps"
 	"net/netip"
 	"os/user"
-	"slices"
 	"sync"
 	"time"
 
@@ -361,12 +360,22 @@ func (s *IPNStatus) OperatorIsCurrent() bool {
 }
 
 func (s *IPNStatus) SelfAddr() netip.Addr {
-	if s.NetMap == nil || s.NetMap.SelfNode.Addresses().Len() == 0 {
+	if s.NetMap == nil {
 		return netip.Addr{}
 	}
 
-	// TODO: Don't copy the slice.
-	return slices.MinFunc(s.NetMap.SelfNode.Addresses().AsSlice(), xnetip.ComparePrefixes).Addr()
+	addrs := s.NetMap.SelfNode.Addresses()
+	if addrs.Len() == 0 {
+		return netip.Addr{}
+	}
+
+	addr := addrs.At(0)
+	for _, a := range addrs.SliceFrom(1).All() {
+		if xnetip.ComparePrefixes(a, addr) < 0 {
+			addr = a
+		}
+	}
+	return addr.Addr()
 }
 
 type FileStatus struct {

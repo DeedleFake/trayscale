@@ -64,6 +64,8 @@ type PeerPage struct {
 	LastSeen              *gtk.Label
 	CreatedRow            *adw.ActionRow
 	Created               *gtk.Label
+	LastWriteRow          *adw.ActionRow
+	LastWrite             *gtk.Label
 	LastHandshakeRow      *adw.ActionRow
 	LastHandshake         *gtk.Label
 	RxBytesRow            *adw.ActionRow
@@ -282,6 +284,7 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	page.Created.SetText(formatTime(page.peer.Created()))
 	page.LastSeen.SetText(formatTime(page.peer.LastSeen().Get()))
 	page.LastSeenRow.SetVisible(!online)
+	//page.LastWrite.SetText(formatTime(page.peer.LastWrite))
 	page.LastHandshake.SetText(formatTime(enginePeer.LastHandshake))
 	page.Online.SetFromIconName(boolIcon(online))
 

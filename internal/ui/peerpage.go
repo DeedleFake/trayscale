@@ -74,7 +74,7 @@ type PeerPage struct {
 	SendDirButton         *adw.ButtonRow
 	DropTarget            *gtk.DropTarget
 
-	addrModel  *gioutil.ListModel[netip.Prefix]
+	addrModel  *gioutil.ListModel[netip.Addr]
 	routeModel *gioutil.ListModel[netip.Prefix]
 }
 
@@ -138,11 +138,11 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 		return true
 	})
 
-	page.addrModel = gioutil.NewListModel[netip.Prefix]()
+	page.addrModel = gioutil.NewListModel[netip.Addr]()
 	listmodels.BindListBox(
 		page.IPList,
-		gtk.NewSortListModel(page.addrModel, &prefixSorter.Sorter),
-		func(addr netip.Prefix) gtk.Widgetter {
+		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
+		func(addr netip.Addr) gtk.Widgetter {
 			copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
 
 			copyButton.SetMarginTop(12) // Why is this necessary?
@@ -296,7 +296,7 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 		}
 	}
 
-	listmodels.Update(page.addrModel, xiter.V2(page.peer.Addresses().All()))
+	listmodels.Update(page.addrModel, xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr))
 	listmodels.Update(page.routeModel, routes)
 
 	return true

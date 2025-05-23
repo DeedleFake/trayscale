@@ -167,6 +167,7 @@ watch:
 			s.BrowseToURL = *notify.BrowseToURL
 			dirty = true
 		}
+		// TODO: Handle health warnings.
 		if !dirty {
 			continue
 		}

@@ -210,7 +210,7 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 	options := func(yield func(selectOption) bool) {
 		// TODO: Only show nodes that can receive files.
 		for _, peer := range s.Peers {
-			if tsutil.IsMullvad(peer) {
+			if !s.FileTargets.Contains(peer.StableID()) || tsutil.IsMullvad(peer) {
 				continue
 			}
 

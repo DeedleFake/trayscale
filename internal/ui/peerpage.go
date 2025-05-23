@@ -74,6 +74,8 @@ type PeerPage struct {
 	SendDirButton         *adw.ButtonRow
 	DropTarget            *gtk.DropTarget
 
+	sendFileAction *gio.SimpleAction
+
 	addrModel  *gioutil.ListModel[netip.Addr]
 	routeModel *gioutil.ListModel[netip.Prefix]
 }
@@ -98,8 +100,8 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 	})
 	page.actions.AddAction(copyFQDNAction)
 
-	sendFileAction := gio.NewSimpleAction("sendFile", glib.NewVariantType("s"))
-	sendFileAction.ConnectActivate(func(p *glib.Variant) {
+	page.sendFileAction = gio.NewSimpleAction("sendFile", glib.NewVariantType("s"))
+	page.sendFileAction.ConnectActivate(func(p *glib.Variant) {
 		dialog := gtk.NewFileDialog()
 		dialog.SetModal(true)
 
@@ -125,7 +127,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 			}
 		})
 	})
-	page.actions.AddAction(sendFileAction)
+	page.actions.AddAction(page.sendFileAction)
 
 	page.Page.AddController(page.DropTarget)
 	page.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
@@ -257,6 +259,8 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	if !page.peer.Valid() {
 		return false
 	}
+
+	page.sendFileAction.SetEnabled(status.FileTargets.Contains(page.peer.StableID()))
 
 	online := page.peer.Online().Get()
 	exitNodeOption := tsaddr.ContainsExitRoutes(page.peer.AllowedIPs())

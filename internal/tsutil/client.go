@@ -244,6 +244,10 @@ func WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
 	return localClient.AwaitWaitingFiles(ctx, time.Second)
 }
 
+func FileTargets(ctx context.Context) ([]apitype.FileTarget, error) {
+	return localClient.FileTargets(ctx)
+}
+
 func GetProfileStatus(ctx context.Context) (ipn.LoginProfile, []ipn.LoginProfile, error) {
 	return localClient.ProfileStatus(ctx)
 }

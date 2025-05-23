@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/netip"
 	"os/user"
 	"slices"
@@ -17,6 +18,7 @@ import (
 	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/netmap"
+	"tailscale.com/util/set"
 )
 
 // A Poller gets the latest Tailscale status at regular intervals or
@@ -85,6 +87,8 @@ func (p *Poller) Run(ctx context.Context) {
 		case interval = <-p.interval:
 			n = n.Notify()
 			check.Reset(interval)
+		case <-check.C:
+			n = n.Notify()
 		}
 	}
 }
@@ -105,7 +109,7 @@ watch:
 	}
 	defer watcher.Close()
 
-	set := make(chan IPNStatus)
+	set := make(chan *IPNStatus)
 	go func() {
 		var get chan *IPNStatus
 		var s *IPNStatus
@@ -113,8 +117,7 @@ watch:
 			select {
 			case <-ctx.Done():
 				return
-			case v := <-set:
-				s = &v
+			case s = <-set:
 				get = p.getIPN
 				p.New(s)
 			case get <- s:
@@ -144,7 +147,7 @@ watch:
 		}
 		if notify.NetMap != nil {
 			s.NetMap = notify.NetMap
-			s.rebuildPeers()
+			s.rebuildPeers(ctx)
 			dirty = true
 		}
 		if notify.Engine != nil {
@@ -162,7 +165,7 @@ watch:
 		select {
 		case <-ctx.Done():
 			return
-		case set <- s:
+		case set <- s.copy():
 		}
 	}
 }
@@ -246,18 +249,35 @@ type IPNStatus struct {
 	Prefs       ipn.PrefsView
 	NetMap      *netmap.NetworkMap
 	Peers       map[tailcfg.StableNodeID]tailcfg.NodeView
+	FileTargets set.Set[tailcfg.StableNodeID]
 	Engine      *ipn.EngineStatus
 	BrowseToURL string
 }
 
-func (s *IPNStatus) rebuildPeers() {
+func (s IPNStatus) copy() *IPNStatus {
+	s.Peers = maps.Clone(s.Peers)
+	s.FileTargets = maps.Clone(s.FileTargets)
+	return &s
+}
+
+func (s *IPNStatus) rebuildPeers(ctx context.Context) {
 	if s.Peers == nil {
 		mk.Map(&s.Peers, 0)
 	}
 	clear(s.Peers)
-
 	for _, peer := range s.NetMap.Peers {
 		s.Peers[peer.StableID()] = peer
+	}
+
+	targets, err := FileTargets(ctx)
+	if err != nil {
+		slog.Error("failed to get file targets", "err", err)
+		return
+	}
+	s.FileTargets.Make()
+	clear(s.FileTargets)
+	for _, target := range targets {
+		s.FileTargets.Add(target.Node.StableID)
 	}
 }
 

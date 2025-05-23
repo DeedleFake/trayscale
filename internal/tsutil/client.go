@@ -65,9 +65,9 @@ func Stop(ctx context.Context) error {
 }
 
 // ExitNode uses the specified peer as an exit node, or unsets
-// an existing exit node if peer is nil.
-func ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
-	if peer == nil {
+// an existing exit node if peer is an empty string.
+func ExitNode(ctx context.Context, peer tailcfg.StableNodeID) error {
+	if peer == "" {
 		var prefs ipn.Prefs
 		prefs.ClearExitNode()
 		_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
@@ -81,17 +81,12 @@ func ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
 		return nil
 	}
 
-	status, err := localClient.Status(ctx)
-	if err != nil {
-		return fmt.Errorf("get status: %w", err)
+	prefs := ipn.Prefs{
+		ExitNodeID: peer,
 	}
-
-	var prefs ipn.Prefs
-	prefs.SetExitNodeIP(peer.TailscaleIPs[0].String(), status)
-	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
 		Prefs:         prefs,
 		ExitNodeIDSet: true,
-		ExitNodeIPSet: true,
 	})
 	if err != nil {
 		return fmt.Errorf("edit prefs: %w", err)

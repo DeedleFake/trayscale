@@ -187,7 +187,7 @@ func (win *MainWindow) removePage(name string, page Page) {
 
 func (win *MainWindow) Update(status tsutil.Status) {
 	switch status := status.(type) {
-	case *tsutil.NetStatus:
+	case *tsutil.IPNStatus:
 		online := status.Online()
 		win.StatusSwitch.SetState(online)
 		win.StatusSwitch.SetActive(online)
@@ -204,7 +204,7 @@ func (win *MainWindow) Update(status tsutil.Status) {
 	}
 }
 
-func (win *MainWindow) updatePeers(status *tsutil.NetStatus) {
+func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 	if !status.Online() {
 		if _, ok := win.pages["offline"]; !ok {
 			win.addPage("offline", NewOfflinePage(win.app))
@@ -216,16 +216,16 @@ func (win *MainWindow) updatePeers(status *tsutil.NetStatus) {
 	if _, ok := win.pages["self"]; !ok {
 		win.addPage("self", NewSelfPage(win.app, status))
 	}
-	if _, ok := win.pages["mullvad"]; !ok && tsutil.CanMullvad(status.Status.Self) {
+	if _, ok := win.pages["mullvad"]; !ok && tsutil.CanMullvad(status.NetMap.SelfNode) {
 		win.addPage("mullvad", NewMullvadPage(win.app, status))
 	}
 
-	for _, peer := range status.Status.Peer {
+	for id, peer := range status.Peers {
 		if tsutil.IsMullvad(peer) {
 			continue
 		}
 
-		name := string(peer.ID)
+		name := string(id)
 		if _, ok := win.pages[name]; ok {
 			continue
 		}
@@ -236,7 +236,7 @@ func (win *MainWindow) updatePeers(status *tsutil.NetStatus) {
 	win.updatePages(status)
 }
 
-func (win *MainWindow) updatePages(status *tsutil.NetStatus) {
+func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
 	var remove []string
 	for name, page := range win.pages {
 		ok := page.Update(status)

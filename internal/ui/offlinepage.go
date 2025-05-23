@@ -38,7 +38,7 @@ func (page *OfflinePage) Init(row *PageRow) {
 }
 
 func (page *OfflinePage) Update(status tsutil.Status) bool {
-	if status, ok := status.(*tsutil.NetStatus); ok {
+	if status, ok := status.(*tsutil.IPNStatus); ok {
 		return !status.Online()
 	}
 	return true

@@ -56,7 +56,7 @@ type Tray struct {
 	quitItem       *tray.MenuItem
 }
 
-func (t *Tray) Start(s *tsutil.NetStatus) error {
+func (t *Tray) Start(s *tsutil.IPNStatus) error {
 	if t.item != nil {
 		return nil
 	}
@@ -100,7 +100,7 @@ func (t *Tray) Close() error {
 	return err
 }
 
-func (t *Tray) Update(status *tsutil.NetStatus) {
+func (t *Tray) Update(status *tsutil.IPNStatus) {
 	if t == nil || t.item == nil {
 		return
 	}
@@ -120,7 +120,7 @@ func (t *Tray) Update(status *tsutil.NetStatus) {
 	)
 }
 
-func (t *Tray) updateStatusIcon(s *tsutil.NetStatus) {
+func (t *Tray) updateStatusIcon(s *tsutil.IPNStatus) {
 	newIcon := statusIcon(s)
 	if newIcon == t.icon {
 		return
@@ -130,26 +130,26 @@ func (t *Tray) updateStatusIcon(s *tsutil.NetStatus) {
 	t.item.SetProps(tray.ItemIconPixmap(newIcon))
 }
 
-func statusIcon(s *tsutil.NetStatus) *tray.Pixmap {
+func statusIcon(s *tsutil.IPNStatus) *tray.Pixmap {
 	if !s.Online() {
 		return &statusIconInactive
 	}
-	if s.Status.ExitNodeStatus != nil {
+	if s.ExitNodeActive() {
 		return &statusIconExitNode
 	}
 	return &statusIconActive
 }
 
-func selfTitle(s *tsutil.NetStatus) (string, bool) {
+func selfTitle(s *tsutil.IPNStatus) (string, bool) {
 	addr, ok := s.SelfAddr()
 	if !ok {
-		if len(s.Status.Self.TailscaleIPs) == 0 {
+		if s.NetMap.SelfNode.Addresses().Len() == 0 {
 			return "Address unknown", false
 		}
 		return "Not connected", false
 	}
 
-	return fmt.Sprintf("%v (%v)", tsutil.DNSOrQuoteHostname(s.Status, s.Status.Self), addr), true
+	return fmt.Sprintf("%v (%v)", s.NetMap.SelfNode.DisplayName(true), addr), true
 }
 
 func connToggleText(online bool) string {
@@ -160,8 +160,8 @@ func connToggleText(online bool) string {
 	return "Connect"
 }
 
-func exitToggleText(s *tsutil.NetStatus) string {
-	if s.Status != nil && s.Status.ExitNodeStatus != nil {
+func exitToggleText(s *tsutil.IPNStatus) string {
+	if s.ExitNodeActive() {
 		// TODO: Show some actual information about the current exit node?
 		return "Disable exit node"
 	}

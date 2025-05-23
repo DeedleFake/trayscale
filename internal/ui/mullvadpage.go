@@ -13,7 +13,6 @@ import (
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
 	"tailscale.com/util/set"
 )
@@ -34,7 +33,7 @@ type MullvadPage struct {
 	exitNodes map[tailcfg.StableNodeID]*mullvadExitNodeRow
 }
 
-func NewMullvadPage(a *App, status *tsutil.NetStatus) *MullvadPage {
+func NewMullvadPage(a *App, status *tsutil.IPNStatus) *MullvadPage {
 	page := MullvadPage{
 		app:       a,
 		locations: make(map[string]*adw.ExpanderRow),
@@ -65,7 +64,7 @@ func (page *MullvadPage) Init(row *PageRow) {
 }
 
 func (page *MullvadPage) Update(s tsutil.Status) bool {
-	status, ok := s.(*tsutil.NetStatus)
+	status, ok := s.(*tsutil.IPNStatus)
 	if !ok {
 		return true
 	}
@@ -73,7 +72,7 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 		return false
 	}
 
-	if !tsutil.CanMullvad(status.Status.Self) {
+	if !tsutil.CanMullvad(status.NetMap.SelfNode) {
 		return false
 	}
 
@@ -81,28 +80,31 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 	icon := "network-workgroup-symbolic"
 
 	var exitNodeID tailcfg.StableNodeID
-	if status.Status.ExitNodeStatus != nil {
-		exitNodeID = status.Status.ExitNodeStatus.ID
+	if exitNode := status.ExitNode(); exitNode.Valid() {
+		exitNodeID = exitNode.StableID()
 	}
 
 	var exitNodeCountryCode string
 	found := make(set.Set[tailcfg.StableNodeID])
-	for _, peer := range status.Status.Peer {
+	for id, peer := range status.Peers {
 		if tsutil.IsMullvad(peer) {
-			found.Add(peer.ID)
-			exitNode := peer.ID == exitNodeID
+			found.Add(id)
+			exitNode := id == exitNodeID
 
 			row := page.getExitNodeRow(peer)
 			sw := row.row.ActivatableWidget().(*gtk.Switch)
 			sw.SetState(exitNode)
 			sw.SetActive(exitNode)
 
+			loc := peer.Hostinfo().Location()
+			countryCode := loc.CountryCode()
+			page.locations[countryCode].SetSubtitle("")
+
 			if exitNode {
-				subtitle = mullvadLongLocationName(peer.Location)
+				subtitle = mullvadLongLocationName(loc)
 				icon = "network-vpn-symbolic"
-				exitNodeCountryCode = peer.Location.CountryCode
+				exitNodeCountryCode = countryCode
 			}
-			page.locations[peer.Location.CountryCode].SetSubtitle("")
 		}
 	}
 	for id, row := range page.exitNodes {
@@ -127,8 +129,8 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 	return true
 }
 
-func (page *MullvadPage) getLocationRow(loc *tailcfg.Location) *adw.ExpanderRow {
-	if row, ok := page.locations[loc.CountryCode]; ok {
+func (page *MullvadPage) getLocationRow(loc tailcfg.LocationView) *adw.ExpanderRow {
+	if row, ok := page.locations[loc.CountryCode()]; ok {
 		return row
 	}
 
@@ -146,19 +148,21 @@ func (page *MullvadPage) getLocationRow(loc *tailcfg.Location) *adw.ExpanderRow 
 		)
 	})
 
-	page.locations[loc.CountryCode] = row
+	page.locations[loc.CountryCode()] = row
 	page.LocationList.Append(row)
 	return row
 }
 
-func (page *MullvadPage) getExitNodeRow(peer *ipnstate.PeerStatus) *mullvadExitNodeRow {
-	if row, ok := page.exitNodes[peer.ID]; ok {
+func (page *MullvadPage) getExitNodeRow(peer tailcfg.NodeView) *mullvadExitNodeRow {
+	if row, ok := page.exitNodes[peer.StableID()]; ok {
 		return row
 	}
 
+	info := peer.Hostinfo()
+
 	row := adw.NewSwitchRow()
-	row.SetTitle(peer.Location.City)
-	row.SetSubtitle(peer.HostName)
+	row.SetTitle(info.Location().City())
+	row.SetSubtitle(info.Hostname())
 
 	sw := row.ActivatableWidget().(*gtk.Switch)
 	sw.SetMarginTop(12)
@@ -176,9 +180,9 @@ func (page *MullvadPage) getExitNodeRow(peer *ipnstate.PeerStatus) *mullvadExitN
 			}
 		}
 
-		var node *ipnstate.PeerStatus
+		var node tailcfg.StableNodeID
 		if s {
-			node = peer
+			node = peer.StableID()
 		}
 		err := tsutil.ExitNode(context.TODO(), node)
 		if err != nil {
@@ -190,13 +194,13 @@ func (page *MullvadPage) getExitNodeRow(peer *ipnstate.PeerStatus) *mullvadExitN
 		return true
 	})
 
-	page.getLocationRow(peer.Location).AddRow(row)
+	page.getLocationRow(info.Location()).AddRow(row)
 
 	exitNodeRow := mullvadExitNodeRow{
-		country: peer.Location.CountryCode,
+		country: info.Location().CountryCode(),
 		row:     row,
 	}
-	page.exitNodes[peer.ID] = &exitNodeRow
+	page.exitNodes[peer.StableID()] = &exitNodeRow
 	return &exitNodeRow
 }
 
@@ -205,20 +209,20 @@ type mullvadExitNodeRow struct {
 	row     *adw.SwitchRow
 }
 
-func mullvadLongLocationName(loc *tailcfg.Location) string {
+func mullvadLongLocationName(loc tailcfg.LocationView) string {
 	return fmt.Sprintf(
 		"%v %v, %v",
-		countryCodeToFlag(loc.CountryCode),
-		loc.City,
-		loc.Country,
+		countryCodeToFlag(loc.CountryCode()),
+		loc.City(),
+		loc.Country(),
 	)
 }
 
-func mullvadLocationName(loc *tailcfg.Location) string {
+func mullvadLocationName(loc tailcfg.LocationView) string {
 	return fmt.Sprintf(
 		"%v %v",
-		countryCodeToFlag(loc.CountryCode),
-		loc.Country,
+		countryCodeToFlag(loc.CountryCode()),
+		loc.Country(),
 	)
 }
 

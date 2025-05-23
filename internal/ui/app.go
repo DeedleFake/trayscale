@@ -20,7 +20,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
-	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 )
 
 //go:embed app.css
@@ -78,7 +78,7 @@ func (a *App) stopSpin() {
 
 func (a *App) update(status tsutil.Status) {
 	switch status := status.(type) {
-	case *tsutil.NetStatus:
+	case *tsutil.IPNStatus:
 		online := status.Online()
 		a.tray.Update(status)
 		if a.online != online {
@@ -168,7 +168,7 @@ func (a *App) init(ctx context.Context) {
 }
 
 func (a *App) startTS(ctx context.Context) error {
-	status := <-a.poller.GetNet()
+	status := <-a.poller.GetIPN()
 	if status.NeedsAuth() {
 		Confirmation{
 			Heading: "Login Required",
@@ -177,7 +177,7 @@ func (a *App) startTS(ctx context.Context) error {
 			Reject:  "_Cancel",
 		}.Show(a, func(accept bool) {
 			if accept {
-				gtk.NewURILauncher(status.Status.AuthURL).Launch(ctx, &a.win.MainWindow.Window, nil)
+				gtk.NewURILauncher(status.BrowseToURL).Launch(ctx, &a.win.MainWindow.Window, nil)
 			}
 		})
 		return nil
@@ -201,20 +201,21 @@ func (a *App) stopTS(ctx context.Context) error {
 }
 
 func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
-	type selectOption = SelectOption[*ipnstate.PeerStatus]
+	type selectOption = SelectOption[tailcfg.NodeView]
 
-	s := <-a.poller.GetNet()
+	s := <-a.poller.GetIPN()
 	if !s.Online() {
 		return
 	}
 	options := func(yield func(selectOption) bool) {
-		for _, peer := range s.Status.Peer {
-			if tsutil.IsMullvad(peer) || !tsutil.CanReceiveFiles(peer) {
+		// TODO: Only show nodes that can receive files.
+		for _, peer := range s.Peers {
+			if tsutil.IsMullvad(peer) {
 				continue
 			}
 
 			option := selectOption{
-				Title: tsutil.DNSOrQuoteHostname(s.Status, peer),
+				Title: peer.DisplayName(true),
 				Value: peer,
 			}
 			if !yield(option) {
@@ -223,7 +224,7 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 		}
 	}
 
-	Select[*ipnstate.PeerStatus]{
+	Select[tailcfg.NodeView]{
 		Heading: "Send file(s) to...",
 		Options: slices.SortedFunc(options, func(o1, o2 selectOption) int {
 			return cmp.Compare(o1.Title, o2.Title)
@@ -232,7 +233,7 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 		for _, option := range options {
 			a.notify("Taildrop", fmt.Sprintf("Sending %v file(s) to %v...", len(files), option.Title))
 			for _, file := range files {
-				go a.pushFile(ctx, option.Value.ID, file)
+				go a.pushFile(ctx, option.Value.StableID(), file)
 			}
 		}
 	})
@@ -273,7 +274,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray != nil {
-		err := a.tray.Start(<-a.poller.GetNet())
+		err := a.tray.Start(<-a.poller.GetIPN())
 		if err != nil {
 			slog.Error("failed to start tray icon", "err", err)
 		}
@@ -312,11 +313,8 @@ func (a *App) initTray(ctx context.Context) {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 
-				s := <-a.poller.GetNet()
-				if s.Status == nil {
-					return
-				}
-				toggle := s.Status.ExitNodeStatus == nil
+				s := <-a.poller.GetIPN()
+				toggle := s.ExitNodeActive()
 				err := tsutil.SetUseExitNode(ctx, toggle)
 				if err != nil {
 					a.notify("Toggle exit node", err.Error())
@@ -335,7 +333,7 @@ func (a *App) initTray(ctx context.Context) {
 
 		OnSelfNode: func() {
 			glib.IdleAdd(func() {
-				s := <-a.poller.GetNet()
+				s := <-a.poller.GetIPN()
 				addr, ok := s.SelfAddr()
 				if !ok {
 					return
@@ -352,7 +350,7 @@ func (a *App) initTray(ctx context.Context) {
 		},
 	}
 
-	err := a.tray.Start(<-a.poller.GetNet())
+	err := a.tray.Start(<-a.poller.GetIPN())
 	if err != nil {
 		slog.Error("failed to start tray icon", "err", err)
 	}

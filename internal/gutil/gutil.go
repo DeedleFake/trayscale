@@ -117,15 +117,21 @@ func widgetChildrenPush(yield func(gtk.Widgetter) bool, w WidgetParent) bool {
 // it can be, but is unfortunately necessary for a couple of things.
 func ExpanderRowListBox(row *adw.ExpanderRow) *gtk.ListBox {
 	type caster interface{ Cast() glib.Objector }
+
+	var revealer bool
 	for child := range WidgetChildren(row) {
-		if r, ok := child.(caster).Cast().(*gtk.Revealer); ok {
-			for child := range WidgetChildren(r) {
-				if box, ok := child.(caster).Cast().(*gtk.ListBox); ok {
-					return box
-				}
-			}
+		if !revealer {
+			_, ok := child.(caster).Cast().(*gtk.Revealer)
+			revealer = ok
+			continue
+		}
+
+		box, ok := child.(caster).Cast().(*gtk.ListBox)
+		if ok {
+			return box
 		}
 	}
+
 	panic("ExpanderRow ListBox not found")
 }
 

@@ -141,11 +141,8 @@ func statusIcon(s *tsutil.IPNStatus) *tray.Pixmap {
 }
 
 func selfTitle(s *tsutil.IPNStatus) (string, bool) {
-	addr, ok := s.SelfAddr()
-	if !ok {
-		if s.NetMap.SelfNode.Addresses().Len() == 0 {
-			return "Address unknown", false
-		}
+	addr := s.SelfAddr()
+	if !addr.IsValid() {
 		return "Not connected", false
 	}
 

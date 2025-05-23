@@ -177,6 +177,7 @@ func (a *App) startTS(ctx context.Context) error {
 			Reject:  "_Cancel",
 		}.Show(a, func(accept bool) {
 			if accept {
+				slog.Info("auth", "url", status.BrowseToURL)
 				gtk.NewURILauncher(status.BrowseToURL).Launch(ctx, &a.win.MainWindow.Window, nil)
 			}
 		})
@@ -338,8 +339,8 @@ func (a *App) initTray(ctx context.Context) {
 		OnSelfNode: func() {
 			glib.IdleAdd(func() {
 				s := <-a.poller.GetIPN()
-				addr, ok := s.SelfAddr()
-				if !ok {
+				addr := s.SelfAddr()
+				if !addr.IsValid() {
 					return
 				}
 				a.clip(glib.NewValue(addr.String()))

@@ -136,6 +136,14 @@ watch:
 			continue
 		}
 
+		if notify.ErrMessage != nil {
+			var state ipn.State
+			if notify.State != nil {
+				state = *notify.State
+			}
+			slog.Error("watcher got error message", "state", state, "err", notify.ErrMessage)
+		}
+
 		var dirty bool
 		if notify.State != nil {
 			s.State = *notify.State
@@ -155,6 +163,7 @@ watch:
 			dirty = true
 		}
 		if notify.BrowseToURL != nil {
+			slog.Info("browse to URL", "url", *notify.BrowseToURL)
 			s.BrowseToURL = *notify.BrowseToURL
 			dirty = true
 		}
@@ -323,13 +332,13 @@ func (s *IPNStatus) OperatorIsCurrent() bool {
 	return s.Prefs.OperatorUser() == current.Username
 }
 
-func (s *IPNStatus) SelfAddr() (netip.Addr, bool) {
-	if s.NetMap.SelfNode.Addresses().Len() == 0 {
-		return netip.Addr{}, false
+func (s *IPNStatus) SelfAddr() netip.Addr {
+	if s.NetMap == nil || s.NetMap.SelfNode.Addresses().Len() == 0 {
+		return netip.Addr{}
 	}
 
 	// TODO: Don't copy the slice.
-	return slices.MinFunc(s.NetMap.SelfNode.Addresses().AsSlice(), xnetip.ComparePrefixes).Addr(), true
+	return slices.MinFunc(s.NetMap.SelfNode.Addresses().AsSlice(), xnetip.ComparePrefixes).Addr()
 }
 
 type FileStatus struct {

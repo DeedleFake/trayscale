@@ -177,6 +177,12 @@ watch:
 			continue
 		}
 
+		select {
+		case <-ctx.Done():
+			return
+		case <-p.poll:
+		}
+
 		c := s.copy()
 		select {
 		case <-ctx.Done():

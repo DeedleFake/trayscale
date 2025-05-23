@@ -55,14 +55,6 @@
                   </object>
                 </child>
                 <child>
-                  <object class="AdwActionRow" id="LastWriteRow">
-                    <property name="title">Last write</property>
-                    <child>
-                      <object class="GtkLabel" id="LastWrite"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
                   <object class="AdwActionRow" id="LastHandshakeRow">
                     <property name="title">Last handshake</property>
                     <child>

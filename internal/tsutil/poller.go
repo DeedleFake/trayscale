@@ -3,7 +3,9 @@ package tsutil
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
+	"maps"
 	"net/netip"
 	"os/user"
 	"slices"
@@ -11,11 +13,13 @@ import (
 	"time"
 
 	"deedles.dev/mk"
+	"deedles.dev/trayscale/internal/xnetip"
 	"tailscale.com/client/tailscale/apitype"
+	"tailscale.com/feature/taildrop"
 	"tailscale.com/ipn"
-	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
-	"tailscale.com/taildrop"
+	"tailscale.com/types/netmap"
+	"tailscale.com/util/set"
 )
 
 // A Poller gets the latest Tailscale status at regular intervals or
@@ -33,18 +37,21 @@ type Poller struct {
 
 	// If non-nil, New will be called when a new status is received from
 	// Tailscale.
-	New func(*Status)
+	New func(Status)
 
-	once     sync.Once
+	once sync.Once
+
 	poll     chan struct{}
-	get      chan *Status
+	getIPN   chan *IPNStatus
+	nextIPN  chan *IPNStatus
 	interval chan time.Duration
 }
 
 func (p *Poller) init() {
 	p.once.Do(func() {
 		mk.Chan(&p.poll, 0)
-		mk.Chan(&p.get, 0)
+		mk.Chan(&p.getIPN, 0)
+		mk.Chan(&p.nextIPN, 0)
 		mk.Chan(&p.interval, 0)
 	})
 }
@@ -57,124 +64,210 @@ func (p *Poller) init() {
 func (p *Poller) Run(ctx context.Context) {
 	p.init()
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	n := newNotifier()
+	go p.watchIPN(ctx)
+	go p.watchFiles(ctx, n)
+	go p.watchProfiles(ctx, n)
+
 	interval := p.Interval
 	if interval < 0 {
 		interval = 5 * time.Second
 	}
-	retry := interval
 
 	check := time.NewTicker(interval)
 	defer check.Stop()
 
 	for {
-		status, err := GetStatus(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case p.poll <- struct{}{}:
+			n = n.Notify()
+			check.Reset(interval)
+		case interval = <-p.interval:
+			n = n.Notify()
+			check.Reset(interval)
+		case <-check.C:
+			n = n.Notify()
+		}
+	}
+}
+
+func (p *Poller) watchIPN(ctx context.Context) {
+	const watcherOpts = ipn.NotifyInitialState | ipn.NotifyInitialPrefs | ipn.NotifyInitialNetMap | ipn.NotifyNoPrivateKeys | ipn.NotifyWatchEngineUpdates
+
+watch:
+	watcher, err := localClient.WatchIPNBus(ctx, watcherOpts)
+	if err != nil {
+		slog.Error("start IPN bus watcher", "err", err)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(5 * time.Second):
+			goto watch
+		}
+	}
+	defer watcher.Close()
+
+	set := make(chan *IPNStatus)
+	go func() {
+		var get chan *IPNStatus
+		var s *IPNStatus
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case s = <-set:
+				get = p.getIPN
+				p.New(s)
+			case get <- s:
+			}
+		}
+	}()
+
+	var s IPNStatus
+	for {
+		notify, err := watcher.Next()
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
-			slog.Error("get Tailscale status", "err", err)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(retry):
-				if retry < 30*time.Second {
-					retry *= 2
-				}
-				continue
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				goto watch
 			}
+			slog.Error("get next IPN bus notification", "err", err)
+			continue
 		}
 
-		prefs, err := Prefs(ctx)
-		if err != nil {
+		if notify.ErrMessage != nil {
+			var state ipn.State
+			if notify.State != nil {
+				state = *notify.State
+			}
+			slog.Error("watcher got error message", "state", state, "err", notify.ErrMessage)
+		}
+
+		var dirty bool
+		if notify.State != nil {
+			s.State = *notify.State
+			dirty = true
+		}
+		if notify.Prefs != nil && notify.Prefs.Valid() {
+			s.Prefs = *notify.Prefs
+			dirty = true
+		}
+		if notify.NetMap != nil {
+			s.NetMap = notify.NetMap
+			s.rebuildPeers(ctx)
+			dirty = true
+		}
+		if notify.Engine != nil {
+			s.Engine = notify.Engine
+			dirty = true
+		}
+		if notify.BrowseToURL != nil {
+			s.BrowseToURL = *notify.BrowseToURL
+			dirty = true
+		}
+		// TODO: Handle health warnings.
+		if !dirty {
+			continue
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-p.poll:
+		}
+
+		c := s.copy()
+		select {
+		case <-ctx.Done():
+			return
+		case set <- c:
+		}
+		select {
+		case p.nextIPN <- c:
+		default:
+		}
+	}
+}
+
+func (p *Poller) watchFiles(ctx context.Context, n *notifier) {
+	for {
+		files, err := WaitingFiles(ctx)
+		if err != nil && !errors.Is(err, taildrop.ErrNoTaildrop) {
 			if ctx.Err() != nil {
 				return
 			}
-			slog.Error("get Tailscale prefs", "err", err)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(retry):
-				if retry < 30*time.Second {
-					retry *= 2
-				}
-				continue
-			}
+			slog.Error("get waiting files", "err", err)
+			goto wait
 		}
 
-		profile, profiles, err := ProfileStatus(ctx)
+		p.New(&FileStatus{Files: files})
+
+	wait:
+		select {
+		case <-ctx.Done():
+			return
+		case <-n.notify:
+			n = n.next
+		}
+	}
+}
+
+func (p *Poller) watchProfiles(ctx context.Context, n *notifier) {
+	for {
+		profile, profiles, err := GetProfileStatus(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
 			slog.Error("get profile status", "err", err)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(retry):
-				if retry < 30*time.Second {
-					retry *= 2
-				}
-				continue
-			}
+			goto wait
 		}
 
-		retry = interval
+		p.New(&ProfileStatus{Profile: profile, Profiles: profiles})
 
-		var files []apitype.WaitingFile
-		if status.Self.HasCap(tailcfg.CapabilityFileSharing) {
-			files, err = WaitingFiles(ctx)
-			if err != nil && !errors.Is(err, taildrop.ErrNoTaildrop) {
-				if ctx.Err() != nil {
-					return
-				}
-				slog.Error("get waiting files", "err", err)
-			}
-		}
-
-		s := &Status{Status: status, Prefs: prefs, Files: files, Profile: profile, Profiles: profiles}
-		if p.New != nil {
-			// TODO: Only call this if the status changed from the previous
-			// poll? Is that remotely feasible?
-			p.New(s)
-		}
-
-	send:
+	wait:
 		select {
 		case <-ctx.Done():
 			return
-		case <-check.C:
-		case <-p.poll:
-			check.Reset(interval)
-		case interval = <-p.interval:
-			check.Reset(interval)
-			goto send
-		case p.get <- s:
-			goto send // I've never used a goto before.
+		case <-n.notify:
+			n = n.next
 		}
 	}
 }
 
-// Poll returns a channel that, when sent to, causes a new status to
-// be fetched from Tailscale. A send to the channel does not resolve
-// until the poller begins to fetch the status, meaning that a send to
-// Poll followed immediately by a receive from Get will always result
-// in the new Status.
-//
-// Do not close the returned channel. Doing so will result in
-// undefined behavior.
-func (p *Poller) Poll() chan<- struct{} {
+// Poll returns a channel that, when received from, causes a new
+// status to be fetched from Tailscale.
+func (p *Poller) Poll() <-chan struct{} {
 	p.init()
 
 	return p.poll
 }
 
-// Get returns a channel that will yield the latest Status fetched. If
-// a new Status is in the process of being fetched, it will wait for
-// that to finish and then yield that.
-func (p *Poller) Get() <-chan *Status {
+// GetIPN returns a channel that yields the most recently fetched
+// network status. It will block until the network status has been
+// fetched successfully once.
+func (p *Poller) GetIPN() <-chan *IPNStatus {
 	p.init()
 
-	return p.get
+	return p.getIPN
+}
+
+// NextIPN returns a channel that is sent the new IPNStatus each time
+// it is available if anyone is receiving from it. Unlike [GetIPN],
+// this channel does not yield the previous status, so it is useful if
+// an update is expected to arrive soon. Most usages should use
+// [GetIPN] instead as it significantly faster.
+func (p *Poller) NextIPN() <-chan *IPNStatus {
+	p.init()
+
+	return p.nextIPN
 }
 
 // SetInterval returns a channel that modifies the polling interval of
@@ -186,46 +279,118 @@ func (p *Poller) SetInterval() chan<- time.Duration {
 	return p.interval
 }
 
-// Status is a type that wraps various status-related types that
-// Tailscale provides.
-type Status struct {
-	Status   *ipnstate.Status
-	Prefs    *ipn.Prefs
-	Files    []apitype.WaitingFile
-	Profile  ipn.LoginProfile
-	Profiles []ipn.LoginProfile
+type Status any
+
+type IPNStatus struct {
+	State       ipn.State
+	Prefs       ipn.PrefsView
+	NetMap      *netmap.NetworkMap
+	Peers       map[tailcfg.StableNodeID]tailcfg.NodeView
+	FileTargets set.Set[tailcfg.StableNodeID]
+	Engine      *ipn.EngineStatus
+	BrowseToURL string
+}
+
+func (s IPNStatus) copy() *IPNStatus {
+	s.Peers = maps.Clone(s.Peers)
+	s.FileTargets = maps.Clone(s.FileTargets)
+	return &s
+}
+
+func (s *IPNStatus) rebuildPeers(ctx context.Context) {
+	// This is a lot longer than it probably should be. It's basically
+	// just to make sure that the poller doesn't get completely stuck. If
+	// this is getting hit, though, the UI is going to be updating
+	// horribly slow.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	if s.Peers == nil {
+		mk.Map(&s.Peers, 0)
+	}
+	clear(s.Peers)
+	for _, peer := range s.NetMap.Peers {
+		s.Peers[peer.StableID()] = peer
+	}
+
+	targets, err := FileTargets(ctx)
+	if err != nil {
+		slog.Error("failed to get file targets", "err", err)
+		return
+	}
+	s.FileTargets.Make()
+	clear(s.FileTargets)
+	for _, target := range targets {
+		s.FileTargets.Add(target.Node.StableID)
+	}
 }
 
 // Online returns true if s indicates that the local node is online
 // and connected to the tailnet.
-func (s *Status) Online() bool {
-	return (s.Status != nil) && (s.Status.BackendState == ipn.Running.String())
+func (s *IPNStatus) Online() bool {
+	return s.State == ipn.Running
 }
 
-func (s *Status) NeedsAuth() bool {
-	return (s.Status != nil) && (s.Status.BackendState == ipn.NeedsLogin.String())
+func (s *IPNStatus) NeedsAuth() bool {
+	return s.State == ipn.NeedsLogin
 }
 
-func (s *Status) OperatorIsCurrent() bool {
+func (s *IPNStatus) ExitNodeActive() bool {
+	return s.Prefs.ExitNodeID() != "" || s.Prefs.ExitNodeIP().IsValid()
+}
+
+func (s *IPNStatus) ExitNode() tailcfg.NodeView {
+	if node, ok := s.Peers[s.Prefs.ExitNodeID()]; ok {
+		return node
+	}
+	if addr := s.Prefs.ExitNodeIP(); addr.IsValid() {
+		peer, _ := s.NetMap.PeerByTailscaleIP(addr)
+		return peer
+	}
+	return tailcfg.NodeView{}
+}
+
+func (s *IPNStatus) OperatorIsCurrent() bool {
 	current, err := user.Current()
 	if err != nil {
 		slog.Error("get current user", "err", err)
 		return false
 	}
 
-	return s.Prefs.OperatorUser == current.Username
+	return s.Prefs.OperatorUser() == current.Username
 }
 
-func (s *Status) SelfAddr() (netip.Addr, bool) {
-	if s.Status == nil {
-		return netip.Addr{}, false
-	}
-	if s.Status.Self == nil {
-		return netip.Addr{}, false
-	}
-	if len(s.Status.Self.TailscaleIPs) == 0 {
-		return netip.Addr{}, false
+func (s *IPNStatus) SelfAddr() netip.Addr {
+	if s.NetMap == nil || s.NetMap.SelfNode.Addresses().Len() == 0 {
+		return netip.Addr{}
 	}
 
-	return slices.MinFunc(s.Status.Self.TailscaleIPs, netip.Addr.Compare), true
+	// TODO: Don't copy the slice.
+	return slices.MinFunc(s.NetMap.SelfNode.Addresses().AsSlice(), xnetip.ComparePrefixes).Addr()
+}
+
+type FileStatus struct {
+	Files []apitype.WaitingFile
+}
+
+type ProfileStatus struct {
+	Profile  ipn.LoginProfile
+	Profiles []ipn.LoginProfile
+}
+
+type notifier struct {
+	notify chan struct{}
+	next   *notifier
+}
+
+func newNotifier() *notifier {
+	return &notifier{
+		notify: make(chan struct{}),
+	}
+}
+
+func (n *notifier) Notify() *notifier {
+	n.next = newNotifier()
+	close(n.notify)
+	return n.next
 }

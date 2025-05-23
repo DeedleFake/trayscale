@@ -1,19 +1,30 @@
 package ui
 
 import (
+	"context"
 	_ "embed"
+	"log/slog"
+	"slices"
 	"strings"
+	"time"
 
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"tailscale.com/ipn"
 )
 
-//go:embed mainwindow.ui
-var mainWindowXML string
+var (
+	//go:embed mainwindow.ui
+	mainWindowXML string
+
+	//go:embed menu.ui
+	menuXML string
+)
 
 type MainWindow struct {
 	app *App
@@ -29,11 +40,11 @@ type MainWindow struct {
 	ProfileDropDown *gtk.DropDown
 	PageMenuButton  *gtk.MenuButton
 
-	pages      map[string]Page
-	statusPage *adw.StatusPage
+	pages map[string]Page
 
-	ProfileModel     *gtk.StringList
-	ProfileSortModel *gtk.SortListModel
+	profiles         []ipn.LoginProfile
+	profileModel     *gtk.StringList
+	profileSortModel *gtk.SortListModel
 }
 
 func NewMainWindow(app *App) *MainWindow {
@@ -41,14 +52,9 @@ func NewMainWindow(app *App) *MainWindow {
 		app:   app,
 		pages: make(map[string]Page),
 	}
-	fillFromBuilder(&win, mainWindowXML)
+	fillFromBuilder(&win, menuXML, mainWindowXML)
 
 	win.MainWindow.SetApplication(&app.app.Application)
-
-	win.statusPage = adw.NewStatusPage()
-	win.statusPage.SetTitle("Not Connected")
-	win.statusPage.SetIconName("network-offline-symbolic")
-	win.statusPage.SetDescription("Tailscale is not connected")
 
 	win.PeersStack.NotifyProperty("visible-child-name", func() {
 		page := win.pages[win.PeersStack.VisibleChildName()]
@@ -115,9 +121,66 @@ func NewMainWindow(app *App) *MainWindow {
 		win.PeersStack.SetVisibleChildName(name)
 	})
 
-	win.ProfileModel = gtk.NewStringList(nil)
-	win.ProfileSortModel = gtk.NewSortListModel(win.ProfileModel, &stringListSorter.Sorter)
-	win.ProfileDropDown.SetModel(win.ProfileSortModel)
+	win.profileModel = gtk.NewStringList(nil)
+	win.profileSortModel = gtk.NewSortListModel(win.profileModel, &stringListSorter.Sorter)
+	win.ProfileDropDown.SetModel(win.profileSortModel)
+
+	win.StatusSwitch.ConnectStateSet(func(s bool) bool {
+		if s == win.StatusSwitch.State() {
+			return false
+		}
+
+		// TODO: Handle this, and other switches, asynchrounously instead
+		// of freezing the entire UI.
+		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+		defer cancel()
+
+		f := app.stopTS
+		if s {
+			f = app.startTS
+		}
+
+		err := f(ctx)
+		if err != nil {
+			slog.Error("set Tailscale status", "err", err)
+			win.StatusSwitch.SetActive(!s)
+			return true
+		}
+		return true
+	})
+
+	win.ProfileDropDown.NotifyProperty("selected-item", func() {
+		obj, ok := win.ProfileDropDown.SelectedItem().Cast().(*gtk.StringObject)
+		if !ok {
+			return
+		}
+
+		item := obj.String()
+		index := slices.IndexFunc(win.profiles, func(p ipn.LoginProfile) bool {
+			// TODO: Find a reasonable way to do this by profile ID instead.
+			return p.Name == item
+		})
+		if index < 0 {
+			slog.Error("selected unknown profile", "name", item)
+			return
+		}
+		profile := win.profiles[index]
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		err := tsutil.SwitchProfile(ctx, profile.ID)
+		if err != nil {
+			slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
+			return
+		}
+		<-app.poller.Poll()
+	})
+
+	contentVariant := glib.NewVariantString("content")
+	win.PeersStack.NotifyProperty("visible-child", func() {
+		win.SplitView.ActivateAction("navigation.push", contentVariant)
+	})
 
 	return &win
 }
@@ -128,58 +191,60 @@ func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
 }
 
 func (win *MainWindow) removePage(name string, page Page) {
+	var reselect bool
+	if win.PeersStack.VisibleChildName() == name {
+		reselect = true
+	}
+
 	delete(win.pages, name)
 	win.PeersStack.Remove(page.Widget())
+
+	if reselect {
+		win.PeersList.SelectRow(win.PeersList.RowAtIndex(0))
+	}
 }
 
-func (win *MainWindow) Update(status *tsutil.Status) {
-	online := status.Online()
-	win.StatusSwitch.SetState(online)
-	win.StatusSwitch.SetActive(online)
+func (win *MainWindow) Update(status tsutil.Status) {
+	switch status := status.(type) {
+	case *tsutil.IPNStatus:
+		online := status.Online()
+		win.StatusSwitch.SetState(online)
+		win.StatusSwitch.SetActive(online)
 
-	win.updateProfiles(status)
-	win.updatePeers(status)
-}
+		win.updatePeers(status)
 
-func (win *MainWindow) updatePeersOffline() {
-	var found bool
-	for name, page := range win.pages {
-		if name == "status" {
-			found = true
-			continue
+	case *tsutil.FileStatus:
+		if self, ok := win.pages["self"].(*SelfPage); ok {
+			self.UpdateFiles(status)
 		}
 
-		win.removePage(name, page)
-	}
-	if !found {
-		vp := win.PeersStack.AddTitled(win.statusPage, "status", "Not Connected")
-		vp.SetIconName("network-offline-symbolic")
+	case *tsutil.ProfileStatus:
+		win.updateProfiles(status)
 	}
 }
 
-func (win *MainWindow) updatePeers(status *tsutil.Status) {
+func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 	if !status.Online() {
-		win.updatePeersOffline()
+		if _, ok := win.pages["offline"]; !ok {
+			win.addPage("offline", NewOfflinePage(win.app))
+		}
+		win.updatePages(status)
 		return
-	}
-
-	if win.PeersStack.ChildByName("status") != nil {
-		win.PeersStack.Remove(win.statusPage)
 	}
 
 	if _, ok := win.pages["self"]; !ok {
 		win.addPage("self", NewSelfPage(win.app, status))
 	}
-	if _, ok := win.pages["mullvad"]; !ok && tsutil.CanMullvad(status.Status.Self) {
+	if _, ok := win.pages["mullvad"]; !ok && tsutil.CanMullvad(status.NetMap.SelfNode) {
 		win.addPage("mullvad", NewMullvadPage(win.app, status))
 	}
 
-	for _, peer := range status.Status.Peer {
+	for id, peer := range status.Peers {
 		if tsutil.IsMullvad(peer) {
 			continue
 		}
 
-		name := string(peer.ID)
+		name := string(id)
 		if _, ok := win.pages[name]; ok {
 			continue
 		}
@@ -187,6 +252,10 @@ func (win *MainWindow) updatePeers(status *tsutil.Status) {
 		win.addPage(name, NewPeerPage(win.app, status, peer))
 	}
 
+	win.updatePages(status)
+}
+
+func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
 	var remove []string
 	for name, page := range win.pages {
 		ok := page.Update(status)
@@ -201,9 +270,10 @@ func (win *MainWindow) updatePeers(status *tsutil.Status) {
 	win.PeersList.InvalidateSort()
 }
 
-func (win *MainWindow) updateProfiles(s *tsutil.Status) {
-	listmodels.UpdateStrings(win.ProfileModel, func(yield func(string) bool) {
-		for _, profile := range s.Profiles {
+func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {
+	win.profiles = status.Profiles
+	listmodels.UpdateStrings(win.profileModel, func(yield func(string) bool) {
+		for _, profile := range status.Profiles {
 			name := profile.Name
 			if metadata.Private {
 				name = "profile@example.com"
@@ -214,8 +284,8 @@ func (win *MainWindow) updateProfiles(s *tsutil.Status) {
 		}
 	})
 
-	profileIndex, ok := listmodels.Index(win.ProfileSortModel, func(obj *gtk.StringObject) bool {
-		return obj.String() == s.Profile.Name
+	profileIndex, ok := listmodels.Index(win.profileSortModel, func(obj *gtk.StringObject) bool {
+		return obj.String() == status.Profile.Name
 	})
 	if ok {
 		win.ProfileDropDown.SetSelected(uint(profileIndex))

@@ -21,7 +21,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
-	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 )
 
 //go:embed selfpage.ui
@@ -30,7 +30,7 @@ var selfPageXML string
 type SelfPage struct {
 	app     *App
 	row     *PageRow
-	peer    *ipnstate.PeerStatus
+	peer    tailcfg.NodeView
 	actions *gio.SimpleActionGroup
 
 	Page                 *adw.StatusPage
@@ -71,22 +71,22 @@ type SelfPage struct {
 	fileModel  *gioutil.ListModel[apitype.WaitingFile]
 }
 
-func NewSelfPage(a *App, status *tsutil.Status) *SelfPage {
+func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
 	var page SelfPage
 	fillFromBuilder(&page, selfPageXML)
 	page.init(a, status)
 	return &page
 }
 
-func (page *SelfPage) init(a *App, status *tsutil.Status) {
+func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	page.app = a
-	page.peer = status.Status.Self
+	page.peer = status.NetMap.SelfNode
 
 	page.actions = gio.NewSimpleActionGroup()
 
 	copyFQDN := gio.NewSimpleAction("copyFQDN", nil)
 	copyFQDN.ConnectActivate(func(p *glib.Variant) {
-		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.DNSName, ".")))
+		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.Name(), ".")))
 		a.win.Toast("Copied FQDN to clipboard")
 	})
 	page.actions.AddAction(copyFQDN)
@@ -141,7 +141,6 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 					slog.Error("advertise routes", "err", err)
 					return
 				}
-				a.poller.Poll() <- struct{}{}
 			})
 
 			row := adw.NewActionRow()
@@ -202,7 +201,7 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 							slog.Error("delete file", "err", err)
 							return
 						}
-						a.poller.Poll() <- struct{}{}
+						<-a.poller.Poll()
 					}
 				})
 			})
@@ -227,7 +226,7 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 		}
 
 		if s {
-			err := tsutil.ExitNode(context.TODO(), nil)
+			err := tsutil.ExitNode(context.TODO(), "")
 			if err != nil {
 				slog.Error("disable existing exit node", "err", err)
 				// Continue anyways.
@@ -240,7 +239,6 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 			page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
@@ -255,7 +253,6 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 			page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
@@ -270,14 +267,13 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 			page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
 		return true
 	})
 
 	page.AdvertiseRouteButton.ConnectClicked(func() {
 		Prompt{
-			Heading: "Add IP",
-			Body:    "IP prefix to advertise",
+			Heading:     "Add IP Prefix",
+			Placeholder: "10.0.0.0/24",
 			Responses: []PromptResponse{
 				{ID: "cancel", Label: "_Cancel"},
 				{ID: "add", Label: "_Add", Appearance: adw.ResponseSuggested, Default: true},
@@ -307,8 +303,6 @@ func (page *SelfPage) init(a *App, status *tsutil.Status) {
 				slog.Error("advertise routes", "err", err)
 				return
 			}
-
-			a.poller.Poll() <- struct{}{}
 		})
 	})
 
@@ -391,23 +385,38 @@ func (page *SelfPage) Init(row *PageRow) {
 	page.row.SetIconName("computer-symbolic")
 }
 
-func (page *SelfPage) Update(status *tsutil.Status) bool {
-	page.peer = status.Status.Self
+func (page *SelfPage) Update(status tsutil.Status) bool {
+	switch status := status.(type) {
+	case *tsutil.IPNStatus:
+		return page.UpdateIPN(status)
+	case *tsutil.FileStatus:
+		return page.UpdateFiles(status)
+	default:
+		return true
+	}
+}
 
-	page.row.SetTitle(peerName(status, page.peer))
+func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
+	if !status.Online() {
+		return false
+	}
 
-	page.Page.SetTitle(page.peer.HostName)
-	page.Page.SetDescription(page.peer.DNSName)
+	page.peer = status.NetMap.SelfNode
+
+	page.row.SetTitle(peerName(page.peer))
+
+	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
+	page.Page.SetDescription(page.peer.Name())
 
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.AdvertisesExitNode())
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.AdvertisesExitNode())
-	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.ExitNodeAllowLANAccess)
-	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.ExitNodeAllowLANAccess)
-	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.RouteAll)
-	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.RouteAll)
+	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.ExitNodeAllowLANAccess())
+	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.ExitNodeAllowLANAccess())
+	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.RouteAll())
+	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.RouteAll())
 
 	routes := func(yield func(netip.Prefix) bool) {
-		for _, r := range status.Prefs.AdvertiseRoutes {
+		for _, r := range status.Prefs.AdvertiseRoutes().All() {
 			if r.Bits() != 0 {
 				if !yield(r) {
 					return
@@ -416,9 +425,13 @@ func (page *SelfPage) Update(status *tsutil.Status) bool {
 		}
 	}
 
-	listmodels.Update(page.addrModel, slices.Values(page.peer.TailscaleIPs))
-	listmodels.Update(page.fileModel, slices.Values(status.Files))
+	listmodels.Update(page.addrModel, xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr))
 	listmodels.Update(page.routeModel, routes)
 
+	return true
+}
+
+func (page *SelfPage) UpdateFiles(status *tsutil.FileStatus) bool {
+	listmodels.Update(page.fileModel, slices.Values(status.Files))
 	return true
 }

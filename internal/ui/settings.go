@@ -57,16 +57,17 @@ func (a *App) runSettings(ctx context.Context) {
 }
 
 func (a *App) showChangeControlServer() {
-	status := <-a.poller.Get()
+	status := <-a.poller.GetIPN()
 
 	Prompt{
 		Heading: "Control Server URL",
+		Purpose: gtk.InputPurposeURL,
 		Responses: []PromptResponse{
 			{ID: "cancel", Label: "_Cancel"},
 			{ID: "default", Label: "Use _Default"},
 			{ID: "set", Label: "_Set URL", Appearance: adw.ResponseSuggested, Default: true},
 		},
-	}.Show(a, status.Prefs.ControlURL, func(response, val string) {
+	}.Show(a, status.Prefs.ControlURL(), func(response, val string) {
 		switch response {
 		case "default":
 			val = ipn.DefaultControlURL
@@ -81,7 +82,7 @@ func (a *App) showChangeControlServer() {
 				a.win.Toast(fmt.Sprintf("Error setting control URL: %v", err))
 				return
 			}
-			a.poller.Poll() <- struct{}{}
+			<-a.poller.Poll()
 		}
 	})
 }

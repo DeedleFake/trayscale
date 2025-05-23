@@ -150,7 +150,12 @@ func NewMainWindow(app *App) *MainWindow {
 	})
 
 	win.ProfileDropDown.NotifyProperty("selected-item", func() {
-		item := win.ProfileDropDown.SelectedItem().Cast().(*gtk.StringObject).String()
+		obj, ok := win.ProfileDropDown.SelectedItem().Cast().(*gtk.StringObject)
+		if !ok {
+			return
+		}
+
+		item := obj.String()
 		index := slices.IndexFunc(win.profiles, func(p ipn.LoginProfile) bool {
 			// TODO: Find a reasonable way to do this by profile ID instead.
 			return p.Name == item

@@ -177,20 +177,7 @@ func (a *App) startTS(ctx context.Context) error {
 			Reject:  "_Cancel",
 		}.Show(a, func(accept bool) {
 			if accept {
-				ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
-				defer cancel()
-
-				err := tsutil.StartLogin(ctx)
-				if err != nil {
-					slog.Error("failed to start login", "err", err)
-					if a.win != nil {
-						a.win.Toast("Failed to start login")
-					}
-					return
-				}
-
-				status := <-a.poller.NextIPN()
-				gtk.NewURILauncher(status.BrowseToURL).Launch(ctx, &a.win.MainWindow.Window, nil)
+				a.app.ActivateAction("login", nil)
 			}
 		})
 		return nil
@@ -274,6 +261,41 @@ func (a *App) onAppActivate(ctx context.Context) {
 	quitAction.ConnectActivate(func(p *glib.Variant) { a.Quit() })
 	a.app.AddAction(quitAction)
 	a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
+
+	loginAction := gio.NewSimpleAction("login", nil)
+	loginAction.ConnectActivate(func(p *glib.Variant) {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		err := tsutil.StartLogin(ctx)
+		if err != nil {
+			slog.Error("failed to start login", "err", err)
+			if a.win != nil {
+				a.win.Toast("Failed to start login")
+			}
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				if a.win != nil {
+					a.win.Toast("Failed to start login")
+				}
+				return
+			case status := <-a.poller.NextIPN():
+				if status.BrowseToURL != "" {
+					var win *gtk.Window
+					if a.win != nil {
+						win = &a.win.MainWindow.Window
+					}
+					gtk.NewURILauncher(status.BrowseToURL).Launch(ctx, win, nil)
+					return
+				}
+			}
+		}
+	})
+	a.app.AddAction(loginAction)
 
 	a.win = NewMainWindow(a)
 	a.win.MainWindow.ConnectCloseRequest(func() bool {

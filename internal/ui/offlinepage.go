@@ -1,26 +1,27 @@
 package ui
 
 import (
+	_ "embed"
+
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
+//go:embed offlinepage.ui
+var offlinePageXML string
+
 type OfflinePage struct {
 	app *App
 
-	Page *adw.StatusPage
+	Page           *adw.StatusPage
+	NeedsAuthGroup *adw.PreferencesGroup
 }
 
 func NewOfflinePage(app *App) *OfflinePage {
 	page := OfflinePage{app: app}
-
-	page.Page = adw.NewStatusPage()
-	page.Page.SetTitle("Not Connected")
-	page.Page.SetIconName("network-offline-symbolic")
-	page.Page.SetDescription("Tailscale is not connected")
-
+	fillFromBuilder(&page, offlinePageXML)
 	return &page
 }
 
@@ -39,6 +40,7 @@ func (page *OfflinePage) Init(row *PageRow) {
 
 func (page *OfflinePage) Update(status tsutil.Status) bool {
 	if status, ok := status.(*tsutil.IPNStatus); ok {
+		page.NeedsAuthGroup.SetVisible(status.NeedsAuth())
 		return !status.Online()
 	}
 	return true

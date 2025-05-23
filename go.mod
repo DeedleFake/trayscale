@@ -9,9 +9,9 @@ require (
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250310094704-65bb91d1403f
 	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
+	github.com/jwijenbergh/puregotk v0.0.0-20250407124134-bc1a52f44fd4
 	github.com/klauspost/compress v1.18.0
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/net v0.40.0
 	tailscale.com v1.84.0
 )
 
@@ -55,6 +55,7 @@ require (
 	github.com/hdevalence/ed25519consensus v0.2.0 // indirect
 	github.com/illarion/gonotify/v3 v3.0.2 // indirect
 	github.com/jsimonetti/rtnetlink v1.4.2 // indirect
+	github.com/jwijenbergh/purego v0.0.0-20241210143217-aeaa0bfe09e0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -86,6 +87,7 @@ require (
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/mod v0.24.0 // indirect
+	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect

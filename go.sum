@@ -119,6 +119,10 @@ github.com/jellydator/ttlcache/v3 v3.1.0 h1:0gPFG0IHHP6xyUyXq+JaD8fwkDCqgqwohXNJ
 github.com/jellydator/ttlcache/v3 v3.1.0/go.mod h1:hi7MGFdMAwZna5n2tuvh63DvFLzVKySzCVW6+0gA2n4=
 github.com/jsimonetti/rtnetlink v1.4.2 h1:Df9w9TZ3npHTyDn0Ev9e1uzmN2odmXd0QX+J5GTEn90=
 github.com/jsimonetti/rtnetlink v1.4.2/go.mod h1:92s6LJdE+1iOrw+F2/RO7LYI2Qd8pPpFNNUYW06gcoM=
+github.com/jwijenbergh/purego v0.0.0-20241210143217-aeaa0bfe09e0 h1:T+RXKadM+FhXcAtRa5vL03gQkRkeqjasQQo/g0UqF1k=
+github.com/jwijenbergh/purego v0.0.0-20241210143217-aeaa0bfe09e0/go.mod h1:+ekdIOEa4gfAWPhy5blgdiyIJJez3H7o/9JVV01g0yo=
+github.com/jwijenbergh/puregotk v0.0.0-20250407124134-bc1a52f44fd4 h1:Mxyu7Mpr0iM8RoMYxxP2eQubiWa5FPMu7rO0Jbe+WLE=
+github.com/jwijenbergh/puregotk v0.0.0-20250407124134-bc1a52f44fd4/go.mod h1:5ggTnoOSeuCaDhJmBC2GOikLtyIgViqiQdW31d+rH2o=
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 h1:Z9n2FFNUXsshfwJMBgNA0RU6/i7WVaAegv3PtuIHPMs=
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51/go.mod h1:CzGEWj7cYgsdH8dAjBGEr58BoE7ScuLd+fwFZ44+/x8=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=

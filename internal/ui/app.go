@@ -13,12 +13,12 @@ import (
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/inhies/go-bytesize"
+	"github.com/jwijenbergh/puregotk/v4/adw"
+	"github.com/jwijenbergh/puregotk/v4/gdk"
+	"github.com/jwijenbergh/puregotk/v4/gio"
+	"github.com/jwijenbergh/puregotk/v4/glib"
+	"github.com/jwijenbergh/puregotk/v4/gtk"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/tailcfg"
 )
@@ -42,12 +42,12 @@ type App struct {
 	files         *[]apitype.WaitingFile
 }
 
-func (a *App) clip(v *glib.Value) {
-	gdk.DisplayGetDefault().Clipboard().Set(v)
+func (a *App) clip(v string) {
+	gdk.DisplayGetDefault().GetClipboard().Set(gtk.TYPE_STRING, v)
 }
 
 func (a *App) notify(title, body string) {
-	icon, iconerr := gio.NewIconForString(metadata.AppID)
+	icon, iconerr := gio.IconNewForString(metadata.AppID)
 
 	n := gio.NewNotification(title)
 	n.SetBody(body)
@@ -68,12 +68,13 @@ func (a *App) spin() {
 }
 
 func (a *App) stopSpin() {
-	glib.IdleAdd(func() {
+	glib.IdleAdd(func(uintptr) bool {
 		a.spinnum--
 		if a.win != nil {
 			a.win.WorkSpinner.SetVisible(a.spinnum > 0)
 		}
-	})
+		return false
+	}, 0)
 }
 
 func (a *App) update(status tsutil.Status) {
@@ -134,7 +135,7 @@ func (a *App) update(status tsutil.Status) {
 func (a *App) init(ctx context.Context) {
 	gtk.Init()
 
-	a.app = adw.NewApplication(metadata.AppID, gio.ApplicationHandlesOpen)
+	a.app = adw.NewApplication(metadata.AppID, gio.GApplicationHandlesOpenValue)
 
 	css := gtk.NewCSSProvider()
 	css.LoadFromString(appCSS)

@@ -190,7 +190,6 @@ func (page *MullvadPage) getExitNodeRow(peer tailcfg.NodeView) *mullvadExitNodeR
 			sw.SetActive(!s)
 			return true
 		}
-		<-page.app.poller.Poll()
 		return true
 	})
 

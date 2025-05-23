@@ -362,7 +362,6 @@ func (a *App) initTray(ctx context.Context) {
 					slog.Error("toggle exit node from tray", "err", err)
 					return
 				}
-				<-a.poller.Poll()
 
 				if toggle {
 					a.notify("Exit node", "Enabled")

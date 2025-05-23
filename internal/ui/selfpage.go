@@ -141,7 +141,6 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 					slog.Error("advertise routes", "err", err)
 					return
 				}
-				<-a.poller.Poll()
 			})
 
 			row := adw.NewActionRow()
@@ -240,7 +239,6 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 			page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		<-a.poller.Poll()
 		return true
 	})
 
@@ -255,7 +253,6 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 			page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		<-a.poller.Poll()
 		return true
 	})
 
@@ -270,7 +267,6 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 			page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		<-a.poller.Poll()
 		return true
 	})
 
@@ -307,8 +303,6 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 				slog.Error("advertise routes", "err", err)
 				return
 			}
-
-			<-a.poller.Poll()
 		})
 	})
 

@@ -190,7 +190,6 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 					slog.Error("advertise routes", "err", err)
 					return
 				}
-				<-a.poller.Poll()
 			})
 
 			row := adw.NewActionRow()
@@ -229,7 +228,6 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 			page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		<-a.poller.Poll()
 		return true
 	})
 }

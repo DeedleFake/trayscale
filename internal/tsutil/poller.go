@@ -42,6 +42,7 @@ type Poller struct {
 
 	poll     chan struct{}
 	getIPN   chan *IPNStatus
+	nextIPN  chan *IPNStatus
 	interval chan time.Duration
 }
 
@@ -49,6 +50,7 @@ func (p *Poller) init() {
 	p.once.Do(func() {
 		mk.Chan(&p.poll, 0)
 		mk.Chan(&p.getIPN, 0)
+		mk.Chan(&p.nextIPN, 0)
 		mk.Chan(&p.interval, 0)
 	})
 }
@@ -163,7 +165,6 @@ watch:
 			dirty = true
 		}
 		if notify.BrowseToURL != nil {
-			slog.Info("browse to URL", "url", *notify.BrowseToURL)
 			s.BrowseToURL = *notify.BrowseToURL
 			dirty = true
 		}
@@ -172,10 +173,15 @@ watch:
 			continue
 		}
 
+		c := s.copy()
 		select {
 		case <-ctx.Done():
 			return
-		case set <- s.copy():
+		case set <- c:
+		}
+		select {
+		case p.nextIPN <- c:
+		default:
 		}
 	}
 }
@@ -241,6 +247,17 @@ func (p *Poller) GetIPN() <-chan *IPNStatus {
 	p.init()
 
 	return p.getIPN
+}
+
+// NextIPN returns a channel that is sent the new IPNStatus each time
+// it is available if anyone is receiving from it. Unlike [GetIPN],
+// this channel does not yield the previous status, so it is useful if
+// an update is expected to arrive soon. Most usages should use
+// [GetIPN] instead as it significantly faster.
+func (p *Poller) NextIPN() <-chan *IPNStatus {
+	p.init()
+
+	return p.nextIPN
 }
 
 // SetInterval returns a channel that modifies the polling interval of

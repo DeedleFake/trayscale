@@ -255,3 +255,7 @@ func GetProfileStatus(ctx context.Context) (ipn.LoginProfile, []ipn.LoginProfile
 func SwitchProfile(ctx context.Context, id ipn.ProfileID) error {
 	return localClient.SwitchProfile(ctx, id)
 }
+
+func StartLogin(ctx context.Context) error {
+	return localClient.StartLoginInteractive(ctx)
+}

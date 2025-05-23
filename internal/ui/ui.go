@@ -153,6 +153,16 @@ func expanderRowListBox(row *adw.ExpanderRow) *gtk.ListBox {
 	panic("ExpanderRow ListBox not found")
 }
 
+func pointerToWidgetter[T any, P interface {
+	gtk.Widgetter
+	*T
+}](p P) gtk.Widgetter {
+	if p == nil {
+		return nil
+	}
+	return p
+}
+
 func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {
 	return glib.NewObjectComparer(func(o1, o2 *glib.Object) int {
 		v1 := listmodels.Convert[T](o1)

@@ -291,11 +291,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 				return
 			case status := <-a.poller.NextIPN():
 				if status.BrowseToURL != "" {
-					var win *gtk.Window
-					if a.win != nil {
-						win = &a.win.MainWindow.Window
-					}
-					gtk.NewURILauncher(status.BrowseToURL).Launch(ctx, win, nil)
+					gtk.NewURILauncher(status.BrowseToURL).Launch(ctx, a.window(), nil)
 					return
 				}
 			}

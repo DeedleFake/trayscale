@@ -414,6 +414,7 @@ func (a *App) Run(ctx context.Context) {
 	defer cancel()
 
 	a.init(ctx)
+	context.AfterFunc(ctx, a.Quit)
 
 	err := a.app.Register(ctx)
 	if err != nil {
@@ -426,11 +427,6 @@ func (a *App) Run(ctx context.Context) {
 		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
-
-	go func() {
-		<-ctx.Done()
-		a.Quit()
-	}()
 
 	a.app.Run(os.Args)
 }

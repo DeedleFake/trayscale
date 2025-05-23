@@ -91,13 +91,7 @@ func (a *App) update(status tsutil.Status) {
 			a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
 		}
 
-		if a.win == nil {
-			return
-		}
-
-		a.win.Update(status)
-
-		if a.online && !a.operatorCheck {
+		if online && !a.operatorCheck {
 			a.operatorCheck = true
 			if !status.OperatorIsCurrent() {
 				Info{
@@ -105,6 +99,10 @@ func (a *App) update(status tsutil.Status) {
 					Body:    "Some functionality may not work as expected. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
 				}.Show(a, nil)
 			}
+		}
+
+		if a.win != nil {
+			a.win.Update(status)
 		}
 
 	case *tsutil.FileStatus:
@@ -264,6 +262,15 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 	loginAction := gio.NewSimpleAction("login", nil)
 	loginAction.ConnectActivate(func(p *glib.Variant) {
+		status := <-a.poller.GetIPN()
+		if !status.OperatorIsCurrent() {
+			Info{
+				Heading: "User is not Tailscale Operator",
+				Body:    "Login via Trayscale is not possible unless the current user is set as the operator. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
+			}.Show(a, nil)
+			return
+		}
+
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 

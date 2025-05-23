@@ -393,7 +393,7 @@ func (page *SelfPage) Init(row *PageRow) {
 func (page *SelfPage) Update(status tsutil.Status) bool {
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
-		return page.UpdateNet(status)
+		return page.UpdateIPN(status)
 	case *tsutil.FileStatus:
 		return page.UpdateFiles(status)
 	default:
@@ -401,7 +401,7 @@ func (page *SelfPage) Update(status tsutil.Status) bool {
 	}
 }
 
-func (page *SelfPage) UpdateNet(status *tsutil.IPNStatus) bool {
+func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 	if !status.Online() {
 		return false
 	}

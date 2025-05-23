@@ -269,6 +269,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 
 	<-a.poller.Poll()
+	a.update(<-a.poller.GetIPN())
 	a.win.MainWindow.Present()
 }
 

@@ -5,7 +5,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
-func (a *App) window() gtk.Widgetter {
+func (a *App) window() *gtk.Window {
 	if a == nil {
 		return nil
 	}
@@ -13,7 +13,7 @@ func (a *App) window() gtk.Widgetter {
 		return nil
 	}
 
-	return a.win.MainWindow
+	return &a.win.MainWindow.Window
 }
 
 type Confirmation struct {
@@ -35,13 +35,15 @@ func (d Confirmation) Show(a *App, res func(bool)) {
 		res(response == "accept")
 	})
 
-	dialog.Present(a.window())
+	dialog.Present(pointerToWidgetter(a.window()))
 }
 
 type Prompt struct {
-	Heading   string
-	Body      string
-	Responses []PromptResponse
+	Heading     string
+	Body        string
+	Placeholder string
+	Purpose     gtk.InputPurpose
+	Responses   []PromptResponse
 }
 
 type PromptResponse struct {
@@ -52,10 +54,10 @@ type PromptResponse struct {
 }
 
 func (d Prompt) Show(a *App, initialValue string, res func(response, val string)) {
-	input := gtk.NewText()
-	if initialValue != "" {
-		input.Buffer().SetText(initialValue, len(initialValue))
-	}
+	input := gtk.NewEntry()
+	input.SetText(initialValue)
+	input.SetInputPurpose(d.Purpose)
+	input.SetPlaceholderText(d.Placeholder)
 
 	dialog := adw.NewAlertDialog(d.Heading, d.Body)
 	dialog.SetExtraChild(input)
@@ -71,14 +73,14 @@ func (d Prompt) Show(a *App, initialValue string, res func(response, val string)
 	}
 
 	dialog.ConnectResponse(func(response string) {
-		res(response, input.Buffer().Text())
+		res(response, input.Text())
 	})
 	input.ConnectActivate(func() {
 		defer dialog.Close()
-		res(def, input.Buffer().Text())
+		res(def, input.Text())
 	})
 
-	dialog.Present(a.window())
+	dialog.Present(pointerToWidgetter(a.window()))
 }
 
 type Info struct {
@@ -98,7 +100,7 @@ func (d Info) Show(a *App, closed func()) {
 		})
 	}
 
-	dialog.Present(a.window())
+	dialog.Present(pointerToWidgetter(a.window()))
 }
 
 type Select[T any] struct {
@@ -154,5 +156,5 @@ func (d Select[T]) Show(a *App, res func([]SelectOption[T])) {
 		res(selected)
 	})
 
-	dialog.Present(a.window())
+	dialog.Present(pointerToWidgetter(a.window()))
 }

@@ -17,10 +17,12 @@ import (
 	"tailscale.com/net/netmon"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/logger"
+	"tailscale.com/util/eventbus"
 )
 
 var (
 	localClient    local.Client
+	bus            = eventbus.New()
 	monitor        = initMonitor()
 	netcheckClient = netcheck.Client{
 		NetMon: monitor,
@@ -29,7 +31,7 @@ var (
 )
 
 func initMonitor() *netmon.Monitor {
-	monitor, err := netmon.New(logger.Discard)
+	monitor, err := netmon.New(bus, logger.Discard)
 	if err != nil {
 		slog.Error("init netmon monitor", "err", err)
 	}
@@ -63,9 +65,9 @@ func Stop(ctx context.Context) error {
 }
 
 // ExitNode uses the specified peer as an exit node, or unsets
-// an existing exit node if peer is nil.
-func ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
-	if peer == nil {
+// an existing exit node if peer is an empty string.
+func ExitNode(ctx context.Context, peer tailcfg.StableNodeID) error {
+	if peer == "" {
 		var prefs ipn.Prefs
 		prefs.ClearExitNode()
 		_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
@@ -79,17 +81,12 @@ func ExitNode(ctx context.Context, peer *ipnstate.PeerStatus) error {
 		return nil
 	}
 
-	status, err := localClient.Status(ctx)
-	if err != nil {
-		return fmt.Errorf("get status: %w", err)
+	prefs := ipn.Prefs{
+		ExitNodeID: peer,
 	}
-
-	var prefs ipn.Prefs
-	prefs.SetExitNodeIP(peer.TailscaleIPs[0].String(), status)
-	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
 		Prefs:         prefs,
 		ExitNodeIDSet: true,
-		ExitNodeIPSet: true,
 	})
 	if err != nil {
 		return fmt.Errorf("edit prefs: %w", err)
@@ -247,10 +244,18 @@ func WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
 	return localClient.AwaitWaitingFiles(ctx, time.Second)
 }
 
-func ProfileStatus(ctx context.Context) (ipn.LoginProfile, []ipn.LoginProfile, error) {
+func FileTargets(ctx context.Context) ([]apitype.FileTarget, error) {
+	return localClient.FileTargets(ctx)
+}
+
+func GetProfileStatus(ctx context.Context) (ipn.LoginProfile, []ipn.LoginProfile, error) {
 	return localClient.ProfileStatus(ctx)
 }
 
 func SwitchProfile(ctx context.Context, id ipn.ProfileID) error {
 	return localClient.SwitchProfile(ctx, id)
+}
+
+func StartLogin(ctx context.Context) error {
+	return localClient.StartLoginInteractive(ctx)
 }

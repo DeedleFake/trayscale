@@ -20,6 +20,8 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/net/tsaddr"
+	"tailscale.com/tailcfg"
 )
 
 //go:embed peerpage.ui
@@ -28,7 +30,7 @@ var peerPageXML string
 type PeerPage struct {
 	app     *App
 	row     *PageRow
-	peer    *ipnstate.PeerStatus
+	peer    tailcfg.NodeView
 	actions *gio.SimpleActionGroup
 
 	Page                  *adw.StatusPage
@@ -62,8 +64,6 @@ type PeerPage struct {
 	LastSeen              *gtk.Label
 	CreatedRow            *adw.ActionRow
 	Created               *gtk.Label
-	LastWriteRow          *adw.ActionRow
-	LastWrite             *gtk.Label
 	LastHandshakeRow      *adw.ActionRow
 	LastHandshake         *gtk.Label
 	RxBytesRow            *adw.ActionRow
@@ -74,18 +74,20 @@ type PeerPage struct {
 	SendDirButton         *adw.ButtonRow
 	DropTarget            *gtk.DropTarget
 
+	sendFileAction *gio.SimpleAction
+
 	addrModel  *gioutil.ListModel[netip.Addr]
 	routeModel *gioutil.ListModel[netip.Prefix]
 }
 
-func NewPeerPage(a *App, status *tsutil.Status, peer *ipnstate.PeerStatus) *PeerPage {
+func NewPeerPage(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeView) *PeerPage {
 	var page PeerPage
 	fillFromBuilder(&page, peerPageXML)
 	page.init(a, status, peer)
 	return &page
 }
 
-func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerStatus) {
+func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeView) {
 	page.app = a
 	page.peer = peer
 
@@ -93,13 +95,13 @@ func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerSta
 
 	copyFQDNAction := gio.NewSimpleAction("copyFQDN", nil)
 	copyFQDNAction.ConnectActivate(func(p *glib.Variant) {
-		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.DNSName, ".")))
+		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.Name(), ".")))
 		a.win.Toast("Copied FQDN to clipboard")
 	})
 	page.actions.AddAction(copyFQDNAction)
 
-	sendFileAction := gio.NewSimpleAction("sendFile", glib.NewVariantType("s"))
-	sendFileAction.ConnectActivate(func(p *glib.Variant) {
+	page.sendFileAction = gio.NewSimpleAction("sendFile", glib.NewVariantType("s"))
+	page.sendFileAction.ConnectActivate(func(p *glib.Variant) {
 		dialog := gtk.NewFileDialog()
 		dialog.SetModal(true)
 
@@ -109,7 +111,7 @@ func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerSta
 			open, finish = dialog.SelectMultipleFolders, dialog.SelectMultipleFoldersFinish
 		}
 
-		dialog.SetTitle(fmt.Sprintf("Select %v(s) to send to %v", mode, page.peer.HostName))
+		dialog.SetTitle(fmt.Sprintf("Select %v(s) to send to %v", mode, page.peer.Hostinfo().Hostname()))
 
 		open(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 			files, err := finish(res)
@@ -121,11 +123,11 @@ func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerSta
 			}
 
 			for _, file := range listmodels.Values[gio.Filer](files) {
-				go a.pushFile(context.TODO(), page.peer.ID, file)
+				go a.pushFile(context.TODO(), page.peer.StableID(), file)
 			}
 		})
 	})
-	page.actions.AddAction(sendFileAction)
+	page.actions.AddAction(page.sendFileAction)
 
 	page.Page.AddController(page.DropTarget)
 	page.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
@@ -134,7 +136,7 @@ func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerSta
 		if !ok {
 			return true
 		}
-		go a.pushFile(context.TODO(), page.peer.ID, file)
+		go a.pushFile(context.TODO(), page.peer.StableID(), file)
 		return true
 	})
 
@@ -188,7 +190,6 @@ func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerSta
 					slog.Error("advertise routes", "err", err)
 					return
 				}
-				a.poller.Poll() <- struct{}{}
 			})
 
 			row := adw.NewActionRow()
@@ -217,9 +218,9 @@ func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerSta
 			}
 		}
 
-		var node *ipnstate.PeerStatus
+		var node tailcfg.StableNodeID
 		if s {
-			node = page.peer
+			node = page.peer.StableID()
 		}
 		err := tsutil.ExitNode(context.TODO(), node)
 		if err != nil {
@@ -227,7 +228,6 @@ func (page *PeerPage) init(a *App, status *tsutil.Status, peer *ipnstate.PeerSta
 			page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}
-		a.poller.Poll() <- struct{}{}
 		return true
 	})
 }
@@ -244,36 +244,51 @@ func (page *PeerPage) Init(row *PageRow) {
 	page.row = row
 }
 
-func (page *PeerPage) Update(status *tsutil.Status) bool {
-	page.peer = status.Status.Peer[page.peer.PublicKey]
-	if page.peer == nil {
+func (page *PeerPage) Update(s tsutil.Status) bool {
+	status, ok := s.(*tsutil.IPNStatus)
+	if !ok {
+		return true
+	}
+	if !status.Online() {
 		return false
 	}
 
-	page.row.SetTitle(peerName(status, page.peer))
-	page.row.SetSubtitle(peerSubtitle(page.peer))
-	page.row.SetIconName(peerIcon(page.peer))
+	page.peer = status.Peers[page.peer.StableID()]
+	if !page.peer.Valid() {
+		return false
+	}
 
-	page.Page.SetTitle(page.peer.HostName)
-	page.Page.SetDescription(page.peer.DNSName)
+	page.sendFileAction.SetEnabled(status.FileTargets.Contains(page.peer.StableID()))
 
-	page.ExitNodeRow.SetVisible(page.peer.ExitNodeOption)
-	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(page.peer.ExitNode)
-	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(page.peer.ExitNode)
-	page.RxBytes.SetText(strconv.FormatInt(page.peer.RxBytes, 10))
-	page.TxBytes.SetText(strconv.FormatInt(page.peer.TxBytes, 10))
-	page.Created.SetText(formatTime(page.peer.Created))
-	page.LastSeen.SetText(formatTime(page.peer.LastSeen))
-	page.LastSeenRow.SetVisible(!page.peer.Online)
-	page.LastWrite.SetText(formatTime(page.peer.LastWrite))
-	page.LastHandshake.SetText(formatTime(page.peer.LastHandshake))
-	page.Online.SetFromIconName(boolIcon(page.peer.Online))
+	online := page.peer.Online().Get()
+	exitNodeOption := tsaddr.ContainsExitRoutes(page.peer.AllowedIPs())
+	exitNode := page.peer.Equal(status.ExitNode())
+
+	var enginePeer ipnstate.PeerStatusLite
+	if status.Engine != nil {
+		enginePeer = status.Engine.LivePeers[page.peer.Key()]
+	}
+
+	page.row.SetTitle(peerName(page.peer))
+	page.row.SetSubtitle(peerSubtitle(exitNodeOption, exitNode))
+	page.row.SetIconName(peerIcon(online, exitNodeOption, exitNode))
+
+	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
+	page.Page.SetDescription(page.peer.Name())
+
+	page.ExitNodeRow.SetVisible(exitNodeOption)
+	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(exitNode)
+	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(exitNode)
+	page.RxBytes.SetText(strconv.FormatInt(enginePeer.RxBytes, 10))
+	page.TxBytes.SetText(strconv.FormatInt(enginePeer.TxBytes, 10))
+	page.Created.SetText(formatTime(page.peer.Created()))
+	page.LastSeen.SetText(formatTime(page.peer.LastSeen().Get()))
+	page.LastSeenRow.SetVisible(!online)
+	page.LastHandshake.SetText(formatTime(enginePeer.LastHandshake))
+	page.Online.SetFromIconName(boolIcon(online))
 
 	routes := func(yield func(netip.Prefix) bool) {
-		if page.peer.PrimaryRoutes == nil {
-			return
-		}
-		for _, r := range page.peer.PrimaryRoutes.All() {
+		for _, r := range page.peer.PrimaryRoutes().All() {
 			if r.Bits() == 0 {
 				continue
 			}
@@ -283,37 +298,37 @@ func (page *PeerPage) Update(status *tsutil.Status) bool {
 		}
 	}
 
-	listmodels.Update(page.addrModel, slices.Values(page.peer.TailscaleIPs))
+	listmodels.Update(page.addrModel, xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr))
 	listmodels.Update(page.routeModel, routes)
 
 	return true
 }
 
-func peerName(status *tsutil.Status, peer *ipnstate.PeerStatus) string {
-	return tsutil.DNSOrQuoteHostname(status.Status, peer)
+func peerName(peer tailcfg.NodeView) string {
+	return peer.DisplayName(true)
 }
 
-func peerSubtitle(peer *ipnstate.PeerStatus) string {
-	if peer.ExitNode {
+func peerSubtitle(exitNodeOption, exitNode bool) string {
+	if exitNode {
 		return "Current exit node"
 	}
-	if peer.ExitNodeOption {
+	if exitNodeOption {
 		return "Exit node option"
 	}
 	return ""
 }
 
-func peerIcon(peer *ipnstate.PeerStatus) string {
-	if peer.ExitNode {
-		if !peer.Online {
+func peerIcon(online bool, exitNodeOption, exitNode bool) string {
+	if exitNode {
+		if !online {
 			return "network-vpn-acquiring-symbolic"
 		}
 		return "network-vpn-symbolic"
 	}
-	if !peer.Online {
+	if !online {
 		return "network-wired-offline-symbolic"
 	}
-	if peer.ExitNodeOption {
+	if exitNodeOption {
 		return "folder-remote-symbolic"
 	}
 

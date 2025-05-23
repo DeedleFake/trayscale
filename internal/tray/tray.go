@@ -56,7 +56,7 @@ type Tray struct {
 	quitItem       *tray.MenuItem
 }
 
-func (t *Tray) Start(s *tsutil.Status) error {
+func (t *Tray) Start(s *tsutil.IPNStatus) error {
 	if t.item != nil {
 		return nil
 	}
@@ -100,18 +100,18 @@ func (t *Tray) Close() error {
 	return err
 }
 
-func (t *Tray) Update(s *tsutil.Status) {
+func (t *Tray) Update(status *tsutil.IPNStatus) {
 	if t == nil || t.item == nil {
 		return
 	}
 
-	selfTitle, connected := selfTitle(s)
+	selfTitle, connected := selfTitle(status)
 
-	t.updateStatusIcon(s)
+	t.updateStatusIcon(status)
 
-	t.connToggleItem.SetProps(tray.MenuItemLabel(connToggleText(s.Online())))
+	t.connToggleItem.SetProps(tray.MenuItemLabel(connToggleText(status.Online())))
 	t.exitToggleItem.SetProps(
-		tray.MenuItemLabel(exitToggleText(s)),
+		tray.MenuItemLabel(exitToggleText(status)),
 		tray.MenuItemEnabled(connected),
 	)
 	t.selfNodeItem.SetProps(
@@ -120,7 +120,7 @@ func (t *Tray) Update(s *tsutil.Status) {
 	)
 }
 
-func (t *Tray) updateStatusIcon(s *tsutil.Status) {
+func (t *Tray) updateStatusIcon(s *tsutil.IPNStatus) {
 	newIcon := statusIcon(s)
 	if newIcon == t.icon {
 		return
@@ -130,26 +130,23 @@ func (t *Tray) updateStatusIcon(s *tsutil.Status) {
 	t.item.SetProps(tray.ItemIconPixmap(newIcon))
 }
 
-func statusIcon(s *tsutil.Status) *tray.Pixmap {
+func statusIcon(s *tsutil.IPNStatus) *tray.Pixmap {
 	if !s.Online() {
 		return &statusIconInactive
 	}
-	if s.Status.ExitNodeStatus != nil {
+	if s.ExitNodeActive() {
 		return &statusIconExitNode
 	}
 	return &statusIconActive
 }
 
-func selfTitle(s *tsutil.Status) (string, bool) {
-	addr, ok := s.SelfAddr()
-	if !ok {
-		if len(s.Status.Self.TailscaleIPs) == 0 {
-			return "Address unknown", false
-		}
+func selfTitle(s *tsutil.IPNStatus) (string, bool) {
+	addr := s.SelfAddr()
+	if !addr.IsValid() {
 		return "Not connected", false
 	}
 
-	return fmt.Sprintf("%v (%v)", tsutil.DNSOrQuoteHostname(s.Status, s.Status.Self), addr), true
+	return fmt.Sprintf("%v (%v)", s.NetMap.SelfNode.DisplayName(true), addr), true
 }
 
 func connToggleText(online bool) string {
@@ -160,8 +157,8 @@ func connToggleText(online bool) string {
 	return "Connect"
 }
 
-func exitToggleText(s *tsutil.Status) string {
-	if s.Status != nil && s.Status.ExitNodeStatus != nil {
+func exitToggleText(s *tsutil.IPNStatus) string {
+	if s.ExitNodeActive() {
 		// TODO: Show some actual information about the current exit node?
 		return "Disable exit node"
 	}

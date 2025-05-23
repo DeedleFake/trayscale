@@ -20,8 +20,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
-	"tailscale.com/ipn"
-	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 )
 
 //go:embed app.css
@@ -40,7 +39,6 @@ type App struct {
 
 	spinnum       int
 	operatorCheck bool
-	profiles      []ipn.LoginProfile
 	files         *[]apitype.WaitingFile
 }
 
@@ -78,44 +76,57 @@ func (a *App) stopSpin() {
 	})
 }
 
-func (a *App) update(s *tsutil.Status) {
-	online := s.Online()
-	a.tray.Update(s)
-	if a.online != online {
-		a.online = online
+func (a *App) update(status tsutil.Status) {
+	switch status := status.(type) {
+	case *tsutil.IPNStatus:
+		online := status.Online()
+		a.tray.Update(status)
+		if a.online != online {
+			a.online = online
 
-		body := "Tailscale is not connected."
-		if online {
-			body = "Tailscale is connected."
+			body := "Tailscale is not connected."
+			if online {
+				body = "Tailscale is connected."
+			}
+			a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
 		}
-		a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
-	}
 
-	if a.files != nil {
-		for _, file := range s.Files {
-			if !slices.Contains(*a.files, file) {
-				body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
-				a.notify("New Incoming File", body)
+		if online && !a.operatorCheck {
+			a.operatorCheck = true
+			if !status.OperatorIsCurrent() {
+				Info{
+					Heading: "User is not Tailscale Operator",
+					Body:    "Some functionality may not work as expected. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
+				}.Show(a, nil)
 			}
 		}
-	}
-	a.files = &s.Files
 
-	a.profiles = s.Profiles
+		if !online {
+			a.files = nil
+		}
 
-	if a.win == nil {
-		return
-	}
+		if a.win != nil {
+			a.win.Update(status)
+		}
 
-	a.win.Update(s)
+	case *tsutil.FileStatus:
+		if a.files != nil {
+			for _, file := range status.Files {
+				if !slices.Contains(*a.files, file) {
+					body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
+					a.notify("New Incoming File", body)
+				}
+			}
+		}
+		a.files = &status.Files
 
-	if a.online && !a.operatorCheck {
-		a.operatorCheck = true
-		if !s.OperatorIsCurrent() {
-			Info{
-				Heading: "User is not Tailscale Operator",
-				Body:    "Some functionality may not work as expected. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
-			}.Show(a, nil)
+		if a.win != nil {
+			a.win.Update(status)
+		}
+
+	case *tsutil.ProfileStatus:
+		if a.win != nil {
+			a.win.Update(status)
 		}
 	}
 }
@@ -159,7 +170,7 @@ func (a *App) init(ctx context.Context) {
 }
 
 func (a *App) startTS(ctx context.Context) error {
-	status := <-a.poller.Get()
+	status := <-a.poller.GetIPN()
 	if status.NeedsAuth() {
 		Confirmation{
 			Heading: "Login Required",
@@ -168,7 +179,7 @@ func (a *App) startTS(ctx context.Context) error {
 			Reject:  "_Cancel",
 		}.Show(a, func(accept bool) {
 			if accept {
-				gtk.NewURILauncher(status.Status.AuthURL).Launch(ctx, &a.win.MainWindow.Window, nil)
+				a.app.ActivateAction("login", nil)
 			}
 		})
 		return nil
@@ -178,7 +189,7 @@ func (a *App) startTS(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	a.poller.Poll() <- struct{}{}
+	<-a.poller.Poll()
 	return nil
 }
 
@@ -187,25 +198,25 @@ func (a *App) stopTS(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	a.poller.Poll() <- struct{}{}
+	<-a.poller.Poll()
 	return nil
 }
 
 func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
-	type selectOption = SelectOption[*ipnstate.PeerStatus]
+	type selectOption = SelectOption[tailcfg.NodeView]
 
-	s := <-a.poller.Get()
+	s := <-a.poller.GetIPN()
 	if !s.Online() {
 		return
 	}
 	options := func(yield func(selectOption) bool) {
-		for _, peer := range s.Status.Peer {
-			if tsutil.IsMullvad(peer) || !tsutil.CanReceiveFiles(peer) {
+		for _, peer := range s.Peers {
+			if !s.FileTargets.Contains(peer.StableID()) || tsutil.IsMullvad(peer) {
 				continue
 			}
 
 			option := selectOption{
-				Title: tsutil.DNSOrQuoteHostname(s.Status, peer),
+				Title: peer.DisplayName(true),
 				Value: peer,
 			}
 			if !yield(option) {
@@ -214,7 +225,7 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 		}
 	}
 
-	Select[*ipnstate.PeerStatus]{
+	Select[tailcfg.NodeView]{
 		Heading: "Send file(s) to...",
 		Options: slices.SortedFunc(options, func(o1, o2 selectOption) int {
 			return cmp.Compare(o1.Title, o2.Title)
@@ -223,7 +234,7 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 		for _, option := range options {
 			a.notify("Taildrop", fmt.Sprintf("Sending %v file(s) to %v...", len(files), option.Title))
 			for _, file := range files {
-				go a.pushFile(ctx, option.Value.ID, file)
+				go a.pushFile(ctx, option.Value.StableID(), file)
 			}
 		}
 	})
@@ -252,71 +263,63 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.app.AddAction(quitAction)
 	a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
 
+	loginAction := gio.NewSimpleAction("login", nil)
+	loginAction.ConnectActivate(func(p *glib.Variant) {
+		status := <-a.poller.GetIPN()
+		if !status.OperatorIsCurrent() {
+			Info{
+				Heading: "User is not Tailscale Operator",
+				Body:    "Login via Trayscale is not possible unless the current user is set as the operator. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
+			}.Show(a, nil)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		err := tsutil.StartLogin(ctx)
+		if err != nil {
+			slog.Error("failed to start login", "err", err)
+			if a.win != nil {
+				a.win.Toast("Failed to start login")
+			}
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				if a.win != nil {
+					a.win.Toast("Failed to start login")
+				}
+				return
+			case status := <-a.poller.NextIPN():
+				if status.BrowseToURL != "" {
+					gtk.NewURILauncher(status.BrowseToURL).Launch(ctx, a.window(), nil)
+					return
+				}
+			}
+		}
+	})
+	a.app.AddAction(loginAction)
+
 	a.win = NewMainWindow(a)
-
-	a.win.StatusSwitch.ConnectStateSet(func(s bool) bool {
-		if s == a.win.StatusSwitch.State() {
-			return false
-		}
-
-		// TODO: Handle this, and other switches, asynchrounously instead
-		// of freezing the entire UI.
-		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		defer cancel()
-
-		f := a.stopTS
-		if s {
-			f = a.startTS
-		}
-
-		err := f(ctx)
-		if err != nil {
-			slog.Error("set Tailscale status", "err", err)
-			a.win.StatusSwitch.SetActive(!s)
-			return true
-		}
-		return true
-	})
-
-	a.win.ProfileDropDown.NotifyProperty("selected-item", func() {
-		item := a.win.ProfileDropDown.SelectedItem().Cast().(*gtk.StringObject).String()
-		index := slices.IndexFunc(a.profiles, func(p ipn.LoginProfile) bool {
-			// TODO: Find a reasonable way to do this by profile ID instead.
-			return p.Name == item
-		})
-		if index < 0 {
-			slog.Error("selected unknown profile", "name", item)
-			return
-		}
-		profile := a.profiles[index]
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		err := tsutil.SwitchProfile(ctx, profile.ID)
-		if err != nil {
-			slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
-			return
-		}
-		a.poller.Poll() <- struct{}{}
-	})
-
-	contentVariant := glib.NewVariantString("content")
-	a.win.PeersStack.NotifyProperty("visible-child", func() {
-		a.win.SplitView.ActivateAction("navigation.push", contentVariant)
-	})
-
 	a.win.MainWindow.ConnectCloseRequest(func() bool {
 		a.win = nil
 		return false
 	})
-	a.poller.Poll() <- struct{}{}
+
+	<-a.poller.Poll()
 	a.win.MainWindow.Present()
+
+	glib.IdleAdd(func() {
+		a.update(<-a.poller.GetIPN())
+	})
 }
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray != nil {
-		err := a.tray.Start(<-a.poller.Get())
+		err := a.tray.Start(<-a.poller.GetIPN())
 		if err != nil {
 			slog.Error("failed to start tray icon", "err", err)
 		}
@@ -355,18 +358,14 @@ func (a *App) initTray(ctx context.Context) {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 
-				s := <-a.poller.Get()
-				if s.Status == nil {
-					return
-				}
-				toggle := s.Status.ExitNodeStatus == nil
+				s := <-a.poller.GetIPN()
+				toggle := !s.ExitNodeActive()
 				err := tsutil.SetUseExitNode(ctx, toggle)
 				if err != nil {
 					a.notify("Toggle exit node", err.Error())
 					slog.Error("toggle exit node from tray", "err", err)
 					return
 				}
-				a.poller.Poll() <- struct{}{}
 
 				if toggle {
 					a.notify("Exit node", "Enabled")
@@ -378,9 +377,9 @@ func (a *App) initTray(ctx context.Context) {
 
 		OnSelfNode: func() {
 			glib.IdleAdd(func() {
-				s := <-a.poller.Get()
-				addr, ok := s.SelfAddr()
-				if !ok {
+				s := <-a.poller.GetIPN()
+				addr := s.SelfAddr()
+				if !addr.IsValid() {
 					return
 				}
 				a.clip(glib.NewValue(addr.String()))
@@ -395,7 +394,7 @@ func (a *App) initTray(ctx context.Context) {
 		},
 	}
 
-	err := a.tray.Start(<-a.poller.Get())
+	err := a.tray.Start(<-a.poller.GetIPN())
 	if err != nil {
 		slog.Error("failed to start tray icon", "err", err)
 	}
@@ -424,7 +423,7 @@ func (a *App) Run(ctx context.Context) {
 
 	a.poller = &tsutil.Poller{
 		Interval: a.getInterval(),
-		New:      func(s *tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
 

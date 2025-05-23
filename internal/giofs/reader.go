@@ -45,7 +45,7 @@ func dirReader(ctx context.Context, file gio.Filer) (io.ReadCloser, int64, strin
 		w := tar.NewWriter(z)
 		defer w.Close()
 
-		root := New(file)
+		root := New(ctx, file)
 		err := w.AddFS(root)
 		if err != nil {
 			slog.Error("write tar file", "source", file.Path(), "err", err)

@@ -177,7 +177,19 @@ func (a *App) startTS(ctx context.Context) error {
 			Reject:  "_Cancel",
 		}.Show(a, func(accept bool) {
 			if accept {
-				slog.Info("auth", "url", status.BrowseToURL)
+				ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
+				defer cancel()
+
+				err := tsutil.StartLogin(ctx)
+				if err != nil {
+					slog.Error("failed to start login", "err", err)
+					if a.win != nil {
+						a.win.Toast("Failed to start login")
+					}
+					return
+				}
+
+				status := <-a.poller.NextIPN()
 				gtk.NewURILauncher(status.BrowseToURL).Launch(ctx, &a.win.MainWindow.Window, nil)
 			}
 		})

@@ -54,6 +54,16 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.18.0" date="2025-05-23">
+			<description>
+				<ul>
+					<li>Overhaul internal polling mechanism. Most time-sensative updates now use the IPN bus watcher instead of polling manually. The UI should now update based on changing daemon state a <em>lot</em> faster.</li>
+					<li>Fix logging in via a browser.</li>
+					<li>Add login button to offline page when not logged in.</li>
+					<li>Update Tailscale client to v1.84.0.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.17.6" date="2025-05-20">
 			<description>
 				<ul>

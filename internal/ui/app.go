@@ -314,7 +314,7 @@ func (a *App) initTray(ctx context.Context) {
 				defer cancel()
 
 				s := <-a.poller.GetIPN()
-				toggle := s.ExitNodeActive()
+				toggle := !s.ExitNodeActive()
 				err := tsutil.SetUseExitNode(ctx, toggle)
 				if err != nil {
 					a.notify("Toggle exit node", err.Error())

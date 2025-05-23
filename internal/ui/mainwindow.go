@@ -186,8 +186,17 @@ func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
 }
 
 func (win *MainWindow) removePage(name string, page Page) {
+	var reselect bool
+	if win.PeersStack.VisibleChildName() == name {
+		reselect = true
+	}
+
 	delete(win.pages, name)
 	win.PeersStack.Remove(page.Widget())
+
+	if reselect {
+		win.PeersList.SelectRow(win.PeersList.RowAtIndex(0))
+	}
 }
 
 func (win *MainWindow) Update(status tsutil.Status) {

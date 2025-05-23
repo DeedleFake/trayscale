@@ -18,8 +18,13 @@ import (
 	"tailscale.com/ipn"
 )
 
-//go:embed mainwindow.ui
-var mainWindowXML string
+var (
+	//go:embed mainwindow.ui
+	mainWindowXML string
+
+	//go:embed menu.ui
+	menuXML string
+)
 
 type MainWindow struct {
 	app *App
@@ -47,7 +52,7 @@ func NewMainWindow(app *App) *MainWindow {
 		app:   app,
 		pages: make(map[string]Page),
 	}
-	fillFromBuilder(&win, mainWindowXML)
+	fillFromBuilder(&win, menuXML, mainWindowXML)
 
 	win.MainWindow.SetApplication(&app.app.Application)
 

@@ -1,0 +1,45 @@
+<interface>
+	<requires lib="gio" version="2.0" />
+  <menu id="MainMenu">
+    <section>
+      <item>
+        <attribute name="label">Change Control _Server</attribute>
+        <attribute name="action">app.change_control_server</attribute>
+      </item>
+      <item>
+        <attribute name="label">_Preferences</attribute>
+        <attribute name="action">app.preferences</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="label">_About</attribute>
+        <attribute name="action">app.about</attribute>
+      </item>
+      <item>
+        <attribute name="label">_Quit</attribute>
+        <attribute name="action">app.quit</attribute>
+      </item>
+    </section>
+  </menu>
+  <menu id="PageMenu">
+    <section>
+      <item>
+        <attribute name="action">peer.copyFQDN</attribute>
+        <attribute name="label">_Copy FQDN</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="action">peer.sendFile</attribute>
+        <attribute name="label">Send _file...</attribute>
+        <attribute name="target">file</attribute>
+      </item>
+      <item>
+        <attribute name="action">peer.sendFile</attribute>
+        <attribute name="label">Send _directory...</attribute>
+        <attribute name="target">dir</attribute>
+      </item>
+    </section>
+  </menu>
+</interface>

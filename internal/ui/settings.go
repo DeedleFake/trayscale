@@ -61,6 +61,7 @@ func (a *App) showChangeControlServer() {
 
 	Prompt{
 		Heading: "Control Server URL",
+		Purpose: gtk.InputPurposeURL,
 		Responses: []PromptResponse{
 			{ID: "cancel", Label: "_Cancel"},
 			{ID: "default", Label: "Use _Default"},

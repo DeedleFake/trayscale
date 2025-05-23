@@ -39,9 +39,11 @@ func (d Confirmation) Show(a *App, res func(bool)) {
 }
 
 type Prompt struct {
-	Heading   string
-	Body      string
-	Responses []PromptResponse
+	Heading     string
+	Body        string
+	Placeholder string
+	Purpose     gtk.InputPurpose
+	Responses   []PromptResponse
 }
 
 type PromptResponse struct {
@@ -54,6 +56,8 @@ type PromptResponse struct {
 func (d Prompt) Show(a *App, initialValue string, res func(response, val string)) {
 	input := gtk.NewEntry()
 	input.SetText(initialValue)
+	input.SetInputPurpose(d.Purpose)
+	input.SetPlaceholderText(d.Placeholder)
 
 	dialog := adw.NewAlertDialog(d.Heading, d.Body)
 	dialog.SetExtraChild(input)

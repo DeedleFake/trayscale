@@ -276,8 +276,8 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 
 	page.AdvertiseRouteButton.ConnectClicked(func() {
 		Prompt{
-			Heading: "Add IP",
-			Body:    "IP prefix to advertise",
+			Heading:     "Add IP Prefix",
+			Placeholder: "10.0.0.0/24",
 			Responses: []PromptResponse{
 				{ID: "cancel", Label: "_Cancel"},
 				{ID: "add", Label: "_Add", Appearance: adw.ResponseSuggested, Default: true},

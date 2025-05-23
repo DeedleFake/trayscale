@@ -3,6 +3,7 @@ package tsutil
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"maps"
 	"net/netip"
@@ -133,6 +134,9 @@ watch:
 		if err != nil {
 			if ctx.Err() != nil {
 				return
+			}
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				goto watch
 			}
 			slog.Error("get next IPN bus notification", "err", err)
 			continue

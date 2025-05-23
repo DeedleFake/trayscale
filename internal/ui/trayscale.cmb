@@ -2,9 +2,10 @@
 <!DOCTYPE cambalache-project SYSTEM "cambalache-project.dtd">
 <!-- Created with Cambalache 0.96.1 -->
 <cambalache-project version="0.96.0" target_tk="gtk-4.0">
-  <ui filename="mainwindow.ui" sha256="6150da867e1e16144ecc0c1de90e0714aaaa0a4d062a10d412316f7720799404"/>
+  <ui filename="mainwindow.ui" sha256="02ecb8d034b7d3ae9d404f392d529d19cb8be6ae4e1be337b03fe65bd995f8b3"/>
   <ui filename="peerpage.ui" sha256="9ddcf45ffa1287d20cccc14d0db1ae24f122f89872c80dd1cc003b77f2acb536"/>
   <ui filename="preferences.ui" sha256="323784c79e864af66a5a2ed4b174d1bb44a9693e61f60c37195162de8389eaf4"/>
   <ui filename="selfpage.ui" sha256="a69d5b87a32918950fd7990043d1d34e8532a1d8af100ee3c35d928d9e9d9217"/>
   <ui filename="mullvadpage.ui" sha256="f92befae6868e0766e20740e96b77e31e991e17f6329e85d1ef675921d7e4ef6"/>
+  <ui filename="menu.ui" sha256="ead8787fa27befe63e482ce669bceb247a5dcc19952c260e0d5fd11e64a1a7d4"/>
 </cambalache-project>

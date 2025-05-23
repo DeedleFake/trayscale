@@ -3,6 +3,7 @@ package ui
 import (
 	_ "embed"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -21,7 +22,7 @@ type OfflinePage struct {
 
 func NewOfflinePage(app *App) *OfflinePage {
 	page := OfflinePage{app: app}
-	fillFromBuilder(&page, offlinePageXML)
+	gutil.FillFromUI(&page, offlinePageXML)
 	return &page
 }
 

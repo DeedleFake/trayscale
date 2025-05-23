@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -44,7 +45,7 @@ func NewMullvadPage(a *App, status *tsutil.IPNStatus) *MullvadPage {
 		locations: make(map[string]*adw.ExpanderRow),
 		exitNodes: make(map[tailcfg.StableNodeID]*mullvadExitNodeRow),
 	}
-	fillFromBuilder(&page, mullvadPageXML)
+	gutil.FillFromUI(&page, mullvadPageXML)
 
 	page.LocationList.SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
 		e1 := r1.Cast().(*adw.ExpanderRow)
@@ -141,7 +142,7 @@ func (page *MullvadPage) getLocationRow(loc tailcfg.LocationView) *adw.ExpanderR
 
 	row := adw.NewExpanderRow()
 	row.SetTitle(mullvadLocationName(loc))
-	expanderRowListBox(row).SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
+	gutil.ExpanderRowListBox(row).SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
 		sw1 := r1.Cast().(*adw.SwitchRow)
 		sw2 := r2.Cast().(*adw.SwitchRow)
 		c1, s1 := splitCityState(sw1.Title())

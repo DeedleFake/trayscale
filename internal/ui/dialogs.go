@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"deedles.dev/trayscale/internal/gutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
@@ -35,7 +36,7 @@ func (d Confirmation) Show(a *App, res func(bool)) {
 		res(response == "accept")
 	})
 
-	dialog.Present(pointerToWidgetter(a.window()))
+	dialog.Present(gutil.PointerToWidgetter(a.window()))
 }
 
 type Prompt struct {
@@ -80,7 +81,7 @@ func (d Prompt) Show(a *App, initialValue string, res func(response, val string)
 		res(def, input.Text())
 	})
 
-	dialog.Present(pointerToWidgetter(a.window()))
+	dialog.Present(gutil.PointerToWidgetter(a.window()))
 }
 
 type Info struct {
@@ -100,7 +101,7 @@ func (d Info) Show(a *App, closed func()) {
 		})
 	}
 
-	dialog.Present(pointerToWidgetter(a.window()))
+	dialog.Present(gutil.PointerToWidgetter(a.window()))
 }
 
 type Select[T any] struct {
@@ -156,5 +157,5 @@ func (d Select[T]) Show(a *App, res func([]SelectOption[T])) {
 		res(selected)
 	})
 
-	dialog.Present(pointerToWidgetter(a.window()))
+	dialog.Present(gutil.PointerToWidgetter(a.window()))
 }

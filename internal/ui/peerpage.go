@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
@@ -82,7 +83,7 @@ type PeerPage struct {
 
 func NewPeerPage(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeView) *PeerPage {
 	var page PeerPage
-	fillFromBuilder(&page, peerPageXML)
+	gutil.FillFromUI(&page, peerPageXML)
 	page.init(a, status, peer)
 	return &page
 }
@@ -116,7 +117,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 		open(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 			files, err := finish(res)
 			if err != nil {
-				if !errHasCode(err, int(gtk.DialogErrorDismissed)) {
+				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissed)) {
 					slog.Error("open files", "err", err)
 				}
 				return

@@ -2,17 +2,13 @@ package ui
 
 import (
 	"cmp"
-	"errors"
-	"iter"
 	"net/netip"
-	"reflect"
 	"time"
 
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/core/gerror"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -68,99 +64,6 @@ func optBoolIcon(v opt.Bool) string {
 		return "dialog-question-symbolic"
 	}
 	return boolIcon(b)
-}
-
-func fillObjects(dst any, builder *gtk.Builder) {
-	v := reflect.ValueOf(dst).Elem()
-	t := v.Type()
-
-	for i := range t.NumField() {
-		fv := v.Field(i)
-		ft := t.Field(i)
-
-		name := ft.Name
-		if tag, ok := ft.Tag.Lookup("gtk"); ok {
-			if tag == "-" {
-				continue
-			}
-			name = tag
-		}
-		obj := builder.GetObject(name)
-		if obj == nil {
-			continue
-		}
-
-		fv.Set(reflect.ValueOf(obj.Cast()))
-	}
-}
-
-func fillFromBuilder(into any, xml ...string) {
-	builder := gtk.NewBuilder()
-	for _, v := range xml {
-		builder.AddFromString(v)
-	}
-
-	fillObjects(into, builder)
-}
-
-func errHasCode(err error, code int) bool {
-	var gerr *gerror.GError
-	if !errors.As(err, &gerr) {
-		return false
-	}
-	return gerr.ErrorCode() == code
-}
-
-type widgetParent interface {
-	FirstChild() gtk.Widgetter
-}
-
-func widgetChildren(w widgetParent) iter.Seq[gtk.Widgetter] {
-	return func(yield func(gtk.Widgetter) bool) {
-		widgetChildrenPush(yield, w)
-	}
-}
-
-func widgetChildrenPush(yield func(gtk.Widgetter) bool, w widgetParent) bool {
-	type siblingNexter interface{ NextSibling() gtk.Widgetter }
-
-	cur := w.FirstChild()
-	for cur != nil {
-		if !yield(cur) {
-			return false
-		}
-		if !widgetChildrenPush(yield, cur.(widgetParent)) {
-			return false
-		}
-
-		cur = cur.(siblingNexter).NextSibling()
-	}
-
-	return true
-}
-
-func expanderRowListBox(row *adw.ExpanderRow) *gtk.ListBox {
-	type caster interface{ Cast() glib.Objector }
-	for child := range widgetChildren(row) {
-		if r, ok := child.(caster).Cast().(*gtk.Revealer); ok {
-			for child := range widgetChildren(r) {
-				if box, ok := child.(caster).Cast().(*gtk.ListBox); ok {
-					return box
-				}
-			}
-		}
-	}
-	panic("ExpanderRow ListBox not found")
-}
-
-func pointerToWidgetter[T any, P interface {
-	gtk.Widgetter
-	*T
-}](p P) gtk.Widgetter {
-	if p == nil {
-		return nil
-	}
-	return p
 }
 
 func NewObjectComparer[T any](f func(T, T) int) glib.CompareDataFunc {

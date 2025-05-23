@@ -52,10 +52,8 @@ type PromptResponse struct {
 }
 
 func (d Prompt) Show(a *App, initialValue string, res func(response, val string)) {
-	input := gtk.NewText()
-	if initialValue != "" {
-		input.Buffer().SetText(initialValue, len(initialValue))
-	}
+	input := gtk.NewEntry()
+	input.SetText(initialValue)
 
 	dialog := adw.NewAlertDialog(d.Heading, d.Body)
 	dialog.SetExtraChild(input)
@@ -71,11 +69,11 @@ func (d Prompt) Show(a *App, initialValue string, res func(response, val string)
 	}
 
 	dialog.ConnectResponse(func(response string) {
-		res(response, input.Buffer().Text())
+		res(response, input.Text())
 	})
 	input.ConnectActivate(func() {
 		defer dialog.Close()
-		res(def, input.Buffer().Text())
+		res(def, input.Text())
 	})
 
 	dialog.Present(a.window())

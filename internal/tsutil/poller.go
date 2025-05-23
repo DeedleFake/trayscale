@@ -261,6 +261,13 @@ func (s IPNStatus) copy() *IPNStatus {
 }
 
 func (s *IPNStatus) rebuildPeers(ctx context.Context) {
+	// This is a lot longer than it probably should be. It's basically
+	// just to make sure that the poller doesn't get completely stuck. If
+	// this is getting hit, though, the UI is going to be updating
+	// horribly slow.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	if s.Peers == nil {
 		mk.Map(&s.Peers, 0)
 	}

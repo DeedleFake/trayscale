@@ -269,8 +269,11 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 
 	<-a.poller.Poll()
-	a.update(<-a.poller.GetIPN())
 	a.win.MainWindow.Present()
+
+	glib.IdleAdd(func() {
+		a.update(<-a.poller.GetIPN())
+	})
 }
 
 func (a *App) initTray(ctx context.Context) {

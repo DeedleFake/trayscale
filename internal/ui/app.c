@@ -7,7 +7,7 @@ G_DEFINE_TYPE(App, app, ADW_TYPE_APPLICATION);
 
 void app_init(App *app);
 void app_class_init(AppClass *app_class);
-void app_activate(GApplication *gapp);
+void app_activate(GApplication *gapplication);
 
 App *app_new(void) {
 	App *app;
@@ -32,11 +32,9 @@ void app_init(App *app) {
 }
 
 void app_class_init(AppClass *app_class) {
-	GApplicationClass *g_application_class = G_APPLICATION_CLASS(app_class);
-
-	g_application_class->activate = app_activate;
+	G_APPLICATION_CLASS(app_class)->activate = app_activate;
 }
 
-void app_activate(GApplication *gapp) {
+void app_activate(GApplication *gapplication) {
 	printf("app activate\n");
 }

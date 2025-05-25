@@ -23,7 +23,7 @@ func (app *App) Run(ctx context.Context) {
 
 	app.poller = &tsutil.Poller{
 		Interval: 5 * time.Second,
-		New:      func(s tsutil.Status) {},
+		New:      app.Update,
 	}
 	go app.poller.Run(ctx)
 
@@ -38,6 +38,11 @@ func (app *App) Run(ctx context.Context) {
 
 func (app *App) Quit() {
 	app.app.Quit()
+}
+
+func (app *App) Update(status tsutil.Status) {
+	app.tray.Update(status)
+	app.app.Update(status)
 }
 
 func (app *App) Poller() *tsutil.Poller {

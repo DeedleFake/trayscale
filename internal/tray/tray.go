@@ -100,8 +100,13 @@ func (t *Tray) Close() error {
 	return err
 }
 
-func (t *Tray) Update(status *tsutil.IPNStatus) {
+func (t *Tray) Update(s tsutil.Status) {
 	if t == nil || t.item == nil {
+		return
+	}
+
+	status, ok := s.(*tsutil.IPNStatus)
+	if !ok {
 		return
 	}
 

@@ -42,6 +42,9 @@ func (app *App) Quit() {
 	})
 }
 
+func (app *App) Update(status tsutil.Status) {
+}
+
 func (app *App) ShowWindow() {
 	slog.Info("show window")
 }

@@ -1,6 +1,5 @@
 #include <adwaita.h>
 
-#include "_cgo_export.h"
 #include "ui.h"
 #include "app.h"
 
@@ -25,13 +24,11 @@ void ui_app_quit(UiApp *ui_app) {
 }
 
 void ui_app_init(UiApp *ui_app) {
-	GtkCssProvider *css;
-
 	adw_init();
-	css = gtk_css_provider_new();
-	gtk_css_provider_load_from_string(css, APP_CSS);
+	ui_app->css_provider = gtk_css_provider_new();
+	gtk_css_provider_load_from_string(ui_app->css_provider, APP_CSS);
 	gtk_style_context_add_provider_for_display(gdk_display_get_default(),
-			GTK_STYLE_PROVIDER(css),
+			GTK_STYLE_PROVIDER(ui_app->css_provider),
 			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
 	g_application_hold(G_APPLICATION(ui_app));
@@ -45,7 +42,13 @@ void ui_app_activate(GApplication *g_application) {
 	printf("app activate\n");
 }
 
+void ui_app_dispose(GObject *g_object) {
+	g_object_unref(UI_APP(g_object)->css_provider);
+}
+
 void ui_app_class_init(UiAppClass *ui_app_class) {
 	G_APPLICATION_CLASS(ui_app_class)->open = ui_app_open;
 	G_APPLICATION_CLASS(ui_app_class)->activate = ui_app_activate;
+
+	G_OBJECT_CLASS(ui_app_class)->dispose = ui_app_dispose;
 }

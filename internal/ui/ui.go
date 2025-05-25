@@ -4,13 +4,45 @@ package ui
 #cgo pkg-config: libadwaita-1
 
 #include <adwaita.h>
+
+char *APP_ID = NULL;
+
+#define DEFINE_RESOURCE(name) char *name = NULL; int name##_LEN = 0
+DEFINE_RESOURCE(APP_CSS);
 */
 import "C"
 
 import (
-	"runtime"
+	"embed"
+	"io"
 	"unsafe"
+
+	"deedles.dev/trayscale/internal/metadata"
 )
+
+//go:embed *.ui *.css
+var files embed.FS
+
+func init() {
+	C.APP_ID = C.CString(metadata.AppID)
+
+	C.APP_CSS, C.APP_CSS_LEN = exportFile("app.css")
+}
+
+func exportFile(name string) (*C.char, C.int) {
+	file, err := files.Open(name)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		panic(err)
+	}
+
+	return C.CString(string(data)), C.int(len(data))
+}
 
 func toCStrings(str []string) []*C.char {
 	cstr := make([]*C.char, 0, len(str))
@@ -24,23 +56,4 @@ func freeAll[T any, P *T](cstr []P) {
 	for _, s := range cstr {
 		C.free(unsafe.Pointer(s))
 	}
-}
-
-type ref[T any, P *T] struct {
-	p P
-}
-
-func take[T any, P *T](p P) *ref[T, P] {
-	r := borrow(p)
-	C.g_object_ref(r.gpointer())
-	runtime.AddCleanup(r, func(p C.gpointer) { C.g_object_unref(p) }, r.gpointer())
-	return r
-}
-
-func borrow[T any, P *T](p P) *ref[T, P] {
-	return &ref[T, P]{p: p}
-}
-
-func (r *ref[T, P]) gpointer() C.gpointer {
-	return C.gpointer(unsafe.Pointer(r.p))
 }

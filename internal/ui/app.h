@@ -1,7 +1,5 @@
-#ifndef APP_H
-#define APP_H
-
-extern char *APP_ID;
+#ifndef UI_APP_H
+#define UI_APP_H
 
 #define UI_APP_TYPE ui_app_get_type()
 G_DECLARE_FINAL_TYPE(UiApp, ui_app, UI, APP, AdwApplication);

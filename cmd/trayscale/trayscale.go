@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"runtime/pprof"
 
-	"deedles.dev/trayscale/internal/ui"
+	"deedles.dev/trayscale/internal/trayscale"
 )
 
 func profile() func() {
@@ -45,6 +45,6 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	var a ui.App
-	a.Run(ctx)
+	var app trayscale.App
+	app.Run(ctx)
 }

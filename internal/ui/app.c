@@ -25,6 +25,31 @@ void ui_app_quit(UiApp *ui_app) {
 	g_application_quit(G_APPLICATION(ui_app));
 }
 
+void ui_app_g_settings_changed(GSettings *g_settings, const char *key, UiApp *ui_app) {
+	if (strcmp(key, "tray-icon") == 0) {
+		gboolean trayIcon = g_settings_get_boolean(g_settings, key);
+		if (trayIcon) {
+			ui_app_start_tray(ui_app);
+			return;
+		}
+		ui_app_stop_tray(ui_app);
+		return;
+	}
+
+	if (strcmp(key, "polling-interval") == 0) {
+		// TODO: Implement this.
+	}
+}
+
+void ui_app_init_g_settings(UiApp *ui_app) {
+	// TODO: Check if the settings exist first.
+
+	ui_app->g_settings = g_settings_new(APP_ID);
+	g_object_connect(ui_app->g_settings,
+			"signal::changed", ui_app_g_settings_changed, ui_app,
+			NULL);
+}
+
 void ui_app_init(UiApp *ui_app) {
 	adw_init();
 
@@ -34,6 +59,8 @@ void ui_app_init(UiApp *ui_app) {
 			GTK_STYLE_PROVIDER(ui_app->css_provider),
 			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
+	ui_app_init_g_settings(ui_app);
+
 	g_application_hold(G_APPLICATION(ui_app));
 }
 
@@ -42,7 +69,9 @@ void ui_app_open(GApplication *g_application, GFile *files[], int nfiles, const 
 }
 
 void ui_app_activate(GApplication *g_application) {
-	ui_app_start_tray(UI_APP(g_application));
+	if (UI_APP(g_application)->g_settings == NULL || g_settings_get_boolean(UI_APP(g_application)->g_settings, "tray-icon")) {
+		ui_app_start_tray(UI_APP(g_application));
+	}
 }
 
 void ui_app_dispose(GObject *g_object) {

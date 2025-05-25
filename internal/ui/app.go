@@ -86,6 +86,19 @@ func ui_app_start_tray(app *C.UiApp) C.gboolean {
 	return C.TRUE
 }
 
+//export ui_app_stop_tray
+func ui_app_stop_tray(app *C.UiApp) C.gboolean {
+	tsApp := cgo.Handle(app.ts_app).Value().(TSApp)
+
+	err := tsApp.Tray().Close()
+	if err != nil {
+		slog.Error("failed to stop tray icon", "err", err)
+		return C.FALSE
+	}
+
+	return C.TRUE
+}
+
 type TSApp interface {
 	Poller() *tsutil.Poller
 	Tray() *tray.Tray

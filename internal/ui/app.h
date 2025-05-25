@@ -8,6 +8,7 @@ struct _UiApp {
 
 	TsApp ts_app;
 	GtkCssProvider *css_provider;
+	GSettings *g_settings;
 
 	gboolean online;
 };
@@ -20,4 +21,5 @@ UiApp *ui_app_new(TsApp ts_app);
 void ui_app_run(UiApp *app, int argc, char *argv[]);
 void ui_app_quit(UiApp *app);
 gboolean ui_app_start_tray(UiApp *app);
+gboolean ui_app_stop_tray(UiApp *app);
 void ui_app_notify(UiApp *app, const char *title, const char *body);

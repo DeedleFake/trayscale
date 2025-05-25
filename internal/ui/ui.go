@@ -8,9 +8,6 @@ package ui
 #include "ui.h"
 
 gboolean _idle(gpointer h);
-static void _g_idle_add(uintptr_t h) {
-	g_idle_add(_idle, (gpointer)h);
-}
 */
 import "C"
 
@@ -62,7 +59,7 @@ func freeAll[T any, P *T](cstr []P) {
 }
 
 func idle(f func()) {
-	C._g_idle_add(C.uintptr_t(cgo.NewHandle(f)))
+	C.g_idle_add((*[0]byte)(C._idle), C.gpointer(cgo.NewHandle(f)))
 }
 
 //export _idle

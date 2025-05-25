@@ -43,6 +43,20 @@ func (app *App) Quit() {
 }
 
 func (app *App) Update(status tsutil.Status) {
+	switch status := status.(type) {
+	case *tsutil.IPNStatus:
+		online := app.online != C.FALSE
+		if online != status.Online() {
+			app.online = C.FALSE
+			body := "Disconnected"
+			if status.Online() {
+				app.online = C.TRUE
+				body = "Connected"
+			}
+
+			app.Notify("Tailscale", body) // TODO: Notify on startup if not connected?
+		}
+	}
 }
 
 func (app *App) ShowWindow() {

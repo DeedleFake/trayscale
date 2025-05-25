@@ -70,3 +70,10 @@ func _idle(p C.gpointer) C.gboolean {
 	h.Value().(func())()
 	return C.G_SOURCE_REMOVE
 }
+
+//export cgo_handle_delete
+func cgo_handle_delete(p C.uintptr_t) {
+	if p != 0 {
+		cgo.Handle(p).Delete()
+	}
+}

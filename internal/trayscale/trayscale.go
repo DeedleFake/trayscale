@@ -27,10 +27,23 @@ func (app *App) Run(ctx context.Context) {
 	}
 	go app.poller.Run(ctx)
 
-	app.app = ui.NewApp()
+	app.tray = &tray.Tray{
+		OnShow: app.app.ShowWindow,
+		OnQuit: app.Quit,
+	}
+
+	app.app = ui.NewApp(app)
 	app.app.Run()
 }
 
 func (app *App) Quit() {
 	app.app.Quit()
+}
+
+func (app *App) Poller() *tsutil.Poller {
+	return app.poller
+}
+
+func (app *App) Tray() *tray.Tray {
+	return app.tray
 }

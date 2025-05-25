@@ -5,16 +5,19 @@ package ui
 
 #include <adwaita.h>
 
-char *APP_ID = NULL;
+#include "ui.h"
 
-#define DEFINE_RESOURCE(name) char *name = NULL; int name##_LEN = 0
-DEFINE_RESOURCE(APP_CSS);
+gboolean _idle(gpointer h);
+static void _g_idle_add(uintptr_t h) {
+	g_idle_add(_idle, (gpointer)h);
+}
 */
 import "C"
 
 import (
 	"embed"
 	"io"
+	"runtime/cgo"
 	"unsafe"
 
 	"deedles.dev/trayscale/internal/metadata"
@@ -56,4 +59,14 @@ func freeAll[T any, P *T](cstr []P) {
 	for _, s := range cstr {
 		C.free(unsafe.Pointer(s))
 	}
+}
+
+func idle(f func()) {
+	C._g_idle_add(C.uintptr_t(cgo.NewHandle(f)))
+}
+
+//export _idle
+func _idle(h C.gpointer) C.gboolean {
+	cgo.Handle(h).Value().(func())()
+	return C.G_SOURCE_REMOVE
 }

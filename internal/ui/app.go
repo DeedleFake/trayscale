@@ -30,5 +30,7 @@ func (app *App) Run() {
 }
 
 func (app *App) Quit() {
-	C.ui_app_quit(app.c())
+	idle(func() {
+		C.ui_app_quit(app.c())
+	})
 }

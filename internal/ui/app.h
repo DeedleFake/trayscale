@@ -3,16 +3,19 @@
 
 extern char *APP_ID;
 
-typedef struct {
+#define UI_APP_TYPE ui_app_get_type()
+G_DECLARE_FINAL_TYPE(UiApp, ui_app, UI, APP, AdwApplication);
+
+struct _UiApp {
 	AdwApplication parent;
-} App;
+};
 
-typedef struct {
+struct _UiAppClass {
 	AdwApplicationClass parent;
-} AppClass;
+};
 
-App *app_new(void);
-void app_run(App *app, int argc, char *argv[]);
-void app_quit(App *app);
+UiApp *ui_app_new(void);
+void ui_app_run(UiApp *app, int argc, char *argv[]);
+void ui_app_quit(UiApp *app);
 
 #endif

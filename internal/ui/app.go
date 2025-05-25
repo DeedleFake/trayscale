@@ -20,23 +20,23 @@ func init() {
 	C.APP_ID = C.CString(metadata.AppID)
 }
 
-type App C.App
+type App C.UiApp
 
 func NewApp() *App {
-	return (*App)(C.app_new())
+	return (*App)(C.ui_app_new())
 }
 
-func (app *App) c() *C.App {
-	return (*C.App)(app)
+func (app *App) c() *C.UiApp {
+	return (*C.UiApp)(app)
 }
 
 func (app *App) Run() {
 	args := toCStrings(os.Args)
 	defer freeAll(args)
 
-	C.app_run(app.c(), C.int(len(args)), unsafe.SliceData(args))
+	C.ui_app_run(app.c(), C.int(len(args)), unsafe.SliceData(args))
 }
 
 func (app *App) Quit() {
-	C.app_quit(app.c())
+	C.ui_app_quit(app.c())
 }

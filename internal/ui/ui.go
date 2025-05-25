@@ -63,7 +63,10 @@ func idle(f func()) {
 }
 
 //export _idle
-func _idle(h C.gpointer) C.gboolean {
-	cgo.Handle(h).Value().(func())()
+func _idle(p C.gpointer) C.gboolean {
+	h := cgo.Handle(p)
+	defer h.Delete()
+
+	h.Value().(func())()
 	return C.G_SOURCE_REMOVE
 }

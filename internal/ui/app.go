@@ -49,6 +49,16 @@ func (app *App) ShowWindow() {
 	slog.Info("show window")
 }
 
+func (app *App) Notify(title, body string) {
+	ctitle := C.CString(title)
+	defer C.free(unsafe.Pointer(ctitle))
+
+	cbody := C.CString(body)
+	defer C.free(unsafe.Pointer(cbody))
+
+	C.ui_app_notify(app.c(), ctitle, cbody)
+}
+
 //export ui_app_start_tray
 func ui_app_start_tray(app *C.UiApp) C.gboolean {
 	tsApp := cgo.Handle(app.ts_app).Value().(TSApp)
@@ -65,4 +75,5 @@ func ui_app_start_tray(app *C.UiApp) C.gboolean {
 type TSApp interface {
 	Poller() *tsutil.Poller
 	Tray() *tray.Tray
+	Quit()
 }

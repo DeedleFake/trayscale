@@ -56,3 +56,22 @@ void ui_app_class_init(UiAppClass *ui_app_class) {
 
 	G_OBJECT_CLASS(ui_app_class)->dispose = ui_app_dispose;
 }
+
+void ui_app_notify(UiApp *ui_app, const char *title, const char *body) {
+	GIcon *icon;
+	GNotification *notification;
+	GError *err = NULL;
+
+	icon = g_icon_new_for_string(APP_ID, &err);
+
+	notification = g_notification_new(title);
+	g_notification_set_body(notification, body);
+	if (err == NULL) {
+		g_notification_set_icon(notification, icon);
+	}
+
+	g_application_send_notification(G_APPLICATION(ui_app), "tailscale-status", notification);
+
+	g_object_unref(notification);
+	g_object_unref(icon);
+}

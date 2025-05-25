@@ -19,5 +19,6 @@ UiApp *ui_app_new(TsApp ts_app);
 void ui_app_run(UiApp *app, int argc, char *argv[]);
 void ui_app_quit(UiApp *app);
 gboolean ui_app_start_tray(UiApp *app);
+void ui_app_notify(UiApp *app, const char *title, const char *body);
 
 #endif

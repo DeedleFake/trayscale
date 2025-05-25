@@ -6,12 +6,12 @@ require (
 	deedles.dev/mk v0.1.0
 	deedles.dev/tray v0.1.9
 	deedles.dev/xiter v0.2.1
+	github.com/atotto/clipboard v0.1.4
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250310094704-65bb91d1403f
 	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	github.com/klauspost/compress v1.18.0
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/net v0.40.0
 	tailscale.com v1.84.0
 )
 
@@ -86,6 +86,7 @@ require (
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/mod v0.24.0 // indirect
+	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect

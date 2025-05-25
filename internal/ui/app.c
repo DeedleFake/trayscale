@@ -77,6 +77,7 @@ void ui_app_activate(GApplication *g_application) {
 void ui_app_dispose(GObject *g_object) {
 	cgo_handle_delete(UI_APP(g_object)->ts_app);
 	g_object_unref(UI_APP(g_object)->css_provider);
+	g_object_unref(UI_APP(g_object)->g_settings);
 }
 
 void ui_app_class_init(UiAppClass *ui_app_class) {

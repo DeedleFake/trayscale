@@ -86,13 +86,13 @@ func (app *App) toggleExit(ctx context.Context) {
 	exitNodeActive := status.ExitNodeActive()
 	err := tsutil.SetUseExitNode(ctx, !exitNodeActive)
 	if err != nil {
-		app.app.Notify("Toggle exit note", err.Error())
+		app.app.Notify("Toggle exit node", err.Error())
 		slog.Error("failed to toggle Tailscale", "source", "tray icon", "err", err)
 		return
 	}
 
 	if exitNodeActive {
-		app.app.Notify("Exit node", "Disabled")
+		app.app.Notify("Tailscale exit node", "Disabled")
 		return
 	}
 	app.app.Notify("Exit node", "Enabled")

@@ -4,7 +4,7 @@
   <!-- interface-name mainwindow.ui -->
   <requires lib="gtk" version="4.18"/>
   <requires lib="libadwaita" version="1.7"/>
-  <object class="AdwApplicationWindow" id="MainWindow">
+  <template class="MainWindow" parent="AdwApplicationWindow">
     <property name="content">ToastOverlay</property>
     <property name="default-height">600</property>
     <property name="default-width">800</property>
@@ -95,5 +95,5 @@
         <setter object="SplitView" property="collapsed">True</setter>
       </object>
     </child>
-  </object>
+  </template>
 </interface>

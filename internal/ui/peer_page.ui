@@ -4,7 +4,7 @@
   <!-- interface-name peerpage.ui -->
   <requires lib="gtk" version="4.18"/>
   <requires lib="libadwaita" version="1.6"/>
-  <object class="AdwStatusPage" id="Page">
+  <template class="PeerPage" parent="AdwStatusPage">
     <child>
       <object class="AdwClamp">
         <child>
@@ -95,7 +95,7 @@
         </child>
       </object>
     </child>
-  </object>
+  </template>
   <object class="GtkDropTarget" id="DropTarget">
     <property name="actions">copy</property>
   </object>

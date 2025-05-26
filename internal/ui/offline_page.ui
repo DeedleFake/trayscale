@@ -1,8 +1,9 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!-- Created with Cambalache 0.96.1 -->
 <interface>
+  <!-- interface-name offline_page.ui -->
   <requires lib="libadwaita" version="1.6"/>
-  <object class="AdwStatusPage" id="Page">
+  <template class="OfflinePage" parent="AdwStatusPage">
     <property name="child">
       <object class="AdwClamp">
         <property name="child">
@@ -22,5 +23,5 @@
     <property name="description">Tailscale is not connected</property>
     <property name="icon-name">network-offline-symbolic</property>
     <property name="title">Not Connected</property>
-  </object>
+  </template>
 </interface>

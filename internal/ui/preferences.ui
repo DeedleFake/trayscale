@@ -4,7 +4,7 @@
   <!-- interface-name preferences.ui -->
   <requires lib="gtk" version="4.0"/>
   <requires lib="libadwaita" version="1.6"/>
-  <object class="AdwPreferencesDialog" id="PreferencesDialog">
+  <template class="PreferencesDialog" parent="AdwPreferencesDialog">
     <property name="visible-page">PreferencesPage</property>
     <child>
       <object class="AdwPreferencesPage" id="PreferencesPage">
@@ -35,5 +35,5 @@
         </child>
       </object>
     </child>
-  </object>
+  </template>
 </interface>

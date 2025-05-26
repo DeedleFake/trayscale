@@ -39,6 +39,7 @@ func (app *App) Run() {
 	defer freeAll(args)
 
 	C.ui_app_run(app.c(), C.int(len(args)), unsafe.SliceData(args))
+	C.g_object_unref(C.gpointer(app.c()))
 }
 
 func (app *App) Quit() {

@@ -57,7 +57,7 @@ void ui_main_window_class_init(UiMainWindowClass *ui_main_window_class) {
 	g_object_ref(menu_model_main);
 	g_object_ref(menu_model_page);
 
-	g_object_unref(gtk_builder);
+	g_clear_object(&gtk_builder);
 	free(menu_ui);
 	g_bytes_unref(template);
 }

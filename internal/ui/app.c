@@ -7,7 +7,6 @@
 G_DEFINE_TYPE(UiApp, ui_app, ADW_TYPE_APPLICATION);
 
 static GIcon *notification_icon = NULL;
-static GtkCssProvider *css_provider = NULL;
 
 static guint signal_update_id;
 static gboolean g_settings_schema_found = FALSE;
@@ -48,7 +47,7 @@ void ui_app_notify(UiApp *ui_app, const char *title, const char *body) {
 
 	g_application_send_notification(G_APPLICATION(ui_app), "tailscale-status", notification);
 
-	g_object_unref(notification);
+	g_clear_object(&notification);
 }
 
 void ui_app_update(UiApp *ui_app, TsutilStatus tsutil_status) {
@@ -99,14 +98,30 @@ void ui_app_activate(GApplication *g_application) {
 }
 
 void ui_app_dispose(GObject *g_object) {
-	cgo_handle_delete(UI_APP(g_object)->ts_app);
-	g_object_unref(UI_APP(g_object)->g_settings);
+	UiApp *ui_app = UI_APP(g_object);
+
+	cgo_handle_delete(ui_app->ts_app);
+	g_clear_object(&ui_app->css_provider);
+	g_clear_object(&ui_app->g_settings);
 
 	G_OBJECT_CLASS(ui_app_parent_class)->dispose(g_object);
 }
 
 void ui_app_action_quit(GSimpleAction *g_simple_action, GVariant *p, UiApp *ui_app) {
 	ts_app_quit(ui_app->ts_app);
+}
+
+void ui_app_init_css_provider(UiApp *ui_app) {
+	char *app_css;
+
+	app_css = ui_get_file("app.css");
+	ui_app->css_provider = gtk_css_provider_new();
+	gtk_css_provider_load_from_string(ui_app->css_provider, app_css);
+	gtk_style_context_add_provider_for_display(gdk_display_get_default(),
+			GTK_STYLE_PROVIDER(ui_app->css_provider),
+			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+	free(app_css);
 }
 
 void ui_app_init_g_settings(UiApp *ui_app) {
@@ -123,7 +138,7 @@ void ui_app_init_actions(UiApp *ui_app) {
 	g_simple_action = g_simple_action_new("quit", NULL);
 	g_signal_connect(g_simple_action, "activate", G_CALLBACK(ui_app_action_quit), ui_app);
 	g_action_map_add_action(G_ACTION_MAP(ui_app), G_ACTION(g_simple_action));
-	g_object_unref(g_simple_action);
+	g_clear_object(&g_simple_action);
 
 	gtk_application_set_accels_for_action(GTK_APPLICATION(ui_app), "app.quit", quit_accels);
 }
@@ -131,6 +146,7 @@ void ui_app_init_actions(UiApp *ui_app) {
 void ui_app_init(UiApp *ui_app) {
 	adw_init();
 
+	ui_app_init_css_provider(ui_app);
 	ui_app_init_g_settings(ui_app);
 	ui_app_init_actions(ui_app);
 
@@ -147,23 +163,6 @@ void ui_app_class_init_g_settings_schema_found() {
 	if (g_settings_schema_found) {
 		g_settings_schema_unref(g_settings_schema);
 	}
-}
-
-void ui_app_class_init_css_provider() {
-	if (css_provider != NULL) {
-		return;
-	}
-
-	char *app_css;
-
-	app_css = ui_get_file("app.css");
-	css_provider = gtk_css_provider_new();
-	gtk_css_provider_load_from_string(css_provider, app_css);
-	gtk_style_context_add_provider_for_display(gdk_display_get_default(),
-			GTK_STYLE_PROVIDER(css_provider),
-			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-
-	free(app_css);
 }
 
 void ui_app_class_init(UiAppClass *ui_app_class) {
@@ -187,5 +186,4 @@ void ui_app_class_init(UiAppClass *ui_app_class) {
 			G_TYPE_POINTER);
 
 	ui_app_class_init_g_settings_schema_found();
-	ui_app_class_init_css_provider();
 }

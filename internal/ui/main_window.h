@@ -7,6 +7,7 @@ struct _UiMainWindow {
 	AdwApplicationWindow parent;
 
 	UiApp *ui_app;
+	GtkMenuButton *main_menu_button, *page_menu_button;
 };
 
 struct _UiMainWindowClass {

@@ -27,9 +27,8 @@
                         <property name="show-start-title-buttons">False</property>
                         <property name="show-title">False</property>
                         <child type="end">
-                          <object class="GtkMenuButton" id="PageMenuButton">
+                          <object class="GtkMenuButton" id="page_menu_button">
                             <property name="icon-name">open-menu-symbolic</property>
-                            <property name="menu-model">PageMenu</property>
                           </object>
                         </child>
                         <child type="end">
@@ -67,9 +66,8 @@
                           <object class="GtkSwitch" id="StatusSwitch"/>
                         </child>
                         <child type="end">
-                          <object class="GtkMenuButton" id="MainMenuButton">
+                          <object class="GtkMenuButton" id="main_menu_button">
                             <property name="icon-name">open-menu-symbolic</property>
-                            <property name="menu-model">MainMenu</property>
                             <property name="primary">True</property>
                           </object>
                         </child>

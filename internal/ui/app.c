@@ -5,6 +5,8 @@
 
 G_DEFINE_TYPE(UiApp, ui_app, ADW_TYPE_APPLICATION);
 
+static guint ui_app_signal_update_id;
+
 UiApp *ui_app_new(TsApp ts_app) {
 	UiApp *ui_app;
 
@@ -47,9 +49,7 @@ void ui_app_init_g_settings(UiApp *ui_app) {
 	// TODO: Check if the settings exist first.
 
 	ui_app->g_settings = g_settings_new(APP_ID);
-	g_object_connect(ui_app->g_settings,
-			"signal::changed", ui_app_g_settings_changed, ui_app,
-			NULL);
+	g_signal_connect(ui_app->g_settings, "changed", G_CALLBACK(ui_app_g_settings_changed), ui_app);
 }
 
 void ui_app_init(UiApp *ui_app) {
@@ -96,6 +96,17 @@ void ui_app_class_init(UiAppClass *ui_app_class) {
 	g_application_class->activate = ui_app_activate;
 
 	g_object_class->dispose = ui_app_dispose;
+
+	ui_app_signal_update_id = g_signal_new("update",
+			G_TYPE_FROM_CLASS(ui_app_class),
+			G_SIGNAL_RUN_LAST | G_SIGNAL_NO_RECURSE | G_SIGNAL_NO_HOOKS,
+			0,
+			NULL,
+			NULL,
+			NULL,
+			G_TYPE_NONE,
+			1,
+			G_TYPE_POINTER);
 }
 
 void ui_app_notify(UiApp *ui_app, const char *title, const char *body) {
@@ -115,4 +126,8 @@ void ui_app_notify(UiApp *ui_app, const char *title, const char *body) {
 
 	g_object_unref(notification);
 	g_object_unref(icon);
+}
+
+void ui_app_update(UiApp *ui_app, TsutilStatus tsutil_status) {
+	g_signal_emit(ui_app, ui_app_signal_update_id, 0, tsutil_status);
 }

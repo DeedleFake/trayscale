@@ -48,6 +48,10 @@ func (app *App) Quit() {
 }
 
 func (app *App) Update(status tsutil.Status) {
+	if app == nil {
+		return
+	}
+
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
 		online := app.online != C.FALSE
@@ -62,6 +66,10 @@ func (app *App) Update(status tsutil.Status) {
 			app.Notify("Tailscale", body) // TODO: Notify on startup if not connected?
 		}
 	}
+
+	h := cgo.NewHandle(status)
+	defer h.Delete()
+	C.ui_app_update(app.c(), C.TsutilStatus(h))
 }
 
 func (app *App) ShowWindow() {

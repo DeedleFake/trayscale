@@ -24,3 +24,4 @@ gboolean ui_app_start_tray(UiApp *app);
 gboolean ui_app_stop_tray(UiApp *app);
 void ui_app_set_polling_interval(UiApp *app, gdouble interval);
 void ui_app_notify(UiApp *app, const char *title, const char *body);
+void ui_app_update(UiApp *app, TsutilStatus tsutil_status);

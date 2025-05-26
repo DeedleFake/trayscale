@@ -28,6 +28,15 @@ void ui_app_run(UiApp *ui_app, int argc, char *argv[]) {
 }
 
 void ui_app_quit(UiApp *ui_app) {
+	GtkApplication *gtk_application = GTK_APPLICATION(ui_app);
+
+	GtkWindow *gtk_window;
+
+	gtk_window = gtk_application_get_active_window(gtk_application);
+	if (gtk_window != NULL) {
+		gtk_window_close(gtk_window);
+	}
+
 	g_application_quit(G_APPLICATION(ui_app));
 }
 
@@ -98,8 +107,6 @@ void ui_app_activate(GApplication *g_application) {
 }
 
 void ui_app_dispose(GObject *g_object) {
-	g_print("ui_app_dispose\n");
-
 	UiApp *ui_app = UI_APP(g_object);
 
 	cgo_handle_delete(ui_app->ts_app);

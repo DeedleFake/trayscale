@@ -7,7 +7,6 @@ struct _UiApp {
 	AdwApplication parent;
 
 	TsApp ts_app;
-	GtkCssProvider *css_provider;
 	GSettings *g_settings;
 
 	gboolean online;

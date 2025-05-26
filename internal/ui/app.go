@@ -12,6 +12,7 @@ import "C"
 import (
 	"log/slog"
 	"os"
+	"runtime"
 	"runtime/cgo"
 	"time"
 	"unsafe"
@@ -35,6 +36,9 @@ func (app *App) tsApp() TSApp {
 }
 
 func (app *App) Run() {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	args := toCStrings(os.Args)
 	defer freeAll(args)
 

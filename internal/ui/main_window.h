@@ -4,7 +4,7 @@
 G_DECLARE_FINAL_TYPE(UiMainWindow, ui_main_window, UI, MAIN_WINDOW, AdwApplicationWindow);
 
 struct _UiMainWindow {
-	AdwApplicationWindow parent;
+	AdwApplicationWindow parent_instance;
 
 	UiApp *ui_app;
 	GtkMenuButton *main_menu_button, *page_menu_button;

@@ -98,6 +98,8 @@ void ui_app_activate(GApplication *g_application) {
 }
 
 void ui_app_dispose(GObject *g_object) {
+	g_print("ui_app_dispose\n");
+
 	UiApp *ui_app = UI_APP(g_object);
 
 	cgo_handle_delete(ui_app->ts_app);

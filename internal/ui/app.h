@@ -4,7 +4,7 @@
 G_DECLARE_FINAL_TYPE(UiApp, ui_app, UI, APP, AdwApplication);
 
 struct _UiApp {
-	AdwApplication parent;
+	AdwApplication parent_instance;
 
 	TsApp ts_app;
 	GtkCssProvider *css_provider;

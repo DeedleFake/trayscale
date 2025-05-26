@@ -13,7 +13,7 @@
             <property name="orientation">vertical</property>
             <property name="spacing">12</property>
             <child>
-              <object class="GtkListBox" id="LocationList">
+              <object class="GtkListBox" id="location_list">
                 <property name="css-classes">boxed-list</property>
                 <property name="selection-mode">none</property>
               </object>

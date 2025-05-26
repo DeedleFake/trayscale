@@ -7,7 +7,7 @@
     <property name="child">
       <object class="AdwClamp">
         <property name="child">
-          <object class="AdwPreferencesGroup" id="NeedsAuthGroup">
+          <object class="AdwPreferencesGroup" id="needs_auth_group">
             <property name="description">Tailscale must be authenticated before it can connect.</property>
             <property name="title">Login Required</property>
             <child>

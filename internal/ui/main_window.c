@@ -40,8 +40,8 @@ void ui_main_window_class_init(UiMainWindowClass *ui_main_window_class) {
 
 	menu_ui = ui_get_file("menu.ui");
 	gtk_builder = gtk_builder_new_from_string(menu_ui, -1);
-	ui_main_window_main_menu = G_MENU_MODEL(gtk_builder_get_object(gtk_builder, "MainMenu"));
-	ui_main_window_page_menu = G_MENU_MODEL(gtk_builder_get_object(gtk_builder, "PageMenu"));
+	ui_main_window_main_menu = G_MENU_MODEL(gtk_builder_get_object(gtk_builder, "main_menu"));
+	ui_main_window_page_menu = G_MENU_MODEL(gtk_builder_get_object(gtk_builder, "page_menu"));
 
 	g_object_ref(ui_main_window_main_menu);
 	g_object_ref(ui_main_window_page_menu);

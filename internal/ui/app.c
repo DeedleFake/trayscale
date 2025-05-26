@@ -37,7 +37,9 @@ void ui_app_g_settings_changed(GSettings *g_settings, const char *key, UiApp *ui
 	}
 
 	if (strcmp(key, "polling-interval") == 0) {
-		// TODO: Implement this.
+		g_print("polling-interval: %f\n", g_settings_get_double(g_settings, "polling-interval"));
+		ui_app_set_polling_interval(ui_app, g_settings_get_double(g_settings, "polling-interval"));
+		return;
 	}
 }
 
@@ -69,8 +71,14 @@ void ui_app_open(GApplication *g_application, GFile *files[], int nfiles, const 
 }
 
 void ui_app_activate(GApplication *g_application) {
-	if (UI_APP(g_application)->g_settings == NULL || g_settings_get_boolean(UI_APP(g_application)->g_settings, "tray-icon")) {
-		ui_app_start_tray(UI_APP(g_application));
+	UiApp *ui_app = UI_APP(g_application);
+	GSettings *g_settings = ui_app->g_settings;
+
+	gdouble interval = g_settings != NULL ? g_settings_get_double(g_settings, "polling-interval") : 5;
+	ui_app_set_polling_interval(ui_app, interval);
+
+	if (g_settings == NULL || g_settings_get_boolean(g_settings, "tray-icon")) {
+		ui_app_start_tray(ui_app);
 	}
 }
 
@@ -81,10 +89,13 @@ void ui_app_dispose(GObject *g_object) {
 }
 
 void ui_app_class_init(UiAppClass *ui_app_class) {
-	G_APPLICATION_CLASS(ui_app_class)->open = ui_app_open;
-	G_APPLICATION_CLASS(ui_app_class)->activate = ui_app_activate;
+	GApplicationClass *g_application_class = G_APPLICATION_CLASS(ui_app_class);
+	GObjectClass *g_object_class = G_OBJECT_CLASS(ui_app_class);
 
-	G_OBJECT_CLASS(ui_app_class)->dispose = ui_app_dispose;
+	g_application_class->open = ui_app_open;
+	g_application_class->activate = ui_app_activate;
+
+	g_object_class->dispose = ui_app_dispose;
 }
 
 void ui_app_notify(UiApp *ui_app, const char *title, const char *body) {

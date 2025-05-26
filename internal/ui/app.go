@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"os"
 	"runtime/cgo"
+	"time"
 	"unsafe"
 
 	"deedles.dev/trayscale/internal/tray"
@@ -27,6 +28,10 @@ func NewApp(tsApp TSApp) *App {
 
 func (app *App) c() *C.UiApp {
 	return (*C.UiApp)(app)
+}
+
+func (app *App) tsApp() TSApp {
+	return cgo.Handle(app.ts_app).Value().(TSApp)
 }
 
 func (app *App) Run() {
@@ -74,8 +79,8 @@ func (app *App) Notify(title, body string) {
 }
 
 //export ui_app_start_tray
-func ui_app_start_tray(app *C.UiApp) C.gboolean {
-	tsApp := cgo.Handle(app.ts_app).Value().(TSApp)
+func ui_app_start_tray(ui_app *C.UiApp) C.gboolean {
+	tsApp := (*App)(ui_app).tsApp()
 
 	err := tsApp.Tray().Start(<-tsApp.Poller().GetIPN())
 	if err != nil {
@@ -87,8 +92,8 @@ func ui_app_start_tray(app *C.UiApp) C.gboolean {
 }
 
 //export ui_app_stop_tray
-func ui_app_stop_tray(app *C.UiApp) C.gboolean {
-	tsApp := cgo.Handle(app.ts_app).Value().(TSApp)
+func ui_app_stop_tray(ui_app *C.UiApp) C.gboolean {
+	tsApp := (*App)(ui_app).tsApp()
 
 	err := tsApp.Tray().Close()
 	if err != nil {
@@ -97,6 +102,13 @@ func ui_app_stop_tray(app *C.UiApp) C.gboolean {
 	}
 
 	return C.TRUE
+}
+
+//export ui_app_set_polling_interval
+func ui_app_set_polling_interval(ui_app *C.UiApp, interval C.gdouble) {
+	tsApp := (*App)(ui_app).tsApp()
+
+	tsApp.Poller().SetInterval() <- time.Duration(interval * C.gdouble(time.Second))
 }
 
 type TSApp interface {

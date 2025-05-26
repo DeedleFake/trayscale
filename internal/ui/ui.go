@@ -13,7 +13,7 @@ import "C"
 
 import (
 	"embed"
-	"io"
+	"io/fs"
 	"runtime/cgo"
 	"unsafe"
 
@@ -25,23 +25,16 @@ var files embed.FS
 
 func init() {
 	C.APP_ID = C.CString(metadata.AppID)
-
-	C.APP_CSS, C.APP_CSS_LEN = exportFile("app.css")
 }
 
-func exportFile(name string) (*C.char, C.int) {
-	file, err := files.Open(name)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	data, err := io.ReadAll(file)
+//export ui_get_file
+func ui_get_file(name *C.char) *C.char {
+	data, err := fs.ReadFile(files, C.GoString(name))
 	if err != nil {
 		panic(err)
 	}
 
-	return C.CString(string(data)), C.int(len(data))
+	return C.CString(string(data))
 }
 
 func toCStrings(str []string) []*C.char {

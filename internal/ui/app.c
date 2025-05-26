@@ -53,10 +53,12 @@ void ui_app_init_g_settings(UiApp *ui_app) {
 }
 
 void ui_app_init(UiApp *ui_app) {
+	char *app_css = ui_get_file("app.css");
+
 	adw_init();
 
 	ui_app->css_provider = gtk_css_provider_new();
-	gtk_css_provider_load_from_string(ui_app->css_provider, APP_CSS);
+	gtk_css_provider_load_from_string(ui_app->css_provider, app_css);
 	gtk_style_context_add_provider_for_display(gdk_display_get_default(),
 			GTK_STYLE_PROVIDER(ui_app->css_provider),
 			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
@@ -64,6 +66,8 @@ void ui_app_init(UiApp *ui_app) {
 	ui_app_init_g_settings(ui_app);
 
 	g_application_hold(G_APPLICATION(ui_app));
+
+	free(app_css);
 }
 
 void ui_app_open(GApplication *g_application, GFile *files[], int nfiles, const char *hint) {

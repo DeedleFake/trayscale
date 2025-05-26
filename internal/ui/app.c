@@ -7,6 +7,7 @@
 G_DEFINE_TYPE(UiApp, ui_app, ADW_TYPE_APPLICATION);
 
 static guint ui_app_signal_update_id;
+static gboolean ui_app_g_settings_schema_found = FALSE;
 
 UiApp *ui_app_new(TsApp ts_app) {
 	UiApp *ui_app;
@@ -114,10 +115,10 @@ void ui_app_init_css_provider(UiApp *ui_app) {
 }
 
 void ui_app_init_g_settings(UiApp *ui_app) {
-	// TODO: Check if the settings exist first.
-
-	ui_app->g_settings = g_settings_new(APP_ID);
-	g_signal_connect(ui_app->g_settings, "changed", G_CALLBACK(ui_app_g_settings_changed), ui_app);
+	if (ui_app_g_settings_schema_found) {
+		ui_app->g_settings = g_settings_new(APP_ID);
+		g_signal_connect(ui_app->g_settings, "changed", G_CALLBACK(ui_app_g_settings_changed), ui_app);
+	}
 }
 
 void ui_app_init_actions(UiApp *ui_app) {
@@ -143,6 +144,9 @@ void ui_app_init(UiApp *ui_app) {
 }
 
 void ui_app_class_init(UiAppClass *ui_app_class) {
+	GSettingsSchemaSource *g_settings_schema_source;
+	GSettingsSchema *g_settings_schema;
+
 	GApplicationClass *g_application_class = G_APPLICATION_CLASS(ui_app_class);
 	GObjectClass *g_object_class = G_OBJECT_CLASS(ui_app_class);
 
@@ -161,4 +165,11 @@ void ui_app_class_init(UiAppClass *ui_app_class) {
 			G_TYPE_NONE,
 			1,
 			G_TYPE_POINTER);
+
+	g_settings_schema_source = g_settings_schema_source_get_default();
+	g_settings_schema = g_settings_schema_source_lookup(g_settings_schema_source, APP_ID, TRUE);
+	ui_app_g_settings_schema_found = g_settings_schema != NULL;
+	if (ui_app_g_settings_schema_found) {
+		g_settings_schema_unref(g_settings_schema);
+	}
 }

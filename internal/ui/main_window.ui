@@ -90,7 +90,7 @@
       <object class="AdwBreakpoint">
         <!-- Custom object fragments -->
         <condition>max-width: 400sp</condition>
-        <setter object="SplitView" property="collapsed">True</setter>
+        <setter object="split_view" property="collapsed">True</setter>
       </object>
     </child>
   </template>

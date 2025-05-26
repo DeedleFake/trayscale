@@ -2,7 +2,7 @@
 <!DOCTYPE cambalache-project SYSTEM "cambalache-project.dtd">
 <!-- Created with Cambalache 0.96.1 -->
 <cambalache-project version="0.96.0" target_tk="gtk-4.0">
-  <ui template-class="UiMainWindow" filename="main_window.ui" sha256="1659b8f52776fc439834a7a3861ae1252dba4c9281eede4fca1ec3cfe98895c8"/>
+  <ui template-class="UiMainWindow" filename="main_window.ui" sha256="942accb957ce87b750ecbd59e9078c9752db7ef27dd7142c04a0e35d057f69bd"/>
   <ui template-class="UiPeerPage" filename="peer_page.ui" sha256="223c5e886f77fb5fd035c73f3b5bcaa03cf5e56403c8746a9c0438d3742131df"/>
   <ui template-class="UiPreferencesDialog" filename="preferences.ui" sha256="e1c9ab86040ed7f36e9e9fb2060a8206f22cacc44d23311927cb79bddf2a1d52"/>
   <ui template-class="UiSelfPage" filename="self_page.ui" sha256="78c778282fcd133441038ef443a753dbbde43fcb3a51577e70fa081866c3932c"/>

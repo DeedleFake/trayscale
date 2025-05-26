@@ -28,15 +28,6 @@ void ui_app_run(UiApp *ui_app, int argc, char *argv[]) {
 }
 
 void ui_app_quit(UiApp *ui_app) {
-	GtkApplication *gtk_application = GTK_APPLICATION(ui_app);
-
-	GtkWindow *gtk_window;
-
-	gtk_window = gtk_application_get_active_window(gtk_application);
-	if (gtk_window != NULL) {
-		gtk_window_close(gtk_window);
-	}
-
 	g_application_quit(G_APPLICATION(ui_app));
 }
 
@@ -81,45 +72,6 @@ void ui_app_g_settings_changed(GSettings *g_settings, const char *key, UiApp *ui
 	}
 }
 
-void ui_app_open(GApplication *g_application, GFile *files[], int nfiles, const char *hint) {
-	printf("app open\n");
-
-	G_APPLICATION_CLASS(ui_app_parent_class)->open(g_application, files, nfiles, hint);
-}
-
-void ui_app_activate(GApplication *g_application) {
-	UiMainWindow *ui_main_window;
-
-	UiApp *ui_app = UI_APP(g_application);
-	GSettings *g_settings = ui_app->g_settings;
-
-	gdouble interval = g_settings != NULL ? g_settings_get_double(g_settings, "polling-interval") : 5;
-	ui_app_set_polling_interval(ui_app, interval);
-
-	if (g_settings == NULL || g_settings_get_boolean(g_settings, "tray-icon")) {
-		ui_app_start_tray(ui_app);
-	}
-
-	ui_main_window = ui_main_window_new(ui_app);
-	gtk_window_present(GTK_WINDOW(ui_main_window));
-
-	G_APPLICATION_CLASS(ui_app_parent_class)->activate(g_application);
-}
-
-void ui_app_dispose(GObject *g_object) {
-	UiApp *ui_app = UI_APP(g_object);
-
-	cgo_handle_delete(ui_app->ts_app);
-	g_clear_object(&ui_app->css_provider);
-	g_clear_object(&ui_app->g_settings);
-
-	G_OBJECT_CLASS(ui_app_parent_class)->dispose(g_object);
-}
-
-void ui_app_action_quit(GSimpleAction *g_simple_action, GVariant *p, UiApp *ui_app) {
-	ts_app_quit(ui_app->ts_app);
-}
-
 void ui_app_init_css_provider(UiApp *ui_app) {
 	char *app_css;
 
@@ -140,6 +92,10 @@ void ui_app_init_g_settings(UiApp *ui_app) {
 	}
 }
 
+void ui_app_action_quit(GSimpleAction *g_simple_action, GVariant *p, UiApp *ui_app) {
+	ts_app_quit(ui_app->ts_app);
+}
+
 void ui_app_init_actions(UiApp *ui_app) {
 	GSimpleAction *g_simple_action;
 	const char *quit_accels[] = {"<Ctrl>q", NULL};
@@ -152,14 +108,67 @@ void ui_app_init_actions(UiApp *ui_app) {
 	gtk_application_set_accels_for_action(GTK_APPLICATION(ui_app), "app.quit", quit_accels);
 }
 
-void ui_app_init(UiApp *ui_app) {
-	adw_init();
+void ui_app_startup(GApplication *g_application) {
+	G_APPLICATION_CLASS(ui_app_parent_class)->startup(g_application);
+
+	UiApp *ui_app = UI_APP(g_application);
 
 	ui_app_init_css_provider(ui_app);
 	ui_app_init_g_settings(ui_app);
 	ui_app_init_actions(ui_app);
 
-	g_application_hold(G_APPLICATION(ui_app));
+	g_application_hold(g_application);
+}
+
+void ui_app_shutdown(GApplication *g_application) {
+	G_APPLICATION_CLASS(ui_app_parent_class)->shutdown(g_application);
+
+	GtkApplication *gtk_application = GTK_APPLICATION(g_application);
+
+	GtkWindow *gtk_window;
+
+	gtk_window = gtk_application_get_active_window(gtk_application);
+	if (gtk_window != NULL) {
+		gtk_window_close(gtk_window);
+	}
+}
+
+void ui_app_open(GApplication *g_application, GFile *files[], int nfiles, const char *hint) {
+	G_APPLICATION_CLASS(ui_app_parent_class)->open(g_application, files, nfiles, hint);
+
+	printf("app open\n");
+}
+
+void ui_app_activate(GApplication *g_application) {
+	G_APPLICATION_CLASS(ui_app_parent_class)->activate(g_application);
+
+	UiMainWindow *ui_main_window;
+
+	UiApp *ui_app = UI_APP(g_application);
+	GSettings *g_settings = ui_app->g_settings;
+
+	gdouble interval = g_settings != NULL ? g_settings_get_double(g_settings, "polling-interval") : 5;
+	ui_app_set_polling_interval(ui_app, interval);
+
+	if (g_settings == NULL || g_settings_get_boolean(g_settings, "tray-icon")) {
+		ui_app_start_tray(ui_app);
+	}
+
+	ui_main_window = ui_main_window_new(ui_app);
+	gtk_window_present(GTK_WINDOW(ui_main_window));
+}
+
+void ui_app_dispose(GObject *g_object) {
+	G_OBJECT_CLASS(ui_app_parent_class)->dispose(g_object);
+
+	UiApp *ui_app = UI_APP(g_object);
+
+	cgo_handle_delete(ui_app->ts_app);
+	g_clear_object(&ui_app->css_provider);
+	g_clear_object(&ui_app->g_settings);
+}
+
+void ui_app_init(UiApp *ui_app) {
 }
 
 void ui_app_class_init_g_settings_schema_found() {
@@ -178,6 +187,8 @@ void ui_app_class_init(UiAppClass *ui_app_class) {
 	GApplicationClass *g_application_class = G_APPLICATION_CLASS(ui_app_class);
 	GObjectClass *g_object_class = G_OBJECT_CLASS(ui_app_class);
 
+	g_application_class->startup = ui_app_startup;
+	g_application_class->shutdown = ui_app_shutdown;
 	g_application_class->open = ui_app_open;
 	g_application_class->activate = ui_app_activate;
 

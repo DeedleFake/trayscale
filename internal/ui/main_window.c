@@ -20,11 +20,11 @@ UiMainWindow *ui_main_window_new(UiApp *ui_app) {
 }
 
 void ui_main_window_dispose(GObject *g_object) {
+	G_OBJECT_CLASS(ui_main_window_parent_class)->dispose(g_object);
+
 	GtkWidget *gtk_widget = GTK_WIDGET(g_object);
 
 	gtk_widget_dispose_template(gtk_widget, UI_TYPE_MAIN_WINDOW);
-
-	G_OBJECT_CLASS(ui_main_window_parent_class)->dispose(g_object);
 }
 
 void ui_main_window_init(UiMainWindow *ui_main_window) {

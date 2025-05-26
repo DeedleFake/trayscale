@@ -3,7 +3,7 @@
 <interface>
   <!-- interface-name offline_page.ui -->
   <requires lib="libadwaita" version="1.6"/>
-  <template class="OfflinePage" parent="AdwStatusPage">
+  <template class="UiOfflinePage" parent="AdwStatusPage">
     <property name="child">
       <object class="AdwClamp">
         <property name="child">

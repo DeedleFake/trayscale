@@ -2,11 +2,11 @@
 <!DOCTYPE cambalache-project SYSTEM "cambalache-project.dtd">
 <!-- Created with Cambalache 0.96.1 -->
 <cambalache-project version="0.96.0" target_tk="gtk-4.0">
-  <ui template-class="MainWindow" filename="main_window.ui" sha256="44f698af353f6099b7b6e88f99e1451431e0b841841cfee407234f3e11aaf451"/>
-  <ui template-class="PeerPage" filename="peer_page.ui" sha256="8f23167647da2f737a0460c1b179dcd63bde72bfd3eac86c21bb146c7cf7f4eb"/>
-  <ui template-class="PreferencesDialog" filename="preferences.ui" sha256="540f7a1dbbeb519589d592efe5819aa8a9a448020a8399bb6e8ba0613492e3dc"/>
-  <ui template-class="SelfPage" filename="self_page.ui" sha256="0feb963343a244065cb61e486d3b7a0a353618349e5ccbaa33c089cba8e4caeb"/>
-  <ui template-class="MullvadPage" filename="mullvad_page.ui" sha256="aac3fa84763473400f27cdcf4a63fd6e19850122305521b88989861d7a1605cd"/>
+  <ui template-class="UiMainWindow" filename="main_window.ui" sha256="5507a62043738d50932171fdd7cabec95d879238cbae13eb85c29af98c923806"/>
+  <ui template-class="UiPeerPage" filename="peer_page.ui" sha256="9c446c591caf45bf0e4a1df56034e0192c4019cf8426783012dec5a12a164c2d"/>
+  <ui template-class="UiPreferencesDialog" filename="preferences.ui" sha256="e1c9ab86040ed7f36e9e9fb2060a8206f22cacc44d23311927cb79bddf2a1d52"/>
+  <ui template-class="UiSelfPage" filename="self_page.ui" sha256="78c778282fcd133441038ef443a753dbbde43fcb3a51577e70fa081866c3932c"/>
+  <ui template-class="UiMullvadPage" filename="mullvad_page.ui" sha256="ba56506c4ec47e822cccd99a71a2c0b282b702bcdf8c9b9de40b07864c1b0cf0"/>
   <ui filename="menu.ui" sha256="ead8787fa27befe63e482ce669bceb247a5dcc19952c260e0d5fd11e64a1a7d4"/>
-  <ui template-class="OfflinePage" filename="offline_page.ui" sha256="1dacaf65239c639958aeb0182a55cfd295d599d7c92c0dad0d9a558fa94d62c8"/>
+  <ui template-class="UiOfflinePage" filename="offline_page.ui" sha256="fd1e224c0c7341d9aec32fcfd6b3a8f10c1ed533959446af664921fe9b58d5ea"/>
 </cambalache-project>

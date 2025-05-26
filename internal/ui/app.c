@@ -2,6 +2,7 @@
 
 #include "ui.h"
 #include "app.h"
+#include "main_window.h"
 
 G_DEFINE_TYPE(UiApp, ui_app, ADW_TYPE_APPLICATION);
 
@@ -10,7 +11,7 @@ static guint ui_app_signal_update_id;
 UiApp *ui_app_new(TsApp ts_app) {
 	UiApp *ui_app;
 
-	ui_app = g_object_new(UI_APP_TYPE,
+	ui_app = g_object_new(UI_TYPE_APP,
 			"application-id", APP_ID,
 			"flags", G_APPLICATION_HANDLES_OPEN,
 			NULL);
@@ -75,6 +76,8 @@ void ui_app_open(GApplication *g_application, GFile *files[], int nfiles, const 
 }
 
 void ui_app_activate(GApplication *g_application) {
+	UiMainWindow *ui_main_window;
+
 	UiApp *ui_app = UI_APP(g_application);
 	GSettings *g_settings = ui_app->g_settings;
 
@@ -84,6 +87,9 @@ void ui_app_activate(GApplication *g_application) {
 	if (g_settings == NULL || g_settings_get_boolean(g_settings, "tray-icon")) {
 		ui_app_start_tray(ui_app);
 	}
+
+	ui_main_window = ui_main_window_new(ui_app);
+	gtk_window_present(GTK_WINDOW(ui_main_window));
 }
 
 void ui_app_dispose(GObject *g_object) {

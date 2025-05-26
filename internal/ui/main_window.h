@@ -1,14 +1,16 @@
 #pragma once
 
-#define UI_MAIN_WINDOW_TYPE ui_main_window_get_type
+#define UI_TYPE_MAIN_WINDOW ui_main_window_get_type()
 G_DECLARE_FINAL_TYPE(UiMainWindow, ui_main_window, UI, MAIN_WINDOW, AdwApplicationWindow);
 
 struct _UiMainWindow {
 	AdwApplicationWindow parent;
-}
+
+	UiApp *ui_app;
+};
 
 struct _UiMainWindowClass {
 	AdwApplicationWindowClass parent;
-}
+};
 
 UiMainWindow *ui_main_window_new(UiApp *ui_app);

@@ -5,6 +5,7 @@ package ui
 
 #include "ui.h"
 #include "app.h"
+#include "main_window.h"
 */
 import "C"
 

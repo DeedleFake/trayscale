@@ -4,7 +4,7 @@
   <!-- interface-name peerpage.ui -->
   <requires lib="gtk" version="4.18"/>
   <requires lib="libadwaita" version="1.6"/>
-  <template class="PeerPage" parent="AdwStatusPage">
+  <template class="UiPeerPage" parent="AdwStatusPage">
     <child>
       <object class="AdwClamp">
         <child>

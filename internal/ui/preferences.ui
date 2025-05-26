@@ -4,7 +4,7 @@
   <!-- interface-name preferences.ui -->
   <requires lib="gtk" version="4.0"/>
   <requires lib="libadwaita" version="1.6"/>
-  <template class="PreferencesDialog" parent="AdwPreferencesDialog">
+  <template class="UiPreferencesDialog" parent="AdwPreferencesDialog">
     <property name="visible-page">PreferencesPage</property>
     <child>
       <object class="AdwPreferencesPage" id="PreferencesPage">

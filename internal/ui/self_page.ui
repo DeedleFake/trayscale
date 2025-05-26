@@ -4,7 +4,7 @@
   <!-- interface-name selfpage.ui -->
   <requires lib="gtk" version="4.18"/>
   <requires lib="libadwaita" version="1.6"/>
-  <template class="SelfPage" parent="AdwStatusPage">
+  <template class="UiSelfPage" parent="AdwStatusPage">
     <child>
       <object class="AdwClamp">
         <child>

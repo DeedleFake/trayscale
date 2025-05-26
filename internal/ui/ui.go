@@ -37,6 +37,16 @@ func ui_get_file(name *C.char) *C.char {
 	return C.CString(string(data))
 }
 
+//export ui_get_file_bytes
+func ui_get_file_bytes(name *C.char) *C.GBytes {
+	data, err := fs.ReadFile(files, C.GoString(name))
+	if err != nil {
+		panic(err)
+	}
+
+	return C.g_bytes_new(C.gconstpointer(unsafe.SliceData(data)), C.gsize(len(data)))
+}
+
 func toCStrings(str []string) []*C.char {
 	cstr := make([]*C.char, 0, len(str))
 	for _, s := range str {

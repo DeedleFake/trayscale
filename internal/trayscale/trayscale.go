@@ -28,7 +28,6 @@ func (app *App) Run(ctx context.Context) {
 		Interval: 5 * time.Second,
 		New:      app.Update,
 	}
-	go app.poller.Run(ctx)
 
 	app.tray = &tray.Tray{
 		OnShow:       app.app.ShowWindow,
@@ -39,6 +38,8 @@ func (app *App) Run(ctx context.Context) {
 	}
 
 	app.app = ui.NewApp(app)
+
+	go app.poller.Run(ctx)
 	app.app.Run()
 }
 

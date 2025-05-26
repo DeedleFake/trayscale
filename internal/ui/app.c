@@ -28,6 +28,29 @@ void ui_app_quit(UiApp *ui_app) {
 	g_application_quit(G_APPLICATION(ui_app));
 }
 
+void ui_app_notify(UiApp *ui_app, const char *title, const char *body) {
+	GIcon *icon;
+	GNotification *notification;
+	GError *err = NULL;
+
+	icon = g_icon_new_for_string(APP_ID, &err);
+
+	notification = g_notification_new(title);
+	g_notification_set_body(notification, body);
+	if (err == NULL) {
+		g_notification_set_icon(notification, icon);
+	}
+
+	g_application_send_notification(G_APPLICATION(ui_app), "tailscale-status", notification);
+
+	g_object_unref(notification);
+	g_object_unref(icon);
+}
+
+void ui_app_update(UiApp *ui_app, TsutilStatus tsutil_status) {
+	g_signal_emit(ui_app, ui_app_signal_update_id, 0, tsutil_status);
+}
+
 void ui_app_g_settings_changed(GSettings *g_settings, const char *key, UiApp *ui_app) {
 	if (strcmp(key, "tray-icon") == 0) {
 		gboolean trayIcon = g_settings_get_boolean(g_settings, key);
@@ -44,31 +67,6 @@ void ui_app_g_settings_changed(GSettings *g_settings, const char *key, UiApp *ui
 		ui_app_set_polling_interval(ui_app, g_settings_get_double(g_settings, "polling-interval"));
 		return;
 	}
-}
-
-void ui_app_init_g_settings(UiApp *ui_app) {
-	// TODO: Check if the settings exist first.
-
-	ui_app->g_settings = g_settings_new(APP_ID);
-	g_signal_connect(ui_app->g_settings, "changed", G_CALLBACK(ui_app_g_settings_changed), ui_app);
-}
-
-void ui_app_init(UiApp *ui_app) {
-	char *app_css = ui_get_file("app.css");
-
-	adw_init();
-
-	ui_app->css_provider = gtk_css_provider_new();
-	gtk_css_provider_load_from_string(ui_app->css_provider, app_css);
-	gtk_style_context_add_provider_for_display(gdk_display_get_default(),
-			GTK_STYLE_PROVIDER(ui_app->css_provider),
-			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-
-	ui_app_init_g_settings(ui_app);
-
-	g_application_hold(G_APPLICATION(ui_app));
-
-	free(app_css);
 }
 
 void ui_app_open(GApplication *g_application, GFile *files[], int nfiles, const char *hint) {
@@ -98,6 +96,52 @@ void ui_app_dispose(GObject *g_object) {
 	g_object_unref(UI_APP(g_object)->g_settings);
 }
 
+void ui_app_action_quit(GSimpleAction *g_simple_action, GVariant *p, UiApp *ui_app) {
+	ts_app_quit(ui_app->ts_app);
+}
+
+void ui_app_init_css_provider(UiApp *ui_app) {
+	char *app_css;
+
+	app_css = ui_get_file("app.css");
+	ui_app->css_provider = gtk_css_provider_new();
+	gtk_css_provider_load_from_string(ui_app->css_provider, app_css);
+	gtk_style_context_add_provider_for_display(gdk_display_get_default(),
+			GTK_STYLE_PROVIDER(ui_app->css_provider),
+			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+	free(app_css);
+}
+
+void ui_app_init_g_settings(UiApp *ui_app) {
+	// TODO: Check if the settings exist first.
+
+	ui_app->g_settings = g_settings_new(APP_ID);
+	g_signal_connect(ui_app->g_settings, "changed", G_CALLBACK(ui_app_g_settings_changed), ui_app);
+}
+
+void ui_app_init_actions(UiApp *ui_app) {
+	GSimpleAction *g_simple_action;
+	const char *quit_accels[] = {"<Ctrl>q", NULL};
+
+	g_simple_action = g_simple_action_new("quit", NULL);
+	g_signal_connect(g_simple_action, "activate", G_CALLBACK(ui_app_action_quit), ui_app);
+	g_action_map_add_action(G_ACTION_MAP(ui_app), G_ACTION(g_simple_action));
+	g_object_unref(g_simple_action);
+
+	gtk_application_set_accels_for_action(GTK_APPLICATION(ui_app), "app.quit", quit_accels);
+}
+
+void ui_app_init(UiApp *ui_app) {
+	adw_init();
+
+	ui_app_init_css_provider(ui_app);
+	ui_app_init_g_settings(ui_app);
+	ui_app_init_actions(ui_app);
+
+	g_application_hold(G_APPLICATION(ui_app));
+}
+
 void ui_app_class_init(UiAppClass *ui_app_class) {
 	GApplicationClass *g_application_class = G_APPLICATION_CLASS(ui_app_class);
 	GObjectClass *g_object_class = G_OBJECT_CLASS(ui_app_class);
@@ -117,27 +161,4 @@ void ui_app_class_init(UiAppClass *ui_app_class) {
 			G_TYPE_NONE,
 			1,
 			G_TYPE_POINTER);
-}
-
-void ui_app_notify(UiApp *ui_app, const char *title, const char *body) {
-	GIcon *icon;
-	GNotification *notification;
-	GError *err = NULL;
-
-	icon = g_icon_new_for_string(APP_ID, &err);
-
-	notification = g_notification_new(title);
-	g_notification_set_body(notification, body);
-	if (err == NULL) {
-		g_notification_set_icon(notification, icon);
-	}
-
-	g_application_send_notification(G_APPLICATION(ui_app), "tailscale-status", notification);
-
-	g_object_unref(notification);
-	g_object_unref(icon);
-}
-
-void ui_app_update(UiApp *ui_app, TsutilStatus tsutil_status) {
-	g_signal_emit(ui_app, ui_app_signal_update_id, 0, tsutil_status);
 }

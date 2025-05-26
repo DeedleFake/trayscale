@@ -18,6 +18,8 @@ import (
 	"unsafe"
 
 	"deedles.dev/trayscale/internal/metadata"
+	"deedles.dev/trayscale/internal/tray"
+	"deedles.dev/trayscale/internal/tsutil"
 )
 
 //go:embed *.ui *.css
@@ -79,4 +81,16 @@ func cgo_handle_delete(p C.uintptr_t) {
 	if p != 0 {
 		cgo.Handle(p).Delete()
 	}
+}
+
+type TSApp interface {
+	Poller() *tsutil.Poller
+	Tray() *tray.Tray
+	Quit()
+}
+
+//export ts_app_quit
+func ts_app_quit(ts_app C.TsApp) {
+	tsApp := cgo.Handle(ts_app).Value().(TSApp)
+	tsApp.Quit()
 }

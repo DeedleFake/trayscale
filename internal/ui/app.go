@@ -16,7 +16,6 @@ import (
 	"time"
 	"unsafe"
 
-	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 )
 
@@ -118,10 +117,4 @@ func ui_app_set_polling_interval(ui_app *C.UiApp, interval C.gdouble) {
 	tsApp := (*App)(ui_app).tsApp()
 
 	tsApp.Poller().SetInterval() <- time.Duration(interval * C.gdouble(time.Second))
-}
-
-type TSApp interface {
-	Poller() *tsutil.Poller
-	Tray() *tray.Tray
-	Quit()
 }

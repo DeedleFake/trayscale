@@ -2,10 +2,7 @@ package ui
 
 /*
 #include <adwaita.h>
-
 #include "ui.h"
-#include "app.h"
-#include "main_window.h"
 */
 import "C"
 

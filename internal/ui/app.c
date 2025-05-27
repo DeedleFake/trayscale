@@ -1,8 +1,5 @@
 #include <adwaita.h>
-
 #include "ui.h"
-#include "app.h"
-#include "main_window.h"
 
 G_DEFINE_TYPE(UiApp, ui_app, ADW_TYPE_APPLICATION);
 

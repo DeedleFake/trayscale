@@ -6,6 +6,9 @@
 
 G_DEFINE_TYPE(UiMainWindow, ui_main_window, ADW_TYPE_APPLICATION_WINDOW);
 
+void ui_main_window_status_switch_state_set(GtkSwitch *gtk_switch, gboolean state, UiMainWindow *ui_main_window);
+void ui_main_window_update(UiApp *ui_app, TsutilStatus tsutil_status, UiMainWindow *ui_main_window);
+
 static GMenuModel *menu_model_main, *menu_model_page;
 
 UiMainWindow *ui_main_window_new(UiApp *ui_app) {
@@ -14,7 +17,10 @@ UiMainWindow *ui_main_window_new(UiApp *ui_app) {
 	ui_main_window = g_object_new(UI_TYPE_MAIN_WINDOW,
 			"application", ui_app,
 			NULL);
+
+	// TODO: Put this somewhere that makes more sense.
 	ui_main_window->ui_app = ui_app;
+	g_signal_connect(ui_app, "update", G_CALLBACK(ui_main_window_update), ui_main_window);
 
 	return ui_main_window;
 }
@@ -46,8 +52,12 @@ void ui_main_window_class_init(UiMainWindowClass *ui_main_window_class) {
 
 	template = ui_get_file_bytes("main_window.ui");
 	gtk_widget_class_set_template(gtk_widget_class, template);
+
 	gtk_widget_class_bind_template_child(gtk_widget_class, UiMainWindow, main_menu_button);
 	gtk_widget_class_bind_template_child(gtk_widget_class, UiMainWindow, page_menu_button);
+	gtk_widget_class_bind_template_child(gtk_widget_class, UiMainWindow, status_switch);
+
+	gtk_widget_class_bind_template_callback(gtk_widget_class, ui_main_window_status_switch_state_set);
 
 	menu_ui = ui_get_file("menu.ui");
 	gtk_builder = gtk_builder_new_from_string(menu_ui, -1);

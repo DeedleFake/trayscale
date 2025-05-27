@@ -10,3 +10,9 @@ typedef uintptr_t TsApp;
 void ts_app_quit(TsApp ts_app);
 
 typedef uintptr_t TsutilStatus;
+
+gboolean tsutil_is_ipnstatus(TsutilStatus tsutil_status);
+gboolean tsutil_is_filestatus(TsutilStatus tsutil_status);
+gboolean tsutil_is_profilestatus(TsutilStatus tsutil_status);
+
+gboolean tsutil_ipnstatus_online(TsutilStatus tsutil_status);

@@ -8,6 +8,7 @@ struct _UiMainWindow {
 
 	UiApp *ui_app;
 	GtkMenuButton *main_menu_button, *page_menu_button;
+	GtkSwitch *status_switch;
 };
 
 struct _UiMainWindowClass {

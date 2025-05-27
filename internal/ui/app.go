@@ -10,6 +10,7 @@ package ui
 import "C"
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"runtime"
@@ -17,6 +18,7 @@ import (
 	"time"
 	"unsafe"
 
+	"deedles.dev/trayscale/internal/ctxutil"
 	"deedles.dev/trayscale/internal/tsutil"
 )
 
@@ -53,10 +55,6 @@ func (app *App) Quit() {
 }
 
 func (app *App) Update(status tsutil.Status) {
-	if app == nil {
-		return
-	}
-
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
 		online := app.online != C.FALSE
@@ -95,7 +93,15 @@ func (app *App) Notify(title, body string) {
 func ui_app_start_tray(ui_app *C.UiApp) C.gboolean {
 	tsApp := (*App)(ui_app).tsApp()
 
-	err := tsApp.Tray().Start(<-tsApp.Poller().GetIPN())
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+
+	status, ok := ctxutil.Recv(ctx, tsApp.Poller().GetIPN())
+	if !ok {
+		return C.FALSE
+	}
+
+	err := tsApp.Tray().Start(status)
 	if err != nil {
 		slog.Error("failed to start tray icon", "err", err)
 		return C.FALSE
@@ -121,5 +127,11 @@ func ui_app_stop_tray(ui_app *C.UiApp) C.gboolean {
 func ui_app_set_polling_interval(ui_app *C.UiApp, interval C.gdouble) {
 	tsApp := (*App)(ui_app).tsApp()
 
-	tsApp.Poller().SetInterval() <- time.Duration(interval * C.gdouble(time.Second))
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+
+	select {
+	case <-ctx.Done():
+	case tsApp.Poller().SetInterval() <- time.Duration(interval * C.gdouble(time.Second)):
+	}
 }

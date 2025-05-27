@@ -49,6 +49,13 @@ func ui_get_file_bytes(name *C.char) *C.GBytes {
 	return C.g_bytes_new(C.gconstpointer(unsafe.SliceData(data)), C.gsize(len(data)))
 }
 
+func cbool(v bool) C.gboolean {
+	if v {
+		return C.TRUE
+	}
+	return C.FALSE
+}
+
 func toCStrings(str []string) []*C.char {
 	cstr := make([]*C.char, 0, len(str))
 	for _, s := range str {
@@ -93,4 +100,40 @@ type TSApp interface {
 func ts_app_quit(ts_app C.TsApp) {
 	tsApp := cgo.Handle(ts_app).Value().(TSApp)
 	tsApp.Quit()
+}
+
+//export tsutil_is_ipnstatus
+func tsutil_is_ipnstatus(tsutil_status C.TsutilStatus) C.gboolean {
+	_, ok := cgo.Handle(tsutil_status).Value().(*tsutil.IPNStatus)
+	if ok {
+		return C.TRUE
+	}
+	return C.FALSE
+}
+
+//export tsutil_is_filestatus
+func tsutil_is_filestatus(tsutil_status C.TsutilStatus) C.gboolean {
+	_, ok := cgo.Handle(tsutil_status).Value().(*tsutil.FileStatus)
+	if ok {
+		return C.TRUE
+	}
+	return C.FALSE
+}
+
+//export tsutil_is_profilestatus
+func tsutil_is_profilestatus(tsutil_status C.TsutilStatus) C.gboolean {
+	_, ok := cgo.Handle(tsutil_status).Value().(*tsutil.ProfileStatus)
+	if ok {
+		return C.TRUE
+	}
+	return C.FALSE
+}
+
+//export tsutil_ipnstatus_online
+func tsutil_ipnstatus_online(tsutil_status C.TsutilStatus) C.gboolean {
+	ipnstatus := cgo.Handle(tsutil_status).Value().(*tsutil.IPNStatus)
+	if ipnstatus.Online() {
+		return C.TRUE
+	}
+	return C.FALSE
 }

@@ -63,7 +63,9 @@
                       <object class="AdwHeaderBar">
                         <property name="show-end-title-buttons">False</property>
                         <child type="start">
-                          <object class="GtkSwitch" id="status_switch"/>
+                          <object class="GtkSwitch" id="status_switch">
+                            <signal name="state-set" handler="ui_main_window_status_switch_state_set"/>
+                          </object>
                         </child>
                         <child type="end">
                           <object class="GtkMenuButton" id="main_menu_button">

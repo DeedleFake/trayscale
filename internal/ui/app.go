@@ -38,7 +38,7 @@ func (app *App) Run() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	args := toCStrings(os.Args)
+	args := cstrings(os.Args)
 	defer freeAll(args)
 
 	C.ui_app_run(app.c(), C.int(len(args)), unsafe.SliceData(args))

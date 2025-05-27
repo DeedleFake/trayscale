@@ -74,7 +74,7 @@ func cfunc(f unsafe.Pointer) *[0]byte {
 	return (*[0]byte)(f)
 }
 
-func toCStrings(str []string) []*C.char {
+func cstrings(str []string) []*C.char {
 	cstr := make([]*C.char, 0, len(str))
 	for _, s := range str {
 		cstr = append(cstr, C.CString(s))

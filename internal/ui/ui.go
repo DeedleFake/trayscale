@@ -8,6 +8,9 @@ package ui
 #include "ui.h"
 
 gboolean _idle(gpointer h);
+
+void _class_init(gpointer p);
+void _instance_init(gpointer p);
 */
 import "C"
 
@@ -16,6 +19,7 @@ import (
 	"io/fs"
 	"reflect"
 	"runtime/cgo"
+	"sync"
 	"unsafe"
 
 	"deedles.dev/trayscale/internal/metadata"
@@ -177,4 +181,77 @@ func tsutil_ipnstatus_online(tsutil_status C.TsutilStatus) C.gboolean {
 		return C.TRUE
 	}
 	return C.FALSE
+}
+
+var types sync.Map
+
+type typeDefinition[Class, Instance any, ClassP interface {
+	*Class
+	Initter
+}, InstanceP interface {
+	*Instance
+	Initter
+}] struct {
+	once func() C.GType
+}
+
+func (d *typeDefinition[Class, Instance, ClassP, InstanceP]) init() C.GType {
+	return d.once()
+}
+
+func (d *typeDefinition[Class, Instance, ClassP, InstanceP]) initClass(p C.gpointer) {
+	(ClassP)(p).Init()
+}
+
+func (d *typeDefinition[Class, Instance, ClassP, InstanceP]) initInstance(p C.gpointer) {
+	(InstanceP)(p).Init()
+}
+
+type Initter interface {
+	Init()
+}
+
+func defineType[Class, Instance any, ClassP interface {
+	*Class
+	Initter
+}, InstanceP interface {
+	*Instance
+	Initter
+}](parent C.GType, name string) C.GType {
+	definition := typeDefinition[Class, Instance, ClassP, InstanceP]{
+		once: sync.OnceValue(func() C.GType {
+			cname := C.CString(name)
+			defer C.free(unsafe.Pointer(cname))
+
+			var c Class
+			var i Instance
+
+			return C.g_type_register_static_simple(
+				parent,
+				cname,
+				C.guint(unsafe.Sizeof(c)),
+				(*[0]byte)(C._class_init),
+				C.guint(unsafe.Sizeof(i)),
+				(*[0]byte)(C._instance_init),
+				0,
+			)
+		}),
+	}
+
+	once, _ := types.LoadOrStore(name, &definition)
+	return once.(interface{ init() C.GType }).init()
+}
+
+//export _class_init
+func _class_init(p C.gpointer) {
+	cname := C.g_type_name_from_class((*C.GTypeClass)(p))
+	d, _ := types.Load(C.GoString(cname))
+	d.(interface{ initClass(C.gpointer) }).initClass(p)
+}
+
+//export _instance_init
+func _instance_init(p C.gpointer) {
+	cname := C.g_type_name_from_instance((*C.GTypeInstance)(p))
+	d, _ := types.Load(C.GoString(cname))
+	d.(interface{ initInstance(C.gpointer) }).initInstance(p)
 }

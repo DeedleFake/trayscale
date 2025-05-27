@@ -16,3 +16,5 @@ struct _UiMainWindowClass {
 };
 
 UiMainWindow *ui_main_window_new(UiApp *ui_app);
+
+extern GMenuModel *menu_model_main, *menu_model_page;

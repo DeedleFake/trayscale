@@ -9,7 +9,7 @@ G_DEFINE_TYPE(UiMainWindow, ui_main_window, ADW_TYPE_APPLICATION_WINDOW);
 void ui_main_window_status_switch_state_set(GtkSwitch *gtk_switch, gboolean state, UiMainWindow *ui_main_window);
 void ui_main_window_update(UiApp *ui_app, TsutilStatus tsutil_status, UiMainWindow *ui_main_window);
 
-static GMenuModel *menu_model_main, *menu_model_page;
+GMenuModel *menu_model_main, *menu_model_page;
 
 UiMainWindow *ui_main_window_new(UiApp *ui_app) {
 	UiMainWindow *ui_main_window;
@@ -59,15 +59,5 @@ void ui_main_window_class_init(UiMainWindowClass *ui_main_window_class) {
 
 	gtk_widget_class_bind_template_callback(gtk_widget_class, ui_main_window_status_switch_state_set);
 
-	menu_ui = ui_get_file("menu.ui");
-	gtk_builder = gtk_builder_new_from_string(menu_ui, -1);
-	menu_model_main = G_MENU_MODEL(gtk_builder_get_object(gtk_builder, "main_menu"));
-	menu_model_page = G_MENU_MODEL(gtk_builder_get_object(gtk_builder, "page_menu"));
-
-	g_object_ref(menu_model_main);
-	g_object_ref(menu_model_page);
-
-	g_clear_object(&gtk_builder);
-	free(menu_ui);
 	g_bytes_unref(template);
 }

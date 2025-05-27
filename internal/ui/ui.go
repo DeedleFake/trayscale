@@ -14,6 +14,7 @@ import "C"
 import (
 	"embed"
 	"io/fs"
+	"reflect"
 	"runtime/cgo"
 	"unsafe"
 
@@ -22,30 +23,43 @@ import (
 	"deedles.dev/trayscale/internal/tsutil"
 )
 
-//go:embed *.ui *.css
-var files embed.FS
-
 func init() {
 	C.APP_ID = C.CString(metadata.AppID)
 }
 
+//go:embed *.ui *.css
+var files embed.FS
+
+func getFile(name string) []byte {
+	return must(fs.ReadFile(files, name))
+}
+
 //export ui_get_file
 func ui_get_file(name *C.char) *C.char {
-	data, err := fs.ReadFile(files, C.GoString(name))
-	if err != nil {
-		panic(err)
-	}
-
-	return C.CString(string(data))
+	return C.CString(string(getFile(C.GoString(name))))
 }
 
 //export ui_get_file_bytes
 func ui_get_file_bytes(name *C.char) *C.GBytes {
-	data, err := fs.ReadFile(files, C.GoString(name))
+	data := getFile(C.GoString(name))
+	return newGBytes(data)
+}
+
+func must[T any](v T, err error) T {
 	if err != nil {
 		panic(err)
 	}
+	return v
+}
 
+func get[T any](v T, ok bool) T {
+	if !ok {
+		panic("!ok")
+	}
+	return v
+}
+
+func newGBytes(data []byte) *C.GBytes {
 	return C.g_bytes_new(C.gconstpointer(unsafe.SliceData(data)), C.gsize(len(data)))
 }
 
@@ -54,6 +68,10 @@ func cbool(v bool) C.gboolean {
 		return C.TRUE
 	}
 	return C.FALSE
+}
+
+func cfunc(f unsafe.Pointer) *[0]byte {
+	return (*[0]byte)(f)
 }
 
 func toCStrings(str []string) []*C.char {
@@ -70,8 +88,31 @@ func freeAll[T any, P *T](cstr []P) {
 	}
 }
 
+func to[T any](val any) *T {
+	target := reflect.TypeFor[*T]()
+
+	v := reflect.ValueOf(val)
+	for {
+		t := v.Type()
+		if t == target {
+			return (*T)(v.UnsafePointer())
+		}
+
+		v = v.Elem().Field(0).Addr()
+	}
+}
+
+func gtk_widget_class_bind_template_child[T any](gtk_widget_class *C.GtkWidgetClass, name string) {
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+
+	offset := get(reflect.TypeFor[T]().FieldByName(name)).Offset
+
+	C.gtk_widget_class_bind_template_child_full(gtk_widget_class, cname, C.FALSE, C.gssize(offset))
+}
+
 func idle(f func()) {
-	C.g_idle_add((*[0]byte)(C._idle), C.gpointer(cgo.NewHandle(f)))
+	C.g_idle_add(cfunc(C._idle), C.gpointer(cgo.NewHandle(f)))
 }
 
 //export _idle

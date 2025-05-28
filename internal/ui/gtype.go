@@ -9,6 +9,7 @@ void _g_object_dispose(GObject *cobj);
 import "C"
 
 import (
+	"runtime/cgo"
 	"slices"
 	"unsafe"
 )
@@ -61,6 +62,16 @@ func (t GType[T]) Cast(obj *GTypeInstance) *T {
 	}
 }
 
+type GTypeClass struct {
+	_ [unsafe.Sizeof(*new(C.GTypeClass))]byte
+}
+
+func (tc *GTypeClass) c() *C.GTypeClass {
+	return (*C.GTypeClass)(unsafe.Pointer(tc))
+}
+
+func (tc *GTypeClass) AsGTypeClass() *GTypeClass { return tc }
+
 type GTypeInstance struct {
 	_ [unsafe.Sizeof(*new(C.GTypeInstance))]byte
 }
@@ -72,7 +83,8 @@ func (ti *GTypeInstance) c() *C.GTypeInstance {
 func (ti *GTypeInstance) AsGTypeInstance() *GTypeInstance { return ti }
 
 type GObjectClass struct {
-	_ [unsafe.Sizeof(*new(C.GObjectClass))]byte
+	GTypeClass
+	_ [unsafe.Sizeof(*new(C.GObjectClass)) - unsafe.Sizeof(*new(C.GTypeClass))]byte
 }
 
 func (class *GObjectClass) c() *C.GObjectClass {
@@ -81,11 +93,23 @@ func (class *GObjectClass) c() *C.GObjectClass {
 
 func (class *GObjectClass) AsGObjectClass() *GObjectClass { return class }
 
+var _g_object_dispose_quark C.GQuark = C.g_quark_from_static_string(C.CString("_g_object_dispose"))
+
 //export _g_object_dispose
-func _g_object_dispose(cobj *C.GObject) {
+func _g_object_dispose(obj *C.GObject) {
+	t := C.g_type_from_name(C.g_type_name_from_instance((*C.GTypeInstance)(unsafe.Pointer(obj))))
+	f := cgo.Handle(C.g_type_get_qdata(t, _g_object_dispose_quark)).Value().(func(*GObject))
+	f((*GObject)(unsafe.Pointer(obj)))
 }
 
 func (class *GObjectClass) SetDispose(dispose func(*GObject)) {
+	t := C.g_type_from_name(C.g_type_name_from_class(class.AsGTypeClass().c()))
+	h := cgo.Handle(C.g_type_get_qdata(t, _g_object_dispose_quark))
+	if h != 0 {
+		h.Delete()
+	}
+
+	C.g_type_set_qdata(t, _g_object_dispose_quark, C.gpointer(cgo.NewHandle(dispose)))
 	class.c().dispose = cfunc(C._g_object_dispose)
 }
 

@@ -7,69 +7,74 @@ package ui
 import "C"
 
 import (
-	"context"
 	"log/slog"
-	"os"
 	"runtime"
-	"runtime/cgo"
-	"time"
-	"unsafe"
 
-	"deedles.dev/trayscale/internal/ctxutil"
+	"deedles.dev/trayscale/internal/metadata"
+	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 )
 
-type App C.UiApp
+var TypeApp = DefineType[AppClass, App](TypeAdwApplication, "UiApp")
+
+type AppClass struct {
+	AdwApplicationClass
+}
+
+func (class *AppClass) Init() {
+	class.SetDispose(func(obj *GObject) {
+		app := TypeApp.Cast(obj.AsGTypeInstance())
+		app.unpin()
+	})
+}
+
+type App struct {
+	AdwApplication
+
+	*appData
+}
+
+func (app *App) Init() {
+}
+
+type appData struct {
+	p      runtime.Pinner
+	tsApp  TSApp
+	online bool
+}
+
+func (data *appData) pin() {
+	data.p.Pin(data)
+}
+
+func (data *appData) unpin() {
+	data.p.Unpin()
+}
 
 func NewApp(tsApp TSApp) *App {
-	h := C.TsApp(cgo.NewHandle(tsApp))
-	return (*App)(C.ui_app_new(h))
-}
-
-func (app *App) c() *C.UiApp {
-	return (*C.UiApp)(app)
-}
-
-func (app *App) tsApp() TSApp {
-	return cgo.Handle(app.ts_app).Value().(TSApp)
-}
-
-func (app *App) Run() {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	args := cstrings(os.Args)
-	defer freeAll(args)
-
-	C.ui_app_run(app.c(), C.int(len(args)), unsafe.SliceData(args))
-	C.g_object_unref(C.gpointer(app.c()))
-}
-
-func (app *App) Quit() {
-	idle(func() {
-		C.ui_app_quit(app.c())
-	})
+	app := TypeApp.New(
+		"application-id", GValueFromString(metadata.AppID),
+	)
+	app.appData = &appData{
+		tsApp: tsApp,
+	}
+	app.pin()
+	return app
 }
 
 func (app *App) Update(status tsutil.Status) {
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
-		online := app.online != C.FALSE
-		if online != status.Online() {
-			app.online = C.FALSE
+		if app.online != status.Online() {
+			app.online = status.Online()
+
 			body := "Disconnected"
 			if status.Online() {
-				app.online = C.TRUE
 				body = "Connected"
 			}
-
 			app.Notify("Tailscale", body) // TODO: Notify on startup if not connected?
 		}
 	}
-
-	h := cgo.NewHandle(status)
-	defer h.Delete()
-	C.ui_app_update(app.c(), C.TsutilStatus(h))
 }
 
 func (app *App) ShowWindow() {
@@ -77,58 +82,62 @@ func (app *App) ShowWindow() {
 }
 
 func (app *App) Notify(title, body string) {
-	ctitle := C.CString(title)
-	defer C.free(unsafe.Pointer(ctitle))
+	notification := GNotificationNew(title)
+	defer notification.Unref()
+	notification.SetBody(body)
 
-	cbody := C.CString(body)
-	defer C.free(unsafe.Pointer(cbody))
-
-	C.ui_app_notify(app.c(), ctitle, cbody)
+	app.SendNotification("tailscale-status", notification)
 }
 
-//export ui_app_start_tray
-func ui_app_start_tray(ui_app *C.UiApp) C.gboolean {
-	tsApp := (*App)(ui_app).tsApp()
+////export ui_app_start_tray
+//func ui_app_start_tray(ui_app *C.UiApp) C.gboolean {
+//	tsApp := (*App)(ui_app).tsApp()
+//
+//	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+//	defer cancel()
+//
+//	status, ok := ctxutil.Recv(ctx, tsApp.Poller().GetIPN())
+//	if !ok {
+//		return C.FALSE
+//	}
+//
+//	err := tsApp.Tray().Start(status)
+//	if err != nil {
+//		slog.Error("failed to start tray icon", "err", err)
+//		return C.FALSE
+//	}
+//
+//	return C.TRUE
+//}
+//
+////export ui_app_stop_tray
+//func ui_app_stop_tray(ui_app *C.UiApp) C.gboolean {
+//	tsApp := (*App)(ui_app).tsApp()
+//
+//	err := tsApp.Tray().Close()
+//	if err != nil {
+//		slog.Error("failed to stop tray icon", "err", err)
+//		return C.FALSE
+//	}
+//
+//	return C.TRUE
+//}
+//
+////export ui_app_set_polling_interval
+//func ui_app_set_polling_interval(ui_app *C.UiApp, interval C.gdouble) {
+//	tsApp := (*App)(ui_app).tsApp()
+//
+//	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+//	defer cancel()
+//
+//	select {
+//	case <-ctx.Done():
+//	case tsApp.Poller().SetInterval() <- time.Duration(interval * C.gdouble(time.Second)):
+//	}
+//}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
-
-	status, ok := ctxutil.Recv(ctx, tsApp.Poller().GetIPN())
-	if !ok {
-		return C.FALSE
-	}
-
-	err := tsApp.Tray().Start(status)
-	if err != nil {
-		slog.Error("failed to start tray icon", "err", err)
-		return C.FALSE
-	}
-
-	return C.TRUE
-}
-
-//export ui_app_stop_tray
-func ui_app_stop_tray(ui_app *C.UiApp) C.gboolean {
-	tsApp := (*App)(ui_app).tsApp()
-
-	err := tsApp.Tray().Close()
-	if err != nil {
-		slog.Error("failed to stop tray icon", "err", err)
-		return C.FALSE
-	}
-
-	return C.TRUE
-}
-
-//export ui_app_set_polling_interval
-func ui_app_set_polling_interval(ui_app *C.UiApp, interval C.gdouble) {
-	tsApp := (*App)(ui_app).tsApp()
-
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
-
-	select {
-	case <-ctx.Done():
-	case tsApp.Poller().SetInterval() <- time.Duration(interval * C.gdouble(time.Second)):
-	}
+type TSApp interface {
+	Poller() *tsutil.Poller
+	Tray() *tray.Tray
+	Quit()
 }

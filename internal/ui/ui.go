@@ -16,19 +16,14 @@ import "C"
 
 import (
 	"embed"
-	"fmt"
 	"io/fs"
 	"iter"
 	"reflect"
 	"runtime/cgo"
-	"slices"
 	"sync"
-	"sync/atomic"
 	"unsafe"
 
 	"deedles.dev/trayscale/internal/metadata"
-	"deedles.dev/trayscale/internal/tray"
-	"deedles.dev/trayscale/internal/tsutil"
 )
 
 func init() {
@@ -132,65 +127,6 @@ func _idle(p C.gpointer) C.gboolean {
 	return C.G_SOURCE_REMOVE
 }
 
-//export cgo_handle_delete
-func cgo_handle_delete(p C.uintptr_t) {
-	if p != 0 {
-		cgo.Handle(p).Delete()
-	}
-}
-
-type TSApp interface {
-	Poller() *tsutil.Poller
-	Tray() *tray.Tray
-	Quit()
-}
-
-//export ts_app_quit
-func ts_app_quit(ts_app C.TsApp) {
-	tsApp := cgo.Handle(ts_app).Value().(TSApp)
-	tsApp.Quit()
-}
-
-//export tsutil_is_ipnstatus
-func tsutil_is_ipnstatus(tsutil_status C.TsutilStatus) C.gboolean {
-	_, ok := cgo.Handle(tsutil_status).Value().(*tsutil.IPNStatus)
-	if ok {
-		return C.TRUE
-	}
-	return C.FALSE
-}
-
-//export tsutil_is_filestatus
-func tsutil_is_filestatus(tsutil_status C.TsutilStatus) C.gboolean {
-	_, ok := cgo.Handle(tsutil_status).Value().(*tsutil.FileStatus)
-	if ok {
-		return C.TRUE
-	}
-	return C.FALSE
-}
-
-//export tsutil_is_profilestatus
-func tsutil_is_profilestatus(tsutil_status C.TsutilStatus) C.gboolean {
-	_, ok := cgo.Handle(tsutil_status).Value().(*tsutil.ProfileStatus)
-	if ok {
-		return C.TRUE
-	}
-	return C.FALSE
-}
-
-//export tsutil_ipnstatus_online
-func tsutil_ipnstatus_online(tsutil_status C.TsutilStatus) C.gboolean {
-	ipnstatus := cgo.Handle(tsutil_status).Value().(*tsutil.IPNStatus)
-	if ipnstatus.Online() {
-		return C.TRUE
-	}
-	return C.FALSE
-}
-
-type GType struct {
-	c C.GType
-}
-
 func pairs[T any](seq iter.Seq[T]) iter.Seq2[T, T] {
 	return func(yield func(T, T) bool) {
 		var prev *T
@@ -211,34 +147,6 @@ func pairs[T any](seq iter.Seq[T]) iter.Seq2[T, T] {
 	}
 }
 
-func (t GType) New(props ...any) *GObject {
-	names := make([]*C.char, 0, len(props)/2)
-	vals := make([]C.GValue, 0, len(props)/2)
-	for n, v := range pairs(slices.Values(props)) {
-		names = append(names, C.CString(n.(string)))
-		vals = append(vals, v.(C.GValue))
-	}
-
-	return (*GObject)(unsafe.Pointer(C.g_object_new_with_properties(
-		t.c,
-		C.guint(len(names)),
-		(**C.char)(unsafe.SliceData(names)),
-		(*C.GValue)(unsafe.SliceData(vals)),
-	)))
-}
-
-type GObjectClass struct {
-	c C.GObjectClass
-}
-
-func (obj *GObjectClass) AsGObjectClass() *GObjectClass { return obj }
-
-type GObject struct {
-	c C.GObject
-}
-
-func (obj *GObject) AsGObject() *GObject { return obj }
-
 var types sync.Map
 
 type typeDefinition[Class, Instance any, ClassP interface {
@@ -248,10 +156,10 @@ type typeDefinition[Class, Instance any, ClassP interface {
 	*Instance
 	Initter
 }] struct {
-	once func() GType
+	once func() GType[Instance]
 }
 
-func (d *typeDefinition[Class, Instance, ClassP, InstanceP]) init() GType {
+func (d *typeDefinition[Class, Instance, ClassP, InstanceP]) init() GType[Instance] {
 	return d.once()
 }
 
@@ -267,35 +175,35 @@ type Initter interface {
 	Init()
 }
 
-func defineType[Class, Instance any, ClassP interface {
+func DefineType[Class, Instance any, ClassP interface {
 	*Class
 	Initter
 }, InstanceP interface {
 	*Instance
 	Initter
-}](parent GType, name string) GType {
+}, ParentType any](parent GType[ParentType], name string) GType[Instance] {
 	definition := typeDefinition[Class, Instance, ClassP, InstanceP]{
-		once: sync.OnceValue(func() GType {
+		once: sync.OnceValue(func() GType[Instance] {
 			cname := C.CString(name)
 			defer C.free(unsafe.Pointer(cname))
 
 			var c Class
 			var i Instance
 
-			return GType{c: C.g_type_register_static_simple(
-				parent.c,
+			return ToGType[Instance](C.g_type_register_static_simple(
+				parent.c(),
 				cname,
 				C.guint(unsafe.Sizeof(c)),
 				(*[0]byte)(C._class_init),
 				C.guint(unsafe.Sizeof(i)),
 				(*[0]byte)(C._instance_init),
 				0,
-			)}
+			))
 		}),
 	}
 
 	once, _ := types.LoadOrStore(name, &definition)
-	return once.(interface{ init() GType }).init()
+	return once.(interface{ init() GType[Instance] }).init()
 }
 
 //export _class_init
@@ -310,36 +218,4 @@ func _instance_init(p C.gpointer) {
 	cname := C.g_type_name_from_instance((*C.GTypeInstance)(p))
 	d, _ := types.Load(C.GoString(cname))
 	d.(interface{ initInstance(C.gpointer) }).initInstance(p)
-}
-
-type TestClass struct {
-	GObjectClass
-}
-
-func (t *TestClass) Init() {
-	fmt.Printf("%#v\n", t.AsGObjectClass())
-}
-
-type Test struct {
-	GObject
-
-	Val int
-}
-
-var val int32
-
-func (t *Test) Init() {
-	t.Val = int(atomic.AddInt32(&val, 1))
-}
-
-var testType = defineType[TestClass, Test](GType{C.g_object_get_type()}, "UiTest")
-
-func init() {
-	t := (*Test)(unsafe.Pointer(testType.New()))
-	defer C.g_object_unref(C.gpointer(t))
-	fmt.Printf("%#v\n", t)
-
-	t = (*Test)(unsafe.Pointer(testType.New()))
-	defer C.g_object_unref(C.gpointer(t))
-	fmt.Printf("%#v\n", t)
 }

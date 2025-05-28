@@ -3,6 +3,8 @@ package trayscale
 import (
 	"context"
 	"log/slog"
+	"os"
+	"runtime"
 	"time"
 
 	"deedles.dev/trayscale/internal/ctxutil"
@@ -38,9 +40,13 @@ func (app *App) Run(ctx context.Context) {
 	}
 
 	app.app = ui.NewApp(app)
+	defer app.app.Unref()
 
 	go app.poller.Run(ctx)
-	app.app.Run()
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	app.app.Run(os.Args)
 }
 
 func (app *App) Quit() {

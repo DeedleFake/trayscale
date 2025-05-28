@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"image/png"
+	"sync"
 
 	"deedles.dev/tray"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -46,6 +47,7 @@ type Tray struct {
 	OnSelfNode   func()
 	OnQuit       func()
 
+	m    sync.RWMutex
 	item *tray.Item
 	icon *tray.Pixmap
 
@@ -56,7 +58,10 @@ type Tray struct {
 	quitItem       *tray.MenuItem
 }
 
-func (t *Tray) Start(s *tsutil.IPNStatus) error {
+func (t *Tray) Start(status *tsutil.IPNStatus) error {
+	t.m.Lock()
+	defer t.m.Unlock()
+
 	if t.item != nil {
 		return nil
 	}
@@ -84,13 +89,16 @@ func (t *Tray) Start(s *tsutil.IPNStatus) error {
 	menu.AddChild(tray.MenuItemType(tray.Separator))
 	t.quitItem, _ = menu.AddChild(tray.MenuItemLabel("Quit"), handler(t.OnQuit))
 
-	t.Update(s)
+	t.update(status)
 
 	return nil
 }
 
 func (t *Tray) Close() error {
-	if t == nil || t.item == nil {
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	if t.item == nil {
 		return nil
 	}
 
@@ -100,8 +108,20 @@ func (t *Tray) Close() error {
 	return err
 }
 
-func (t *Tray) Update(status *tsutil.IPNStatus) {
-	if t == nil || t.item == nil {
+func (t *Tray) Update(s tsutil.Status) {
+	status, ok := s.(*tsutil.IPNStatus)
+	if !ok {
+		return
+	}
+
+	t.m.RLock()
+	defer t.m.RUnlock()
+
+	t.update(status)
+}
+
+func (t *Tray) update(status *tsutil.IPNStatus) {
+	if t.item == nil {
 		return
 	}
 

@@ -4,7 +4,7 @@
   <!-- interface-name peerpage.ui -->
   <requires lib="gtk" version="4.18"/>
   <requires lib="libadwaita" version="1.6"/>
-  <object class="AdwStatusPage" id="Page">
+  <template class="UiPeerPage" parent="AdwStatusPage">
     <child>
       <object class="AdwClamp">
         <child>
@@ -12,10 +12,10 @@
             <property name="orientation">vertical</property>
             <property name="spacing">12</property>
             <child>
-              <object class="AdwPreferencesGroup" id="IPGroup">
+              <object class="AdwPreferencesGroup" id="ip_group">
                 <property name="title">Tailscale IPs</property>
                 <child>
-                  <object class="GtkListBox" id="IPList">
+                  <object class="GtkListBox" id="ip_list">
                     <property name="css-classes">boxed-list</property>
                     <property name="selection-mode">none</property>
                   </object>
@@ -23,7 +23,7 @@
               </object>
             </child>
             <child>
-              <object class="AdwPreferencesGroup" id="MiscGroup">
+              <object class="AdwPreferencesGroup" id="misc_group">
                 <property name="title">Misc.</property>
                 <child>
                   <object class="AdwSwitchRow" id="ExitNodeRow">
@@ -95,8 +95,8 @@
         </child>
       </object>
     </child>
-  </object>
-  <object class="GtkDropTarget" id="DropTarget">
+  </template>
+  <object class="GtkDropTarget" id="drop_target">
     <property name="actions">copy</property>
   </object>
 </interface>

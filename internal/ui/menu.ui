@@ -3,7 +3,7 @@
 <interface>
   <!-- interface-name menu.ui -->
   <requires lib="gio" version="2.0"/>
-  <menu id="MainMenu">
+  <menu id="main_menu">
     <section>
       <item>
         <attribute name="action">app.change_control_server</attribute>
@@ -25,7 +25,7 @@
       </item>
     </section>
   </menu>
-  <menu id="PageMenu">
+  <menu id="page_menu">
     <section>
       <item>
         <attribute name="action">peer.copyFQDN</attribute>

@@ -4,7 +4,7 @@
   <!-- interface-name mullvadpage.ui -->
   <requires lib="gtk" version="4.12"/>
   <requires lib="libadwaita" version="1.0"/>
-  <object class="AdwStatusPage" id="Page">
+  <template class="UiMullvadPage" parent="AdwStatusPage">
     <property name="title">Mullvad Exit Nodes</property>
     <child>
       <object class="AdwClamp">
@@ -13,7 +13,7 @@
             <property name="orientation">vertical</property>
             <property name="spacing">12</property>
             <child>
-              <object class="GtkListBox" id="LocationList">
+              <object class="GtkListBox" id="location_list">
                 <property name="css-classes">boxed-list</property>
                 <property name="selection-mode">none</property>
               </object>
@@ -22,5 +22,5 @@
         </child>
       </object>
     </child>
-  </object>
+  </template>
 </interface>

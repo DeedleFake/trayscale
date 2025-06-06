@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
@@ -73,7 +74,7 @@ type SelfPage struct {
 
 func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
 	var page SelfPage
-	fillFromBuilder(&page, selfPageXML)
+	gutil.FillFromUI(&page, selfPageXML)
 	page.init(a, status)
 	return &page
 }
@@ -173,7 +174,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 				dialog.Save(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 					f, err := dialog.SaveFinish(res)
 					if err != nil {
-						if !errHasCode(err, int(gtk.DialogErrorDismissed)) {
+						if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissed)) {
 							slog.Error("save file", "err", err)
 						}
 						return
@@ -382,6 +383,7 @@ func (page *SelfPage) Actions() gio.ActionGrouper {
 func (page *SelfPage) Init(row *PageRow) {
 	page.row = row
 	row.SetSubtitle("This machine")
+	page.row.SetIconName("computer-symbolic")
 }
 
 func (page *SelfPage) Update(status tsutil.Status) bool {
@@ -403,7 +405,6 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 	page.peer = status.NetMap.SelfNode
 
 	page.row.SetTitle(peerName(page.peer))
-	page.row.SetIconName("computer-symbolic")
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())

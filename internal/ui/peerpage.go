@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
@@ -82,7 +83,7 @@ type PeerPage struct {
 
 func NewPeerPage(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeView) *PeerPage {
 	var page PeerPage
-	fillFromBuilder(&page, peerPageXML)
+	gutil.FillFromUI(&page, peerPageXML)
 	page.init(a, status, peer)
 	return &page
 }
@@ -116,7 +117,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 		open(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 			files, err := finish(res)
 			if err != nil {
-				if !errHasCode(err, int(gtk.DialogErrorDismissed)) {
+				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissed)) {
 					slog.Error("open files", "err", err)
 				}
 				return
@@ -271,7 +272,7 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 
 	page.row.SetTitle(peerName(page.peer))
 	page.row.SetSubtitle(peerSubtitle(exitNodeOption, exitNode))
-	page.row.SetIconName(peerIcon(online, exitNodeOption, exitNode))
+	page.row.SetIcon(peerIcon(online, exitNodeOption, exitNode))
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())
@@ -318,19 +319,27 @@ func peerSubtitle(exitNodeOption, exitNode bool) string {
 	return ""
 }
 
-func peerIcon(online bool, exitNodeOption, exitNode bool) string {
+var (
+	peerIconExitNodeOffline = gio.NewThemedIconFromNames([]string{"network-vpn-acquiring-symbolic"})
+	peerIconExitNodeOnline  = gio.NewThemedIconFromNames([]string{"network-vpn-symbolic", "security-high-symbolic"})
+	peerIconOffline         = gio.NewThemedIconFromNames([]string{"network-wired-disconnected-symbolic"})
+	peerIconExitNodeOption  = gio.NewThemedIconFromNames([]string{"network-workgroup-symbolic"})
+	peerIconDefault         = gio.NewThemedIconFromNames([]string{"network-wired-symbolic"})
+)
+
+func peerIcon(online bool, exitNodeOption, exitNode bool) gio.Iconner {
 	if exitNode {
 		if !online {
-			return "network-vpn-acquiring-symbolic"
+			return peerIconExitNodeOffline
 		}
-		return "network-vpn-symbolic"
+		return peerIconExitNodeOnline
 	}
 	if !online {
-		return "network-wired-offline-symbolic"
+		return peerIconOffline
 	}
 	if exitNodeOption {
-		return "folder-remote-symbolic"
+		return peerIconExitNodeOption
 	}
 
-	return "network-wired-symbolic"
+	return peerIconDefault
 }

@@ -8,7 +8,6 @@ import (
 	"maps"
 	"net/netip"
 	"os/user"
-	"slices"
 	"sync"
 	"time"
 
@@ -97,7 +96,7 @@ func (p *Poller) Run(ctx context.Context) {
 }
 
 func (p *Poller) watchIPN(ctx context.Context) {
-	const watcherOpts = ipn.NotifyInitialState | ipn.NotifyInitialPrefs | ipn.NotifyInitialNetMap | ipn.NotifyNoPrivateKeys | ipn.NotifyWatchEngineUpdates
+	const watcherOpts = ipn.NotifyInitialState | ipn.NotifyInitialPrefs | ipn.NotifyInitialNetMap | ipn.NotifyNoPrivateKeys | ipn.NotifyWatchEngineUpdates | ipn.NotifyRateLimit
 
 watch:
 	watcher, err := localClient.WatchIPNBus(ctx, watcherOpts)
@@ -279,7 +278,9 @@ func (p *Poller) SetInterval() chan<- time.Duration {
 	return p.interval
 }
 
-type Status any
+type Status interface {
+	status()
+}
 
 type IPNStatus struct {
 	State       ipn.State
@@ -290,6 +291,8 @@ type IPNStatus struct {
 	Engine      *ipn.EngineStatus
 	BrowseToURL string
 }
+
+func (*IPNStatus) status() {}
 
 func (s IPNStatus) copy() *IPNStatus {
 	s.Peers = maps.Clone(s.Peers)
@@ -361,22 +364,36 @@ func (s *IPNStatus) OperatorIsCurrent() bool {
 }
 
 func (s *IPNStatus) SelfAddr() netip.Addr {
-	if s.NetMap == nil || s.NetMap.SelfNode.Addresses().Len() == 0 {
+	if s.NetMap == nil {
 		return netip.Addr{}
 	}
 
-	// TODO: Don't copy the slice.
-	return slices.MinFunc(s.NetMap.SelfNode.Addresses().AsSlice(), xnetip.ComparePrefixes).Addr()
+	addrs := s.NetMap.SelfNode.Addresses()
+	if addrs.Len() == 0 {
+		return netip.Addr{}
+	}
+
+	addr := addrs.At(0)
+	for _, a := range addrs.SliceFrom(1).All() {
+		if xnetip.ComparePrefixes(a, addr) < 0 {
+			addr = a
+		}
+	}
+	return addr.Addr()
 }
 
 type FileStatus struct {
 	Files []apitype.WaitingFile
 }
 
+func (*FileStatus) status() {}
+
 type ProfileStatus struct {
 	Profile  ipn.LoginProfile
 	Profiles []ipn.LoginProfile
 }
+
+func (*ProfileStatus) status() {}
 
 type notifier struct {
 	notify chan struct{}

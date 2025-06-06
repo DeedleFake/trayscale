@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -52,7 +53,7 @@ func NewMainWindow(app *App) *MainWindow {
 		app:   app,
 		pages: make(map[string]Page),
 	}
-	fillFromBuilder(&win, menuXML, mainWindowXML)
+	gutil.FillFromUI(&win, menuXML, mainWindowXML)
 
 	win.MainWindow.SetApplication(&app.app.Application)
 

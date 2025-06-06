@@ -3,6 +3,7 @@ package ui
 import (
 	_ "embed"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
@@ -19,6 +20,6 @@ type PreferencesDialog struct {
 
 func NewPreferencesDialog() *PreferencesDialog {
 	var win PreferencesDialog
-	fillFromBuilder(&win, preferencesXML)
+	gutil.FillFromUI(&win, preferencesXML)
 	return &win
 }

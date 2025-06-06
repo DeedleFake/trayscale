@@ -12,14 +12,16 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 )
 
-func New(root gio.Filer) fs.FS {
-	return &gioFS{
-		root: root,
-	}
+type gioFS struct {
+	ctx  context.Context
+	root gio.Filer
 }
 
-type gioFS struct {
-	root gio.Filer
+func New(ctx context.Context, root gio.Filer) fs.FS {
+	return &gioFS{
+		ctx:  ctx,
+		root: root,
+	}
 }
 
 func (fsys *gioFS) Open(fpath string) (fs.File, error) {
@@ -27,7 +29,7 @@ func (fsys *gioFS) Open(fpath string) (fs.File, error) {
 		return nil, &fs.PathError{Op: "open", Path: fpath, Err: fs.ErrInvalid}
 	}
 
-	file := file{file: fsys.root.ResolveRelativePath(fpath)}
+	file := file{ctx: fsys.ctx, file: fsys.root.ResolveRelativePath(fpath)}
 	err := file.init(fpath)
 	if err != nil {
 		return nil, err
@@ -37,15 +39,16 @@ func (fsys *gioFS) Open(fpath string) (fs.File, error) {
 }
 
 type file struct {
+	ctx      context.Context
 	file     gio.Filer
 	stream   *gioutil.StreamReader
 	children *gio.FileEnumerator
 }
 
 func (file *file) init(fpath string) error {
-	dir := file.file.QueryFileType(context.TODO(), 0) == gio.FileTypeDirectory
+	dir := file.file.QueryFileType(file.ctx, 0) == gio.FileTypeDirectory
 	if dir {
-		children, err := file.file.EnumerateChildren(context.TODO(), "*", 0)
+		children, err := file.file.EnumerateChildren(file.ctx, "*", 0)
 		if err != nil {
 			return &fs.PathError{Op: "open", Path: fpath, Err: err}
 		}
@@ -54,17 +57,17 @@ func (file *file) init(fpath string) error {
 		return nil
 	}
 
-	stream, err := file.file.Read(context.TODO())
+	stream, err := file.file.Read(file.ctx)
 	if err != nil {
 		return &fs.PathError{Op: "open", Path: fpath, Err: err}
 	}
-	file.stream = gioutil.Reader(context.TODO(), stream)
+	file.stream = gioutil.Reader(file.ctx, stream)
 
 	return nil
 }
 
 func (file *file) Stat() (fs.FileInfo, error) {
-	info, err := file.file.QueryInfo(context.TODO(), "*", 0)
+	info, err := file.file.QueryInfo(file.ctx, "*", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +87,7 @@ func (file *file) ReadDir(n int) (entries []fs.DirEntry, err error) {
 	}
 
 	for n != 0 {
-		info, err := file.children.NextFile(context.TODO())
+		info, err := file.children.NextFile(file.ctx)
 		if err != nil {
 			return entries, err
 		}
@@ -108,7 +111,7 @@ func (file *file) Close() error {
 		errs[0] = file.stream.Close()
 	}
 	if file.children != nil {
-		errs[1] = file.children.Close(context.TODO())
+		errs[1] = file.children.Close(file.ctx)
 	}
 	return errors.Join(errs[:]...)
 }

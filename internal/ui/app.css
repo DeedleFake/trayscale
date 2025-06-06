@@ -7,3 +7,7 @@ list.navigation-sidebar label {
 	padding: 0px;
 	margin: 0px;
 }
+
+label.code {
+	padding: 16px;
+}

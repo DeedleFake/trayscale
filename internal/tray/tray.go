@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"image/png"
+	"sync"
 
 	"deedles.dev/tray"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -46,6 +47,7 @@ type Tray struct {
 	OnSelfNode   func()
 	OnQuit       func()
 
+	m    sync.RWMutex
 	item *tray.Item
 	icon *tray.Pixmap
 
@@ -56,10 +58,13 @@ type Tray struct {
 	quitItem       *tray.MenuItem
 }
 
-func (t *Tray) Start(s *tsutil.IPNStatus) error {
+func (t *Tray) Start(status *tsutil.IPNStatus) error {
 	if t.item != nil {
 		return nil
 	}
+
+	t.m.Lock()
+	defer t.m.Unlock()
 
 	item, err := tray.New(
 		tray.ItemID("dev.deedles.Trayscale"),
@@ -84,13 +89,20 @@ func (t *Tray) Start(s *tsutil.IPNStatus) error {
 	menu.AddChild(tray.MenuItemType(tray.Separator))
 	t.quitItem, _ = menu.AddChild(tray.MenuItemLabel("Quit"), handler(t.OnQuit))
 
-	t.Update(s)
+	t.update(status)
 
 	return nil
 }
 
 func (t *Tray) Close() error {
-	if t == nil || t.item == nil {
+	if t == nil {
+		return nil
+	}
+
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	if t.item == nil {
 		return nil
 	}
 
@@ -100,8 +112,24 @@ func (t *Tray) Close() error {
 	return err
 }
 
-func (t *Tray) Update(status *tsutil.IPNStatus) {
-	if t == nil || t.item == nil {
+func (t *Tray) Update(s tsutil.Status) {
+	if t == nil {
+		return
+	}
+
+	status, ok := s.(*tsutil.IPNStatus)
+	if !ok {
+		return
+	}
+
+	t.m.RLock()
+	defer t.m.RUnlock()
+
+	t.update(status)
+}
+
+func (t *Tray) update(status *tsutil.IPNStatus) {
+	if t.item == nil {
 		return
 	}
 
@@ -120,8 +148,8 @@ func (t *Tray) Update(status *tsutil.IPNStatus) {
 	)
 }
 
-func (t *Tray) updateStatusIcon(s *tsutil.IPNStatus) {
-	newIcon := statusIcon(s)
+func (t *Tray) updateStatusIcon(status *tsutil.IPNStatus) {
+	newIcon := statusIcon(status)
 	if newIcon == t.icon {
 		return
 	}
@@ -130,23 +158,23 @@ func (t *Tray) updateStatusIcon(s *tsutil.IPNStatus) {
 	t.item.SetProps(tray.ItemIconPixmap(newIcon))
 }
 
-func statusIcon(s *tsutil.IPNStatus) *tray.Pixmap {
-	if !s.Online() {
+func statusIcon(status *tsutil.IPNStatus) *tray.Pixmap {
+	if !status.Online() {
 		return &statusIconInactive
 	}
-	if s.ExitNodeActive() {
+	if status.ExitNodeActive() {
 		return &statusIconExitNode
 	}
 	return &statusIconActive
 }
 
-func selfTitle(s *tsutil.IPNStatus) (string, bool) {
-	addr := s.SelfAddr()
+func selfTitle(status *tsutil.IPNStatus) (string, bool) {
+	addr := status.SelfAddr()
 	if !addr.IsValid() {
 		return "Not connected", false
 	}
 
-	return fmt.Sprintf("%v (%v)", s.NetMap.SelfNode.DisplayName(true), addr), true
+	return fmt.Sprintf("%v (%v)", status.NetMap.SelfNode.DisplayName(true), addr), true
 }
 
 func connToggleText(online bool) string {
@@ -157,8 +185,8 @@ func connToggleText(online bool) string {
 	return "Connect"
 }
 
-func exitToggleText(s *tsutil.IPNStatus) string {
-	if s.ExitNodeActive() {
+func exitToggleText(status *tsutil.IPNStatus) string {
+	if status.ExitNodeActive() {
 		// TODO: Show some actual information about the current exit node?
 		return "Disable exit node"
 	}

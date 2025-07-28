@@ -30,11 +30,11 @@
 	<launchable type="desktop-id">dev.deedles.Trayscale.desktop</launchable>
 	<screenshots>
 		<screenshot type="default">
-			<image>https://github.com/user-attachments/assets/2d5467cc-a4fb-44e7-876e-04e9232b01c1</image>
+			<image>https://github.com/user-attachments/assets/cc48c8d9-8f69-45eb-a52b-9e78be186ae2</image>
 			<caption>Connected to Tailscale</caption>
 		</screenshot>
 		<screenshot>
-			<image>https://github.com/user-attachments/assets/41d25bdf-8f09-45c8-bc9f-97dc8cd9f3d6</image>
+			<image>https://github.com/user-attachments/assets/49338246-1590-4282-bae5-3a744f0f30dd</image>
 			<caption>Not connected to Tailscale</caption>
 		</screenshot>
 	</screenshots>

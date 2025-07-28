@@ -20,10 +20,7 @@ import (
 
 const mullvadPageBaseName = "Mullvad Exit Nodes"
 
-var (
-	mullvadIconDefault  = peerIconExitNodeOption
-	mullvadIconExitNode = peerIconExitNodeOnline
-)
+var mullvadIcon = gio.NewThemedIconWithDefaultFallbacks("network-workgroup-symbolic")
 
 //go:embed mullvadpage.ui
 var mullvadPageXML string
@@ -67,6 +64,7 @@ func (page *MullvadPage) Actions() gio.ActionGrouper {
 func (page *MullvadPage) Init(row *PageRow) {
 	page.row = row
 	row.SetTitle(mullvadPageBaseName)
+	row.SetIcon(mullvadIcon)
 	row.Row().AddCSSClass("mullvad")
 }
 
@@ -84,7 +82,6 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 	}
 
 	var subtitle string
-	icon := mullvadIconDefault
 
 	var exitNodeID tailcfg.StableNodeID
 	if exitNode := status.ExitNode(); exitNode.Valid() {
@@ -108,7 +105,6 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 			page.locations[countryCode].SetSubtitle("")
 
 			if exitNode {
-				icon = mullvadIconExitNode
 				subtitle = mullvadLongLocationName(loc)
 				exitNodeCountryCode = countryCode
 			}
@@ -128,7 +124,6 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 	}
 
 	page.row.SetSubtitle(subtitle)
-	page.row.SetIcon(icon)
 	if exitNodeCountryCode != "" {
 		page.locations[exitNodeCountryCode].SetSubtitle("Current exit node location")
 	}

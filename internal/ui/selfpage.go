@@ -25,6 +25,8 @@ import (
 	"tailscale.com/tailcfg"
 )
 
+var selfIcon = gio.NewThemedIconWithDefaultFallbacks("computer-symbolic")
+
 //go:embed selfpage.ui
 var selfPageXML string
 
@@ -383,7 +385,7 @@ func (page *SelfPage) Actions() gio.ActionGrouper {
 func (page *SelfPage) Init(row *PageRow) {
 	page.row = row
 	row.SetSubtitle("This machine")
-	page.row.SetIconName("computer-symbolic")
+	page.row.SetIcon(selfIcon)
 	row.Row().AddCSSClass("self")
 }
 

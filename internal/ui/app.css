@@ -9,19 +9,19 @@ list.navigation-sidebar row image {
 }
 
 list.navigation-sidebar row.self image {
-	background-color: rgba(0, 0, 255, .5);
+	background-color: alpha(lightblue, .5);
 }
 
 list.navigation-sidebar row.mullvad image {
-	background-color: rgba(255, 255, 0, .75);
+	background-color: alpha(gold, .5);
 }
 
 list.navigation-sidebar row.peer.online image {
-	background-color: rgba(0, 255, 0, .5);
+	background-color: alpha(lightgreen, .5);
 }
 
 list.navigation-sidebar row.peer:not(.online) image {
-	background-color: rgba(255, 0, 0, .5);
+	background-color: alpha(red, .5);
 }
 
 list.navigation-sidebar label {

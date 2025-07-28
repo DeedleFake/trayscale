@@ -384,6 +384,7 @@ func (page *SelfPage) Init(row *PageRow) {
 	page.row = row
 	row.SetSubtitle("This machine")
 	page.row.SetIconName("computer-symbolic")
+	row.Row().AddCSSClass("self")
 }
 
 func (page *SelfPage) Update(status tsutil.Status) bool {

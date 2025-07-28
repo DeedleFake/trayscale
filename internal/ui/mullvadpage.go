@@ -67,6 +67,7 @@ func (page *MullvadPage) Actions() gio.ActionGrouper {
 func (page *MullvadPage) Init(row *PageRow) {
 	page.row = row
 	row.SetTitle(mullvadPageBaseName)
+	row.Row().AddCSSClass("mullvad")
 }
 
 func (page *MullvadPage) Update(s tsutil.Status) bool {

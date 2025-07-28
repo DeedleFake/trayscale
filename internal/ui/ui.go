@@ -95,6 +95,8 @@ func NewPageRow(page *adw.ViewStackPage) *PageRow {
 	icon.NotifyProperty("icon-name", func() {
 		page.SetIconName(icon.IconName())
 	})
+	icon.SetVExpand(false)
+	icon.SetVAlign(gtk.AlignCenter)
 
 	row := adw.NewActionRow()
 	row.AddPrefix(icon)

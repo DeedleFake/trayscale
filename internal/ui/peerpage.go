@@ -243,6 +243,7 @@ func (page *PeerPage) Actions() gio.ActionGrouper {
 
 func (page *PeerPage) Init(row *PageRow) {
 	page.row = row
+	row.Row().AddCSSClass("peer")
 }
 
 func (page *PeerPage) Update(s tsutil.Status) bool {
@@ -273,6 +274,7 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	page.row.SetTitle(peerName(page.peer))
 	page.row.SetSubtitle(peerSubtitle(exitNodeOption, exitNode))
 	page.row.SetIcon(peerIcon(online, exitNodeOption, exitNode))
+	gutil.SetCSSClass(page.row.Row(), "online", online)
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())
@@ -327,7 +329,7 @@ var (
 	peerIconDefault         = gio.NewThemedIconWithDefaultFallbacks("network-wired-symbolic")
 )
 
-func peerIcon(online bool, exitNodeOption, exitNode bool) gio.Iconner {
+func peerIcon(online, exitNodeOption, exitNode bool) gio.Iconner {
 	if exitNode {
 		if !online {
 			return peerIconExitNodeOffline

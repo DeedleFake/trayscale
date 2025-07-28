@@ -320,11 +320,11 @@ func peerSubtitle(exitNodeOption, exitNode bool) string {
 }
 
 var (
-	peerIconExitNodeOffline = gio.NewThemedIconFromNames([]string{"network-vpn-acquiring-symbolic"})
-	peerIconExitNodeOnline  = gio.NewThemedIconFromNames([]string{"network-vpn-symbolic", "security-high-symbolic"})
-	peerIconOffline         = gio.NewThemedIconFromNames([]string{"network-wired-disconnected-symbolic"})
-	peerIconExitNodeOption  = gio.NewThemedIconFromNames([]string{"network-workgroup-symbolic"})
-	peerIconDefault         = gio.NewThemedIconFromNames([]string{"network-wired-symbolic"})
+	peerIconExitNodeOffline = gio.NewThemedIconWithDefaultFallbacks("security-low-symbolic")
+	peerIconExitNodeOnline  = gio.NewThemedIconWithDefaultFallbacks("security-high-symbolic")
+	peerIconOffline         = gio.NewThemedIconWithDefaultFallbacks("network-offline-symbolic")
+	peerIconExitNodeOption  = gio.NewThemedIconWithDefaultFallbacks("network-vpn-symbolic")
+	peerIconDefault         = gio.NewThemedIconWithDefaultFallbacks("network-wired-symbolic")
 )
 
 func peerIcon(online bool, exitNodeOption, exitNode bool) gio.Iconner {

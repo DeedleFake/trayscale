@@ -147,3 +147,24 @@ func PointerToWidgetter[T any, P interface {
 	}
 	return p
 }
+
+// Classy wraps the CSS-related methods of a gtk.Widget.
+type Classy interface {
+	AddCSSClass(string)
+	RemoveCSSClass(string)
+	HasCSSClass(string) bool
+	CSSClasses() []string
+}
+
+// SetCSSClass adds or removes a CSS class based on a boolean
+// argument.
+func SetCSSClass(w Classy, class string, force bool) {
+	if force {
+		w.AddCSSClass(class)
+		return
+	}
+
+	if !force {
+		w.RemoveCSSClass(class)
+	}
+}

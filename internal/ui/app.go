@@ -76,6 +76,22 @@ func (a *App) stopSpin() {
 	})
 }
 
+func (a *App) showOperatorDialog() {
+	Info{
+		Heading: "User is not Tailscale Operator",
+		Body:    "Some functionality may not work as expected. To resolve, run the following command in a terminal:",
+		Extra: func() gtk.Widgetter {
+			const command = "sudo tailscale set --operator=$USER"
+			w := gtk.NewLabel(command)
+			w.AddCSSClass("code")
+			w.AddCSSClass("monospace")
+			w.AddCSSClass("frame")
+			w.SetSelectable(true)
+			return w
+		},
+	}.Show(a, nil)
+}
+
 func (a *App) update(status tsutil.Status) {
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
@@ -94,10 +110,7 @@ func (a *App) update(status tsutil.Status) {
 		if online && !a.operatorCheck {
 			a.operatorCheck = true
 			if !status.OperatorIsCurrent() {
-				Info{
-					Heading: "User is not Tailscale Operator",
-					Body:    "Some functionality may not work as expected. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
-				}.Show(a, nil)
+				a.showOperatorDialog()
 			}
 		}
 
@@ -267,10 +280,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	loginAction.ConnectActivate(func(p *glib.Variant) {
 		status := <-a.poller.GetIPN()
 		if !status.OperatorIsCurrent() {
-			Info{
-				Heading: "User is not Tailscale Operator",
-				Body:    "Login via Trayscale is not possible unless the current user is set as the operator. To resolve, run\n<tt>sudo tailscale set --operator=$USER</tt>\nin the command-line.",
-			}.Show(a, nil)
+			a.showOperatorDialog()
 			return
 		}
 
@@ -414,6 +424,7 @@ func (a *App) Run(ctx context.Context) {
 	defer cancel()
 
 	a.init(ctx)
+	context.AfterFunc(ctx, a.Quit)
 
 	err := a.app.Register(ctx)
 	if err != nil {
@@ -426,11 +437,6 @@ func (a *App) Run(ctx context.Context) {
 		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
-
-	go func() {
-		<-ctx.Done()
-		a.Quit()
-	}()
 
 	a.app.Run(os.Args)
 }

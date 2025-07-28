@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -18,6 +19,8 @@ import (
 )
 
 const mullvadPageBaseName = "Mullvad Exit Nodes"
+
+var mullvadIcon = gio.NewThemedIconWithDefaultFallbacks("network-workgroup-symbolic")
 
 //go:embed mullvadpage.ui
 var mullvadPageXML string
@@ -39,7 +42,7 @@ func NewMullvadPage(a *App, status *tsutil.IPNStatus) *MullvadPage {
 		locations: make(map[string]*adw.ExpanderRow),
 		exitNodes: make(map[tailcfg.StableNodeID]*mullvadExitNodeRow),
 	}
-	fillFromBuilder(&page, mullvadPageXML)
+	gutil.FillFromUI(&page, mullvadPageXML)
 
 	page.LocationList.SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
 		e1 := r1.Cast().(*adw.ExpanderRow)
@@ -61,6 +64,8 @@ func (page *MullvadPage) Actions() gio.ActionGrouper {
 func (page *MullvadPage) Init(row *PageRow) {
 	page.row = row
 	row.SetTitle(mullvadPageBaseName)
+	row.SetIcon(mullvadIcon)
+	row.Row().AddCSSClass("mullvad")
 }
 
 func (page *MullvadPage) Update(s tsutil.Status) bool {
@@ -77,7 +82,6 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 	}
 
 	var subtitle string
-	icon := "network-workgroup-symbolic"
 
 	var exitNodeID tailcfg.StableNodeID
 	if exitNode := status.ExitNode(); exitNode.Valid() {
@@ -102,7 +106,6 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 
 			if exitNode {
 				subtitle = mullvadLongLocationName(loc)
-				icon = "network-vpn-symbolic"
 				exitNodeCountryCode = countryCode
 			}
 		}
@@ -121,7 +124,6 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 	}
 
 	page.row.SetSubtitle(subtitle)
-	page.row.SetIconName(icon)
 	if exitNodeCountryCode != "" {
 		page.locations[exitNodeCountryCode].SetSubtitle("Current exit node location")
 	}
@@ -136,7 +138,7 @@ func (page *MullvadPage) getLocationRow(loc tailcfg.LocationView) *adw.ExpanderR
 
 	row := adw.NewExpanderRow()
 	row.SetTitle(mullvadLocationName(loc))
-	expanderRowListBox(row).SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
+	gutil.ExpanderRowListBox(row).SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
 		sw1 := r1.Cast().(*adw.SwitchRow)
 		sw2 := r2.Cast().(*adw.SwitchRow)
 		c1, s1 := splitCityState(sw1.Title())

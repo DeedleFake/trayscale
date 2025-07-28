@@ -31,20 +31,13 @@ func Reader(ctx context.Context, file gio.Filer) (io.ReadCloser, int64, string, 
 }
 
 func dirReader(ctx context.Context, file gio.Filer) (io.ReadCloser, int64, string, error) {
-	done := make(chan struct{})
-
 	r, w := io.Pipe()
-	go func() {
-		defer w.Close()
-
-		select {
-		case <-ctx.Done():
-		case <-done:
-		}
-	}()
 
 	go func() {
-		defer close(done)
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		context.AfterFunc(ctx, func() { w.Close() })
 
 		z, _ := zstd.NewWriter(w)
 		defer z.Close()
@@ -52,8 +45,8 @@ func dirReader(ctx context.Context, file gio.Filer) (io.ReadCloser, int64, strin
 		w := tar.NewWriter(z)
 		defer w.Close()
 
-		root := gioFS{root: file}
-		err := w.AddFS(&root)
+		root := New(ctx, file)
+		err := w.AddFS(root)
 		if err != nil {
 			slog.Error("write tar file", "source", file.Path(), "err", err)
 		}

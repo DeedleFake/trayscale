@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/trayscale/internal/xnetip"
@@ -82,7 +83,7 @@ type PeerPage struct {
 
 func NewPeerPage(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeView) *PeerPage {
 	var page PeerPage
-	fillFromBuilder(&page, peerPageXML)
+	gutil.FillFromUI(&page, peerPageXML)
 	page.init(a, status, peer)
 	return &page
 }
@@ -116,7 +117,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 		open(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 			files, err := finish(res)
 			if err != nil {
-				if !errHasCode(err, int(gtk.DialogErrorDismissed)) {
+				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissed)) {
 					slog.Error("open files", "err", err)
 				}
 				return
@@ -242,6 +243,7 @@ func (page *PeerPage) Actions() gio.ActionGrouper {
 
 func (page *PeerPage) Init(row *PageRow) {
 	page.row = row
+	row.Row().AddCSSClass("peer")
 }
 
 func (page *PeerPage) Update(s tsutil.Status) bool {
@@ -271,7 +273,8 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 
 	page.row.SetTitle(peerName(page.peer))
 	page.row.SetSubtitle(peerSubtitle(exitNodeOption, exitNode))
-	page.row.SetIconName(peerIcon(online, exitNodeOption, exitNode))
+	page.row.SetIcon(peerIcon(online, exitNodeOption, exitNode))
+	gutil.SetCSSClass(page.row.Row(), "online", online)
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())
@@ -318,19 +321,27 @@ func peerSubtitle(exitNodeOption, exitNode bool) string {
 	return ""
 }
 
-func peerIcon(online bool, exitNodeOption, exitNode bool) string {
+var (
+	peerIconExitNodeOffline = gio.NewThemedIconWithDefaultFallbacks("security-low-symbolic")
+	peerIconExitNodeOnline  = gio.NewThemedIconWithDefaultFallbacks("security-high-symbolic")
+	peerIconOffline         = gio.NewThemedIconWithDefaultFallbacks("network-offline-symbolic")
+	peerIconExitNodeOption  = gio.NewThemedIconWithDefaultFallbacks("network-vpn-symbolic")
+	peerIconDefault         = gio.NewThemedIconWithDefaultFallbacks("network-wired-symbolic")
+)
+
+func peerIcon(online, exitNodeOption, exitNode bool) gio.Iconner {
 	if exitNode {
 		if !online {
-			return "network-vpn-acquiring-symbolic"
+			return peerIconExitNodeOffline
 		}
-		return "network-vpn-symbolic"
+		return peerIconExitNodeOnline
 	}
 	if !online {
-		return "network-wired-offline-symbolic"
+		return peerIconOffline
 	}
 	if exitNodeOption {
-		return "folder-remote-symbolic"
+		return peerIconExitNodeOption
 	}
 
-	return "network-wired-symbolic"
+	return peerIconDefault
 }

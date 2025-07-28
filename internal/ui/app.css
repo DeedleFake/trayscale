@@ -3,7 +3,32 @@ list.navigation-sidebar row {
 	margin: 0px 6px;
 }
 
+list.navigation-sidebar row image {
+	border-radius: 50%;
+	padding: 6px;
+}
+
+list.navigation-sidebar row.self image {
+	background-color: mix(@theme_bg_color, lightblue, .5);
+}
+
+list.navigation-sidebar row.mullvad image {
+	background-color: mix(@theme_bg_color, gold, .5);
+}
+
+list.navigation-sidebar row.peer.online image {
+	background-color: mix(@theme_bg_color, lightgreen, .5);
+}
+
+list.navigation-sidebar row.peer:not(.online) image {
+	background-color: mix(@theme_bg_color, red, .5);
+}
+
 list.navigation-sidebar label {
 	padding: 0px;
 	margin: 0px;
+}
+
+label.code {
+	padding: 16px;
 }

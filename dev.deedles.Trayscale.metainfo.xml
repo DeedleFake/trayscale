@@ -30,11 +30,11 @@
 	<launchable type="desktop-id">dev.deedles.Trayscale.desktop</launchable>
 	<screenshots>
 		<screenshot type="default">
-			<image>https://github.com/user-attachments/assets/2d5467cc-a4fb-44e7-876e-04e9232b01c1</image>
+			<image>https://github.com/user-attachments/assets/cc48c8d9-8f69-45eb-a52b-9e78be186ae2</image>
 			<caption>Connected to Tailscale</caption>
 		</screenshot>
 		<screenshot>
-			<image>https://github.com/user-attachments/assets/41d25bdf-8f09-45c8-bc9f-97dc8cd9f3d6</image>
+			<image>https://github.com/user-attachments/assets/49338246-1590-4282-bae5-3a744f0f30dd</image>
 			<caption>Not connected to Tailscale</caption>
 		</screenshot>
 	</screenshots>
@@ -54,6 +54,17 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.18.1" date="2025-07-28">
+			<description>
+				<ul>
+					<li>Use new icons for peer list with better fallbacks.</li>
+					<li>Color backgrounds of icons to show connection status.</li>
+					<li>Improvements to interface when user is not the Tailscale operator.</li>
+					<li>Fix a race condition in the tray icon.</li>
+					<li>Bug fixes and performance improvements.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.18.0" date="2025-05-23">
 			<description>
 				<ul>

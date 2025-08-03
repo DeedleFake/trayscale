@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -96,7 +97,6 @@ func (a *App) update(status tsutil.Status) {
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
 		online := status.Online()
-		a.tray.Update(status)
 		if a.online != online {
 			a.online = online
 
@@ -105,6 +105,12 @@ func (a *App) update(status tsutil.Status) {
 				body = "Tailscale is connected."
 			}
 			a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
+		}
+
+		useExitNodeAction, ok := gutil.Assert[*gio.SimpleAction](a.app.LookupAction("use_exit_node"))
+		if ok {
+			useExitNodeAction.SetEnabled(online)
+			useExitNodeAction.SetState(glib.NewVariantBoolean(status.ExitNodeActive()))
 		}
 
 		if online && !a.operatorCheck {
@@ -117,6 +123,8 @@ func (a *App) update(status tsutil.Status) {
 		if !online {
 			a.files = nil
 		}
+
+		a.tray.Update(status)
 
 		if a.win != nil {
 			a.win.Update(status)
@@ -258,6 +266,21 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.win.MainWindow.Present()
 		return
 	}
+
+	useExitNodeAction := gio.NewSimpleActionStateful("use_exit_node", nil, glib.NewVariantBoolean(false))
+	useExitNodeAction.ConnectChangeState(func(state *glib.Variant) {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		s := state.Boolean()
+		err := tsutil.SetUseExitNode(ctx, s)
+		if err != nil {
+			slog.Error("failed to set exit node state", "state", s, "err", err)
+			a.win.Toast(fmt.Sprintf("Failed to toggle exit node"))
+		}
+	})
+	useExitNodeAction.SetEnabled(false)
+	a.app.AddAction(useExitNodeAction)
 
 	changeControlServerAction := gio.NewSimpleAction("change_control_server", nil)
 	changeControlServerAction.ConnectActivate(func(p *glib.Variant) { a.showChangeControlServer() })

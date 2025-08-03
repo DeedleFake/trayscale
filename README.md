@@ -7,7 +7,7 @@ Trayscale is an unofficial GUI interface for the Tailscale daemon particularly f
 
 _Disclaimer: This project is in a beta state. There may still be undiscovered bugs or compatibility issues. Use at your own risk._
 
-![screenshot](https://github.com/user-attachments/assets/cc48c8d9-8f69-45eb-a52b-9e78be186ae2)
+![screenshot](https://github.com/user-attachments/assets/4f66b16d-0d6c-4dde-86d3-ecc9af6ea05e)
 
 Tailscale Config
 ----------------

@@ -326,7 +326,7 @@ var (
 	peerIconExitNodeOnline  = gio.NewThemedIconWithDefaultFallbacks("security-high-symbolic")
 	peerIconOffline         = gio.NewThemedIconWithDefaultFallbacks("network-offline-symbolic")
 	peerIconExitNodeOption  = gio.NewThemedIconWithDefaultFallbacks("network-vpn-symbolic")
-	peerIconDefault         = gio.NewThemedIconWithDefaultFallbacks("network-wired-symbolic")
+	peerIconDefault         = gio.NewThemedIconWithDefaultFallbacks("network-transmit-receive-symbolic")
 )
 
 func peerIcon(online, exitNodeOption, exitNode bool) gio.Iconner {

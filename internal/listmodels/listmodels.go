@@ -21,7 +21,7 @@ func Convert[T any](obj *glib.Object) T {
 func Objects(list gio.ListModeller) iter.Seq2[uint, *glib.Object] {
 	return func(yield func(uint, *glib.Object) bool) {
 		length := list.NItems()
-		for i := uint(0); i < length; i++ {
+		for i := range length {
 			item := list.Item(i)
 			if !yield(i, item) {
 				return
@@ -106,7 +106,7 @@ func Update[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
 
 func Index[T any](m gio.ListModeller, f func(T) bool) (uint, bool) {
 	length := m.NItems()
-	for i := uint(0); i < length; i++ {
+	for i := range length {
 		if f(Convert[T](m.Item(i))) {
 			return i, true
 		}

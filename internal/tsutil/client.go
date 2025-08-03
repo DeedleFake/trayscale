@@ -2,6 +2,7 @@ package tsutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -96,17 +97,21 @@ func ExitNode(ctx context.Context, peer tailcfg.StableNodeID) error {
 }
 
 func SetUseExitNode(ctx context.Context, use bool) error {
-	err := localClient.SetUseExitNode(ctx, use)
-	if err == nil {
+	useErr := localClient.SetUseExitNode(ctx, use)
+	if useErr == nil {
 		return nil
 	}
 
-	// TODO: If there's no prior exit node, get a suggested node and use
-	// that? Unfortunately, the returned errors seem to be mostly opaque
-	// strings, so that kind of complicates detecting that specific
-	// situation...
+	suggested, suggestErr := localClient.SuggestExitNode(ctx)
+	if suggestErr == nil {
+		slog.Info("got suggested exit node", "id", suggested.ID, "name", suggested.Name, "location", suggested.Location)
+		suggestErr = ExitNode(ctx, suggested.ID)
+		if suggestErr == nil {
+			return nil
+		}
+	}
 
-	return err
+	return errors.Join(useErr, suggestErr)
 }
 
 // AdvertiseExitNode enables and disables exit node advertisement for

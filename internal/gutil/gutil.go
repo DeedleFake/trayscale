@@ -168,3 +168,19 @@ func SetCSSClass(w Classy, class string, force bool) {
 		w.RemoveCSSClass(class)
 	}
 }
+
+// Caster wraps the [glib.Object.Cast] method.
+type Caster interface {
+	Cast() glib.Objector
+}
+
+// Assert casts anything that implements Cast to the specified type.
+// Its main point is to safely and conveniently handle nil.
+func Assert[T any](obj Caster) (v T, ok bool) {
+	if obj == nil {
+		return v, false
+	}
+
+	v, ok = obj.Cast().(T)
+	return v, ok
+}

@@ -59,6 +59,7 @@
 				<ul>
 					<li>Use suggested exit node if previous node activation fails.</li>
 					<li>Add an exit node toggle to the window's main menu.</li>
+					<li>Change icon for online peers.</li>
 				</ul>
 			</description>
 		</release>

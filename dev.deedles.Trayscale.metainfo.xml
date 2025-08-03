@@ -54,6 +54,14 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.18.2" date="2025-08-03">
+			<description>
+				<ul>
+					<li>Use suggested exit node if previous node activation fails.</li>
+					<li>Add an exit node toggle to the window's main menu.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.18.1" date="2025-07-28">
 			<description>
 				<ul>

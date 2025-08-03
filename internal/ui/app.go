@@ -276,7 +276,9 @@ func (a *App) onAppActivate(ctx context.Context) {
 		err := tsutil.SetUseExitNode(ctx, s)
 		if err != nil {
 			slog.Error("failed to set exit node state", "state", s, "err", err)
-			a.win.Toast(fmt.Sprintf("Failed to toggle exit node"))
+			if a.win != nil {
+				a.win.Toast("Failed to toggle exit node")
+			}
 		}
 	})
 	useExitNodeAction.SetEnabled(false)

@@ -54,6 +54,13 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.18.3" date="2025-08-05">
+			<description>
+				<ul>
+					<li>Fix crash that can happen at startup.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.18.2" date="2025-08-03">
 			<description>
 				<ul>

@@ -176,7 +176,10 @@ type Caster interface {
 
 // Assert casts anything that implements Cast to the specified type.
 // Its main point is to safely and conveniently handle nil.
-func Assert[T any](obj Caster) (v T, ok bool) {
+func Assert[T any, V any, C interface {
+	Caster
+	*V
+}](obj C) (v T, ok bool) {
 	if obj == nil {
 		return v, false
 	}

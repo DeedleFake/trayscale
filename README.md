@@ -60,6 +60,9 @@ To build it with build dependencies installed from homebrew, firstly install fol
 
 Run `./dist.sh build` and `./dist.sh install-macos`
 
+Known problems on macos:
++ no tray icon
+
 Donate
 ------
 

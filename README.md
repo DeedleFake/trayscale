@@ -46,6 +46,20 @@ If you would like, you can also copy the `.desktop` file, the icon, and other pi
 
 Note that without copying both of these files into the correct locations, notifications will likely not function correctly in GNOME. Also keep in mind that if the `trayscale` binary is not in your `$PATH` in a way that the desktop environment can locate then the `.desktop` file will not be considered valid. If this is an issue, modify the file manually and change the `Exec=` line to point directly to the binary with an absolute path.
 
+### macOS
+
+Trayscale is also useful on macOS to provide a gui for tailscale cli version.
+
+Trayscale is available on nixpkgs unstable channel https://search.nixos.org/packages?channel=unstable&query=trayscale Note that binary cache is currently unavailable (Aug 25 2025) and it takes some time to build from source
+
+To build it with build dependencies installed from homebrew, firstly install following packages in addition to go compiler:
++ "libadwaita"
++ "gtk4"
++ "gobject-introspection"
++ "harfbuzz"
+
+Run `./dist.sh build` and `./dist.sh install-macos`
+
 Donate
 ------
 

@@ -46,6 +46,25 @@ If you would like, you can also copy the `.desktop` file, the icon, and other pi
 
 Note that without copying both of these files into the correct locations, notifications will likely not function correctly in GNOME. Also keep in mind that if the `trayscale` binary is not in your `$PATH` in a way that the desktop environment can locate then the `.desktop` file will not be considered valid. If this is an issue, modify the file manually and change the `Exec=` line to point directly to the binary with an absolute path.
 
+### macOS
+
+First of all, please note that macOS support is not maintained or tested by the primary developer of Trayscale. Also note that the tray icon will _not_ work in macOS.
+
+The simplest way to install Trayscale on macOS is via [Nixpkgs' unstable channel](https://search.nixos.org/packages?channel=unstable&query=trayscale). Note that it will need to be built from source if a binary cache is unavailable and the build can take some time.
+
+To build it locally without Nix, first make sure that you have installed the Go compiler, as well as necessary dependencies. The dependencies are available as the following Homebrew packages:
+* `libadwaita`
+* `gtk4`
+* `gobject-introspection`
+* `harfbuzz`
+
+Then, run the following in the root of the repository:
+
+```
+$ ./dist.sh build
+$ ./dist.sh install-macos
+```
+
 Donate
 ------
 

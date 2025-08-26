@@ -48,20 +48,22 @@ Note that without copying both of these files into the correct locations, notifi
 
 ### macOS
 
-Trayscale is also useful on macOS to provide a gui for tailscale cli version.
+First of all, please note that macOS support is not maintained or tested by the primary developer of Trayscale. Also note that the tray icon will _not_ work in macOS.
 
-Trayscale is available on nixpkgs unstable channel https://search.nixos.org/packages?channel=unstable&query=trayscale Note that binary cache is currently unavailable (Aug 25 2025) and it takes some time to build from source
+The simplest way to install Trayscale on macOS is via [Nixpkgs' unstable channel](https://search.nixos.org/packages?channel=unstable&query=trayscale). Note that it will need to be built from source if a binary cache is unavailable and the build can take some time.
 
-To build it with build dependencies installed from homebrew, firstly install following packages in addition to go compiler:
-+ "libadwaita"
-+ "gtk4"
-+ "gobject-introspection"
-+ "harfbuzz"
+To build it locally without Nix, first make sure that you have installed the Go compiler, as well as necessary dependencies. The dependencies are available as the following Homebrew packages:
+* `libadwaita`
+* `gtk4`
+* `gobject-introspection`
+* `harfbuzz`
 
-Run `./dist.sh build` and `./dist.sh install-macos`
+Then, run the following in the root of the repository:
 
-Known problems on macos:
-+ no tray icon
+```
+$ ./dist.sh build
+$ ./dist.sh install-macos
+```
 
 Donate
 ------

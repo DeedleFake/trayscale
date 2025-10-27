@@ -5,6 +5,8 @@ import (
 	"net/netip"
 )
 
+// TODO: Remove when netip.Prefix.Compare() is added.
+// https://github.com/golang/go/issues/61642
 func ComparePrefixes(p, p2 netip.Prefix) int {
 	if c := cmp.Compare(p.Addr().BitLen(), p2.Addr().BitLen()); c != 0 {
 		return c

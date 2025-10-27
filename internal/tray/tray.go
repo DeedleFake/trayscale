@@ -5,7 +5,9 @@ import (
 	_ "embed"
 	"fmt"
 	"image/png"
+	"slices"
 	"sync"
+	"unique"
 
 	"deedles.dev/tray"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -23,6 +25,11 @@ var (
 	//go:embed status-icon-exit-node.png
 	statusIconExitNodeData []byte
 	statusIconExitNode     = decode(statusIconExitNodeData)
+
+	selfHandle       = unique.Make("self")
+	connToggleHandle = unique.Make("connToggle")
+	exitToggleHandle = unique.Make("exitToggle")
+	statusIconHandle = unique.Make("statusIcon")
 )
 
 func decode(data []byte) tray.Pixmap {
@@ -47,9 +54,9 @@ type Tray struct {
 	OnSelfNode   func()
 	OnQuit       func()
 
-	m    sync.RWMutex
+	m    sync.Mutex
 	item *tray.Item
-	icon *tray.Pixmap
+	prev map[unique.Handle[string]][]any
 
 	showItem       *tray.MenuItem
 	connToggleItem *tray.MenuItem
@@ -78,6 +85,7 @@ func (t *Tray) Start(status *tsutil.IPNStatus) error {
 		return err
 	}
 	t.item = item
+	t.prev = make(map[unique.Handle[string]][]any)
 
 	menu := item.Menu()
 
@@ -108,7 +116,7 @@ func (t *Tray) Close() error {
 
 	err := t.item.Close()
 	t.item = nil
-	t.icon = nil
+	t.prev = nil
 	return err
 }
 
@@ -122,10 +130,20 @@ func (t *Tray) Update(s tsutil.Status) {
 		return
 	}
 
-	t.m.RLock()
-	defer t.m.RUnlock()
+	t.m.Lock()
+	defer t.m.Unlock()
 
 	t.update(status)
+}
+
+func (t *Tray) dirty(key unique.Handle[string], vals ...any) bool {
+	prev := t.prev[key]
+	if slices.Equal(vals, prev) {
+		return false
+	}
+
+	t.prev[key] = vals
+	return true
 }
 
 func (t *Tray) update(status *tsutil.IPNStatus) {
@@ -134,26 +152,35 @@ func (t *Tray) update(status *tsutil.IPNStatus) {
 	}
 
 	selfTitle, connected := selfTitle(status)
+	connToggleLabel := connToggleText(status.Online())
+	exitToggleLabel := exitToggleText(status)
 
 	t.updateStatusIcon(status)
 
-	t.connToggleItem.SetProps(tray.MenuItemLabel(connToggleText(status.Online())))
-	t.exitToggleItem.SetProps(
-		tray.MenuItemLabel(exitToggleText(status)),
-		tray.MenuItemEnabled(connected),
-	)
-	t.selfNodeItem.SetProps(
-		tray.MenuItemLabel(fmt.Sprintf("This machine: %v", selfTitle)),
-		tray.MenuItemEnabled(connected),
-	)
+	if t.dirty(selfHandle, selfTitle, connected) {
+		t.selfNodeItem.SetProps(
+			tray.MenuItemLabel(fmt.Sprintf("This machine: %v", selfTitle)),
+			tray.MenuItemEnabled(connected),
+		)
+	}
+
+	if t.dirty(connToggleHandle, connToggleLabel) {
+		t.connToggleItem.SetProps(tray.MenuItemLabel(connToggleLabel))
+	}
+
+	if t.dirty(exitToggleHandle, exitToggleLabel, connected) {
+		t.exitToggleItem.SetProps(
+			tray.MenuItemLabel(exitToggleLabel),
+			tray.MenuItemEnabled(connected),
+		)
+	}
 }
 
 func (t *Tray) updateStatusIcon(status *tsutil.IPNStatus) {
 	newIcon := statusIcon(status)
-	if newIcon == t.icon {
+	if !t.dirty(statusIconHandle, newIcon) {
 		return
 	}
-	t.icon = newIcon
 
 	t.item.SetProps(tray.ItemIconPixmap(newIcon))
 }

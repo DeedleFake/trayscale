@@ -54,6 +54,14 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.18.4" date="2025-10-27">
+			<description>
+				<ul>
+					<li>Update Tailscale to v1.90.3.</li>
+					<li>Prevent sending of unchanged data over D-Bus for tray icon updates.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.18.3" date="2025-08-05">
 			<description>
 				<ul>

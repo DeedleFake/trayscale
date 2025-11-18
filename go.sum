@@ -2,8 +2,8 @@
 9fans.net/go v0.0.8-0.20250307142834-96bdba94b63f/go.mod h1:hHyrZRryGqVdqrknjq5OWDLGCTJ2NeEvtrpR96mjraM=
 deedles.dev/mk v0.1.0 h1:xrvuJA3+R/j6/6AZPc+o31I1rotdKLrAYJxhZJwdOuc=
 deedles.dev/mk v0.1.0/go.mod h1:TSFsz0T+BvhNqJae0yrj+KadkN4elx248PCpq2Ol4ME=
-deedles.dev/tray v0.1.9 h1:xPYh0tOpYkSQN2Pjt9t72qtMEPgOEi9jmjUZ5ZR0yhw=
-deedles.dev/tray v0.1.9/go.mod h1:wrE0uW5sZ43keZFD1VcP6fvc/K9v0DTdydUtmtuzHlw=
+deedles.dev/tray v0.1.10-0.20251118005921-8529146ac67f h1:G3vqHVM/pW9/Pg+jhtiyrHPXod7XqM6/F02+RJqkwbA=
+deedles.dev/tray v0.1.10-0.20251118005921-8529146ac67f/go.mod h1:wrE0uW5sZ43keZFD1VcP6fvc/K9v0DTdydUtmtuzHlw=
 deedles.dev/xiter v0.2.1 h1:yyyfo1sDwARp5lyMvILBJpEI28sIFN0TNYagAdBUa+s=
 deedles.dev/xiter v0.2.1/go.mod h1:59997UHUsKAy/8bHUClTfeXdyuLZ6z/+yF++vIpxfx8=
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
@@ -70,8 +70,6 @@ github.com/dblohm7/wingoes v0.0.0-20250822163801-6d8e6105c62d h1:QRKpU+9ZBDs62Ly
 github.com/dblohm7/wingoes v0.0.0-20250822163801-6d8e6105c62d/go.mod h1:SUxUaAK/0UG5lYyZR1L1nC4AaYYvSSYTWQSH3FPcxKU=
 github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250703085337-e94555b846b6 h1:WzOC3KtvrC1hJMz3fbJBg0Ye50nt4Tafor+a/bBHNEA=
 github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250703085337-e94555b846b6/go.mod h1:ZzYiyPe0TqsukfPHi0sK/WwKzm0wIJdSRylLnuvAZNw=
-github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250703085740-f81761ef0e0d h1:4f+Bh+9AFQiz2yzGwpt6vrsgzt0kGNkQJkYHY6xIlPg=
-github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20250703085740-f81761ef0e0d/go.mod h1:ZzYiyPe0TqsukfPHi0sK/WwKzm0wIJdSRylLnuvAZNw=
 github.com/diamondburned/gotk4/pkg v0.3.2-0.20250703063411-16654385f59a h1:dN2jYYZ71hFhoKFSn24pQdKWLZb/XDydBt8pEIkFjJo=
 github.com/diamondburned/gotk4/pkg v0.3.2-0.20250703063411-16654385f59a/go.mod h1:O9K8+PGNFGJpAu8+u5D2Sn5Wae4hxWzHB+AeZNbV/2Q=
 github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e h1:vUmf0yezR0y7jJ5pceLHthLaYf4bA5T14B6q39S4q2Q=

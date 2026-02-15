@@ -292,6 +292,10 @@ func (a *App) onAppActivate(ctx context.Context) {
 	preferencesAction.ConnectActivate(func(p *glib.Variant) { a.showPreferences() })
 	a.app.AddAction(preferencesAction)
 
+	adminDashboardAction := gio.NewSimpleAction("admin_dashboard", nil)
+	adminDashboardAction.ConnectActivate(func(p *glib.Variant) { gtk.NewURILauncher(tsutil.AdminDashboardURL).Launch(ctx, a.window(), nil) })
+	a.app.AddAction(adminDashboardAction)
+
 	aboutAction := gio.NewSimpleAction("about", nil)
 	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAbout() })
 	a.app.AddAction(aboutAction)

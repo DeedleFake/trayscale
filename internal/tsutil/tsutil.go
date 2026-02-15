@@ -25,6 +25,8 @@ import (
 //	return fmt.Sprintf("(%q)", dnsname.SanitizeHostname(ps.HostName))
 //}
 
+const AdminDashboardURL = "https://tailscale.com/admin"
+
 // IsMullvad returns true if peer is a Mullvad exit node.
 func IsMullvad(peer tailcfg.NodeView) bool {
 	return peer.Tags().ContainsFunc(func(tag string) bool {

@@ -7,7 +7,6 @@ import (
 
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/trayscale/internal/xnetip"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -18,7 +17,7 @@ import (
 
 var (
 	addrSorter        = gtk.NewCustomSorter(NewObjectComparer(netip.Addr.Compare))
-	prefixSorter      = gtk.NewCustomSorter(NewObjectComparer(xnetip.ComparePrefixes))
+	prefixSorter      = gtk.NewCustomSorter(NewObjectComparer(netip.Prefix.Compare))
 	waitingFileSorter = gtk.NewCustomSorter(NewObjectComparer(func(f1, f2 apitype.WaitingFile) int {
 		return cmp.Or(
 			cmp.Compare(f1.Name, f2.Name),

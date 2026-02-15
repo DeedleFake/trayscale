@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"deedles.dev/mk"
-	"deedles.dev/trayscale/internal/xnetip"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/feature/taildrop"
 	"tailscale.com/ipn"
@@ -375,7 +374,7 @@ func (s *IPNStatus) SelfAddr() netip.Addr {
 
 	addr := addrs.At(0)
 	for _, a := range addrs.SliceFrom(1).All() {
-		if xnetip.ComparePrefixes(a, addr) < 0 {
+		if a.Compare(addr) < 0 {
 			addr = a
 		}
 	}

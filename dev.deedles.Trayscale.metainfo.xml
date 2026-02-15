@@ -40,8 +40,9 @@
 	</screenshots>
 
 	<url type="homepage">https://github.com/DeedleFake/trayscale</url>
+	<url type="vcs-browser">https://github.com/DeedleFake/trayscale</url>
 	<url type="bugtracker">https://github.com/DeedleFake/trayscale/issues</url>
-	<url type="donation">https://buymeacoffee.com/DeedleFake</url>
+	<url type="donation">https://buymeacoffee.com/deedlefake</url>
 
 	<branding>
 		<color type="primary" scheme_preference="light">#8fb3b2</color>

@@ -13,7 +13,6 @@ import (
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/trayscale/internal/xnetip"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
@@ -184,7 +183,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 			removeButton.SetTooltipText("Remove")
 			removeButton.ConnectClicked(func() {
 				routes := slices.Collect(xiter.Filter(page.routeModel.All(), func(p netip.Prefix) bool {
-					return xnetip.ComparePrefixes(p, route) != 0
+					return p.Compare(route) != 0
 				}))
 				err := tsutil.AdvertiseRoutes(context.TODO(), routes)
 				if err != nil {

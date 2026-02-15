@@ -40,8 +40,9 @@
 	</screenshots>
 
 	<url type="homepage">https://github.com/DeedleFake/trayscale</url>
+	<url type="vcs-browser">https://github.com/DeedleFake/trayscale</url>
 	<url type="bugtracker">https://github.com/DeedleFake/trayscale/issues</url>
-	<url type="donation">https://buymeacoffee.com/DeedleFake</url>
+	<url type="donation">https://buymeacoffee.com/deedlefake</url>
 
 	<branding>
 		<color type="primary" scheme_preference="light">#8fb3b2</color>
@@ -54,6 +55,15 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.18.7" date="2026-02-15">
+			<description>
+				<ul>
+					<li>Add admin page link in menu.</li>
+					<li>Use icon fallbacks for netcheck results and peer online status.</li>
+					<li>Internal cleanup.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.18.6" date="2026-02-11">
 			<description>
 				<ul>

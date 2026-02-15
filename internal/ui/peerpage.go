@@ -288,7 +288,7 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	page.LastSeen.SetText(formatTime(page.peer.LastSeen().Get()))
 	page.LastSeenRow.SetVisible(!online)
 	page.LastHandshake.SetText(formatTime(enginePeer.LastHandshake))
-	page.Online.SetFromIconName(boolIcon(online))
+	page.Online.SetFromGIcon(boolIcon(online))
 
 	routes := func(yield func(netip.Prefix) bool) {
 		for _, r := range page.peer.PrimaryRoutes().All() {

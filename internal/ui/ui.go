@@ -29,6 +29,10 @@ var (
 	stringListSorter = gtk.NewCustomSorter(glib.NewObjectComparer(func(s1, s2 *gtk.StringObject) int {
 		return cmp.Compare(s1.String(), s2.String())
 	}))
+
+	boolTrueIcon    = gio.NewThemedIconWithDefaultFallbacks("emblem-ok-symbolic")
+	boolFalseIcon   = gio.NewThemedIconWithDefaultFallbacks("window-close-symbolic")
+	boolUnknownIcon = gio.NewThemedIconWithDefaultFallbacks("dialog-question-symbolic")
 )
 
 func prioritize[T comparable](target, v1, v2 T) (int, bool) {
@@ -51,17 +55,17 @@ func formatTime(t time.Time) string {
 	return t.Format(time.StampMilli)
 }
 
-func boolIcon(v bool) string {
+func boolIcon(v bool) gio.Iconner {
 	if v {
-		return "emblem-ok-symbolic"
+		return boolTrueIcon
 	}
-	return "window-close-symbolic"
+	return boolFalseIcon
 }
 
-func optBoolIcon(v opt.Bool) string {
+func optBoolIcon(v opt.Bool) gio.Iconner {
 	b, ok := v.Get()
 	if !ok {
-		return "dialog-question-symbolic"
+		return boolUnknownIcon
 	}
 	return boolIcon(b)
 }

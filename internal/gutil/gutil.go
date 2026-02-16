@@ -71,8 +71,8 @@ func FillFromUI[T any](into *T, xml ...string) {
 // ErrHasCode returns true if and only if err is a [gerror.GError] and
 // its error code is code.
 func ErrHasCode(err error, code int) bool {
-	var gerr *gerror.GError
-	if !errors.As(err, &gerr) {
+	gerr, ok := errors.AsType[*gerror.GError](err)
+	if !ok {
 		return false
 	}
 	return gerr.ErrorCode() == code

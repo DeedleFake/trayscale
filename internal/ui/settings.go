@@ -29,13 +29,11 @@ func (a *App) initSettings(ctx context.Context) {
 	a.settings.ConnectChanged(func(key string) {
 		switch key {
 		case "tray-icon":
-			if a.settings.Boolean("tray-icon") {
-				glib.IdleAdd(func() {
-					a.initTray(ctx)
-				})
-				return
-			}
 			glib.IdleAdd(func() {
+				if a.settings.Boolean("tray-icon") {
+					a.initTray(ctx)
+					return
+				}
 				a.tray.Close()
 				a.tray = nil
 			})

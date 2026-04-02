@@ -291,3 +291,5 @@ require (
 )
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+
+replace deedles.dev/tray => github.com/alex-poor/tray v0.1.11-0.20260407004037-2451d98fc544

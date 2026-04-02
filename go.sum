@@ -14,8 +14,6 @@ codeberg.org/puregotk/purego v0.0.0-20260224095105-2513c838cb80 h1:y5ZxMLLOjl4xc
 codeberg.org/puregotk/purego v0.0.0-20260224095105-2513c838cb80/go.mod h1:hVVM4ddvYRlc3IcK3CXJPlMwd/vaLj7gdDBZ6oPgT8w=
 codeberg.org/puregotk/puregotk v0.0.0-20261003054014-d92056b0aa41 h1:IC30NjXeeBj+VLQ9fYa/G4yr63KPA9yuhOXoFmCMYpI=
 codeberg.org/puregotk/puregotk v0.0.0-20261003054014-d92056b0aa41/go.mod h1:SOzlGinx8V9Axu1reSh4uafhrtItio44+9r2b+1fUnQ=
-deedles.dev/tray v0.1.12 h1:VqBUkmBoTazmao7jOeYqoq6EDC7vhSq40pgpjsdSyu0=
-deedles.dev/tray v0.1.12/go.mod h1:A4RqMRUWoMjlI2GEuvOpjX9uPiZtqFnsmaV0gDzZFgo=
 deedles.dev/xiter v0.2.1 h1:yyyfo1sDwARp5lyMvILBJpEI28sIFN0TNYagAdBUa+s=
 deedles.dev/xiter v0.2.1/go.mod h1:59997UHUsKAy/8bHUClTfeXdyuLZ6z/+yF++vIpxfx8=
 dev.gaijin.team/go/exhaustruct/v4 v4.0.0 h1:873r7aNneqoBB3IaFIzhvt2RFYTuHgmMjoKfwODoI1Y=
@@ -68,6 +66,8 @@ github.com/alecthomas/go-check-sumtype v0.5.1-0.20260828200218-ae6904d28606 h1:d
 github.com/alecthomas/go-check-sumtype v0.5.1-0.20260828200218-ae6904d28606/go.mod h1:ZH31IJyNpxpStxP2ayCcPQz+3T2G/OnxIQqe4LWvSDw=
 github.com/alecthomas/repr v0.5.2 h1:SU73FTI9D1P5UNtvseffFSGmdNci/O6RsqzeXJtP0Qs=
 github.com/alecthomas/repr v0.5.2/go.mod h1:Fr0507jx4eOXV7AlPV6AVZLYrLIuIeSOWtW57eE/O/4=
+github.com/alex-poor/tray v0.1.11-0.20260407004037-2451d98fc544 h1:C08lmoOuP+D33/PA2mFs4q+fw3593TPVlvWiR9dsrjA=
+github.com/alex-poor/tray v0.1.11-0.20260407004037-2451d98fc544/go.mod h1:T6LSCKPLN2Y+PfawRiZOq3awibqxBm4RCmYrDQgMf04=
 github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e h1:4dAU9FXIyQktpoUAgOJK3OTFc/xug0PCXYCqU0FgDKI=
 github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e/go.mod h1:cEWa1LVoE5KvSD9ONXsZrj0z6KqySlCCNKHlLzbqAt4=
 github.com/alexkohler/nakedret/v2 v2.0.6 h1:ME3Qef1/KIKr3kWX3nti3hhgNxw6aqN5pZmQiFSsuzQ=

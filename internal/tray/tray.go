@@ -10,7 +10,9 @@ import (
 	"unique"
 
 	"deedles.dev/tray"
+	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
+	"tailscale.com/ipn"
 )
 
 var (
@@ -48,11 +50,12 @@ func handler(f func()) tray.MenuItemProp {
 }
 
 type Tray struct {
-	OnShow       func()
-	OnConnToggle func()
-	OnExitToggle func()
-	OnSelfNode   func()
-	OnQuit       func()
+	OnShow          func()
+	OnConnToggle    func()
+	OnExitToggle    func()
+	OnSelfNode      func()
+	OnProfileSwitch func(ipn.ProfileID)
+	OnQuit          func()
 
 	m    sync.Mutex
 	item *tray.Item
@@ -62,10 +65,12 @@ type Tray struct {
 	connToggleItem *tray.MenuItem
 	exitToggleItem *tray.MenuItem
 	selfNodeItem   *tray.MenuItem
+	profileItems   map[ipn.ProfileID]*tray.MenuItem
+	profileNames   map[ipn.ProfileID]string
 	quitItem       *tray.MenuItem
 }
 
-func (t *Tray) Start(status *tsutil.IPNStatus) error {
+func (t *Tray) Start(status *tsutil.IPNStatus, profiles *tsutil.ProfileStatus) error {
 	if t.item != nil {
 		return nil
 	}
@@ -88,6 +93,38 @@ func (t *Tray) Start(status *tsutil.IPNStatus) error {
 	t.prev = make(map[unique.Handle[string]][]any)
 
 	menu := item.Menu()
+
+	// The "Switch account" submenu must be the first item added to the
+	// menu. There appears to be a quirk in dbusmenu (or some desktop
+	// environment implementations) where children of a submenu added
+	// via MenuItem.AddChild only render correctly when the submenu has
+	// no preceding siblings at the time it is created.
+	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem)
+	t.profileNames = make(map[ipn.ProfileID]string)
+	if profiles != nil && len(profiles.Profiles) > 1 {
+		submenu, _ := menu.AddChild(tray.MenuItemLabel("Switch account"))
+		for _, profile := range profiles.Profiles {
+			id := profile.ID
+			name := profileName(profile)
+			t.profileNames[id] = name
+
+			label := "  " + name
+			if id == profiles.Profile.ID {
+				label = "● " + name
+			}
+
+			child, _ := submenu.AddChild(
+				tray.MenuItemLabel(label),
+				handler(func() {
+					if t.OnProfileSwitch != nil {
+						t.OnProfileSwitch(id)
+					}
+				}),
+			)
+			t.profileItems[id] = child
+		}
+		menu.AddChild(tray.MenuItemType(tray.Separator))
+	}
 
 	t.showItem, _ = menu.AddChild(tray.MenuItemLabel("Show"), handler(t.OnShow))
 	menu.AddChild(tray.MenuItemType(tray.Separator))
@@ -219,4 +256,34 @@ func exitToggleText(status *tsutil.IPNStatus) string {
 	}
 
 	return "Enable exit node"
+}
+
+// SetActiveProfile updates the profile indicator labels. It must be
+// called from a non-GTK goroutine to avoid deadlocking with D-Bus.
+func (t *Tray) SetActiveProfile(id ipn.ProfileID) {
+	if t == nil {
+		return
+	}
+
+	// Serialize indicator updates so concurrent callers cannot
+	// interleave their SetProps calls and end up with multiple items
+	// marked active.
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	for pid, item := range t.profileItems {
+		name := t.profileNames[pid]
+		label := "  " + name
+		if pid == id {
+			label = "● " + name
+		}
+		item.SetProps(tray.MenuItemLabel(label))
+	}
+}
+
+func profileName(profile ipn.LoginProfile) string {
+	if metadata.Private {
+		return "profile@example.com"
+	}
+	return profile.Name
 }

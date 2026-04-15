@@ -46,6 +46,7 @@ type App struct {
 	autoSaving     sync.Map // waiting-file name -> struct{} while save is in flight
 	autoSaveFailed sync.Map // waiting-file name -> struct{} after a failed auto-save attempt
 	autoSaveDirBad string   // destination dir last logged as unusable; avoids log spam
+	autoWatcher    *tsutil.AutoWatcher
 }
 
 func (a *App) clip(v *glib.Value) {
@@ -475,8 +476,49 @@ func (a *App) initTray(ctx context.Context) {
 	}
 }
 
+func (a *App) startAutoWatcher(ctx context.Context) {
+	if a.autoWatcher != nil {
+		a.autoWatcher.Stop()
+	}
+
+	a.autoWatcher = tsutil.NewAutoWatcher(a.poller)
+	a.autoWatcher.IsEnabled = func() bool {
+		if a.settings == nil {
+			return false
+		}
+		return a.settings.Boolean("auto-vpn-enabled")
+	}
+	a.autoWatcher.TrustedList = func() []string {
+		if a.settings == nil {
+			return nil
+		}
+		return a.settings.Strv("auto-vpn-trusted-ssids")
+	}
+	a.autoWatcher.OnVPNToggle = func(enabled bool, ssid string) {
+		if enabled {
+			if ssid != "" {
+				a.notify("Auto-VPN", fmt.Sprintf("Connected (untrusted network: %s)", ssid))
+			} else {
+				a.notify("Auto-VPN", "Connected (no Wi-Fi detected)")
+			}
+		} else {
+			a.notify("Auto-VPN", fmt.Sprintf("Disconnected (trusted network: %s)", ssid))
+		}
+	}
+
+	go a.autoWatcher.Start(ctx)
+}
+
+func (a *App) stopAutoWatcher() {
+	if a.autoWatcher != nil {
+		a.autoWatcher.Stop()
+		a.autoWatcher = nil
+	}
+}
+
 // Quit exits the app completely, causing Run to return.
 func (a *App) Quit() {
+	a.stopAutoWatcher()
 	a.tray.Close()
 	a.app.Quit()
 }
@@ -502,6 +544,11 @@ func (a *App) Run(ctx context.Context) {
 		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
+
+	// Start Auto-VPN watcher if enabled
+	if a.settings != nil && a.settings.Boolean("auto-vpn-enabled") {
+		a.startAutoWatcher(ctx)
+	}
 
 	a.app.Run(os.Args)
 }

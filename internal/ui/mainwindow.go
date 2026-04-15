@@ -43,9 +43,11 @@ type MainWindow struct {
 
 	pages map[string]Page
 
-	profiles         []ipn.LoginProfile
-	profileModel     *gtk.StringList
-	profileSortModel *gtk.SortListModel
+	profiles              []ipn.LoginProfile
+	profileModel          *gtk.StringList
+	profileSortModel      *gtk.SortListModel
+	updatingProfiles      bool
+	activeProfileID       ipn.ProfileID
 }
 
 func NewMainWindow(app *App) *MainWindow {
@@ -151,6 +153,10 @@ func NewMainWindow(app *App) *MainWindow {
 	})
 
 	win.ProfileDropDown.NotifyProperty("selected-item", func() {
+		if win.updatingProfiles {
+			return
+		}
+
 		obj, ok := win.ProfileDropDown.SelectedItem().Cast().(*gtk.StringObject)
 		if !ok {
 			return
@@ -166,6 +172,10 @@ func NewMainWindow(app *App) *MainWindow {
 			return
 		}
 		profile := win.profiles[index]
+
+		if profile.ID == win.activeProfileID {
+			return
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -272,7 +282,12 @@ func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
 }
 
 func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {
+	win.updatingProfiles = true
+	defer func() { win.updatingProfiles = false }()
+
 	win.profiles = status.Profiles
+	win.activeProfileID = status.Profile.ID
+
 	listmodels.UpdateStrings(win.profileModel, func(yield func(string) bool) {
 		for _, profile := range status.Profiles {
 			name := profile.Name

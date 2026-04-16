@@ -7,6 +7,6 @@
   <ui filename="preferences.ui" sha256="323784c79e864af66a5a2ed4b174d1bb44a9693e61f60c37195162de8389eaf4"/>
   <ui filename="selfpage.ui" sha256="a69d5b87a32918950fd7990043d1d34e8532a1d8af100ee3c35d928d9e9d9217"/>
   <ui filename="mullvadpage.ui" sha256="f92befae6868e0766e20740e96b77e31e991e17f6329e85d1ef675921d7e4ef6"/>
-  <ui filename="menu.ui" sha256="702eec3929b9165ac4323806cb3ba57f8234aa9aa21b224703434f068c8f44ac"/>
+  <ui filename="menu.ui" sha256="ff71b7d5104ec13118db6c411687bc54923c3bc95f6deb29db04f1e8771d1bee"/>
   <ui filename="offlinepage.ui" sha256="0a11ddc0b2c6b5408e6f855fd21ff6ccb8905e2ea029c83875f32764714f23d5"/>
 </cambalache-project>

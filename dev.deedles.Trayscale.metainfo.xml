@@ -55,6 +55,16 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.18.8" date="2026-04-16">
+			<description>
+				<ul>
+					<li>Fix admin link mnemonic.</li>
+					<li>Fix potential race condition when toggling the system tray icon.</li>
+					<li>Prevent spurious profile switching when list is being updated when window is opened.</li>
+					<li>Update dependencies.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.18.7" date="2026-02-15">
 			<description>
 				<ul>

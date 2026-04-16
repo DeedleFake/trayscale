@@ -21,7 +21,7 @@
       </item>
       <item>
         <attribute name="action">app.admin_dashboard</attribute>
-        <attribute name="label">_Admin Dashboard</attribute>
+        <attribute name="label">Admin _Dashboard</attribute>
       </item>
     </section>
     <section>

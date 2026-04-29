@@ -41,6 +41,7 @@ type SelfPage struct {
 	AdvertiseExitNodeRow *adw.SwitchRow
 	AllowLANAccessRow    *adw.SwitchRow
 	AcceptRoutesRow      *adw.SwitchRow
+	AcceptDNSRow         *adw.SwitchRow
 	AdvertisedRoutesList *gtk.ListBox
 	AdvertiseRouteButton *gtk.Button
 	NetCheckGroup        *adw.PreferencesGroup
@@ -272,6 +273,20 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 		return true
 	})
 
+	page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
+		if s == page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).State() {
+			return false
+		}
+
+		err := tsutil.AcceptDNS(context.TODO(), s)
+		if err != nil {
+			slog.Error("accept routes", "err", err)
+			page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
+			return true
+		}
+		return true
+	})
+
 	page.AdvertiseRouteButton.ConnectClicked(func() {
 		Prompt{
 			Heading:     "Add IP Prefix",
@@ -417,6 +432,8 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.ExitNodeAllowLANAccess())
 	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.RouteAll())
 	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.RouteAll())
+	page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.CorpDNS())
+	page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.CorpDNS())
 
 	routes := func(yield func(netip.Prefix) bool) {
 		for _, r := range status.Prefs.AdvertiseRoutes().All() {

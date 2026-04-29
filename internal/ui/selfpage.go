@@ -280,7 +280,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 
 		err := tsutil.AcceptDNS(context.TODO(), s)
 		if err != nil {
-			slog.Error("accept routes", "err", err)
+			slog.Error("accept DNS", "err", err)
 			page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
 			return true
 		}

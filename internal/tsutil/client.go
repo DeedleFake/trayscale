@@ -188,6 +188,24 @@ func AcceptRoutes(ctx context.Context, accept bool) error {
 	return nil
 }
 
+// AcceptDNS sets whether or not the Tailscale DNS config should be
+// used.
+func AcceptDNS(ctx context.Context, accept bool) error {
+	prefs := ipn.Prefs{
+		CorpDNS: accept,
+	}
+
+	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:      prefs,
+		CorpDNSSet: true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+
+	return nil
+}
+
 // SetControlURL changes the URL of the control plane server used by
 // the daemon. If controlURL is empty, the default Tailscale server is
 // used.

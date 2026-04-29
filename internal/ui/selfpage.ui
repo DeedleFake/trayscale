@@ -27,21 +27,25 @@
                 <property name="title">Options</property>
                 <child>
                   <object class="AdwSwitchRow" id="AdvertiseExitNodeRow">
+                    <property name="subtitle">Allow this machine to be used as an exit node</property>
                     <property name="title">Advertise exit node</property>
                   </object>
                 </child>
                 <child>
                   <object class="AdwSwitchRow" id="AllowLANAccessRow">
+                    <property name="subtitle">Bypass Tailscale routing for local network access</property>
                     <property name="title">Allow LAN access</property>
                   </object>
                 </child>
                 <child>
                   <object class="AdwSwitchRow" id="AcceptRoutesRow">
+                    <property name="subtitle">Use exported routes from other machines</property>
                     <property name="title">Accept routes</property>
                   </object>
                 </child>
                 <child>
                   <object class="AdwSwitchRow" id="AcceptDNSRow">
+                    <property name="subtitle">Use Tailscale DNS configuration</property>
                     <property name="title">Accept DNS</property>
                   </object>
                 </child>

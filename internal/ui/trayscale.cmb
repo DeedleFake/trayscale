@@ -5,7 +5,7 @@
   <ui filename="mainwindow.ui" sha256="02ecb8d034b7d3ae9d404f392d529d19cb8be6ae4e1be337b03fe65bd995f8b3"/>
   <ui filename="peerpage.ui" sha256="9ddcf45ffa1287d20cccc14d0db1ae24f122f89872c80dd1cc003b77f2acb536"/>
   <ui filename="preferences.ui" sha256="323784c79e864af66a5a2ed4b174d1bb44a9693e61f60c37195162de8389eaf4"/>
-  <ui filename="selfpage.ui" sha256="3c2c68b22eb93c6c3f0a22cfdd026d0f85a9a58188ffec2528cb6e5aeca7f273"/>
+  <ui filename="selfpage.ui" sha256="29f009827aaa38fab6cd42abe2033fd1a68132247b71d099df68c533c7dc2485"/>
   <ui filename="mullvadpage.ui" sha256="f92befae6868e0766e20740e96b77e31e991e17f6329e85d1ef675921d7e4ef6"/>
   <ui filename="menu.ui" sha256="ff71b7d5104ec13118db6c411687bc54923c3bc95f6deb29db04f1e8771d1bee"/>
   <ui filename="offlinepage.ui" sha256="0a11ddc0b2c6b5408e6f855fd21ff6ccb8905e2ea029c83875f32764714f23d5"/>

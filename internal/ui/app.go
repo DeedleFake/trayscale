@@ -21,6 +21,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
+	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
 )
 
@@ -33,10 +34,11 @@ type App struct {
 	poller *tsutil.Poller
 	online bool
 
-	app      *adw.Application
-	win      *MainWindow
-	settings *gio.Settings
-	tray     *tray.Tray
+	app           *adw.Application
+	win           *MainWindow
+	settings      *gio.Settings
+	tray          *tray.Tray
+	activeProfile ipn.ProfileID
 
 	spinnum       int
 	operatorCheck bool
@@ -146,6 +148,11 @@ func (a *App) update(status tsutil.Status) {
 		}
 
 	case *tsutil.ProfileStatus:
+		if a.tray != nil && a.activeProfile != status.Profile.ID {
+			a.activeProfile = status.Profile.ID
+			go a.tray.SetActiveProfile(status.Profile.ID)
+		}
+
 		if a.win != nil {
 			a.win.Update(status)
 		}
@@ -358,7 +365,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray != nil {
-		err := a.tray.Start(<-a.poller.GetIPN())
+		err := a.tray.Start(<-a.poller.GetIPN(), nil)
 		if err != nil {
 			slog.Error("failed to start tray icon", "err", err)
 		}
@@ -428,12 +435,33 @@ func (a *App) initTray(ctx context.Context) {
 			})
 		},
 
+		OnProfileSwitch: func(id ipn.ProfileID) {
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+
+				err := tsutil.SwitchProfile(ctx, id)
+				if err != nil {
+					slog.Error("switch profile from tray", "err", err)
+					return
+				}
+
+				a.tray.SetActiveProfile(id)
+			}()
+		},
+
 		OnQuit: func() {
 			a.Quit()
 		},
 	}
 
-	err := a.tray.Start(<-a.poller.GetIPN())
+	var ps *tsutil.ProfileStatus
+	profile, profiles, err := tsutil.GetProfileStatus(ctx)
+	if err == nil {
+		ps = &tsutil.ProfileStatus{Profile: profile, Profiles: profiles}
+	}
+
+	err = a.tray.Start(<-a.poller.GetIPN(), ps)
 	if err != nil {
 		slog.Error("failed to start tray icon", "err", err)
 	}

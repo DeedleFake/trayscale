@@ -57,12 +57,12 @@ func Prefs(ctx context.Context) (*ipn.Prefs, error) {
 
 // Start connects the local peer to the Tailscale network.
 func Start(ctx context.Context) error {
-	return cli.Run([]string{"up"})
+	return cli.RunWithContext(ctx, []string{"up"})
 }
 
 // Stop disconnects the local peer from the Tailscale network.
 func Stop(ctx context.Context) error {
-	return cli.Run([]string{"down"})
+	return cli.RunWithContext(ctx, []string{"down"})
 }
 
 // ExitNode uses the specified peer as an exit node, or unsets

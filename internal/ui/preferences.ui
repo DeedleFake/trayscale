@@ -40,6 +40,14 @@
               <object class="AdwSwitchRow" id="TaildropAutoSaveRow">
                 <property name="subtitle">No folder selected</property>
                 <property name="title">Auto-save Received Files</property>
+                <child type="suffix">
+                  <object class="GtkButton" id="TaildropAutoSaveFolderButton">
+                    <property name="has-frame">False</property>
+                    <property name="icon-name">folder-open-symbolic</property>
+                    <property name="tooltip-text">Choose folder</property>
+                    <property name="valign">center</property>
+                  </object>
+                </child>
               </object>
             </child>
           </object>

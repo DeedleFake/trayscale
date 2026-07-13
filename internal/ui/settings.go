@@ -112,16 +112,10 @@ func (a *App) showPreferences() {
 	}
 	updateAutoSaveSubtitle()
 
-	folderButton := gtk.NewButtonFromIconName("folder-open-symbolic")
-	folderButton.SetVAlign(gtk.AlignCenter)
-	folderButton.SetTooltipText("Choose folder")
-	folderButton.SetHasFrame(false)
-	dialog.TaildropAutoSaveRow.AddSuffix(folderButton)
-
 	// Location can only be changed while auto-save is enabled; the
 	// switch is the single enable control for the combined row.
 	syncFolderButton := func() {
-		folderButton.SetSensitive(dialog.TaildropAutoSaveRow.Active())
+		dialog.TaildropAutoSaveFolderButton.SetSensitive(dialog.TaildropAutoSaveRow.Active())
 	}
 	syncFolderButton()
 	dialog.TaildropAutoSaveRow.Connect("notify::active", syncFolderButton)
@@ -149,7 +143,7 @@ func (a *App) showPreferences() {
 		})
 	}
 
-	folderButton.ConnectClicked(func() {
+	dialog.TaildropAutoSaveFolderButton.ConnectClicked(func() {
 		selectFolder(nil)
 	})
 

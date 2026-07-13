@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"deedles.dev/trayscale/internal/autosave"
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tray"
@@ -136,7 +137,7 @@ func (a *App) update(status tsutil.Status) {
 
 	case *tsutil.FileStatus:
 		enabled, dir := a.autoSaveSettings()
-		autoSaveOn := AutoSaveEnabled(enabled, dir)
+		autoSaveOn := autosave.Enabled(enabled, dir)
 
 		if a.files != nil {
 			for _, file := range status.Files {

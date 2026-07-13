@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 
+	"deedles.dev/trayscale/internal/autosave"
 	"deedles.dev/trayscale/internal/giofs"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
@@ -109,11 +110,11 @@ func (a *App) maybeAutoSaveFiles() {
 	}
 
 	enabled, dir := a.autoSaveSettings()
-	if !AutoSaveEnabled(enabled, dir) {
+	if !autosave.Enabled(enabled, dir) {
 		return
 	}
 
-	if err := AutoSaveDirOK(dir); err != nil {
+	if err := autosave.DirOK(dir); err != nil {
 		// Do not mark individual files failed: when the directory is
 		// recreated, the next status update should resume saving.
 		if a.autoSaveDirBad != dir {
@@ -151,13 +152,13 @@ func (a *App) maybeAutoSaveFiles() {
 		return true
 	})
 
-	for _, name := range FilesToAutoSave(enabled, dir, *a.files, skip) {
+	for _, name := range autosave.Files(enabled, dir, *a.files, skip) {
 		if _, loaded := a.autoSaving.LoadOrStore(name, struct{}{}); loaded {
 			continue
 		}
 
 		// Avoid overwriting an existing file; pick "name (1).ext", etc.
-		dest := UniqueSavePath(dir, name)
+		dest := autosave.UniquePath(dir, name)
 		go func(name, dest string) {
 			defer a.autoSaving.Delete(name)
 			err := a.saveFile(context.Background(), name, gio.NewFileForPath(dest))

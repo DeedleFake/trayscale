@@ -39,10 +39,12 @@ type App struct {
 	settings *gio.Settings
 	tray     *tray.Tray
 
-	spinnum       int
-	operatorCheck bool
-	files         *[]apitype.WaitingFile
-	autoSaving    sync.Map // waiting-file name -> struct{} while save is in flight
+	spinnum        int
+	operatorCheck  bool
+	files          *[]apitype.WaitingFile
+	autoSaving     sync.Map // waiting-file name -> struct{} while save is in flight
+	autoSaveFailed sync.Map // waiting-file name -> struct{} after a failed auto-save attempt
+	autoSaveDirBad string   // destination dir last logged as unusable; avoids log spam
 }
 
 func (a *App) clip(v *glib.Value) {

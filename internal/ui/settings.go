@@ -44,6 +44,9 @@ func (a *App) initSettings(ctx context.Context) {
 
 		case "taildrop-auto-save", "taildrop-auto-save-dir":
 			glib.IdleAdd(func() {
+				// New enable/dir selection should retry files that failed
+				// against the previous configuration.
+				a.clearAutoSaveFailures()
 				a.maybeAutoSaveFiles()
 			})
 		}

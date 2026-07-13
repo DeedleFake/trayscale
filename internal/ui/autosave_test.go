@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -60,14 +61,39 @@ func TestFilesToAutoSave(t *testing.T) {
 	})
 
 	t.Run("skips in-flight", func(t *testing.T) {
-		inFlight := map[string]bool{"b.txt": true}
-		got := ui.FilesToAutoSave(true, "/tmp/inbox", files, inFlight)
+		skip := map[string]bool{"b.txt": true}
+		got := ui.FilesToAutoSave(true, "/tmp/inbox", files, skip)
 		require.Equal(t, []string{"a.txt", "c.txt"}, got)
+	})
+
+	t.Run("skips previously failed", func(t *testing.T) {
+		skip := map[string]bool{"a.txt": true, "c.txt": true}
+		got := ui.FilesToAutoSave(true, "/tmp/inbox", files, skip)
+		require.Equal(t, []string{"b.txt"}, got)
 	})
 
 	t.Run("no files", func(t *testing.T) {
 		got := ui.FilesToAutoSave(true, "/tmp/inbox", nil, nil)
 		require.Empty(t, got)
+	})
+}
+
+func TestAutoSaveDirOK(t *testing.T) {
+	t.Run("missing", func(t *testing.T) {
+		err := ui.AutoSaveDirOK(filepath.Join(t.TempDir(), "nope"))
+		require.Error(t, err)
+	})
+
+	t.Run("file not dir", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "file")
+		require.NoError(t, os.WriteFile(path, []byte("x"), 0o644))
+		err := ui.AutoSaveDirOK(path)
+		require.Error(t, err)
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, ui.AutoSaveDirOK(dir))
 	})
 }
 

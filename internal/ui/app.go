@@ -8,10 +8,8 @@ import (
 	"log/slog"
 	"os"
 	"slices"
-	"sync"
 	"time"
 
-	"deedles.dev/trayscale/internal/autosave"
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tray"
@@ -40,12 +38,9 @@ type App struct {
 	settings *gio.Settings
 	tray     *tray.Tray
 
-	spinnum        int
-	operatorCheck  bool
-	files          *[]apitype.WaitingFile
-	autoSaving     sync.Map // waiting-file name -> struct{} while save is in flight
-	autoSaveFailed sync.Map // waiting-file name -> struct{} after a failed auto-save attempt
-	autoSaveDirBad string   // destination dir last logged as unusable; avoids log spam
+	spinnum       int
+	operatorCheck bool
+	files         *[]apitype.WaitingFile
 }
 
 func (a *App) clip(v *glib.Value) {
@@ -136,24 +131,15 @@ func (a *App) update(status tsutil.Status) {
 		}
 
 	case *tsutil.FileStatus:
-		enabled, dir := a.autoSaveSettings()
-		autoSaveOn := autosave.Enabled(enabled, dir)
-
 		if a.files != nil {
 			for _, file := range status.Files {
 				if !slices.Contains(*a.files, file) {
-					// Skip the manual-save notification when auto-save will
-					// handle the file immediately.
-					if autoSaveOn {
-						continue
-					}
 					body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
 					a.notify("New Incoming File", body)
 				}
 			}
 		}
 		a.files = &status.Files
-		a.maybeAutoSaveFiles()
 
 		if a.win != nil {
 			a.win.Update(status)

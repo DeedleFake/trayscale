@@ -18,23 +18,6 @@
 				for status changes and other things.
 			</description>
 		</key>
-		<key name="taildrop-auto-save" type="b">
-			<default>false</default>
-			<summary>Automatically save incoming Taildrop files</summary>
-			<description>
-				If enabled and a destination directory is set, incoming Taildrop
-				files are saved to that directory while Trayscale is running.
-			</description>
-		</key>
-		<key name="taildrop-auto-save-dir" type="s">
-			<default>''</default>
-			<summary>Directory for auto-saved Taildrop files</summary>
-			<description>
-				Filesystem path of the directory where incoming Taildrop files
-				are written when auto-save is enabled. Empty means no
-				destination is configured.
-			</description>
-		</key>
 	</schema>
 </schemalist>
 

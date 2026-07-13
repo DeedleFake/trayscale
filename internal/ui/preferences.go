@@ -12,12 +12,10 @@ import (
 var preferencesXML string
 
 type PreferencesDialog struct {
-	PreferencesDialog            *adw.PreferencesDialog
-	UseTrayIconRow               *adw.SwitchRow
-	PollingIntervalRow           *adw.SpinRow
-	PollingIntervalAdjustment    *gtk.Adjustment
-	TaildropAutoSaveRow          *adw.SwitchRow
-	TaildropAutoSaveFolderButton *gtk.Button
+	PreferencesDialog         *adw.PreferencesDialog
+	UseTrayIconRow            *adw.SwitchRow
+	PollingIntervalRow        *adw.SpinRow
+	PollingIntervalAdjustment *gtk.Adjustment
 }
 
 func NewPreferencesDialog() *PreferencesDialog {

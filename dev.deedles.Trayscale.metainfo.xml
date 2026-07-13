@@ -58,7 +58,6 @@
 		<release version="v0.19.0" date="2026-07-12">
 			<description>
 				<ul>
-					<li>Add option to automatically save incoming Taildrop files to a chosen directory.</li>
 					<li>Use contexts for connecting and disconnecting so operations can be cancelled.</li>
 					<li>Update Tailscale to v1.100.0 and other dependencies.</li>
 				</ul>

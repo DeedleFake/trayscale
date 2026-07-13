@@ -1,0 +1,72 @@
+name: trayscale
+base: core24
+version: '1.8.3'
+summary: Trayscale - GUI for Tailscale Client
+description: |
+  Trayscale is an unofficial GUI interface for the Tailscale daemon
+  particularly for use on Linux, as no official Linux GUI client exists. 
+  It provides a basic system tray icon and a fairly comprehensive UI with
+  support for many of Tailscale's features.
+grade: stable
+confinement: strict
+
+platforms:
+  amd64:
+    build-on: [amd64]
+    build-for: [amd64]
+  arm64:
+    build-on: [arm64]
+    build-for: [arm64]
+
+plugs:
+  tailscale-socket:
+    interface: system-files
+    read:
+      - /var/run/tailscale/tailscaled.sock
+      - /run/tailscale/tailscaled.sock
+    write:
+      - /var/run/tailscale/tailscaled.sock
+      - /run/tailscale/tailscaled.sock
+
+slots:
+  trayscale-dbus:
+    interface: dbus
+    bus: session
+    name: dev.deedles.Trayscale
+
+  indicator-dbus:
+    interface: dbus
+    bus: session
+    name: com.canonical.dbusmenu
+
+apps:
+  trayscale:
+    command: bin/trayscale
+    extensions: [gnome]
+    desktop: meta/gui/trayscale.desktop
+    plugs:
+      - network
+      - desktop
+      - desktop-legacy
+      - tailscale-socket
+    slots:
+      - trayscale-dbus
+      - indicator-dbus
+
+parts:
+  trayscale:
+    plugin: go
+    source: .
+    build-snaps:
+      - go/latest/stable
+    stage-packages:
+      - libproxy1v5
+
+  desktop-files:
+    plugin: dump
+    source: .
+    override-build: |
+      mkdir -p $CRAFT_PART_INSTALL/meta/gui
+      mkdir -p $CRAFT_PART_INSTALL/usr/share/applications
+      cp snap/trayscale.desktop $CRAFT_PART_INSTALL/meta/gui/trayscale.desktop
+      cp snap/trayscale.png $CRAFT_PART_INSTALL/meta/gui/trayscale.png

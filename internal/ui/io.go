@@ -71,3 +71,40 @@ func (a *App) saveFile(ctx context.Context, name string, file gio.Filer) {
 	<-a.poller.Poll()
 	slog.Info("done saving file")
 }
+
+func (a *App) autoSaveSettings() (enabled bool, dir string) {
+	if a.settings == nil {
+		return false, ""
+	}
+	return a.settings.Boolean("taildrop-auto-save"), a.settings.String("taildrop-auto-save-dir")
+}
+
+// maybeAutoSaveFiles saves any waiting files when auto-save is enabled
+// and a destination directory is configured. Safe to call from the GTK
+// thread; work runs in background goroutines.
+func (a *App) maybeAutoSaveFiles() {
+	if a.files == nil {
+		return
+	}
+
+	enabled, dir := a.autoSaveSettings()
+	inFlight := make(map[string]bool)
+	a.autoSaving.Range(func(key, _ any) bool {
+		if name, ok := key.(string); ok {
+			inFlight[name] = true
+		}
+		return true
+	})
+
+	for _, name := range FilesToAutoSave(enabled, dir, *a.files, inFlight) {
+		if _, loaded := a.autoSaving.LoadOrStore(name, struct{}{}); loaded {
+			continue
+		}
+
+		dest := AutoSavePath(dir, name)
+		go func(name, dest string) {
+			defer a.autoSaving.Delete(name)
+			a.saveFile(context.Background(), name, gio.NewFileForPath(dest))
+		}(name, dest)
+	}
+}

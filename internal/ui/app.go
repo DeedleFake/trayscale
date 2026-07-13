@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"slices"
+	"sync"
 	"time"
 
 	"deedles.dev/trayscale/internal/gutil"
@@ -41,6 +42,7 @@ type App struct {
 	spinnum       int
 	operatorCheck bool
 	files         *[]apitype.WaitingFile
+	autoSaving    sync.Map // waiting-file name -> struct{} while save is in flight
 }
 
 func (a *App) clip(v *glib.Value) {
@@ -131,15 +133,24 @@ func (a *App) update(status tsutil.Status) {
 		}
 
 	case *tsutil.FileStatus:
+		enabled, dir := a.autoSaveSettings()
+		autoSaveOn := AutoSaveEnabled(enabled, dir)
+
 		if a.files != nil {
 			for _, file := range status.Files {
 				if !slices.Contains(*a.files, file) {
+					// Skip the manual-save notification when auto-save will
+					// handle the file immediately.
+					if autoSaveOn {
+						continue
+					}
 					body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
 					a.notify("New Incoming File", body)
 				}
 			}
 		}
 		a.files = &status.Files
+		a.maybeAutoSaveFiles()
 
 		if a.win != nil {
 			a.win.Update(status)

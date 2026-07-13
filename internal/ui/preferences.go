@@ -16,6 +16,7 @@ type PreferencesDialog struct {
 	UseTrayIconRow            *adw.SwitchRow
 	PollingIntervalRow        *adw.SpinRow
 	PollingIntervalAdjustment *gtk.Adjustment
+	TaildropAutoSaveRow       *adw.SwitchRow
 }
 
 func NewPreferencesDialog() *PreferencesDialog {

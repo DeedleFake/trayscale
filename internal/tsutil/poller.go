@@ -17,6 +17,7 @@ import (
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
+	"tailscale.com/types/netmap"
 	"tailscale.com/util/set"
 )
 
@@ -95,8 +96,15 @@ func (p *Poller) Run(ctx context.Context) {
 }
 
 func (p *Poller) watchIPN(ctx context.Context) {
+	// NotifyInitialNetMap is still required for bootstrap on tailscaled
+	// versions that predate InitialStatus / SelfChange peer delivery.
+	// NotifyNoNetMap suppresses subsequent full NetMap spam on platforms
+	// that still emit it; NotifyPeerChanges + SelfChange cover deltas when
+	// the daemon supports them, and NotifyInitialStatus is preferred when
+	// available.
 	const watcherOpts = ipn.NotifyInitialState |
 		ipn.NotifyInitialPrefs |
+		ipn.NotifyInitialNetMap |
 		ipn.NotifyNoPrivateKeys |
 		ipn.NotifyWatchEngineUpdates |
 		ipn.NotifyRateLimit |
@@ -174,8 +182,18 @@ watch:
 		}
 
 		var netDirty bool
+		// Order matters: apply thinner InitialStatus first, then full NetMap
+		// (when present), then incremental SelfChange / peer deltas.
 		if notify.InitialStatus != nil {
 			s.applyInitialStatus(notify.InitialStatus)
+			dirty = true
+			netDirty = true
+		}
+		//lint:ignore SA1019 Initial NetMap is still delivered cross-platform when
+		// NotifyInitialNetMap is set; required peer bootstrap on older tailscaled
+		// that does not yet send InitialStatus / SelfChange.
+		if nm := notify.NetMap; nm != nil {
+			s.applyNetMap(nm)
 			dirty = true
 			netDirty = true
 		}
@@ -333,21 +351,36 @@ func (s *IPNStatus) ensurePeers() {
 	}
 }
 
+func (s *IPNStatus) applyNetMap(nm *netmap.NetworkMap) {
+	s.Self = nm.SelfNode
+	s.ensurePeers()
+	clear(s.Peers)
+	for _, peer := range nm.Peers {
+		s.Peers[peer.StableID()] = peer
+	}
+}
+
 func (s *IPNStatus) applyInitialStatus(st *ipnstate.Status) {
 	var suffix string
 	if st.CurrentTailnet != nil {
 		suffix = st.CurrentTailnet.MagicDNSSuffix
 	}
 
-	s.Self = nodeViewFromPeerStatus(st.Self, suffix)
+	if st.Self != nil {
+		s.Self = nodeViewFromPeerStatus(st.Self, suffix)
+	}
 
-	s.ensurePeers()
-	clear(s.Peers)
-	for _, peer := range st.Peer {
-		if peer == nil {
-			continue
+	// InitialStatus may omit peers when a NetMap was already applied; only
+	// replace the peer set when the status actually carries peers.
+	if len(st.Peer) != 0 {
+		s.ensurePeers()
+		clear(s.Peers)
+		for _, peer := range st.Peer {
+			if peer == nil {
+				continue
+			}
+			s.Peers[peer.ID] = nodeViewFromPeerStatus(peer, suffix)
 		}
-		s.Peers[peer.ID] = nodeViewFromPeerStatus(peer, suffix)
 	}
 }
 

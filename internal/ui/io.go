@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 
@@ -49,6 +50,9 @@ func (a *App) saveFile(ctx context.Context, name string, file gio.Filer) error {
 	}
 	defer r.Close()
 
+	// Replace writes to a temporary name and only renames over the
+	// destination when the stream is closed. Leaving it open leaves
+	// hidden .goutputstream-* files and never updates an existing target.
 	s, err := file.Replace(ctx, "", false, gio.FileCreateNone)
 	if err != nil {
 		slog.Error("create file", "err", err)
@@ -56,8 +60,9 @@ func (a *App) saveFile(ctx context.Context, name string, file gio.Filer) error {
 	}
 
 	w := gioutil.Writer(ctx, s)
-	_, err = io.CopyN(w, r, size)
-	if err != nil {
+	_, copyErr := io.CopyN(w, r, size)
+	closeErr := w.Close()
+	if err := errors.Join(copyErr, closeErr); err != nil {
 		slog.Error("write file", "err", err)
 		return err
 	}
@@ -151,7 +156,8 @@ func (a *App) maybeAutoSaveFiles() {
 			continue
 		}
 
-		dest := AutoSavePath(dir, name)
+		// Avoid overwriting an existing file; pick "name (1).ext", etc.
+		dest := UniqueSavePath(dir, name)
 		go func(name, dest string) {
 			defer a.autoSaving.Delete(name)
 			err := a.saveFile(context.Background(), name, gio.NewFileForPath(dest))

@@ -36,6 +36,43 @@ func AutoSavePath(dir, name string) string {
 	return filepath.Join(dir, filepath.Base(name))
 }
 
+// UniqueSaveName returns a base file name derived from name that is not
+// already taken according to taken. If the original base name is free it
+// is returned unchanged; otherwise names of the form "stem (n).ext" are
+// tried for n = 1, 2, … so a series of same-named files can coexist.
+func UniqueSaveName(name string, taken func(string) bool) string {
+	base := filepath.Base(name)
+	if base == "" || base == "." || base == string(filepath.Separator) {
+		base = "file"
+	}
+	if !taken(base) {
+		return base
+	}
+
+	ext := filepath.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	if stem == "" {
+		stem = "file"
+	}
+
+	for n := 1; ; n++ {
+		candidate := fmt.Sprintf("%s (%d)%s", stem, n, ext)
+		if !taken(candidate) {
+			return candidate
+		}
+	}
+}
+
+// UniqueSavePath is like AutoSavePath but never returns a path that
+// already exists under dir, using UniqueSaveName against the local
+// filesystem.
+func UniqueSavePath(dir, name string) string {
+	return filepath.Join(dir, UniqueSaveName(name, func(base string) bool {
+		_, err := os.Stat(filepath.Join(dir, base))
+		return err == nil
+	}))
+}
+
 // FilesToAutoSave returns the names of waiting files that should be
 // auto-saved. Names present in skip (in-flight or previously failed for
 // this wait cycle) are omitted to avoid concurrent or repeated saves.

@@ -201,7 +201,7 @@ func selfTitle(status *tsutil.IPNStatus) (string, bool) {
 		return "Not connected", false
 	}
 
-	return fmt.Sprintf("%v (%v)", status.NetMap.SelfNode.DisplayName(true), addr), true
+	return fmt.Sprintf("%v (%v)", status.Self.DisplayName(true), addr), true
 }
 
 func connToggleText(online bool) string {

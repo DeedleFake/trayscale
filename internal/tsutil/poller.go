@@ -15,6 +15,7 @@ import (
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/feature/taildrop"
 	"tailscale.com/ipn"
+	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/netmap"
 	"tailscale.com/util/set"
@@ -95,7 +96,21 @@ func (p *Poller) Run(ctx context.Context) {
 }
 
 func (p *Poller) watchIPN(ctx context.Context) {
-	const watcherOpts = ipn.NotifyInitialState | ipn.NotifyInitialPrefs | ipn.NotifyInitialNetMap | ipn.NotifyNoPrivateKeys | ipn.NotifyWatchEngineUpdates | ipn.NotifyRateLimit
+	// NotifyInitialNetMap is still required for bootstrap on tailscaled
+	// versions that predate InitialStatus / SelfChange peer delivery.
+	// NotifyNoNetMap suppresses subsequent full NetMap spam on platforms
+	// that still emit it; NotifyPeerChanges + SelfChange cover deltas when
+	// the daemon supports them, and NotifyInitialStatus is preferred when
+	// available.
+	const watcherOpts = ipn.NotifyInitialState |
+		ipn.NotifyInitialPrefs |
+		ipn.NotifyInitialNetMap |
+		ipn.NotifyNoPrivateKeys |
+		ipn.NotifyWatchEngineUpdates |
+		ipn.NotifyRateLimit |
+		ipn.NotifyPeerChanges |
+		ipn.NotifyNoNetMap |
+		ipn.NotifyInitialStatus
 
 watch:
 	watcher, err := localClient.WatchIPNBus(ctx, watcherOpts)
@@ -157,11 +172,6 @@ watch:
 			s.Prefs = *notify.Prefs
 			dirty = true
 		}
-		if notify.NetMap != nil {
-			s.NetMap = notify.NetMap
-			s.rebuildPeers(ctx)
-			dirty = true
-		}
 		if notify.Engine != nil {
 			s.Engine = notify.Engine
 			dirty = true
@@ -170,6 +180,42 @@ watch:
 			s.BrowseToURL = *notify.BrowseToURL
 			dirty = true
 		}
+
+		var netDirty bool
+		// Order matters: apply thinner InitialStatus first, then full NetMap
+		// (when present), then incremental SelfChange / peer deltas.
+		if notify.InitialStatus != nil {
+			s.applyInitialStatus(notify.InitialStatus)
+			dirty = true
+			netDirty = true
+		}
+		//lint:ignore SA1019 Initial NetMap is still delivered cross-platform when
+		// NotifyInitialNetMap is set; required peer bootstrap on older tailscaled
+		// that does not yet send InitialStatus / SelfChange.
+		if nm := notify.NetMap; nm != nil {
+			s.applyNetMap(nm)
+			dirty = true
+			netDirty = true
+		}
+		if notify.SelfChange != nil {
+			s.Self = notify.SelfChange.View()
+			dirty = true
+			netDirty = true
+		}
+		if len(notify.PeersChanged) != 0 {
+			s.applyPeersChanged(notify.PeersChanged)
+			dirty = true
+			netDirty = true
+		}
+		if len(notify.PeersRemoved) != 0 {
+			s.applyPeersRemoved(notify.PeersRemoved)
+			dirty = true
+			netDirty = true
+		}
+		if netDirty {
+			s.refreshFileTargets(ctx)
+		}
+
 		// TODO: Handle health warnings.
 		if !dirty {
 			continue
@@ -284,7 +330,7 @@ type Status interface {
 type IPNStatus struct {
 	State       ipn.State
 	Prefs       ipn.PrefsView
-	NetMap      *netmap.NetworkMap
+	Self        tailcfg.NodeView
 	Peers       map[tailcfg.StableNodeID]tailcfg.NodeView
 	FileTargets set.Set[tailcfg.StableNodeID]
 	Engine      *ipn.EngineStatus
@@ -299,21 +345,70 @@ func (s IPNStatus) copy() *IPNStatus {
 	return &s
 }
 
-func (s *IPNStatus) rebuildPeers(ctx context.Context) {
+func (s *IPNStatus) ensurePeers() {
+	if s.Peers == nil {
+		mk.Map(&s.Peers, 0)
+	}
+}
+
+func (s *IPNStatus) applyNetMap(nm *netmap.NetworkMap) {
+	s.Self = nm.SelfNode
+	s.ensurePeers()
+	clear(s.Peers)
+	for _, peer := range nm.Peers {
+		s.Peers[peer.StableID()] = peer
+	}
+}
+
+func (s *IPNStatus) applyInitialStatus(st *ipnstate.Status) {
+	var suffix string
+	if st.CurrentTailnet != nil {
+		suffix = st.CurrentTailnet.MagicDNSSuffix
+	}
+
+	if st.Self != nil {
+		s.Self = nodeViewFromPeerStatus(st.Self, suffix)
+	}
+
+	// InitialStatus may omit peers when a NetMap was already applied; only
+	// replace the peer set when the status actually carries peers.
+	if len(st.Peer) != 0 {
+		s.ensurePeers()
+		clear(s.Peers)
+		for _, peer := range st.Peer {
+			if peer == nil {
+				continue
+			}
+			s.Peers[peer.ID] = nodeViewFromPeerStatus(peer, suffix)
+		}
+	}
+}
+
+func (s *IPNStatus) applyPeersChanged(peers []*tailcfg.Node) {
+	s.ensurePeers()
+	for _, peer := range peers {
+		s.Peers[peer.StableID] = peer.View()
+	}
+}
+
+func (s *IPNStatus) applyPeersRemoved(ids []tailcfg.NodeID) {
+	for _, id := range ids {
+		for stableID, peer := range s.Peers {
+			if peer.ID() == id {
+				delete(s.Peers, stableID)
+				break
+			}
+		}
+	}
+}
+
+func (s *IPNStatus) refreshFileTargets(ctx context.Context) {
 	// This is a lot longer than it probably should be. It's basically
 	// just to make sure that the poller doesn't get completely stuck. If
 	// this is getting hit, though, the UI is going to be updating
 	// horribly slow.
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-
-	if s.Peers == nil {
-		mk.Map(&s.Peers, 0)
-	}
-	clear(s.Peers)
-	for _, peer := range s.NetMap.Peers {
-		s.Peers[peer.StableID()] = peer
-	}
 
 	targets, err := FileTargets(ctx)
 	if err != nil {
@@ -325,6 +420,61 @@ func (s *IPNStatus) rebuildPeers(ctx context.Context) {
 	for _, target := range targets {
 		s.FileTargets.Add(target.Node.StableID)
 	}
+}
+
+// nodeViewFromPeerStatus builds a NodeView from an ipnstate.PeerStatus for
+// the InitialStatus bootstrap. Subsequent updates use full Nodes from
+// SelfChange / PeersChanged.
+func nodeViewFromPeerStatus(ps *ipnstate.PeerStatus, magicDNSSuffix string) tailcfg.NodeView {
+	if ps == nil {
+		return tailcfg.NodeView{}
+	}
+
+	online := ps.Online
+	n := &tailcfg.Node{
+		ID:       ps.NodeID,
+		StableID: ps.ID,
+		Name:     ps.DNSName,
+		User:     ps.UserID,
+		Sharer:   ps.AltSharerUserID,
+		Key:      ps.PublicKey,
+		Created:  ps.Created,
+		Online:   &online,
+		Expired:  ps.Expired,
+		CapMap:   maps.Clone(ps.CapMap),
+	}
+	if ps.KeyExpiry != nil {
+		n.KeyExpiry = *ps.KeyExpiry
+	}
+	if !ps.LastSeen.IsZero() {
+		lastSeen := ps.LastSeen
+		n.LastSeen = &lastSeen
+	}
+	for _, ip := range ps.TailscaleIPs {
+		n.Addresses = append(n.Addresses, netip.PrefixFrom(ip, ip.BitLen()))
+	}
+	if ps.AllowedIPs != nil {
+		n.AllowedIPs = ps.AllowedIPs.AsSlice()
+	}
+	if ps.Tags != nil {
+		n.Tags = ps.Tags.AsSlice()
+	}
+	if ps.PrimaryRoutes != nil {
+		n.PrimaryRoutes = ps.PrimaryRoutes.AsSlice()
+	}
+
+	hi := &tailcfg.Hostinfo{
+		Hostname:   ps.HostName,
+		OS:         ps.OS,
+		ShareeNode: ps.ShareeNode,
+	}
+	if ps.Location != nil {
+		loc := *ps.Location
+		hi.Location = &loc
+	}
+	n.Hostinfo = hi.View()
+	n.InitDisplayNames(magicDNSSuffix)
+	return n.View()
 }
 
 // Online returns true if s indicates that the local node is online
@@ -346,8 +496,18 @@ func (s *IPNStatus) ExitNode() tailcfg.NodeView {
 		return node
 	}
 	if addr := s.Prefs.ExitNodeIP(); addr.IsValid() {
-		peer, _ := s.NetMap.PeerByTailscaleIP(addr)
-		return peer
+		return s.peerByTailscaleIP(addr)
+	}
+	return tailcfg.NodeView{}
+}
+
+func (s *IPNStatus) peerByTailscaleIP(ip netip.Addr) tailcfg.NodeView {
+	for _, peer := range s.Peers {
+		for _, a := range peer.Addresses().All() {
+			if a.Addr() == ip {
+				return peer
+			}
+		}
 	}
 	return tailcfg.NodeView{}
 }
@@ -363,11 +523,11 @@ func (s *IPNStatus) OperatorIsCurrent() bool {
 }
 
 func (s *IPNStatus) SelfAddr() netip.Addr {
-	if s.NetMap == nil {
+	if !s.Self.Valid() {
 		return netip.Addr{}
 	}
 
-	addrs := s.NetMap.SelfNode.Addresses()
+	addrs := s.Self.Addresses()
 	if addrs.Len() == 0 {
 		return netip.Addr{}
 	}

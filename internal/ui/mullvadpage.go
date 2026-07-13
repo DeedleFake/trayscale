@@ -77,7 +77,7 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 		return false
 	}
 
-	if !tsutil.CanMullvad(status.NetMap.SelfNode) {
+	if !tsutil.CanMullvad(status.Self) {
 		return false
 	}
 

@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
@@ -40,6 +41,14 @@ func (a *App) initSettings(ctx context.Context) {
 
 		case "polling-interval":
 			a.poller.SetInterval() <- a.getInterval()
+
+		case "taildrop-auto-save", "taildrop-auto-save-dir":
+			glib.IdleAdd(func() {
+				// New enable/dir selection should retry files that failed
+				// against the previous configuration.
+				a.clearAutoSaveFailures()
+				a.maybeAutoSaveFiles()
+			})
 		}
 	})
 
@@ -94,6 +103,67 @@ func (a *App) showPreferences() {
 	dialog := NewPreferencesDialog()
 	a.settings.Bind("tray-icon", dialog.UseTrayIconRow.Object, "active", gio.SettingsBindDefault)
 	a.settings.Bind("polling-interval", dialog.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
+	a.settings.Bind("taildrop-auto-save", dialog.TaildropAutoSaveRow.Object, "active", gio.SettingsBindDefault)
+
+	updateAutoSaveSubtitle := func() {
+		dir := a.settings.String("taildrop-auto-save-dir")
+		if dir == "" {
+			dialog.TaildropAutoSaveRow.SetSubtitle("No folder selected")
+			return
+		}
+		dialog.TaildropAutoSaveRow.SetSubtitle(dir)
+	}
+	updateAutoSaveSubtitle()
+
+	// Location can only be changed while auto-save is enabled; the
+	// switch is the single enable control for the combined row.
+	syncFolderButton := func() {
+		dialog.TaildropAutoSaveFolderButton.SetSensitive(dialog.TaildropAutoSaveRow.Active())
+	}
+	syncFolderButton()
+	dialog.TaildropAutoSaveRow.Connect("notify::active", syncFolderButton)
+
+	selectFolder := func(onCancel func()) {
+		fileDialog := gtk.NewFileDialog()
+		fileDialog.SetModal(true)
+		fileDialog.SetTitle("Select Auto-save Folder")
+		if dir := a.settings.String("taildrop-auto-save-dir"); dir != "" {
+			fileDialog.SetInitialFolder(gio.NewFileForPath(dir))
+		}
+		fileDialog.SelectFolder(context.TODO(), a.window(), func(res gio.AsyncResulter) {
+			folder, err := fileDialog.SelectFolderFinish(res)
+			if err != nil {
+				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissed)) {
+					slog.Error("select auto-save folder", "err", err)
+				}
+				if onCancel != nil {
+					onCancel()
+				}
+				return
+			}
+			a.settings.SetString("taildrop-auto-save-dir", folder.Path())
+			updateAutoSaveSubtitle()
+		})
+	}
+
+	dialog.TaildropAutoSaveFolderButton.ConnectClicked(func() {
+		selectFolder(nil)
+	})
+
+	// Enabling without a directory prompts for a folder; cancel leaves
+	// auto-save off so the combined row never ends half-configured.
+	dialog.TaildropAutoSaveRow.Connect("notify::active", func() {
+		if !dialog.TaildropAutoSaveRow.Active() {
+			return
+		}
+		if a.settings.String("taildrop-auto-save-dir") != "" {
+			return
+		}
+		selectFolder(func() {
+			a.settings.SetBoolean("taildrop-auto-save", false)
+		})
+	})
+
 	dialog.PreferencesDialog.Present(a.window())
 }
 

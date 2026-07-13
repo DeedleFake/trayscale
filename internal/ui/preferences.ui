@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Created with Cambalache 0.96.1 -->
+<!-- Created with Cambalache 1.0.3 -->
 <interface>
   <!-- interface-name preferences.ui -->
   <requires lib="gtk" version="4.0"/>
@@ -29,6 +29,25 @@
                 </property>
                 <property name="subtitle">Interval, in seconds, at which to poll the Tailscale daemon</property>
                 <property name="title">Polling Interval</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">Taildrop</property>
+            <child>
+              <object class="AdwSwitchRow" id="TaildropAutoSaveRow">
+                <property name="subtitle">No folder selected</property>
+                <property name="title">Auto-save Received Files</property>
+                <child type="suffix">
+                  <object class="GtkButton" id="TaildropAutoSaveFolderButton">
+                    <property name="has-frame">False</property>
+                    <property name="icon-name">folder-open-symbolic</property>
+                    <property name="tooltip-text">Choose folder</property>
+                    <property name="valign">center</property>
+                  </object>
+                </child>
               </object>
             </child>
           </object>

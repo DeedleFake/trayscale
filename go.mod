@@ -105,3 +105,5 @@ require (
 )
 
 tool honnef.co/go/tools/cmd/staticcheck
+
+replace deedles.dev/tray => github.com/alex-poor/tray v0.1.11-0.20260407004037-2451d98fc544

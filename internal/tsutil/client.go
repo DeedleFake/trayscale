@@ -117,11 +117,14 @@ func SetUseExitNode(ctx context.Context, use bool) error {
 // AdvertiseExitNode enables and disables exit node advertisement for
 // the current node.
 func AdvertiseExitNode(ctx context.Context, enable bool) error {
-	var prefs ipn.Prefs
+	prefs, err := Prefs(ctx)
+	if err != nil {
+		return fmt.Errorf("get prefs: %w", err)
+	}
 	prefs.SetAdvertiseExitNode(enable)
 
-	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-		Prefs:              prefs,
+	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:              *prefs,
 		AdvertiseRoutesSet: true,
 	})
 	if err != nil {

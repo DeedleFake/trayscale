@@ -24,6 +24,15 @@
                 <property name="selection-mode">none</property>
               </object>
             </child>
+            <child>
+              <object class="GtkLabel" id="EmptyLabel">
+                <property name="css-classes">dim-label</property>
+                <property name="halign">center</property>
+                <property name="label">No matching exit nodes</property>
+                <property name="margin-top">24</property>
+                <property name="visible">False</property>
+              </object>
+            </child>
           </object>
         </child>
       </object>

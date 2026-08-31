@@ -332,6 +332,15 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.app.AddAction(quitAction)
 	a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
 
+	searchPeersAction := gio.NewSimpleAction("search-peers", nil)
+	searchPeersAction.ConnectActivate(func(p *glib.Variant) {
+		if a.win != nil {
+			a.win.OpenPeerSearch()
+		}
+	})
+	a.app.AddAction(searchPeersAction)
+	a.app.SetAccelsForAction("app.search-peers", []string{"<Ctrl>f"})
+
 	loginAction := gio.NewSimpleAction("login", nil)
 	loginAction.ConnectActivate(func(p *glib.Variant) {
 		status := <-a.poller.GetIPN()

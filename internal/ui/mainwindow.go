@@ -6,11 +6,13 @@ import (
 	_ "embed"
 	"log/slog"
 	"slices"
+	"strings"
 	"time"
 
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/metadata"
+	"deedles.dev/trayscale/internal/peersearch"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -31,19 +33,23 @@ var (
 type MainWindow struct {
 	app *App
 
-	MainWindow      *adw.ApplicationWindow
-	ToastOverlay    *adw.ToastOverlay
-	SplitView       *adw.NavigationSplitView
-	StatusSwitch    *gtk.Switch
-	MainMenuButton  *gtk.MenuButton
-	PeersSidebar    *adw.ViewSwitcherSidebar
-	PeersStack      *adw.ViewStack
-	WorkSpinner     *adw.Spinner
-	ProfileDropDown *gtk.DropDown
-	PageMenuButton  *gtk.MenuButton
+	MainWindow       *adw.ApplicationWindow
+	ToastOverlay     *adw.ToastOverlay
+	SplitView        *adw.NavigationSplitView
+	StatusSwitch     *gtk.Switch
+	MainMenuButton   *gtk.MenuButton
+	PeerSearchButton *gtk.ToggleButton
+	PeerSearchBar    *gtk.SearchBar
+	PeerSearchEntry  *gtk.SearchEntry
+	PeersSidebar     *adw.ViewSwitcherSidebar
+	PeersStack       *adw.ViewStack
+	WorkSpinner      *adw.Spinner
+	ProfileDropDown  *gtk.DropDown
+	PageMenuButton   *gtk.MenuButton
 
 	pages       map[string]Page
 	showOffline bool
+	peerQuery   string
 	ipn         *tsutil.IPNStatus
 
 	profiles         []ipn.LoginProfile
@@ -146,7 +152,36 @@ func NewMainWindow(app *App) *MainWindow {
 		win.SplitView.ActivateAction("navigation.push", contentVariant)
 	})
 
+	win.initPeerSearch()
+
 	return &win
+}
+
+func (win *MainWindow) initPeerSearch() {
+	win.PeerSearchBar.SetKeyCaptureWidget(win.MainWindow)
+	win.PeerSearchBar.ConnectEntry(win.PeerSearchEntry)
+
+	win.PeerSearchButton.Connect("notify::active", func() {
+		win.PeerSearchBar.SetSearchMode(win.PeerSearchButton.Active())
+	})
+	win.PeerSearchBar.NotifyProperty("search-mode-enabled", func() {
+		searching := win.PeerSearchBar.SearchMode()
+		if win.PeerSearchButton.Active() != searching {
+			win.PeerSearchButton.SetActive(searching)
+		}
+		if !searching {
+			win.PeerSearchEntry.SetText("")
+			win.setPeerQuery("")
+		}
+	})
+	win.PeerSearchEntry.ConnectSearchChanged(func() {
+		win.setPeerQuery(win.PeerSearchEntry.Text())
+	})
+}
+
+func (win *MainWindow) OpenPeerSearch() {
+	win.PeerSearchBar.SetSearchMode(true)
+	win.PeerSearchEntry.GrabFocus()
 }
 
 func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
@@ -213,6 +248,19 @@ func (win *MainWindow) SetShowOffline(show bool) {
 		return
 	}
 	win.showOffline = show
+	win.applyPeerLayout()
+}
+
+func (win *MainWindow) setPeerQuery(q string) {
+	q = strings.TrimSpace(q)
+	if win.peerQuery == q {
+		return
+	}
+	win.peerQuery = q
+	win.applyPeerLayout()
+}
+
+func (win *MainWindow) applyPeerLayout() {
 	if win.ipn == nil || !win.ipn.Online() {
 		return
 	}
@@ -300,6 +348,10 @@ func (win *MainWindow) desiredPageOrder(status *tsutil.IPNStatus) []string {
 		return nil
 	}
 
+	if win.peerQuery != "" {
+		return win.searchPageOrder(status)
+	}
+
 	var order []string
 	if win.pages["self"] != nil {
 		order = append(order, "self")
@@ -334,6 +386,42 @@ func (win *MainWindow) desiredPageOrder(status *tsutil.IPNStatus) []string {
 	sortPeerPageNames(status, others)
 	sortPeerPageNames(status, offline)
 	return slices.Concat(order, exits, others, offline)
+}
+
+func (win *MainWindow) searchPageOrder(status *tsutil.IPNStatus) []string {
+	type hit struct {
+		name  string
+		peer  tailcfg.NodeView
+		score int
+	}
+	var hits []hit
+	for name := range win.pages {
+		switch name {
+		case "self", "mullvad", "offline":
+			continue
+		}
+		peer, ok := status.Peers[tailcfg.StableNodeID(name)]
+		if !ok || !peer.Valid() {
+			continue
+		}
+		score, match := peersearch.Score(peer, win.peerQuery)
+		if !match {
+			continue
+		}
+		hits = append(hits, hit{name: name, peer: peer, score: score})
+	}
+	slices.SortFunc(hits, func(a, b hit) int {
+		return cmp.Or(
+			cmp.Compare(b.score, a.score),
+			cmp.Compare(peerName(a.peer), peerName(b.peer)),
+			tsutil.ComparePeers(a.peer, b.peer),
+		)
+	})
+	names := make([]string, len(hits))
+	for i, h := range hits {
+		names[i] = h.name
+	}
+	return names
 }
 
 func sortPeerPageNames(status *tsutil.IPNStatus, names []string) {
@@ -384,6 +472,14 @@ func (win *MainWindow) restoreVisible(name string) {
 }
 
 func (win *MainWindow) syncSections(status *tsutil.IPNStatus) {
+	if win.peerQuery != "" {
+		for _, vp := range win.viewStackPages() {
+			vp.SetStartsSection(false)
+			vp.SetSectionTitle("")
+		}
+		return
+	}
+
 	var startedExit, startedOther, startedOffline bool
 	for _, vp := range win.viewStackPages() {
 		name := vp.Name()

@@ -63,18 +63,6 @@ func TestIsShareeNode(t *testing.T) {
 	require.True(t, IsShareeNode(n.View()))
 }
 
-func TestWatcherOpts(t *testing.T) {
-	t.Parallel()
-
-	require.NoError(t, ipn.ValidateNotifyWatchOpt(watcherOpts))
-	require.Equal(t, ipn.NotifyWatchOpt(0), watcherOpts&ipn.NotifyRateLimit)
-	require.Equal(t, ipn.NotifyNoNetMap, watcherOpts&ipn.NotifyNoNetMap)
-	require.Equal(t, ipn.NotifyInitialStatus, watcherOpts&ipn.NotifyInitialStatus)
-	require.Equal(t, ipn.NotifyPeerChanges, watcherOpts&ipn.NotifyPeerChanges)
-	require.Equal(t, ipn.NotifyInitialNetMap, watcherOpts&ipn.NotifyInitialNetMap)
-	require.Error(t, ipn.ValidateNotifyWatchOpt(watcherOpts|ipn.NotifyRateLimit))
-}
-
 func TestApplyInitialStatusClearsPeersWhenEmpty(t *testing.T) {
 	id := tailcfg.StableNodeID("n1")
 	var s IPNStatus

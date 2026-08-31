@@ -95,19 +95,19 @@ func (p *Poller) Run(ctx context.Context) {
 	}
 }
 
-// NotifyInitialNetMap is kept so older daemons that do not send
-// InitialStatus still bootstrap. RateLimit cannot be combined with
-// PeerChanges / NoNetMap / InitialStatus (HTTP 400).
-const watcherOpts = ipn.NotifyInitialState |
-	ipn.NotifyInitialPrefs |
-	ipn.NotifyInitialNetMap |
-	ipn.NotifyNoPrivateKeys |
-	ipn.NotifyWatchEngineUpdates |
-	ipn.NotifyNoNetMap |
-	ipn.NotifyInitialStatus |
-	ipn.NotifyPeerChanges
-
 func (p *Poller) watchIPN(ctx context.Context) {
+	// NotifyInitialNetMap is kept so older daemons that do not send
+	// InitialStatus still bootstrap. RateLimit cannot be combined with
+	// PeerChanges / NoNetMap / InitialStatus (HTTP 400).
+	const watcherOpts = ipn.NotifyInitialState |
+		ipn.NotifyInitialPrefs |
+		ipn.NotifyInitialNetMap |
+		ipn.NotifyNoPrivateKeys |
+		ipn.NotifyWatchEngineUpdates |
+		ipn.NotifyNoNetMap |
+		ipn.NotifyInitialStatus |
+		ipn.NotifyPeerChanges
+
 watch:
 	if ctx.Err() != nil {
 		return

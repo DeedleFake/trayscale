@@ -68,9 +68,9 @@ go run ./cmd/trayscale
 go run ./cmd/trayscale --hide-window
 
 # Tests, vet, format — go test already compiles packages; a separate
-# go build is unnecessary for verification
-go test ./...
-go vet ./...
+# go build is unnecessary for verification. -vet=all runs the full
+# go vet suite instead of the default high-confidence subset.
+go test -vet=all ./...
 go fmt ./...
 
 # Produce a binary only when you need one (not for routine checks)
@@ -150,10 +150,9 @@ tailscaled (local API)
 
 CI (`.github/workflows/test.yml`) runs:
 
-1. `go vet ./...`
-2. `golangci-lint` (`--disable=errcheck`)
-3. `go test ./...`
-4. AppStream metainfo validation
+1. `golangci-lint` (`--disable=errcheck`)
+2. `go test -vet=all ./...`
+3. AppStream metainfo validation
 
 Tests live next to the code they cover (`*_test.go`). Coverage is currently sparse; add tests when introducing non-trivial pure logic (helpers in `tsutil`, `metadata`, list-model utilities, etc.). GUI-heavy code need not be unit-tested unless practical.
 
@@ -162,14 +161,14 @@ Tests live next to the code they cover (`*_test.go`). Coverage is currently spar
 1. **Git is read-only under all circumstances.** Never create commits, amend, rebase, merge, cherry-pick, stash, checkout branches, reset, clean, tag, push, or otherwise mutate the git repository or index. Read-only commands (`status`, `diff`, `log`, `show`, `blame`, etc.) are fine. Leave all commits and branch management to the user.
 2. **Read before writing** — match patterns in `internal/ui`, `internal/tsutil`, and existing gotk4 usage.
 3. **Do not pin versions in this file** (`AGENTS.md`) — refer to `go.mod` or unversioned dependency names so agent instructions stay valid as versions change. Pinning versions elsewhere (README, comments, code) is fine when appropriate.
-4. **Verify** with `go test ./...` and `go vet ./...` (and `go tool golangci-lint run --disable=errcheck` when practical) before considering work done. Do not run `go build` solely to check that the project compiles — `go test` already builds packages.
+4. **Verify** with `go test -vet=all ./...` (and `go tool golangci-lint run --disable=errcheck` when practical) before considering work done. Do not run `go build` solely to check that the project compiles — `go test` already builds packages.
 5. **UI changes** — update both Go and `.ui` (and Cambalache project when relevant). Do not hand-edit generated or compiled schema blobs; edit `dev.deedles.Trayscale.gschema.xml` and recompile schemas if needed.
 6. **Secrets / environment** — do not commit tokens or machine-specific paths. This app does not ship API keys; keep it that way.
 7. **Tailscale behavior** — prefer the local API / existing `tsutil` helpers over shelling out, except where the code already uses `cli.Run` for up/down-style operations.
 
 ## PR checklist
 
-- [ ] `go test ./...` and `go vet ./...` pass (no separate `go build` needed)
+- [ ] `go test -vet=all ./...` passes (no separate `go build` needed)
 - [ ] `go fmt ./...` applied
 - [ ] golangci-lint clean when feasible (`go tool golangci-lint run --disable=errcheck`)
 - [ ] Metainfo still validates if `dev.deedles.Trayscale.metainfo.xml` changed

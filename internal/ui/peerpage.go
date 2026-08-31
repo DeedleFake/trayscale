@@ -254,7 +254,7 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	}
 
 	page.peer = status.Peers[page.peer.StableID()]
-	if !page.peer.Valid() {
+	if !page.peer.Valid() || tsutil.IsShareeNode(page.peer) {
 		return false
 	}
 

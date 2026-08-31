@@ -246,7 +246,7 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 	}
 	options := func(yield func(selectOption) bool) {
 		for _, peer := range s.Peers {
-			if !s.FileTargets.Contains(peer.StableID()) || tsutil.IsMullvad(peer) {
+			if !s.FileTargets.Contains(peer.StableID()) || tsutil.IsMullvad(peer) || tsutil.IsShareeNode(peer) {
 				continue
 			}
 

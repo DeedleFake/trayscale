@@ -287,7 +287,7 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 	win.ensureSectionPages(status)
 
 	for id, peer := range status.Peers {
-		if tsutil.IsMullvad(peer) {
+		if tsutil.IsMullvad(peer) || tsutil.IsShareeNode(peer) {
 			continue
 		}
 		if _, ok := win.pages[string(id)]; ok {
@@ -367,7 +367,7 @@ func (win *MainWindow) desiredPageOrder(status *tsutil.IPNStatus) []string {
 			continue
 		}
 		peer, ok := status.Peers[tailcfg.StableNodeID(name)]
-		if !ok || !peer.Valid() {
+		if !ok || !peer.Valid() || tsutil.IsShareeNode(peer) {
 			continue
 		}
 		if peerIsExitNodeOption(peer) {
@@ -402,7 +402,7 @@ func (win *MainWindow) searchPageOrder(status *tsutil.IPNStatus) []string {
 			continue
 		}
 		peer, ok := status.Peers[tailcfg.StableNodeID(name)]
-		if !ok || !peer.Valid() {
+		if !ok || !peer.Valid() || tsutil.IsShareeNode(peer) {
 			continue
 		}
 		score, match := peersearch.Score(peer, tokens)

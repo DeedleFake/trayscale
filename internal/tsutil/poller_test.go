@@ -49,3 +49,13 @@ func TestSelfAndSelfAddr(t *testing.T) {
 		require.False(t, s.SelfAddr().IsValid())
 	})
 }
+
+func TestIsShareeNode(t *testing.T) {
+	require.False(t, tsutil.IsShareeNode(tailcfg.NodeView{}))
+	require.False(t, tsutil.IsShareeNode((&tailcfg.Node{}).View()))
+
+	n := &tailcfg.Node{
+		Hostinfo: (&tailcfg.Hostinfo{ShareeNode: true}).View(),
+	}
+	require.True(t, tsutil.IsShareeNode(n.View()))
+}

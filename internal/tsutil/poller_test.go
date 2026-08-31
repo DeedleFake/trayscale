@@ -190,6 +190,68 @@ func TestApplyNotifyStatusOverlay(t *testing.T) {
 	})
 }
 
+func TestApplyNotifySelfIdentityChange(t *testing.T) {
+	t.Parallel()
+
+	oldPeer := tailcfg.StableNodeID("old")
+	newPeer := tailcfg.StableNodeID("new")
+	selfA := testSelfNode(10, "self-a", 100)
+
+	t.Run("first self keeps existing peers", func(t *testing.T) {
+		sess := &ipnSession{}
+		sess.applyNotify(context.Background(), &ipn.Notify{
+			PeersChanged: []*tailcfg.Node{testPeerNode(oldPeer, 1, true)},
+		})
+		sess.applyNotify(context.Background(), &ipn.Notify{SelfChange: selfA})
+		require.Contains(t, sess.status.Peers, oldPeer)
+	})
+
+	t.Run("same identity keeps peers", func(t *testing.T) {
+		sess := &ipnSession{}
+		sess.applyNotify(context.Background(), &ipn.Notify{
+			SelfChange:   selfA,
+			PeersChanged: []*tailcfg.Node{testPeerNode(oldPeer, 1, true)},
+		})
+		renamed := testSelfNode(selfA.ID, selfA.StableID, selfA.User)
+		renamed.Name = "renamed.tailnet.ts.net."
+		sess.applyNotify(context.Background(), &ipn.Notify{SelfChange: renamed})
+		require.Contains(t, sess.status.Peers, oldPeer)
+		got, ok := sess.status.Self()
+		require.True(t, ok)
+		require.Equal(t, renamed.Name, got.Name())
+	})
+
+	t.Run("identity change drops old peers", func(t *testing.T) {
+		for _, tt := range []struct {
+			name string
+			next *tailcfg.Node
+		}{
+			{name: "node ID", next: testSelfNode(11, selfA.StableID, selfA.User)},
+			{name: "stable ID", next: testSelfNode(selfA.ID, "self-b", selfA.User)},
+			{name: "user", next: testSelfNode(selfA.ID, selfA.StableID, 200)},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				sess := &ipnSession{}
+				sess.applyNotify(context.Background(), &ipn.Notify{
+					SelfChange:   selfA,
+					PeersChanged: []*tailcfg.Node{testPeerNode(oldPeer, 1, true)},
+				})
+				sess.status.FileTargets.Make()
+				sess.status.FileTargets.Add(oldPeer)
+
+				sess.applyNotify(context.Background(), &ipn.Notify{
+					SelfChange:   tt.next,
+					PeersChanged: []*tailcfg.Node{testPeerNode(newPeer, 2, true)},
+				})
+				require.Len(t, sess.status.Peers, 1)
+				require.Contains(t, sess.status.Peers, newPeer)
+				require.NotContains(t, sess.status.Peers, oldPeer)
+				require.False(t, sess.status.FileTargets.Contains(oldPeer))
+			})
+		}
+	})
+}
+
 func TestApplyNotifyOverlayOncePerSession(t *testing.T) {
 	id := tailcfg.StableNodeID("n1")
 	var calls int
@@ -238,13 +300,26 @@ func assertFailedOverlayConsumed(t *testing.T, id tailcfg.StableNodeID, n *ipn.N
 }
 
 func testPeer(id tailcfg.StableNodeID, nodeID tailcfg.NodeID, online bool) tailcfg.NodeView {
+	return testPeerNode(id, nodeID, online).View()
+}
+
+func testPeerNode(id tailcfg.StableNodeID, nodeID tailcfg.NodeID, online bool) *tailcfg.Node {
 	o := online
-	return (&tailcfg.Node{
+	return &tailcfg.Node{
 		ID:       nodeID,
 		StableID: id,
 		Name:     "peer.tailnet.ts.net.",
 		Online:   &o,
-	}).View()
+	}
+}
+
+func testSelfNode(id tailcfg.NodeID, stable tailcfg.StableNodeID, user tailcfg.UserID) *tailcfg.Node {
+	return &tailcfg.Node{
+		ID:       id,
+		StableID: stable,
+		User:     user,
+		Name:     "self.tailnet.ts.net.",
+	}
 }
 
 func testNetMap(id tailcfg.StableNodeID, nodeID tailcfg.NodeID, online bool) *netmap.NetworkMap {

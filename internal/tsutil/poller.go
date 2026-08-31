@@ -155,7 +155,7 @@ func (sess *ipnSession) applyNotify(ctx context.Context, notify *ipn.Notify) (di
 		netDirty = true
 	}
 	if notify.SelfChange != nil {
-		sess.status.self = notify.SelfChange.View()
+		sess.status.applySelfChange(notify.SelfChange)
 		dirty = true
 		netDirty = true
 	}
@@ -422,6 +422,21 @@ func (s *IPNStatus) applyInitialStatus(st *ipnstate.Status) {
 			s.Peers[peer.ID] = nodeViewFromPeerStatus(peer, suffix)
 		}
 	}
+}
+
+func (s *IPNStatus) applySelfChange(self *tailcfg.Node) {
+	nv := self.View()
+	if s.self.Valid() && nv.Valid() && !sameSelfNode(s.self, nv) {
+		// Profile switches reuse the watch session and send a complete
+		// PeersChanged list without PeersRemoved for the old nodes.
+		clear(s.Peers)
+		clear(s.FileTargets)
+	}
+	s.self = nv
+}
+
+func sameSelfNode(a, b tailcfg.NodeView) bool {
+	return a.ID() == b.ID() && a.StableID() == b.StableID() && a.User() == b.User()
 }
 
 func (s *IPNStatus) applyPeersChanged(peers []*tailcfg.Node) {

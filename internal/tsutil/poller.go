@@ -19,7 +19,6 @@ import (
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/netmap"
 	"tailscale.com/util/set"
-	"tailscale.com/version"
 )
 
 // A Poller gets the latest Tailscale status at regular intervals or
@@ -96,112 +95,24 @@ func (p *Poller) Run(ctx context.Context) {
 	}
 }
 
-// RateLimit cannot be combined with PeerChanges / NoNetMap / InitialStatus (HTTP 400).
-const watcherOptsBase = ipn.NotifyInitialState |
+// NotifyInitialNetMap is kept so older daemons that do not send
+// InitialStatus still bootstrap. RateLimit cannot be combined with
+// PeerChanges / NoNetMap / InitialStatus (HTTP 400).
+const watcherOpts = ipn.NotifyInitialState |
 	ipn.NotifyInitialPrefs |
 	ipn.NotifyInitialNetMap |
 	ipn.NotifyNoPrivateKeys |
 	ipn.NotifyWatchEngineUpdates |
 	ipn.NotifyNoNetMap |
-	ipn.NotifyInitialStatus
-
-const peerChangesMinVersion = "1.100"
-
-func watcherOptsFor(daemonVersion string) ipn.NotifyWatchOpt {
-	opts := watcherOptsBase
-	// PeerChanges strips runtime NetMap used for live Online, and older
-	// daemons' peer-delta JSON does not unmarshal.
-	if version.AtLeast(daemonVersion, peerChangesMinVersion) {
-		opts |= ipn.NotifyPeerChanges
-	}
-	return opts
-}
-
-type ipnSession struct {
-	status      IPNStatus
-	needOverlay bool
-	getStatus   func(context.Context) (*ipnstate.Status, error)
-}
-
-func (sess *ipnSession) applyNotify(ctx context.Context, notify *ipn.Notify) (dirty, netDirty bool) {
-	if notify.State != nil {
-		sess.status.State = *notify.State
-		dirty = true
-	}
-	if notify.Prefs != nil && notify.Prefs.Valid() {
-		sess.status.Prefs = *notify.Prefs
-		dirty = true
-	}
-	if notify.Engine != nil {
-		sess.status.Engine = notify.Engine
-		dirty = true
-	}
-	if notify.BrowseToURL != nil {
-		sess.status.BrowseToURL = *notify.BrowseToURL
-		dirty = true
-	}
-
-	// Order matters: apply thinner InitialStatus first, then full NetMap
-	// (when present), then incremental SelfChange / peer deltas.
-	if notify.InitialStatus != nil {
-		sess.status.applyInitialStatus(notify.InitialStatus)
-		dirty = true
-		netDirty = true
-	}
-	//lint:ignore SA1019 Initial NetMap is still delivered when NotifyInitialNetMap is set.
-	if nm := notify.NetMap; nm != nil {
-		sess.status.applyNetMap(nm)
-		dirty = true
-		netDirty = true
-	}
-	if notify.SelfChange != nil {
-		sess.status.applySelfChange(notify.SelfChange)
-		dirty = true
-		netDirty = true
-	}
-	if len(notify.PeersChanged) != 0 {
-		sess.status.applyPeersChanged(notify.PeersChanged)
-		dirty = true
-		netDirty = true
-	}
-	if len(notify.PeersRemoved) != 0 {
-		sess.status.applyPeersRemoved(notify.PeersRemoved)
-		dirty = true
-		netDirty = true
-	}
-
-	// Live Online on Status must win over the initial NetMap snapshot.
-	if sess.needOverlay {
-		sess.needOverlay = false
-		if sess.getStatus != nil {
-			st, err := sess.getStatus(ctx)
-			if err != nil {
-				slog.Error("get status for IPN bootstrap", "err", err)
-			} else if st != nil {
-				sess.status.applyInitialStatus(st)
-				dirty = true
-				netDirty = true
-			}
-		}
-	}
-	return dirty, netDirty
-}
+	ipn.NotifyInitialStatus |
+	ipn.NotifyPeerChanges
 
 func (p *Poller) watchIPN(ctx context.Context) {
 watch:
 	if ctx.Err() != nil {
 		return
 	}
-	opts := watcherOptsBase
-	if st, err := GetStatus(ctx); err != nil {
-		if ctx.Err() != nil {
-			return
-		}
-		slog.Error("get status for IPN watch mask", "err", err)
-	} else if st != nil {
-		opts = watcherOptsFor(st.Version)
-	}
-	watcher, err := localClient.WatchIPNBus(ctx, opts)
+	watcher, err := localClient.WatchIPNBus(ctx, watcherOpts)
 	if err != nil {
 		slog.Error("start IPN bus watcher", "err", err)
 		select {
@@ -229,7 +140,7 @@ watch:
 		}
 	}()
 
-	sess := &ipnSession{needOverlay: true, getStatus: GetStatus}
+	var s IPNStatus
 	for {
 		notify, err := watcher.Next()
 		if err != nil {
@@ -251,9 +162,9 @@ watch:
 			slog.Error("watcher got error message", "state", state, "err", notify.ErrMessage)
 		}
 
-		dirty, netDirty := sess.applyNotify(ctx, &notify)
+		dirty, netDirty := s.applyNotify(&notify)
 		if netDirty {
-			sess.status.refreshFileTargets(ctx)
+			s.refreshFileTargets(ctx)
 		}
 
 		// TODO: Handle health warnings.
@@ -267,7 +178,7 @@ watch:
 		case <-p.poll:
 		}
 
-		c := sess.status.copy()
+		c := s.copy()
 		select {
 		case <-ctx.Done():
 			return
@@ -391,6 +302,52 @@ func (s *IPNStatus) ensurePeers() {
 	}
 }
 
+func (s *IPNStatus) applyNotify(notify *ipn.Notify) (dirty, netDirty bool) {
+	if notify.State != nil {
+		s.State = *notify.State
+		dirty = true
+	}
+	if notify.Prefs != nil && notify.Prefs.Valid() {
+		s.Prefs = *notify.Prefs
+		dirty = true
+	}
+	if notify.Engine != nil {
+		s.Engine = notify.Engine
+		dirty = true
+	}
+	if notify.BrowseToURL != nil {
+		s.BrowseToURL = *notify.BrowseToURL
+		dirty = true
+	}
+
+	nm := notify.NetMap //nolint:staticcheck // fallback bootstrap when InitialStatus is absent
+	if notify.InitialStatus != nil {
+		s.applyInitialStatus(notify.InitialStatus)
+		dirty = true
+		netDirty = true
+	} else if nm != nil {
+		s.applyNetMap(nm)
+		dirty = true
+		netDirty = true
+	}
+	if notify.SelfChange != nil {
+		s.applySelfChange(notify.SelfChange)
+		dirty = true
+		netDirty = true
+	}
+	if len(notify.PeersChanged) != 0 {
+		s.applyPeersChanged(notify.PeersChanged)
+		dirty = true
+		netDirty = true
+	}
+	if len(notify.PeersRemoved) != 0 {
+		s.applyPeersRemoved(notify.PeersRemoved)
+		dirty = true
+		netDirty = true
+	}
+	return dirty, netDirty
+}
+
 func (s *IPNStatus) applyNetMap(nm *netmap.NetworkMap) {
 	s.self = nm.SelfNode
 	s.ensurePeers()
@@ -410,17 +367,13 @@ func (s *IPNStatus) applyInitialStatus(st *ipnstate.Status) {
 		s.self = nodeViewFromPeerStatus(st.Self, suffix)
 	}
 
-	// InitialStatus may omit peers when a NetMap was already applied; only
-	// replace the peer set when the status actually carries peers.
-	if len(st.Peer) != 0 {
-		s.ensurePeers()
-		clear(s.Peers)
-		for _, peer := range st.Peer {
-			if peer == nil {
-				continue
-			}
-			s.Peers[peer.ID] = nodeViewFromPeerStatus(peer, suffix)
+	s.ensurePeers()
+	clear(s.Peers)
+	for _, peer := range st.Peer {
+		if peer == nil {
+			continue
 		}
+		s.Peers[peer.ID] = nodeViewFromPeerStatus(peer, suffix)
 	}
 }
 

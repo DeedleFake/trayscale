@@ -1,8 +1,6 @@
 package tsutil
 
 import (
-	"context"
-	"errors"
 	"net/netip"
 	"testing"
 	"time"
@@ -65,58 +63,30 @@ func TestIsShareeNode(t *testing.T) {
 	require.True(t, IsShareeNode(n.View()))
 }
 
-func TestWatcherOptsFor(t *testing.T) {
+func TestWatcherOpts(t *testing.T) {
 	t.Parallel()
 
-	legacy := watcherOptsFor("1.98.9")
-	modern := watcherOptsFor("1.102.2")
-
-	for _, opts := range []ipn.NotifyWatchOpt{legacy, modern} {
-		require.NoError(t, ipn.ValidateNotifyWatchOpt(opts))
-		require.Equal(t, ipn.NotifyWatchOpt(0), opts&ipn.NotifyRateLimit)
-		require.Equal(t, ipn.NotifyNoNetMap, opts&ipn.NotifyNoNetMap)
-		require.Equal(t, ipn.NotifyInitialStatus, opts&ipn.NotifyInitialStatus)
-		require.Error(t, ipn.ValidateNotifyWatchOpt(opts|ipn.NotifyRateLimit))
-	}
-
-	require.Equal(t, ipn.NotifyWatchOpt(0), legacy&ipn.NotifyPeerChanges)
-	require.Equal(t, ipn.NotifyPeerChanges, modern&ipn.NotifyPeerChanges)
-
-	tests := []struct {
-		name            string
-		ver             string
-		wantPeerChanges bool
-	}{
-		{name: "empty", ver: "", wantPeerChanges: false},
-		{name: "1.98.9", ver: "1.98.9", wantPeerChanges: false},
-		{name: "1.99.0", ver: "1.99.0", wantPeerChanges: false},
-		{name: "1.100", ver: "1.100", wantPeerChanges: true},
-		{name: "1.100.0", ver: "1.100.0", wantPeerChanges: true},
-		{name: "1.102.2", ver: "1.102.2", wantPeerChanges: true},
-		{name: "1.102 long", ver: "1.102.2-t6cac91817-g6ff0ddc72", wantPeerChanges: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := watcherOptsFor(tt.ver)&ipn.NotifyPeerChanges != 0
-			require.Equal(t, tt.wantPeerChanges, got)
-		})
-	}
+	require.NoError(t, ipn.ValidateNotifyWatchOpt(watcherOpts))
+	require.Equal(t, ipn.NotifyWatchOpt(0), watcherOpts&ipn.NotifyRateLimit)
+	require.Equal(t, ipn.NotifyNoNetMap, watcherOpts&ipn.NotifyNoNetMap)
+	require.Equal(t, ipn.NotifyInitialStatus, watcherOpts&ipn.NotifyInitialStatus)
+	require.Equal(t, ipn.NotifyPeerChanges, watcherOpts&ipn.NotifyPeerChanges)
+	require.Equal(t, ipn.NotifyInitialNetMap, watcherOpts&ipn.NotifyInitialNetMap)
+	require.Error(t, ipn.ValidateNotifyWatchOpt(watcherOpts|ipn.NotifyRateLimit))
 }
 
-func TestApplyInitialStatusKeepsPeersWhenEmpty(t *testing.T) {
+func TestApplyInitialStatusClearsPeersWhenEmpty(t *testing.T) {
 	id := tailcfg.StableNodeID("n1")
 	var s IPNStatus
 	s.applyNetMap(testNetMap(id, 1, false))
 	require.Contains(t, s.Peers, id)
-	require.False(t, s.Peers[id].Online().Get())
 
 	s.applyInitialStatus(&ipnstate.Status{Peer: nil})
-	require.Contains(t, s.Peers, id)
-	require.False(t, s.Peers[id].Online().Get())
+	require.Empty(t, s.Peers)
 
+	s.applyNetMap(testNetMap(id, 1, false))
 	s.applyInitialStatus(&ipnstate.Status{Peer: map[key.NodePublic]*ipnstate.PeerStatus{}})
-	require.Contains(t, s.Peers, id)
-	require.False(t, s.Peers[id].Online().Get())
+	require.Empty(t, s.Peers)
 }
 
 func TestApplyInitialStatusReplacesNonEmptyPeerMap(t *testing.T) {
@@ -137,57 +107,47 @@ func TestApplyInitialStatusReplacesNonEmptyPeerMap(t *testing.T) {
 	require.True(t, s.Peers[keep].Online().Get())
 }
 
-func TestApplyInitialStatusOverlaysNetMapOnline(t *testing.T) {
-	id := tailcfg.StableNodeID("n1")
+func TestApplyNotifyPrefersInitialStatusOverNetMap(t *testing.T) {
+	keep := tailcfg.StableNodeID("keep")
+	drop := tailcfg.StableNodeID("drop")
 	lastSeen := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
+
+	n := testNotify(
+		&netmap.NetworkMap{
+			Peers: []tailcfg.NodeView{
+				testPeer(keep, 1, false),
+				testPeer(drop, 2, true),
+			},
+		},
+		testStatus(testPeerStatus(keep, 1, true, lastSeen)),
+	)
+
 	var s IPNStatus
-
-	s.applyInitialStatus(testStatus(testPeerStatus(id, 1, true, time.Time{})))
-	require.True(t, s.Peers[id].Online().Get())
-
-	s.applyNetMap(testNetMap(id, 1, false))
-	require.False(t, s.Peers[id].Online().Get())
-	require.True(t, s.Peers[id].LastSeen().Get().IsZero())
-
-	s.applyInitialStatus(testStatus(testPeerStatus(id, 1, true, lastSeen)))
+	s.applyNotify(n)
 	require.Len(t, s.Peers, 1)
-	got := s.Peers[id]
-	require.True(t, got.Online().Get())
-	require.Equal(t, lastSeen, got.LastSeen().Get())
+	require.Contains(t, s.Peers, keep)
+	require.NotContains(t, s.Peers, drop)
+	require.True(t, s.Peers[keep].Online().Get())
+	require.Equal(t, lastSeen, s.Peers[keep].LastSeen().Get())
 }
 
-func TestApplyNotifyStatusOverlay(t *testing.T) {
+func TestApplyNotifyFallsBackToNetMap(t *testing.T) {
 	id := tailcfg.StableNodeID("n1")
-	lastSeen := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
-	stale := testNotify(testNetMap(id, 1, false), testStatus(testPeerStatus(id, 1, true, time.Time{})))
+	var s IPNStatus
+	s.applyNotify(testNotify(testNetMap(id, 1, false), nil))
+	require.Len(t, s.Peers, 1)
+	require.Contains(t, s.Peers, id)
+	require.False(t, s.Peers[id].Online().Get())
+}
 
-	t.Run("overlay error keeps netmap peers", func(t *testing.T) {
-		assertFailedOverlayConsumed(t, id, stale, func(context.Context) (*ipnstate.Status, error) {
-			return nil, errors.New("status failed")
-		})
-	})
+func TestApplyNotifyDeltasAfterBootstrap(t *testing.T) {
+	id := tailcfg.StableNodeID("n1")
+	var s IPNStatus
+	s.applyNotify(&ipn.Notify{InitialStatus: testStatus(testPeerStatus(id, 1, false, time.Time{}))})
+	require.False(t, s.Peers[id].Online().Get())
 
-	t.Run("nil overlay keeps netmap peers", func(t *testing.T) {
-		assertFailedOverlayConsumed(t, id, stale, func(context.Context) (*ipnstate.Status, error) {
-			return nil, nil
-		})
-	})
-
-	t.Run("successful overlay wins over netmap", func(t *testing.T) {
-		for _, wantOnline := range []bool{true, false} {
-			sess := &ipnSession{
-				needOverlay: true,
-				getStatus: func(context.Context) (*ipnstate.Status, error) {
-					return testStatus(testPeerStatus(id, 1, wantOnline, lastSeen)), nil
-				},
-			}
-			sess.applyNotify(context.Background(), stale)
-			require.Len(t, sess.status.Peers, 1)
-			got := sess.status.Peers[id]
-			require.Equal(t, wantOnline, got.Online().Get())
-			require.Equal(t, lastSeen, got.LastSeen().Get())
-		}
-	})
+	s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, true)}})
+	require.True(t, s.Peers[id].Online().Get())
 }
 
 func TestApplyNotifySelfIdentityChange(t *testing.T) {
@@ -198,25 +158,25 @@ func TestApplyNotifySelfIdentityChange(t *testing.T) {
 	selfA := testSelfNode(10, "self-a", 100)
 
 	t.Run("first self keeps existing peers", func(t *testing.T) {
-		sess := &ipnSession{}
-		sess.applyNotify(context.Background(), &ipn.Notify{
+		var s IPNStatus
+		s.applyNotify(&ipn.Notify{
 			PeersChanged: []*tailcfg.Node{testPeerNode(oldPeer, 1, true)},
 		})
-		sess.applyNotify(context.Background(), &ipn.Notify{SelfChange: selfA})
-		require.Contains(t, sess.status.Peers, oldPeer)
+		s.applyNotify(&ipn.Notify{SelfChange: selfA})
+		require.Contains(t, s.Peers, oldPeer)
 	})
 
 	t.Run("same identity keeps peers", func(t *testing.T) {
-		sess := &ipnSession{}
-		sess.applyNotify(context.Background(), &ipn.Notify{
+		var s IPNStatus
+		s.applyNotify(&ipn.Notify{
 			SelfChange:   selfA,
 			PeersChanged: []*tailcfg.Node{testPeerNode(oldPeer, 1, true)},
 		})
 		renamed := testSelfNode(selfA.ID, selfA.StableID, selfA.User)
 		renamed.Name = "renamed.tailnet.ts.net."
-		sess.applyNotify(context.Background(), &ipn.Notify{SelfChange: renamed})
-		require.Contains(t, sess.status.Peers, oldPeer)
-		got, ok := sess.status.Self()
+		s.applyNotify(&ipn.Notify{SelfChange: renamed})
+		require.Contains(t, s.Peers, oldPeer)
+		got, ok := s.Self()
 		require.True(t, ok)
 		require.Equal(t, renamed.Name, got.Name())
 	})
@@ -231,72 +191,25 @@ func TestApplyNotifySelfIdentityChange(t *testing.T) {
 			{name: "user", next: testSelfNode(selfA.ID, selfA.StableID, 200)},
 		} {
 			t.Run(tt.name, func(t *testing.T) {
-				sess := &ipnSession{}
-				sess.applyNotify(context.Background(), &ipn.Notify{
+				var s IPNStatus
+				s.applyNotify(&ipn.Notify{
 					SelfChange:   selfA,
 					PeersChanged: []*tailcfg.Node{testPeerNode(oldPeer, 1, true)},
 				})
-				sess.status.FileTargets.Make()
-				sess.status.FileTargets.Add(oldPeer)
+				s.FileTargets.Make()
+				s.FileTargets.Add(oldPeer)
 
-				sess.applyNotify(context.Background(), &ipn.Notify{
+				s.applyNotify(&ipn.Notify{
 					SelfChange:   tt.next,
 					PeersChanged: []*tailcfg.Node{testPeerNode(newPeer, 2, true)},
 				})
-				require.Len(t, sess.status.Peers, 1)
-				require.Contains(t, sess.status.Peers, newPeer)
-				require.NotContains(t, sess.status.Peers, oldPeer)
-				require.False(t, sess.status.FileTargets.Contains(oldPeer))
+				require.Len(t, s.Peers, 1)
+				require.Contains(t, s.Peers, newPeer)
+				require.NotContains(t, s.Peers, oldPeer)
+				require.False(t, s.FileTargets.Contains(oldPeer))
 			})
 		}
 	})
-}
-
-func TestApplyNotifyOverlayOncePerSession(t *testing.T) {
-	id := tailcfg.StableNodeID("n1")
-	var calls int
-	get := func(context.Context) (*ipnstate.Status, error) {
-		calls++
-		return testStatus(testPeerStatus(id, 1, true, time.Time{})), nil
-	}
-
-	sess := &ipnSession{needOverlay: true, getStatus: get}
-	sess.applyNotify(context.Background(), testNotify(testNetMap(id, 1, false), nil))
-	require.Equal(t, 1, calls)
-	require.True(t, sess.status.Peers[id].Online().Get())
-
-	sess.applyNotify(context.Background(), testNotify(testNetMap(id, 1, false), nil))
-	require.Equal(t, 1, calls)
-	require.False(t, sess.status.Peers[id].Online().Get())
-
-	sess2 := &ipnSession{needOverlay: true, getStatus: get}
-	sess2.applyNotify(context.Background(), testNotify(testNetMap(id, 1, false), nil))
-	require.Equal(t, 2, calls)
-	require.True(t, sess2.status.Peers[id].Online().Get())
-}
-
-func assertFailedOverlayConsumed(t *testing.T, id tailcfg.StableNodeID, n *ipn.Notify, first func(context.Context) (*ipnstate.Status, error)) {
-	t.Helper()
-	var calls int
-	sess := &ipnSession{
-		needOverlay: true,
-		getStatus: func(ctx context.Context) (*ipnstate.Status, error) {
-			calls++
-			if calls == 1 {
-				return first(ctx)
-			}
-			return testStatus(testPeerStatus(id, 1, true, time.Time{})), nil
-		},
-	}
-	sess.applyNotify(context.Background(), n)
-	require.Equal(t, 1, calls)
-	require.False(t, sess.needOverlay)
-	require.Len(t, sess.status.Peers, 1)
-	require.False(t, sess.status.Peers[id].Online().Get())
-
-	sess.applyNotify(context.Background(), n)
-	require.Equal(t, 1, calls)
-	require.False(t, sess.status.Peers[id].Online().Get())
 }
 
 func testPeer(id tailcfg.StableNodeID, nodeID tailcfg.NodeID, online bool) tailcfg.NodeView {
@@ -348,8 +261,7 @@ func testStatus(ps *ipnstate.PeerStatus) *ipnstate.Status {
 func testNotify(nm *netmap.NetworkMap, initial *ipnstate.Status) *ipn.Notify {
 	n := ipn.Notify{InitialStatus: initial}
 	if nm != nil {
-		//lint:ignore SA1019 applyNotify still reads initial NetMap
-		n.NetMap = nm
+		n.NetMap = nm //nolint:staticcheck // fallback bootstrap when InitialStatus is absent
 	}
 	return &n
 }

@@ -70,6 +70,8 @@ type SelfPage struct {
 	addrModel  *gioutil.ListModel[netip.Addr]
 	routeModel *gioutil.ListModel[netip.Prefix]
 	fileModel  *gioutil.ListModel[apitype.WaitingFile]
+
+	incomingFiles int
 }
 
 func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
@@ -82,6 +84,9 @@ func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
 func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	page.app = a
 	page.peer, _ = status.Self()
+	if a.files != nil {
+		page.incomingFiles = len(*a.files)
+	}
 
 	page.actions = gio.NewSimpleActionGroup()
 
@@ -399,6 +404,7 @@ func (page *SelfPage) Init(stackPage *adw.ViewStackPage) {
 	stackPage.SetIconName("computer-symbolic")
 	stackPage.SetStartsSection(true)
 	stackPage.SetSectionTitle("This machine")
+	page.applyIncomingBadge()
 }
 
 func (page *SelfPage) Update(status tsutil.Status) bool {
@@ -455,5 +461,14 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 
 func (page *SelfPage) UpdateFiles(status *tsutil.FileStatus) bool {
 	listmodels.Update(page.fileModel, slices.Values(status.Files))
+	page.incomingFiles = len(status.Files)
+	page.applyIncomingBadge()
 	return true
+}
+
+func (page *SelfPage) applyIncomingBadge() {
+	if page.stackPage == nil {
+		return
+	}
+	page.stackPage.SetBadgeNumber(uint(page.incomingFiles))
 }

@@ -63,8 +63,6 @@ func (page *MullvadPage) Init(stackPage *adw.ViewStackPage) {
 	page.stackPage = stackPage
 	stackPage.SetTitle(mullvadPageBaseName)
 	stackPage.SetIconName("network-workgroup-symbolic")
-	stackPage.SetStartsSection(true)
-	stackPage.SetSectionTitle(mullvadPageBaseName)
 }
 
 func (page *MullvadPage) Update(s tsutil.Status) bool {
@@ -127,11 +125,6 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 	}
 
 	page.stackPage.SetNeedsAttention(subtitle != "")
-	if subtitle != "" {
-		page.stackPage.SetSectionTitle(subtitle)
-	} else {
-		page.stackPage.SetSectionTitle(mullvadPageBaseName)
-	}
 	if exitNodeCountryCode != "" {
 		page.locations[exitNodeCountryCode].SetSubtitle("Current exit node location")
 	}

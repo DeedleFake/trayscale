@@ -218,7 +218,6 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 
 	win.ensureSectionPages(status)
 
-	var newPeers []tailcfg.NodeView
 	for id, peer := range status.Peers {
 		if tsutil.IsMullvad(peer) {
 			continue
@@ -226,16 +225,7 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 		if _, ok := win.pages[string(id)]; ok {
 			continue
 		}
-		newPeers = append(newPeers, peer)
-	}
-	slices.SortFunc(newPeers, func(p1, p2 tailcfg.NodeView) int {
-		return cmp.Or(
-			cmp.Compare(peerName(p1), peerName(p2)),
-			tsutil.ComparePeers(p1, p2),
-		)
-	})
-	for _, peer := range newPeers {
-		win.addPage(string(peer.StableID()), NewPeerPage(win.app, status, peer))
+		win.addPage(string(id), NewPeerPage(win.app, status, peer))
 	}
 
 	win.updatePages(status)
@@ -243,54 +233,12 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 
 func (win *MainWindow) ensureSectionPages(status *tsutil.IPNStatus) {
 	self, hasSelf := status.Self()
-	needSelf := hasSelf && win.pages["self"] == nil
-	needMullvad := hasSelf && tsutil.CanMullvad(self) && win.pages["mullvad"] == nil
-	if !needSelf && !needMullvad {
-		return
+	if hasSelf && win.pages["self"] == nil {
+		win.addPage("self", NewSelfPage(win.app, status))
 	}
-
-	// ViewStack only appends, so lift peers (and Mullvad, if Self is late)
-	// before inserting these section pages.
-	visible := win.PeersStack.VisibleChildName()
-	peers := win.detachPeerPages()
-	if needSelf {
-		if mullvad := win.pages["mullvad"]; mullvad != nil {
-			win.PeersStack.Remove(mullvad.Widget())
-			win.addPage("self", NewSelfPage(win.app, status))
-			win.addPage("mullvad", mullvad)
-		} else {
-			win.addPage("self", NewSelfPage(win.app, status))
-		}
-	}
-	if needMullvad {
+	if hasSelf && tsutil.CanMullvad(self) && win.pages["mullvad"] == nil {
 		win.addPage("mullvad", NewMullvadPage(win.app, status))
 	}
-	for _, e := range peers {
-		win.addPage(e.name, e.page)
-	}
-	if win.pages[visible] != nil {
-		win.PeersStack.SetVisibleChildName(visible)
-	}
-}
-
-func (win *MainWindow) detachPeerPages() []stackedPage {
-	var peers []stackedPage
-	for _, vp := range win.viewStackPages() {
-		name := vp.Name()
-		switch name {
-		case "self", "mullvad", "offline":
-			continue
-		}
-		page := win.pages[name]
-		if page == nil {
-			continue
-		}
-		peers = append(peers, stackedPage{name, page})
-	}
-	for _, e := range peers {
-		win.PeersStack.Remove(e.page.Widget())
-	}
-	return peers
 }
 
 func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
@@ -305,25 +253,150 @@ func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
 		win.removePage(name, win.pages[name])
 	}
 
-	win.syncPeerSection()
+	if win.restackIfNeeded(status) {
+		for _, page := range win.pages {
+			page.Update(status)
+		}
+	}
+	win.syncSections(status)
 }
 
-func (win *MainWindow) syncPeerSection() {
-	first := true
-	for _, vp := range win.viewStackPages() {
-		switch vp.Name() {
+func (win *MainWindow) stackPageNames() []string {
+	vps := win.viewStackPages()
+	names := make([]string, 0, len(vps))
+	for _, vp := range vps {
+		names = append(names, vp.Name())
+	}
+	return names
+}
+
+func (win *MainWindow) desiredPageOrder(status *tsutil.IPNStatus) []string {
+	if !status.Online() {
+		if win.pages["offline"] != nil {
+			return []string{"offline"}
+		}
+		return nil
+	}
+
+	var order []string
+	if win.pages["self"] != nil {
+		order = append(order, "self")
+	}
+	if win.pages["mullvad"] != nil {
+		order = append(order, "mullvad")
+	}
+
+	var exits, others []string
+	for name := range win.pages {
+		switch name {
 		case "self", "mullvad", "offline":
 			continue
 		}
-		if first {
-			vp.SetStartsSection(true)
-			vp.SetSectionTitle("Peers")
-			first = false
+		peer, ok := status.Peers[tailcfg.StableNodeID(name)]
+		if !ok || !peer.Valid() {
 			continue
 		}
+		if peerIsExitNodeOption(peer) {
+			exits = append(exits, name)
+			continue
+		}
+		others = append(others, name)
+	}
+	sortPeerPageNames(status, exits)
+	sortPeerPageNames(status, others)
+	return append(append(order, exits...), others...)
+}
+
+func sortPeerPageNames(status *tsutil.IPNStatus, names []string) {
+	slices.SortFunc(names, func(a, b string) int {
+		p1 := status.Peers[tailcfg.StableNodeID(a)]
+		p2 := status.Peers[tailcfg.StableNodeID(b)]
+		return cmp.Or(
+			cmp.Compare(peerName(p1), peerName(p2)),
+			tsutil.ComparePeers(p1, p2),
+		)
+	})
+}
+
+func (win *MainWindow) restackIfNeeded(status *tsutil.IPNStatus) bool {
+	desired := win.desiredPageOrder(status)
+	if slices.Equal(win.stackPageNames(), desired) {
+		return false
+	}
+	win.restack(desired)
+	return true
+}
+
+func (win *MainWindow) restack(order []string) {
+	visible := win.PeersStack.VisibleChildName()
+	var items []stackedPage
+	seen := make(map[string]bool, len(order))
+	for _, name := range order {
+		page := win.pages[name]
+		if page == nil {
+			continue
+		}
+		items = append(items, stackedPage{name, page})
+		seen[name] = true
+	}
+	for _, vp := range win.viewStackPages() {
+		name := vp.Name()
+		if seen[name] {
+			continue
+		}
+		if page := win.pages[name]; page != nil {
+			items = append(items, stackedPage{name, page})
+		}
+	}
+
+	// ViewStack only appends, so reorder by removing and re-adding.
+	for _, e := range items {
+		win.PeersStack.Remove(e.page.Widget())
+	}
+	for _, e := range items {
+		win.addPage(e.name, e.page)
+	}
+	if win.pages[visible] != nil {
+		win.PeersStack.SetVisibleChildName(visible)
+	}
+}
+
+func (win *MainWindow) syncSections(status *tsutil.IPNStatus) {
+	var startedExit, startedOther bool
+	for _, vp := range win.viewStackPages() {
+		name := vp.Name()
+		switch name {
+		case "self":
+			vp.SetStartsSection(true)
+			vp.SetSectionTitle("This machine")
+			continue
+		case "offline":
+			vp.SetStartsSection(false)
+			vp.SetSectionTitle("")
+			continue
+		case "mullvad":
+			startSection(vp, &startedExit, "Exit Nodes")
+			continue
+		}
+
+		peer := status.Peers[tailcfg.StableNodeID(name)]
+		if peerIsExitNodeOption(peer) {
+			startSection(vp, &startedExit, "Exit Nodes")
+			continue
+		}
+		startSection(vp, &startedOther, "Peers")
+	}
+}
+
+func startSection(vp *adw.ViewStackPage, started *bool, title string) {
+	if *started {
 		vp.SetStartsSection(false)
 		vp.SetSectionTitle("")
+		return
 	}
+	vp.SetStartsSection(true)
+	vp.SetSectionTitle(title)
+	*started = true
 }
 
 func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {

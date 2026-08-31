@@ -261,7 +261,7 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	page.sendFileAction.SetEnabled(status.FileTargets.Contains(page.peer.StableID()))
 
 	online := page.peer.Online().Get()
-	exitNodeOption := tsaddr.ContainsExitRoutes(page.peer.AllowedIPs())
+	exitNodeOption := peerIsExitNodeOption(page.peer)
 	exitNode := page.peer.Equal(status.ExitNode())
 
 	var enginePeer ipnstate.PeerStatusLite
@@ -306,6 +306,10 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 
 func peerName(peer tailcfg.NodeView) string {
 	return peer.DisplayName(true)
+}
+
+func peerIsExitNodeOption(peer tailcfg.NodeView) bool {
+	return peer.Valid() && tsaddr.ContainsExitRoutes(peer.AllowedIPs())
 }
 
 func peerIconName(online, exitNodeOption, exitNode bool) string {

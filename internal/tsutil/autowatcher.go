@@ -17,7 +17,8 @@ type AutoWatcher struct {
 	poller *Poller
 
 	mu         sync.Mutex
-	lastAction string // "enable", "disable", or ""
+	evalMu     sync.Mutex // serialises whole evaluations; never held with mu
+	lastAction string     // "enable", "disable", or ""
 	debounce   *time.Timer
 	conn       *dbus.Conn
 	cancel     context.CancelFunc
@@ -153,6 +154,18 @@ func (w *AutoWatcher) evaluateCurrent(ctx context.Context) {
 		return
 	}
 
+	// One evaluation at a time. Settings changes, the debounce timer and
+	// the ticker can all land at once; without this each could pass the
+	// dedup check while another is blocked reading the poller and issue a
+	// duplicate Start/Stop.
+	w.evalMu.Lock()
+	defer w.evalMu.Unlock()
+
+	// Stop may have been called while waiting for the lock.
+	if ctx.Err() != nil {
+		return
+	}
+
 	ssid := w.CurrentSSID()
 	slog.Info("auto-vpn: evaluating network", "ssid", ssid)
 
@@ -164,6 +177,18 @@ func (w *AutoWatcher) evaluateCurrent(ctx context.Context) {
 		w.disableVPN(ctx, ssid)
 	} else {
 		w.enableVPN(ctx, ssid)
+	}
+}
+
+// ipnState reads the current IPN status, giving up if the watcher is
+// stopped first. The poller channel may never deliver, and a plain
+// receive would leave Stop() unable to unblock the evaluation.
+func (w *AutoWatcher) ipnState(ctx context.Context) (*IPNStatus, bool) {
+	select {
+	case status := <-w.poller.GetIPN():
+		return status, true
+	case <-ctx.Done():
+		return nil, false
 	}
 }
 
@@ -181,7 +206,10 @@ func (w *AutoWatcher) isTrusted(ssid string) bool {
 
 func (w *AutoWatcher) enableVPN(ctx context.Context, ssid string) {
 	// Check current state — if already running, just update tracking
-	status := <-w.poller.GetIPN()
+	status, ok := w.ipnState(ctx)
+	if !ok {
+		return
+	}
 	if status.State == ipn.Running {
 		w.mu.Lock()
 		w.lastAction = "enable"
@@ -199,6 +227,10 @@ func (w *AutoWatcher) enableVPN(ctx context.Context, ssid string) {
 
 	slog.Info("auto-vpn: enabling VPN", "ssid", ssid)
 	err := Start(ctx)
+	if ctx.Err() != nil {
+		// Stopped mid-flight; do not report state the app no longer tracks.
+		return
+	}
 	if err != nil {
 		slog.Error("auto-vpn: failed to enable VPN", "err", err)
 		return
@@ -215,7 +247,10 @@ func (w *AutoWatcher) enableVPN(ctx context.Context, ssid string) {
 
 func (w *AutoWatcher) disableVPN(ctx context.Context, ssid string) {
 	// Check current state — if already stopped, just update tracking
-	status := <-w.poller.GetIPN()
+	status, ok := w.ipnState(ctx)
+	if !ok {
+		return
+	}
 	if status.State != ipn.Running {
 		w.mu.Lock()
 		w.lastAction = "disable"
@@ -233,6 +268,10 @@ func (w *AutoWatcher) disableVPN(ctx context.Context, ssid string) {
 
 	slog.Info("auto-vpn: disabling VPN", "ssid", ssid)
 	err := Stop(ctx)
+	if ctx.Err() != nil {
+		// Stopped mid-flight; do not report state the app no longer tracks.
+		return
+	}
 	if err != nil {
 		slog.Error("auto-vpn: failed to disable VPN", "err", err)
 		return

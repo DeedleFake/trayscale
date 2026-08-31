@@ -126,7 +126,7 @@ tailscaled (local API)
 
 - **`tsutil.Poller`** polls / watches IPN status, waiting files, and profiles; delivers `tsutil.Status` values to `App.update`.
 - **GTK main thread**: use `glib.IdleAdd` (or existing helpers) when updating UI from poller/background work.
-- **Pages** implement `ui.Page` (`Widget`, `Actions`, `Init`, `Update`). Prefer extending that pattern for new peer-related UI.
+- **Pages** implement `ui.Page` (`Widget`, `Actions`, `Bind`, `Update`). Prefer extending that pattern for new peer-related UI. `Bind` is repeatable (restack re-inserts pages); one-time widget setup belongs in the constructor.
 - **Widgets from XML**: declare exported fields matching builder object names (or `gtk:"Name"` tags) and call `gutil.FillFromUI` / `FillFromBuilder`.
 - **App ID** `dev.deedles.Trayscale` is used for the Adwaita application, notifications, GSettings, and metainfo — keep these consistent.
 

@@ -399,11 +399,9 @@ func (page *SelfPage) Actions() gio.ActionGrouper {
 	return page.actions
 }
 
-func (page *SelfPage) Init(stackPage *adw.ViewStackPage) {
+func (page *SelfPage) Bind(stackPage *adw.ViewStackPage) {
 	page.stackPage = stackPage
 	stackPage.SetIconName("computer-symbolic")
-	stackPage.SetStartsSection(true)
-	stackPage.SetSectionTitle("This machine")
 	page.applyIncomingBadge()
 }
 

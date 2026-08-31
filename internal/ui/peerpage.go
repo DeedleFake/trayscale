@@ -240,7 +240,7 @@ func (page *PeerPage) Actions() gio.ActionGrouper {
 	return page.actions
 }
 
-func (page *PeerPage) Init(stackPage *adw.ViewStackPage) {
+func (page *PeerPage) Bind(stackPage *adw.ViewStackPage) {
 	page.stackPage = stackPage
 }
 

@@ -115,7 +115,7 @@ func (page *MullvadPage) Actions() gio.ActionGrouper {
 	return nil
 }
 
-func (page *MullvadPage) Init(stackPage *adw.ViewStackPage) {
+func (page *MullvadPage) Bind(stackPage *adw.ViewStackPage) {
 	page.stackPage = stackPage
 	stackPage.SetTitle(mullvadPageBaseName)
 	stackPage.SetIconName("network-workgroup-symbolic")

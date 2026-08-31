@@ -184,11 +184,10 @@ func (win *MainWindow) OpenPeerSearch() {
 	win.PeerSearchEntry.GrabFocus()
 }
 
-func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
+func (win *MainWindow) addPage(name string, page Page) {
 	win.pages[name] = page
 	vp := win.PeersStack.AddNamed(page.Widget(), name)
-	page.Init(vp)
-	return vp
+	page.Bind(vp)
 }
 
 func (win *MainWindow) viewStackPages() []*adw.ViewStackPage {
@@ -248,7 +247,7 @@ func (win *MainWindow) SetShowOffline(show bool) {
 		return
 	}
 	win.showOffline = show
-	win.applyPeerLayout()
+	win.applyLayout(win.ipn)
 }
 
 func (win *MainWindow) setPeerQuery(q string) {
@@ -257,21 +256,28 @@ func (win *MainWindow) setPeerQuery(q string) {
 		return
 	}
 	win.peerQuery = q
-	win.applyPeerLayout()
+	win.applyLayout(win.ipn)
 }
 
-func (win *MainWindow) applyPeerLayout() {
-	if win.ipn == nil || !win.ipn.Online() {
+// applyLayout restacks the sidebar when desired order changes, refreshes
+// chrome on new ViewStackPages, then applies section headers. Search,
+// hide-offline, and category membership all use this path.
+func (win *MainWindow) applyLayout(status *tsutil.IPNStatus) {
+	if status == nil {
 		return
 	}
-	if win.restackIfNeeded(win.ipn) {
-		for _, vp := range win.viewStackPages() {
-			if page := win.pages[vp.Name()]; page != nil {
-				page.Update(win.ipn)
-			}
+	if win.restackIfNeeded(status) {
+		win.updateStackPages(status)
+	}
+	win.syncSections(status)
+}
+
+func (win *MainWindow) updateStackPages(status *tsutil.IPNStatus) {
+	for _, vp := range win.viewStackPages() {
+		if page := win.pages[vp.Name()]; page != nil {
+			page.Update(status)
 		}
 	}
-	win.syncSections(win.ipn)
 }
 
 func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
@@ -321,14 +327,7 @@ func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
 		win.removePage(name, win.pages[name])
 	}
 
-	if win.restackIfNeeded(status) {
-		for _, vp := range win.viewStackPages() {
-			if page := win.pages[vp.Name()]; page != nil {
-				page.Update(status)
-			}
-		}
-	}
-	win.syncSections(status)
+	win.applyLayout(status)
 }
 
 func (win *MainWindow) stackPageNames() []string {

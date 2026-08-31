@@ -34,7 +34,7 @@ func (page *OfflinePage) Actions() gio.ActionGrouper {
 	return nil
 }
 
-func (page *OfflinePage) Init(stackPage *adw.ViewStackPage) {
+func (page *OfflinePage) Bind(stackPage *adw.ViewStackPage) {
 	stackPage.SetTitle(page.Page.Title())
 	stackPage.SetIconName(page.Page.IconName())
 }

@@ -70,6 +70,10 @@ type Page interface {
 	Widget() gtk.Widgetter
 	Actions() gio.ActionGrouper
 
-	Init(*adw.ViewStackPage)
+	// Bind attaches the page to a ViewStackPage. It is called each time
+	// the page is inserted into the stack, including after restack, and
+	// must be safe to call more than once. One-time widget setup belongs
+	// in the constructor, not here.
+	Bind(*adw.ViewStackPage)
 	Update(tsutil.Status) bool
 }

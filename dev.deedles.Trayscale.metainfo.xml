@@ -55,12 +55,17 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
-		<release version="v0.19.0" date="2026-07-12">
+		<release version="v0.19.0" date="2026-08-31">
 			<description>
 				<ul>
+					<li>Overhaul peer list. It now uses an AdwViewSwitcherSidebar with sections for this machine, exit nodes, online peers, and offline peers.</li>
+					<li>Add search for peers and Mullvad exit nodes.</li>
+					<li>Add option to hide offline peers.</li>
+					<li>Hide sharee nodes from the peer list.</li>
 					<li>Add option to automatically save incoming Taildrop files to a chosen directory.</li>
 					<li>Use contexts for connecting and disconnecting so operations can be cancelled.</li>
-					<li>Update Tailscale to v1.100.0 and other dependencies.</li>
+					<li>Update Tailscale to v1.102.3 and other dependencies.</li>
+					<li>Fix some crash bugs.</li>
 				</ul>
 			</description>
 		</release>

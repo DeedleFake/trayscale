@@ -28,10 +28,10 @@ import (
 var peerPageXML string
 
 type PeerPage struct {
-	app     *App
-	row     *PageRow
-	peer    tailcfg.NodeView
-	actions *gio.SimpleActionGroup
+	app       *App
+	stackPage *adw.ViewStackPage
+	peer      tailcfg.NodeView
+	actions   *gio.SimpleActionGroup
 
 	Page                  *adw.StatusPage
 	IPList                *gtk.ListBox
@@ -240,9 +240,8 @@ func (page *PeerPage) Actions() gio.ActionGrouper {
 	return page.actions
 }
 
-func (page *PeerPage) Init(row *PageRow) {
-	page.row = row
-	row.Row().AddCSSClass("peer")
+func (page *PeerPage) Bind(stackPage *adw.ViewStackPage) {
+	page.stackPage = stackPage
 }
 
 func (page *PeerPage) Update(s tsutil.Status) bool {
@@ -255,14 +254,14 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	}
 
 	page.peer = status.Peers[page.peer.StableID()]
-	if !page.peer.Valid() {
+	if !page.peer.Valid() || tsutil.IsShareeNode(page.peer) {
 		return false
 	}
 
 	page.sendFileAction.SetEnabled(status.FileTargets.Contains(page.peer.StableID()))
 
 	online := page.peer.Online().Get()
-	exitNodeOption := tsaddr.ContainsExitRoutes(page.peer.AllowedIPs())
+	exitNodeOption := peerIsExitNodeOption(page.peer)
 	exitNode := page.peer.Equal(status.ExitNode())
 
 	var enginePeer ipnstate.PeerStatusLite
@@ -270,10 +269,9 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 		enginePeer = status.Engine.LivePeers[page.peer.Key()]
 	}
 
-	page.row.SetTitle(peerName(page.peer))
-	page.row.SetSubtitle(peerSubtitle(exitNodeOption, exitNode))
-	page.row.SetIcon(peerIcon(online, exitNodeOption, exitNode))
-	gutil.SetCSSClass(page.row.Row(), "online", online)
+	page.stackPage.SetTitle(peerName(page.peer))
+	page.stackPage.SetIconName(peerIconName(online, exitNodeOption, exitNode))
+	page.stackPage.SetNeedsAttention(exitNode)
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())
@@ -307,40 +305,32 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 }
 
 func peerName(peer tailcfg.NodeView) string {
+	if !peer.Valid() {
+		return ""
+	}
 	return peer.DisplayName(true)
 }
 
-func peerSubtitle(exitNodeOption, exitNode bool) string {
-	if exitNode {
-		return "Current exit node"
-	}
-	if exitNodeOption {
-		return "Exit node option"
-	}
-	return ""
+func peerIsExitNodeOption(peer tailcfg.NodeView) bool {
+	return peer.Valid() && tsaddr.ContainsExitRoutes(peer.AllowedIPs())
 }
 
-var (
-	peerIconExitNodeOffline = gio.NewThemedIconWithDefaultFallbacks("security-low-symbolic")
-	peerIconExitNodeOnline  = gio.NewThemedIconWithDefaultFallbacks("security-high-symbolic")
-	peerIconOffline         = gio.NewThemedIconWithDefaultFallbacks("network-offline-symbolic")
-	peerIconExitNodeOption  = gio.NewThemedIconWithDefaultFallbacks("network-vpn-symbolic")
-	peerIconDefault         = gio.NewThemedIconWithDefaultFallbacks("network-transmit-receive-symbolic")
-)
+func peerIsOnline(peer tailcfg.NodeView) bool {
+	return peer.Valid() && peer.Online().Get()
+}
 
-func peerIcon(online, exitNodeOption, exitNode bool) gio.Iconner {
+func peerIconName(online, exitNodeOption, exitNode bool) string {
 	if exitNode {
 		if !online {
-			return peerIconExitNodeOffline
+			return "security-low-symbolic"
 		}
-		return peerIconExitNodeOnline
+		return "security-high-symbolic"
 	}
 	if !online {
-		return peerIconOffline
+		return "network-offline-symbolic"
 	}
 	if exitNodeOption {
-		return peerIconExitNodeOption
+		return "network-vpn-symbolic"
 	}
-
-	return peerIconDefault
+	return "network-transmit-receive-symbolic"
 }

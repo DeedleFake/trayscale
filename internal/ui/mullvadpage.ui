@@ -13,9 +13,24 @@
             <property name="orientation">vertical</property>
             <property name="spacing">12</property>
             <child>
+              <object class="GtkSearchEntry" id="SearchEntry">
+                <property name="hexpand">True</property>
+                <property name="placeholder-text">Search locations</property>
+              </object>
+            </child>
+            <child>
               <object class="GtkListBox" id="LocationList">
                 <property name="css-classes">boxed-list</property>
                 <property name="selection-mode">none</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel" id="EmptyLabel">
+                <property name="css-classes">dim-label</property>
+                <property name="halign">center</property>
+                <property name="label">No matching exit nodes</property>
+                <property name="margin-top">24</property>
+                <property name="visible">False</property>
               </object>
             </child>
           </object>

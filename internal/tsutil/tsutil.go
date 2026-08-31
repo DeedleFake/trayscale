@@ -16,6 +16,17 @@ func IsMullvad(peer tailcfg.NodeView) bool {
 	})
 }
 
+// IsShareeNode reports whether peer is in the netmap only because it
+// belongs to a user that a device was shared to. These are hidden by
+// tailscale status and should not appear in the peer list.
+func IsShareeNode(peer tailcfg.NodeView) bool {
+	if !peer.Valid() {
+		return false
+	}
+	hi := peer.Hostinfo()
+	return hi.Valid() && hi.ShareeNode()
+}
+
 // CanMullvad returns true if peer is allowed to access Mullvad exit
 // nodes.
 func CanMullvad(peer tailcfg.NodeView) bool {

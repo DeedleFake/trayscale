@@ -24,16 +24,14 @@ import (
 	"tailscale.com/tailcfg"
 )
 
-var selfIcon = gio.NewThemedIconWithDefaultFallbacks("computer-symbolic")
-
 //go:embed selfpage.ui
 var selfPageXML string
 
 type SelfPage struct {
-	app     *App
-	row     *PageRow
-	peer    tailcfg.NodeView
-	actions *gio.SimpleActionGroup
+	app       *App
+	stackPage *adw.ViewStackPage
+	peer      tailcfg.NodeView
+	actions   *gio.SimpleActionGroup
 
 	Page                 *adw.StatusPage
 	IPList               *gtk.ListBox
@@ -72,6 +70,8 @@ type SelfPage struct {
 	addrModel  *gioutil.ListModel[netip.Addr]
 	routeModel *gioutil.ListModel[netip.Prefix]
 	fileModel  *gioutil.ListModel[apitype.WaitingFile]
+
+	incomingFiles int
 }
 
 func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
@@ -83,7 +83,10 @@ func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
 
 func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	page.app = a
-	page.peer = status.NetMap.SelfNode
+	page.peer, _ = status.Self()
+	if a.files != nil {
+		page.incomingFiles = len(*a.files)
+	}
 
 	page.actions = gio.NewSimpleActionGroup()
 
@@ -396,11 +399,10 @@ func (page *SelfPage) Actions() gio.ActionGrouper {
 	return page.actions
 }
 
-func (page *SelfPage) Init(row *PageRow) {
-	page.row = row
-	row.SetSubtitle("This machine")
-	page.row.SetIcon(selfIcon)
-	row.Row().AddCSSClass("self")
+func (page *SelfPage) Bind(stackPage *adw.ViewStackPage) {
+	page.stackPage = stackPage
+	stackPage.SetIconName("computer-symbolic")
+	page.applyIncomingBadge()
 }
 
 func (page *SelfPage) Update(status tsutil.Status) bool {
@@ -418,10 +420,14 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 	if !status.Online() {
 		return false
 	}
+	self, ok := status.Self()
+	if !ok {
+		return true
+	}
 
-	page.peer = status.NetMap.SelfNode
+	page.peer = self
 
-	page.row.SetTitle(peerName(page.peer))
+	page.stackPage.SetTitle(peerName(page.peer))
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())
@@ -453,5 +459,14 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 
 func (page *SelfPage) UpdateFiles(status *tsutil.FileStatus) bool {
 	listmodels.Update(page.fileModel, slices.Values(status.Files))
+	page.incomingFiles = len(status.Files)
+	page.applyIncomingBadge()
 	return true
+}
+
+func (page *SelfPage) applyIncomingBadge() {
+	if page.stackPage == nil {
+		return
+	}
+	page.stackPage.SetBadgeNumber(uint(page.incomingFiles))
 }

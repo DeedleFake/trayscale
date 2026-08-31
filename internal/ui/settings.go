@@ -49,6 +49,13 @@ func (a *App) initSettings(ctx context.Context) {
 				a.clearAutoSaveFailures()
 				a.maybeAutoSaveFiles()
 			})
+
+		case "show-offline-peers":
+			glib.IdleAdd(func() {
+				if a.win != nil {
+					a.win.SetShowOffline(a.settings.Boolean("show-offline-peers"))
+				}
+			})
 		}
 	})
 

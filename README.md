@@ -7,7 +7,7 @@ Trayscale is an unofficial GUI interface for the Tailscale daemon particularly f
 
 _Disclaimer: This project is in a beta state. There may still be undiscovered bugs or compatibility issues. Use at your own risk._
 
-![screenshot](https://github.com/user-attachments/assets/4f66b16d-0d6c-4dde-86d3-ecc9af6ea05e)
+![screenshot](https://github.com/user-attachments/assets/30f69ec9-630b-4d9a-98a9-cb31712c60e7)
 
 Tailscale Config
 ----------------
@@ -31,7 +31,7 @@ First, make sure that you have dependencies installed:
 
 * Go >= 1.24
 * GTK >= 4.0
-* Libadwaita >= 1.6
+* Libadwaita >= 1.9
 
 The main Trayscale binary can be installed with `go install`:
 

@@ -34,19 +34,6 @@ var (
 	boolUnknownIcon = gio.NewThemedIconWithDefaultFallbacks("dialog-question-symbolic")
 )
 
-func prioritize[T comparable](target, v1, v2 T) (int, bool) {
-	if v1 == target {
-		if v1 == v2 {
-			return 0, true
-		}
-		return -1, true
-	}
-	if v2 == target {
-		return 1, true
-	}
-	return 0, false
-}
-
 func formatTime(t time.Time) string {
 	if t.IsZero() {
 		return ""
@@ -83,61 +70,10 @@ type Page interface {
 	Widget() gtk.Widgetter
 	Actions() gio.ActionGrouper
 
-	Init(*PageRow)
+	// Bind attaches the page to a ViewStackPage. It is called each time
+	// the page is inserted into the stack, including after restack, and
+	// must be safe to call more than once. One-time widget setup belongs
+	// in the constructor, not here.
+	Bind(*adw.ViewStackPage)
 	Update(tsutil.Status) bool
-}
-
-type PageRow struct {
-	page *adw.ViewStackPage
-	row  *adw.ActionRow
-	icon *gtk.Image
-}
-
-func NewPageRow(page *adw.ViewStackPage) *PageRow {
-	icon := gtk.NewImage()
-	icon.NotifyProperty("icon-name", func() {
-		page.SetIconName(icon.IconName())
-	})
-	icon.SetVExpand(false)
-	icon.SetVAlign(gtk.AlignCenter)
-
-	row := adw.NewActionRow()
-	row.AddPrefix(icon)
-	row.NotifyProperty("title", func() {
-		page.SetTitle(row.Title())
-	})
-
-	return &PageRow{
-		page: page,
-		row:  row,
-		icon: icon,
-	}
-}
-
-func (row *PageRow) Page() *adw.ViewStackPage {
-	return row.page
-}
-
-func (row *PageRow) Row() *adw.ActionRow {
-	return row.row
-}
-
-func (row *PageRow) Icon() *gtk.Image {
-	return row.icon
-}
-
-func (row *PageRow) SetTitle(title string) {
-	row.row.SetTitle(title)
-}
-
-func (row *PageRow) SetSubtitle(subtitle string) {
-	row.row.SetSubtitle(subtitle)
-}
-
-func (row *PageRow) SetIcon(icon gio.Iconner) {
-	row.icon.SetFromGIcon(icon)
-}
-
-func (row *PageRow) SetIconName(name string) {
-	row.icon.SetFromIconName(name)
 }

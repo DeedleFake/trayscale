@@ -10,6 +10,15 @@
 				example, display the current Tailscale connection status.
 			</description>
 		</key>
+		<key name="show-offline-peers" type="b">
+			<default>true</default>
+			<summary>Show offline peers in the sidebar</summary>
+			<description>
+				If enabled, peers that are offline and are not exit nodes are
+				listed in the sidebar. Exit nodes stay visible even when
+				offline.
+			</description>
+		</key>
 		<key name="polling-interval" type="d">
 			<default>5</default>
 			<summary>Interval at which to poll the Tailscale daemon</summary>

@@ -246,7 +246,7 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 	}
 	options := func(yield func(selectOption) bool) {
 		for _, peer := range s.Peers {
-			if !s.FileTargets.Contains(peer.StableID()) || tsutil.IsMullvad(peer) {
+			if !s.FileTargets.Contains(peer.StableID()) || tsutil.IsMullvad(peer) || tsutil.IsShareeNode(peer) {
 				continue
 			}
 
@@ -298,6 +298,19 @@ func (a *App) onAppActivate(ctx context.Context) {
 	useExitNodeAction.SetEnabled(false)
 	a.app.AddAction(useExitNodeAction)
 
+	if a.settings != nil {
+		a.app.AddAction(a.settings.CreateAction("show-offline-peers"))
+	} else {
+		showOffline := gio.NewSimpleActionStateful("show-offline-peers", nil, glib.NewVariantBoolean(true))
+		showOffline.ConnectChangeState(func(state *glib.Variant) {
+			showOffline.SetState(state)
+			if a.win != nil {
+				a.win.SetShowOffline(state.Boolean())
+			}
+		})
+		a.app.AddAction(showOffline)
+	}
+
 	changeControlServerAction := gio.NewSimpleAction("change_control_server", nil)
 	changeControlServerAction.ConnectActivate(func(p *glib.Variant) { a.showChangeControlServer() })
 	a.app.AddAction(changeControlServerAction)
@@ -318,6 +331,15 @@ func (a *App) onAppActivate(ctx context.Context) {
 	quitAction.ConnectActivate(func(p *glib.Variant) { a.Quit() })
 	a.app.AddAction(quitAction)
 	a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
+
+	searchPeersAction := gio.NewSimpleAction("search-peers", nil)
+	searchPeersAction.ConnectActivate(func(p *glib.Variant) {
+		if a.win != nil {
+			a.win.OpenPeerSearch()
+		}
+	})
+	a.app.AddAction(searchPeersAction)
+	a.app.SetAccelsForAction("app.search-peers", []string{"<Ctrl>f"})
 
 	loginAction := gio.NewSimpleAction("login", nil)
 	loginAction.ConnectActivate(func(p *glib.Variant) {

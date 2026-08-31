@@ -1,9 +1,12 @@
 package ui
 
 import (
+	"cmp"
 	"context"
 	_ "embed"
+	"iter"
 	"log/slog"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -11,12 +14,14 @@ import (
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/metadata"
+	"deedles.dev/trayscale/internal/peersearch"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn"
+	"tailscale.com/tailcfg"
 )
 
 var (
@@ -30,30 +35,40 @@ var (
 type MainWindow struct {
 	app *App
 
-	MainWindow      *adw.ApplicationWindow
-	ToastOverlay    *adw.ToastOverlay
-	SplitView       *adw.NavigationSplitView
-	StatusSwitch    *gtk.Switch
-	MainMenuButton  *gtk.MenuButton
-	PeersList       *gtk.ListBox
-	PeersStack      *adw.ViewStack
-	WorkSpinner     *adw.Spinner
-	ProfileDropDown *gtk.DropDown
-	PageMenuButton  *gtk.MenuButton
+	MainWindow       *adw.ApplicationWindow
+	ToastOverlay     *adw.ToastOverlay
+	SplitView        *adw.NavigationSplitView
+	StatusSwitch     *gtk.Switch
+	MainMenuButton   *gtk.MenuButton
+	PeerSearchButton *gtk.ToggleButton
+	PeerSearchBar    *gtk.SearchBar
+	PeerSearchEntry  *gtk.SearchEntry
+	PeersSidebar     *adw.ViewSwitcherSidebar
+	PeersStack       *adw.ViewStack
+	WorkSpinner      *adw.Spinner
+	ProfileDropDown  *gtk.DropDown
+	PageMenuButton   *gtk.MenuButton
 
-	pages map[string]Page
+	pages       map[string]Page
+	showOffline bool
+	peerQuery   string
+	ipn         *tsutil.IPNStatus
 
-	profiles              []ipn.LoginProfile
-	profileModel          *gtk.StringList
-	profileSortModel      *gtk.SortListModel
-	updatingProfiles      bool
-	activeProfileID       ipn.ProfileID
+	profiles         []ipn.LoginProfile
+	profileModel     *gtk.StringList
+	profileSortModel *gtk.SortListModel
+	updatingProfiles bool
+	activeProfileID  ipn.ProfileID
 }
 
 func NewMainWindow(app *App) *MainWindow {
 	win := MainWindow{
-		app:   app,
-		pages: make(map[string]Page),
+		app:         app,
+		pages:       make(map[string]Page),
+		showOffline: true,
+	}
+	if app.settings != nil {
+		win.showOffline = app.settings.Boolean("show-offline-peers")
 	}
 	gutil.FillFromUI(&win, menuXML, mainWindowXML)
 
@@ -68,60 +83,6 @@ func NewMainWindow(app *App) *MainWindow {
 		}
 		win.MainWindow.InsertActionGroup("peer", actions)
 		win.PageMenuButton.SetSensitive(actions != nil)
-	})
-
-	pages := make(map[uintptr]*PageRow)
-	pagesModel := win.PeersStack.Pages()
-	listmodels.Bind(
-		pagesModel,
-		NewPageRow,
-		func(i uint, row *PageRow) {
-			delete(pages, row.Row().Object.Native())
-			win.PeersList.Remove(row.Row())
-		},
-		func(i uint, row *PageRow) {
-			vp := row.Page()
-			row.SetTitle(vp.Title())
-			row.SetIconName(vp.IconName())
-
-			pages[row.Row().Object.Native()] = row
-			win.PeersList.Append(row.Row())
-
-			page := win.pages[vp.Name()]
-			if page != nil {
-				page.Init(row)
-				return
-			}
-
-			vp.NotifyProperty("title", func() {
-				row.SetTitle(vp.Title())
-			})
-			vp.NotifyProperty("icon-name", func() {
-				row.SetIconName(vp.IconName())
-			})
-		},
-	)
-	win.PeersList.SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
-		p1 := pages[r1.Object.Native()].Page()
-		p2 := pages[r2.Object.Native()].Page()
-
-		if v, ok := prioritize("self", p1.Name(), p2.Name()); ok {
-			return v
-		}
-		if v, ok := prioritize("mullvad", p1.Name(), p2.Name()); ok {
-			return v
-		}
-		return strings.Compare(p1.Title(), p2.Title())
-	})
-	win.PeersList.ConnectRowSelected(func(row *gtk.ListBoxRow) {
-		if row == nil {
-			return
-		}
-
-		page := pages[row.Object.Native()]
-		name := page.Page().Name()
-
-		win.PeersStack.SetVisibleChildName(name)
 	})
 
 	win.profileModel = gtk.NewStringList(nil)
@@ -189,30 +150,79 @@ func NewMainWindow(app *App) *MainWindow {
 	})
 
 	contentVariant := glib.NewVariantString("content")
-	win.PeersStack.NotifyProperty("visible-child", func() {
+	win.PeersSidebar.ConnectActivated(func() {
 		win.SplitView.ActivateAction("navigation.push", contentVariant)
 	})
+
+	win.initPeerSearch()
 
 	return &win
 }
 
-func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
+func (win *MainWindow) initPeerSearch() {
+	win.PeerSearchBar.SetKeyCaptureWidget(win.MainWindow)
+	win.PeerSearchBar.ConnectEntry(win.PeerSearchEntry)
+
+	win.PeerSearchButton.Connect("notify::active", func() {
+		win.PeerSearchBar.SetSearchMode(win.PeerSearchButton.Active())
+	})
+	win.PeerSearchBar.NotifyProperty("search-mode-enabled", func() {
+		searching := win.PeerSearchBar.SearchMode()
+		if win.PeerSearchButton.Active() != searching {
+			win.PeerSearchButton.SetActive(searching)
+		}
+		if !searching {
+			win.PeerSearchEntry.SetText("")
+			win.setPeerQuery("")
+		}
+	})
+	win.PeerSearchEntry.ConnectSearchChanged(func() {
+		win.setPeerQuery(win.PeerSearchEntry.Text())
+	})
+}
+
+func (win *MainWindow) OpenPeerSearch() {
+	win.PeerSearchBar.SetSearchMode(true)
+	win.PeerSearchEntry.GrabFocus()
+}
+
+func (win *MainWindow) addPage(name string, page Page) {
 	win.pages[name] = page
-	return win.PeersStack.AddNamed(page.Widget(), name)
+	vp := win.PeersStack.AddNamed(page.Widget(), name)
+	page.Bind(vp)
+}
+
+func (win *MainWindow) viewStackPages() []*adw.ViewStackPage {
+	model := win.PeersStack.Pages()
+	pages := make([]*adw.ViewStackPage, 0, model.NItems())
+	for i := range model.NItems() {
+		obj := model.Item(i)
+		if obj == nil {
+			continue
+		}
+		vp, ok := obj.Cast().(*adw.ViewStackPage)
+		if !ok {
+			continue
+		}
+		pages = append(pages, vp)
+	}
+	return pages
 }
 
 func (win *MainWindow) removePage(name string, page Page) {
-	var reselect bool
-	if win.PeersStack.VisibleChildName() == name {
-		reselect = true
-	}
+	reselect := win.PeersStack.VisibleChildName() == name
 
 	delete(win.pages, name)
 	win.PeersStack.Remove(page.Widget())
 
-	if reselect {
-		win.PeersList.SelectRow(win.PeersList.RowAtIndex(0))
+	if !reselect {
+		return
 	}
+	remaining := win.viewStackPages()
+	if len(remaining) == 0 {
+		return
+	}
+	win.PeersStack.SetVisibleChildName(remaining[0].Name())
 }
 
 func (win *MainWindow) Update(status tsutil.Status) {
@@ -234,7 +244,49 @@ func (win *MainWindow) Update(status tsutil.Status) {
 	}
 }
 
+func (win *MainWindow) SetShowOffline(show bool) {
+	if win.showOffline == show {
+		return
+	}
+	win.showOffline = show
+	win.applyLayout(win.ipn)
+}
+
+func (win *MainWindow) setPeerQuery(q string) {
+	q = strings.TrimSpace(q)
+	if win.peerQuery == q {
+		return
+	}
+	win.peerQuery = q
+	win.applyLayout(win.ipn)
+}
+
+// applyLayout restacks the sidebar when desired order changes, refreshes
+// chrome on new ViewStackPages, then applies section headers. Search,
+// hide-offline, and category membership all use this path.
+func (win *MainWindow) applyLayout(status *tsutil.IPNStatus) {
+	if status == nil {
+		return
+	}
+	layout := sidebarLayout(maps.Keys(win.pages), status, win.showOffline, win.peerQuery)
+	names := sidebarNames(layout)
+	if !slices.Equal(win.stackPageNames(), names) {
+		win.restack(names)
+		win.updateStackPages(status)
+	}
+	win.applySections(layout)
+}
+
+func (win *MainWindow) updateStackPages(status *tsutil.IPNStatus) {
+	for _, vp := range win.viewStackPages() {
+		if page := win.pages[vp.Name()]; page != nil {
+			page.Update(status)
+		}
+	}
+}
+
 func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
+	win.ipn = status
 	if !status.Online() {
 		if _, ok := win.pages["offline"]; !ok {
 			win.addPage("offline", NewOfflinePage(win.app))
@@ -243,27 +295,29 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 		return
 	}
 
-	if _, ok := win.pages["self"]; !ok {
-		win.addPage("self", NewSelfPage(win.app, status))
-	}
-	if _, ok := win.pages["mullvad"]; !ok && tsutil.CanMullvad(status.NetMap.SelfNode) {
-		win.addPage("mullvad", NewMullvadPage(win.app, status))
-	}
+	win.ensureSectionPages(status)
 
 	for id, peer := range status.Peers {
-		if tsutil.IsMullvad(peer) {
+		if tsutil.IsMullvad(peer) || tsutil.IsShareeNode(peer) {
 			continue
 		}
-
-		name := string(id)
-		if _, ok := win.pages[name]; ok {
+		if _, ok := win.pages[string(id)]; ok {
 			continue
 		}
-
-		win.addPage(name, NewPeerPage(win.app, status, peer))
+		win.addPage(string(id), NewPeerPage(win.app, status, peer))
 	}
 
 	win.updatePages(status)
+}
+
+func (win *MainWindow) ensureSectionPages(status *tsutil.IPNStatus) {
+	self, hasSelf := status.Self()
+	if hasSelf && win.pages["self"] == nil {
+		win.addPage("self", NewSelfPage(win.app, status))
+	}
+	if hasSelf && tsutil.CanMullvad(self) && win.pages["mullvad"] == nil {
+		win.addPage("mullvad", NewMullvadPage(win.app, status))
+	}
 }
 
 func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
@@ -278,7 +332,188 @@ func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
 		win.removePage(name, win.pages[name])
 	}
 
-	win.PeersList.InvalidateSort()
+	win.applyLayout(status)
+}
+
+func (win *MainWindow) stackPageNames() []string {
+	vps := win.viewStackPages()
+	names := make([]string, 0, len(vps))
+	for _, vp := range vps {
+		names = append(names, vp.Name())
+	}
+	return names
+}
+
+// sidebarPage is one sidebar row. section is the header this page
+// starts, or empty if it continues the previous section.
+type sidebarPage struct {
+	name    string
+	section string
+}
+
+func sidebarNames(layout []sidebarPage) []string {
+	names := make([]string, len(layout))
+	for i, p := range layout {
+		names[i] = p.name
+	}
+	return names
+}
+
+func appendGroup(layout []sidebarPage, names []string, section string) []sidebarPage {
+	for i, name := range names {
+		p := sidebarPage{name: name}
+		if i == 0 {
+			p.section = section
+		}
+		layout = append(layout, p)
+	}
+	return layout
+}
+
+func sidebarLayout(pageNames iter.Seq[string], status *tsutil.IPNStatus, showOffline bool, query string) []sidebarPage {
+	var hasSelf, hasMullvad, hasOffline bool
+	var peerNames []string
+	for name := range pageNames {
+		switch name {
+		case "self":
+			hasSelf = true
+		case "mullvad":
+			hasMullvad = true
+		case "offline":
+			hasOffline = true
+		default:
+			peerNames = append(peerNames, name)
+		}
+	}
+
+	if !status.Online() {
+		if hasOffline {
+			return []sidebarPage{{name: "offline"}}
+		}
+		return nil
+	}
+	if query != "" {
+		return searchSidebarLayout(peerNames, status, query)
+	}
+
+	var exits, others, offline []string
+	for _, name := range peerNames {
+		peer, ok := status.Peers[tailcfg.StableNodeID(name)]
+		if !ok || !peer.Valid() || tsutil.IsShareeNode(peer) {
+			continue
+		}
+		if peerIsExitNodeOption(peer) {
+			exits = append(exits, name)
+			continue
+		}
+		if !peerIsOnline(peer) {
+			if showOffline {
+				offline = append(offline, name)
+			}
+			continue
+		}
+		others = append(others, name)
+	}
+	sortPeerPageNames(status, exits)
+	sortPeerPageNames(status, others)
+	sortPeerPageNames(status, offline)
+
+	var layout []sidebarPage
+	if hasSelf {
+		layout = appendGroup(layout, []string{"self"}, "This machine")
+	}
+	if hasMullvad {
+		layout = appendGroup(layout, []string{"mullvad"}, "Exit Nodes")
+		layout = appendGroup(layout, exits, "")
+	} else {
+		layout = appendGroup(layout, exits, "Exit Nodes")
+	}
+	layout = appendGroup(layout, others, "Online")
+	layout = appendGroup(layout, offline, "Offline")
+	return layout
+}
+
+func searchSidebarLayout(peerNames []string, status *tsutil.IPNStatus, query string) []sidebarPage {
+	type hit struct {
+		name  string
+		peer  tailcfg.NodeView
+		score int
+	}
+	tokens := strings.Fields(query)
+	var hits []hit
+	for _, name := range peerNames {
+		peer, ok := status.Peers[tailcfg.StableNodeID(name)]
+		if !ok || !peer.Valid() || tsutil.IsShareeNode(peer) {
+			continue
+		}
+		score, match := peersearch.Score(peer, tokens)
+		if !match {
+			continue
+		}
+		hits = append(hits, hit{name: name, peer: peer, score: score})
+	}
+	slices.SortFunc(hits, func(a, b hit) int {
+		return cmp.Or(
+			cmp.Compare(b.score, a.score),
+			cmp.Compare(peerName(a.peer), peerName(b.peer)),
+			tsutil.ComparePeers(a.peer, b.peer),
+		)
+	})
+	layout := make([]sidebarPage, len(hits))
+	for i, h := range hits {
+		layout[i] = sidebarPage{name: h.name}
+	}
+	return layout
+}
+
+func sortPeerPageNames(status *tsutil.IPNStatus, names []string) {
+	slices.SortFunc(names, func(a, b string) int {
+		p1 := status.Peers[tailcfg.StableNodeID(a)]
+		p2 := status.Peers[tailcfg.StableNodeID(b)]
+		return cmp.Or(
+			cmp.Compare(peerName(p1), peerName(p2)),
+			tsutil.ComparePeers(p1, p2),
+		)
+	})
+}
+
+func (win *MainWindow) restack(order []string) {
+	visible := win.PeersStack.VisibleChildName()
+	for _, vp := range win.viewStackPages() {
+		if page := win.pages[vp.Name()]; page != nil {
+			win.PeersStack.Remove(page.Widget())
+		}
+	}
+	for _, name := range order {
+		if page := win.pages[name]; page != nil {
+			win.addPage(name, page)
+		}
+	}
+	win.restoreVisible(visible)
+}
+
+func (win *MainWindow) restoreVisible(name string) {
+	for _, vp := range win.viewStackPages() {
+		if vp.Name() == name {
+			win.PeersStack.SetVisibleChildName(name)
+			return
+		}
+	}
+	if remaining := win.viewStackPages(); len(remaining) > 0 {
+		win.PeersStack.SetVisibleChildName(remaining[0].Name())
+	}
+}
+
+func (win *MainWindow) applySections(layout []sidebarPage) {
+	section := make(map[string]string, len(layout))
+	for _, p := range layout {
+		section[p.name] = p.section
+	}
+	for _, vp := range win.viewStackPages() {
+		title := section[vp.Name()]
+		vp.SetStartsSection(title != "")
+		vp.SetSectionTitle(title)
+	}
 }
 
 func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {

@@ -362,12 +362,23 @@ func (s *IPNStatus) OperatorIsCurrent() bool {
 	return s.Prefs.OperatorUser() == current.Username
 }
 
-func (s *IPNStatus) SelfAddr() netip.Addr {
+// Self returns the local node from the netmap. The boolean is false
+// when the netmap is missing or SelfNode is invalid.
+func (s *IPNStatus) Self() (tailcfg.NodeView, bool) {
 	if s.NetMap == nil {
+		return tailcfg.NodeView{}, false
+	}
+	n := s.NetMap.SelfNode
+	return n, n.Valid()
+}
+
+func (s *IPNStatus) SelfAddr() netip.Addr {
+	self, ok := s.Self()
+	if !ok {
 		return netip.Addr{}
 	}
 
-	addrs := s.NetMap.SelfNode.Addresses()
+	addrs := self.Addresses()
 	if addrs.Len() == 0 {
 		return netip.Addr{}
 	}

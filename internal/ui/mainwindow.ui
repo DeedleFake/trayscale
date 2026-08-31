@@ -3,7 +3,7 @@
 <interface>
   <!-- interface-name mainwindow.ui -->
   <requires lib="gtk" version="4.18"/>
-  <requires lib="libadwaita" version="1.7"/>
+  <requires lib="libadwaita" version="1.9"/>
   <object class="AdwApplicationWindow" id="MainWindow">
     <property name="content">ToastOverlay</property>
     <property name="default-height">600</property>
@@ -52,12 +52,14 @@
                 <property name="child">
                   <object class="AdwToolbarView">
                     <property name="content">
-                      <object class="GtkScrolledWindow">
-                        <property name="child">
-                          <object class="GtkListBox" id="PeersList">
-                            <property name="css-classes">navigation-sidebar</property>
+                      <object class="AdwViewSwitcherSidebar" id="PeersSidebar">
+                        <property name="placeholder">
+                          <object class="AdwStatusPage">
+                            <property name="icon-name">edit-find-symbolic</property>
+                            <property name="title">No matching peers</property>
                           </object>
                         </property>
+                        <property name="stack">PeersStack</property>
                       </object>
                     </property>
                     <child type="top">
@@ -73,9 +75,25 @@
                             <property name="primary">True</property>
                           </object>
                         </child>
+                        <child type="end">
+                          <object class="GtkToggleButton" id="PeerSearchButton">
+                            <property name="icon-name">edit-find-symbolic</property>
+                            <property name="tooltip-text">Search peers</property>
+                          </object>
+                        </child>
                         <child type="title">
                           <object class="GtkDropDown" id="ProfileDropDown"/>
                         </child>
+                      </object>
+                    </child>
+                    <child type="top">
+                      <object class="GtkSearchBar" id="PeerSearchBar">
+                        <property name="child">
+                          <object class="GtkSearchEntry" id="PeerSearchEntry">
+                            <property name="hexpand">True</property>
+                            <property name="placeholder-text">Search peers</property>
+                          </object>
+                        </property>
                       </object>
                     </child>
                   </object>
@@ -93,6 +111,7 @@
         <!-- Custom object fragments -->
         <condition>max-width: 400sp</condition>
         <setter object="SplitView" property="collapsed">True</setter>
+        <setter object="PeersSidebar" property="mode">page</setter>
       </object>
     </child>
   </object>

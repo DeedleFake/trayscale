@@ -30,11 +30,11 @@
 	<launchable type="desktop-id">dev.deedles.Trayscale.desktop</launchable>
 	<screenshots>
 		<screenshot type="default">
-			<image>https://github.com/user-attachments/assets/4f66b16d-0d6c-4dde-86d3-ecc9af6ea05e</image>
+			<image>https://github.com/user-attachments/assets/30f69ec9-630b-4d9a-98a9-cb31712c60e7</image>
 			<caption>Connected to Tailscale</caption>
 		</screenshot>
 		<screenshot>
-			<image>https://github.com/user-attachments/assets/5a3736ff-8e30-448d-87c2-85d04d1e6565</image>
+			<image>https://github.com/user-attachments/assets/2cab2bc7-9c0d-4003-b3cd-2b758b4a2d7f</image>
 			<caption>Not connected to Tailscale</caption>
 		</screenshot>
 	</screenshots>
@@ -55,12 +55,17 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
-		<release version="v0.19.0" date="2026-07-12">
+		<release version="v0.19.0" date="2026-08-31">
 			<description>
 				<ul>
+					<li>Overhaul peer list. It now uses an AdwViewSwitcherSidebar with sections for this machine, exit nodes, online peers, and offline peers.</li>
+					<li>Add search for peers and Mullvad exit nodes.</li>
+					<li>Add option to hide offline peers.</li>
+					<li>Hide sharee nodes from the peer list.</li>
 					<li>Add option to automatically save incoming Taildrop files to a chosen directory.</li>
 					<li>Use contexts for connecting and disconnecting so operations can be cancelled.</li>
-					<li>Update Tailscale to v1.100.0 and other dependencies.</li>
+					<li>Update Tailscale to v1.102.3 and other dependencies.</li>
+					<li>Fix some crash bugs.</li>
 				</ul>
 			</description>
 		</release>

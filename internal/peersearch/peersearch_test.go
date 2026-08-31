@@ -2,6 +2,7 @@ package peersearch_test
 
 import (
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 
@@ -92,6 +93,28 @@ func TestScoreUnicode(t *testing.T) {
 	}
 	if _, ok := score(peer, "KELVIN"); !ok {
 		t.Error("KELVIN should match hostname Kelvin")
+	}
+}
+
+func TestScoreFields(t *testing.T) {
+	fields := slices.Values([]string{"us-nyc-wg-301", "New York", "United States", "US", "NYC"})
+	tests := []struct {
+		query string
+		want  bool
+	}{
+		{"", true},
+		{"new york", true},
+		{"NYC", true},
+		{"us-nyc", true},
+		{"united", true},
+		{"sweden", false},
+		{"new missing", false},
+		{"nwrk", true},
+	}
+	for _, tt := range tests {
+		if _, ok := peersearch.ScoreFields(fields, strings.Fields(tt.query)); ok != tt.want {
+			t.Errorf("ScoreFields(%q) ok=%v, want %v", tt.query, ok, tt.want)
+		}
 	}
 }
 

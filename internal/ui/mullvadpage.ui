@@ -13,6 +13,12 @@
             <property name="orientation">vertical</property>
             <property name="spacing">12</property>
             <child>
+              <object class="GtkSearchEntry" id="SearchEntry">
+                <property name="hexpand">True</property>
+                <property name="placeholder-text">Search locations</property>
+              </object>
+            </child>
+            <child>
               <object class="GtkListBox" id="LocationList">
                 <property name="css-classes">boxed-list</property>
                 <property name="selection-mode">none</property>

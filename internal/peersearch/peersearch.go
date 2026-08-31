@@ -43,6 +43,16 @@ func Fields(peer tailcfg.NodeView) iter.Seq[string] {
 // Score reports how well peer matches tokens. All tokens must match.
 // The boolean is false if any token matches no field.
 func Score(peer tailcfg.NodeView, tokens []string) (int, bool) {
+	return scoreFields(Fields(peer), tokens, fieldWeights)
+}
+
+// ScoreFields reports how well fields match tokens. All tokens must
+// match some field. Empty tokens match with score 0.
+func ScoreFields(fields iter.Seq[string], tokens []string) (int, bool) {
+	return scoreFields(fields, tokens, nil)
+}
+
+func scoreFields(fields iter.Seq[string], tokens []string, weights []int) (int, bool) {
 	if len(tokens) == 0 {
 		return 0, true
 	}
@@ -50,12 +60,12 @@ func Score(peer tailcfg.NodeView, tokens []string) (int, bool) {
 	for _, tok := range tokens {
 		best := -1
 		i := 0
-		for field := range Fields(peer) {
+		for field := range fields {
 			s := scoreToken(field, tok)
 			if s >= 0 {
 				weight := 1
-				if i < len(fieldWeights) {
-					weight = fieldWeights[i]
+				if i < len(weights) {
+					weight = weights[i]
 				}
 				s *= weight
 				if s > best {

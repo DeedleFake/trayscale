@@ -41,19 +41,26 @@ type MainWindow struct {
 	ProfileDropDown *gtk.DropDown
 	PageMenuButton  *gtk.MenuButton
 
-	pages map[string]Page
+	pages    map[string]Page
+	pageRows map[uintptr]*PageRow
 
-	profiles              []ipn.LoginProfile
-	profileModel          *gtk.StringList
-	profileSortModel      *gtk.SortListModel
-	updatingProfiles      bool
-	activeProfileID       ipn.ProfileID
+	// pagesModel and pagesBinding must be retained so gotk4 keeps the
+	// ViewStack pages list's items-changed closures alive.
+	pagesModel   *gtk.SelectionModel
+	pagesBinding *listmodels.Binding[*PageRow]
+
+	profiles         []ipn.LoginProfile
+	profileModel     *gtk.StringList
+	profileSortModel *gtk.SortListModel
+	updatingProfiles bool
+	activeProfileID  ipn.ProfileID
 }
 
 func NewMainWindow(app *App) *MainWindow {
 	win := MainWindow{
-		app:   app,
-		pages: make(map[string]Page),
+		app:      app,
+		pages:    make(map[string]Page),
+		pageRows: make(map[uintptr]*PageRow),
 	}
 	gutil.FillFromUI(&win, menuXML, mainWindowXML)
 
@@ -70,13 +77,12 @@ func NewMainWindow(app *App) *MainWindow {
 		win.PageMenuButton.SetSensitive(actions != nil)
 	})
 
-	pages := make(map[uintptr]*PageRow)
-	pagesModel := win.PeersStack.Pages()
-	listmodels.Bind(
-		pagesModel,
+	win.pagesModel = win.PeersStack.Pages()
+	win.pagesBinding = listmodels.Bind(
+		win.pagesModel,
 		NewPageRow,
 		func(i uint, row *PageRow) {
-			delete(pages, row.Row().Object.Native())
+			delete(win.pageRows, row.Row().Object.Native())
 			win.PeersList.Remove(row.Row())
 		},
 		func(i uint, row *PageRow) {
@@ -84,7 +90,7 @@ func NewMainWindow(app *App) *MainWindow {
 			row.SetTitle(vp.Title())
 			row.SetIconName(vp.IconName())
 
-			pages[row.Row().Object.Native()] = row
+			win.pageRows[row.Row().Object.Native()] = row
 			win.PeersList.Append(row.Row())
 
 			page := win.pages[vp.Name()]
@@ -102,8 +108,8 @@ func NewMainWindow(app *App) *MainWindow {
 		},
 	)
 	win.PeersList.SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
-		p1 := pages[r1.Object.Native()].Page()
-		p2 := pages[r2.Object.Native()].Page()
+		p1 := win.pageRows[r1.Object.Native()].Page()
+		p2 := win.pageRows[r2.Object.Native()].Page()
 
 		if v, ok := prioritize("self", p1.Name(), p2.Name()); ok {
 			return v
@@ -118,7 +124,7 @@ func NewMainWindow(app *App) *MainWindow {
 			return
 		}
 
-		page := pages[row.Object.Native()]
+		page := win.pageRows[row.Object.Native()]
 		name := page.Page().Name()
 
 		win.PeersStack.SetVisibleChildName(name)
@@ -198,7 +204,29 @@ func NewMainWindow(app *App) *MainWindow {
 
 func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
 	win.pages[name] = page
-	return win.PeersStack.AddNamed(page.Widget(), name)
+	vp := win.PeersStack.AddNamed(page.Widget(), name)
+	if win.rowForName(name) == nil {
+		win.bindPageRow(vp, page)
+	}
+	return vp
+}
+
+func (win *MainWindow) bindPageRow(vp *adw.ViewStackPage, page Page) {
+	row := NewPageRow(vp)
+	row.SetTitle(vp.Title())
+	row.SetIconName(vp.IconName())
+	win.pageRows[row.Row().Object.Native()] = row
+	win.PeersList.Append(row.Row())
+	page.Init(row)
+}
+
+func (win *MainWindow) rowForName(name string) *PageRow {
+	for _, row := range win.pageRows {
+		if row.Page().Name() == name {
+			return row
+		}
+	}
+	return nil
 }
 
 func (win *MainWindow) removePage(name string, page Page) {
@@ -209,6 +237,10 @@ func (win *MainWindow) removePage(name string, page Page) {
 
 	delete(win.pages, name)
 	win.PeersStack.Remove(page.Widget())
+	if row := win.rowForName(name); row != nil {
+		delete(win.pageRows, row.Row().Object.Native())
+		win.PeersList.Remove(row.Row())
+	}
 
 	if reselect {
 		win.PeersList.SelectRow(win.PeersList.RowAtIndex(0))
@@ -243,10 +275,10 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 		return
 	}
 
-	if _, ok := win.pages["self"]; !ok {
+	if _, ok := win.pages["self"]; !ok && status.NetMap != nil && status.NetMap.SelfNode.Valid() {
 		win.addPage("self", NewSelfPage(win.app, status))
 	}
-	if _, ok := win.pages["mullvad"]; !ok && tsutil.CanMullvad(status.NetMap.SelfNode) {
+	if _, ok := win.pages["mullvad"]; !ok && status.NetMap != nil && tsutil.CanMullvad(status.NetMap.SelfNode) {
 		win.addPage("mullvad", NewMullvadPage(win.app, status))
 	}
 

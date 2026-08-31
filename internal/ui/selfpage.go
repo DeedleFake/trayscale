@@ -418,6 +418,9 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 	if !status.Online() {
 		return false
 	}
+	if status.NetMap == nil || !status.NetMap.SelfNode.Valid() {
+		return true
+	}
 
 	page.peer = status.NetMap.SelfNode
 

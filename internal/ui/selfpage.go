@@ -83,7 +83,7 @@ func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
 
 func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	page.app = a
-	page.peer = status.NetMap.SelfNode
+	page.peer, _ = status.Self()
 
 	page.actions = gio.NewSimpleActionGroup()
 
@@ -418,11 +418,12 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 	if !status.Online() {
 		return false
 	}
-	if status.NetMap == nil || !status.NetMap.SelfNode.Valid() {
+	self, ok := status.Self()
+	if !ok {
 		return true
 	}
 
-	page.peer = status.NetMap.SelfNode
+	page.peer = self
 
 	page.row.SetTitle(peerName(page.peer))
 

@@ -275,10 +275,11 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 		return
 	}
 
-	if _, ok := win.pages["self"]; !ok && status.NetMap != nil && status.NetMap.SelfNode.Valid() {
+	self, hasSelf := status.Self()
+	if _, ok := win.pages["self"]; !ok && hasSelf {
 		win.addPage("self", NewSelfPage(win.app, status))
 	}
-	if _, ok := win.pages["mullvad"]; !ok && status.NetMap != nil && tsutil.CanMullvad(status.NetMap.SelfNode) {
+	if _, ok := win.pages["mullvad"]; !ok && hasSelf && tsutil.CanMullvad(self) {
 		win.addPage("mullvad", NewMullvadPage(win.app, status))
 	}
 

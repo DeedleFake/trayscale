@@ -196,12 +196,16 @@ func statusIcon(status *tsutil.IPNStatus) *tray.Pixmap {
 }
 
 func selfTitle(status *tsutil.IPNStatus) (string, bool) {
+	self, ok := status.Self()
+	if !ok {
+		return "Not connected", false
+	}
 	addr := status.SelfAddr()
 	if !addr.IsValid() {
 		return "Not connected", false
 	}
 
-	return fmt.Sprintf("%v (%v)", status.NetMap.SelfNode.DisplayName(true), addr), true
+	return fmt.Sprintf("%v (%v)", self.DisplayName(true), addr), true
 }
 
 func connToggleText(online bool) string {

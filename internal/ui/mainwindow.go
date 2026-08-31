@@ -4,7 +4,9 @@ import (
 	"cmp"
 	"context"
 	_ "embed"
+	"iter"
 	"log/slog"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -266,10 +268,13 @@ func (win *MainWindow) applyLayout(status *tsutil.IPNStatus) {
 	if status == nil {
 		return
 	}
-	if win.restackIfNeeded(status) {
+	layout := sidebarLayout(maps.Keys(win.pages), status, win.showOffline, win.peerQuery)
+	names := sidebarNames(layout)
+	if !slices.Equal(win.stackPageNames(), names) {
+		win.restack(names)
 		win.updateStackPages(status)
 	}
-	win.syncSections(status)
+	win.applySections(layout)
 }
 
 func (win *MainWindow) updateStackPages(status *tsutil.IPNStatus) {
@@ -339,32 +344,60 @@ func (win *MainWindow) stackPageNames() []string {
 	return names
 }
 
-func (win *MainWindow) desiredPageOrder(status *tsutil.IPNStatus) []string {
+// sidebarPage is one sidebar row. section is the header this page
+// starts, or empty if it continues the previous section.
+type sidebarPage struct {
+	name    string
+	section string
+}
+
+func sidebarNames(layout []sidebarPage) []string {
+	names := make([]string, len(layout))
+	for i, p := range layout {
+		names[i] = p.name
+	}
+	return names
+}
+
+func appendGroup(layout []sidebarPage, names []string, section string) []sidebarPage {
+	for i, name := range names {
+		p := sidebarPage{name: name}
+		if i == 0 {
+			p.section = section
+		}
+		layout = append(layout, p)
+	}
+	return layout
+}
+
+func sidebarLayout(pageNames iter.Seq[string], status *tsutil.IPNStatus, showOffline bool, query string) []sidebarPage {
+	var hasSelf, hasMullvad, hasOffline bool
+	var peerNames []string
+	for name := range pageNames {
+		switch name {
+		case "self":
+			hasSelf = true
+		case "mullvad":
+			hasMullvad = true
+		case "offline":
+			hasOffline = true
+		default:
+			peerNames = append(peerNames, name)
+		}
+	}
+
 	if !status.Online() {
-		if win.pages["offline"] != nil {
-			return []string{"offline"}
+		if hasOffline {
+			return []sidebarPage{{name: "offline"}}
 		}
 		return nil
 	}
-
-	if win.peerQuery != "" {
-		return win.searchPageOrder(status)
-	}
-
-	var order []string
-	if win.pages["self"] != nil {
-		order = append(order, "self")
-	}
-	if win.pages["mullvad"] != nil {
-		order = append(order, "mullvad")
+	if query != "" {
+		return searchSidebarLayout(peerNames, status, query)
 	}
 
 	var exits, others, offline []string
-	for name := range win.pages {
-		switch name {
-		case "self", "mullvad", "offline":
-			continue
-		}
+	for _, name := range peerNames {
 		peer, ok := status.Peers[tailcfg.StableNodeID(name)]
 		if !ok || !peer.Valid() || tsutil.IsShareeNode(peer) {
 			continue
@@ -374,7 +407,7 @@ func (win *MainWindow) desiredPageOrder(status *tsutil.IPNStatus) []string {
 			continue
 		}
 		if !peerIsOnline(peer) {
-			if win.showOffline {
+			if showOffline {
 				offline = append(offline, name)
 			}
 			continue
@@ -384,22 +417,31 @@ func (win *MainWindow) desiredPageOrder(status *tsutil.IPNStatus) []string {
 	sortPeerPageNames(status, exits)
 	sortPeerPageNames(status, others)
 	sortPeerPageNames(status, offline)
-	return slices.Concat(order, exits, others, offline)
+
+	var layout []sidebarPage
+	if hasSelf {
+		layout = appendGroup(layout, []string{"self"}, "This machine")
+	}
+	if hasMullvad {
+		layout = appendGroup(layout, []string{"mullvad"}, "Exit Nodes")
+		layout = appendGroup(layout, exits, "")
+	} else {
+		layout = appendGroup(layout, exits, "Exit Nodes")
+	}
+	layout = appendGroup(layout, others, "Online")
+	layout = appendGroup(layout, offline, "Offline")
+	return layout
 }
 
-func (win *MainWindow) searchPageOrder(status *tsutil.IPNStatus) []string {
+func searchSidebarLayout(peerNames []string, status *tsutil.IPNStatus, query string) []sidebarPage {
 	type hit struct {
 		name  string
 		peer  tailcfg.NodeView
 		score int
 	}
-	tokens := strings.Fields(win.peerQuery)
+	tokens := strings.Fields(query)
 	var hits []hit
-	for name := range win.pages {
-		switch name {
-		case "self", "mullvad", "offline":
-			continue
-		}
+	for _, name := range peerNames {
 		peer, ok := status.Peers[tailcfg.StableNodeID(name)]
 		if !ok || !peer.Valid() || tsutil.IsShareeNode(peer) {
 			continue
@@ -417,11 +459,11 @@ func (win *MainWindow) searchPageOrder(status *tsutil.IPNStatus) []string {
 			tsutil.ComparePeers(a.peer, b.peer),
 		)
 	})
-	names := make([]string, len(hits))
+	layout := make([]sidebarPage, len(hits))
 	for i, h := range hits {
-		names[i] = h.name
+		layout[i] = sidebarPage{name: h.name}
 	}
-	return names
+	return layout
 }
 
 func sortPeerPageNames(status *tsutil.IPNStatus, names []string) {
@@ -433,15 +475,6 @@ func sortPeerPageNames(status *tsutil.IPNStatus, names []string) {
 			tsutil.ComparePeers(p1, p2),
 		)
 	})
-}
-
-func (win *MainWindow) restackIfNeeded(status *tsutil.IPNStatus) bool {
-	desired := win.desiredPageOrder(status)
-	if slices.Equal(win.stackPageNames(), desired) {
-		return false
-	}
-	win.restack(desired)
-	return true
 }
 
 func (win *MainWindow) restack(order []string) {
@@ -471,54 +504,16 @@ func (win *MainWindow) restoreVisible(name string) {
 	}
 }
 
-func (win *MainWindow) syncSections(status *tsutil.IPNStatus) {
-	if win.peerQuery != "" {
-		for _, vp := range win.viewStackPages() {
-			vp.SetStartsSection(false)
-			vp.SetSectionTitle("")
-		}
-		return
+func (win *MainWindow) applySections(layout []sidebarPage) {
+	section := make(map[string]string, len(layout))
+	for _, p := range layout {
+		section[p.name] = p.section
 	}
-
-	var startedExit, startedOther, startedOffline bool
 	for _, vp := range win.viewStackPages() {
-		name := vp.Name()
-		switch name {
-		case "self":
-			vp.SetStartsSection(true)
-			vp.SetSectionTitle("This machine")
-			continue
-		case "offline":
-			vp.SetStartsSection(false)
-			vp.SetSectionTitle("")
-			continue
-		case "mullvad":
-			startSection(vp, &startedExit, "Exit Nodes")
-			continue
-		}
-
-		peer := status.Peers[tailcfg.StableNodeID(name)]
-		if peerIsExitNodeOption(peer) {
-			startSection(vp, &startedExit, "Exit Nodes")
-			continue
-		}
-		if !peerIsOnline(peer) {
-			startSection(vp, &startedOffline, "Offline")
-			continue
-		}
-		startSection(vp, &startedOther, "Online")
+		title := section[vp.Name()]
+		vp.SetStartsSection(title != "")
+		vp.SetSectionTitle(title)
 	}
-}
-
-func startSection(vp *adw.ViewStackPage, started *bool, title string) {
-	if *started {
-		vp.SetStartsSection(false)
-		vp.SetSectionTitle("")
-		return
-	}
-	vp.SetStartsSection(true)
-	vp.SetSectionTitle(title)
-	*started = true
 }
 
 func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {

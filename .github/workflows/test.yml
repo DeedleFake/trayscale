@@ -29,8 +29,8 @@ jobs:
       - name: go vet
         run: go vet -v ./...
 
-  staticcheck:
-    name: staticcheck
+  golangci-lint:
+    name: golangci-lint
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout
@@ -43,10 +43,8 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.go-version }}
-      - name: Staticcheck
-        uses: dominikh/staticcheck-action@v1
-        with:
-          install-go: false
+      - name: golangci-lint
+        run: go tool golangci-lint run --disable=errcheck
 
   go-test:
     name: go test

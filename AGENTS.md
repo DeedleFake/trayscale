@@ -78,8 +78,8 @@ go build -o trayscale ./cmd/trayscale
 # Or with version injection (uses git describe if version omitted)
 ./dist.sh build [version]
 
-# Staticcheck (declared as a tool in go.mod)
-go tool staticcheck ./...
+# golangci-lint (declared as a tool in go.mod)
+go tool golangci-lint run --disable=errcheck
 
 # Validate AppStream metainfo
 appstreamcli validate --pedantic --no-net --explain dev.deedles.Trayscale.metainfo.xml
@@ -151,7 +151,7 @@ tailscaled (local API)
 CI (`.github/workflows/test.yml`) runs:
 
 1. `go vet ./...`
-2. `staticcheck`
+2. `golangci-lint` (`--disable=errcheck`)
 3. `go test ./...`
 4. AppStream metainfo validation
 
@@ -162,7 +162,7 @@ Tests live next to the code they cover (`*_test.go`). Coverage is currently spar
 1. **Git is read-only under all circumstances.** Never create commits, amend, rebase, merge, cherry-pick, stash, checkout branches, reset, clean, tag, push, or otherwise mutate the git repository or index. Read-only commands (`status`, `diff`, `log`, `show`, `blame`, etc.) are fine. Leave all commits and branch management to the user.
 2. **Read before writing** — match patterns in `internal/ui`, `internal/tsutil`, and existing gotk4 usage.
 3. **Do not pin versions in this file** (`AGENTS.md`) — refer to `go.mod` or unversioned dependency names so agent instructions stay valid as versions change. Pinning versions elsewhere (README, comments, code) is fine when appropriate.
-4. **Verify** with `go test ./...` and `go vet ./...` (and `go tool staticcheck ./...` when practical) before considering work done. Do not run `go build` solely to check that the project compiles — `go test` already builds packages.
+4. **Verify** with `go test ./...` and `go vet ./...` (and `go tool golangci-lint run --disable=errcheck` when practical) before considering work done. Do not run `go build` solely to check that the project compiles — `go test` already builds packages.
 5. **UI changes** — update both Go and `.ui` (and Cambalache project when relevant). Do not hand-edit generated or compiled schema blobs; edit `dev.deedles.Trayscale.gschema.xml` and recompile schemas if needed.
 6. **Secrets / environment** — do not commit tokens or machine-specific paths. This app does not ship API keys; keep it that way.
 7. **Tailscale behavior** — prefer the local API / existing `tsutil` helpers over shelling out, except where the code already uses `cli.Run` for up/down-style operations.
@@ -171,7 +171,7 @@ Tests live next to the code they cover (`*_test.go`). Coverage is currently spar
 
 - [ ] `go test ./...` and `go vet ./...` pass (no separate `go build` needed)
 - [ ] `go fmt ./...` applied
-- [ ] staticcheck clean when feasible
+- [ ] golangci-lint clean when feasible (`go tool golangci-lint run --disable=errcheck`)
 - [ ] Metainfo still validates if `dev.deedles.Trayscale.metainfo.xml` changed
 - [ ] GSettings schema and desktop/metainfo App ID remain consistent
 - [ ] No secrets in the diff

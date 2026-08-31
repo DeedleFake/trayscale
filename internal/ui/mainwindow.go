@@ -394,6 +394,7 @@ func (win *MainWindow) searchPageOrder(status *tsutil.IPNStatus) []string {
 		peer  tailcfg.NodeView
 		score int
 	}
+	tokens := strings.Fields(win.peerQuery)
 	var hits []hit
 	for name := range win.pages {
 		switch name {
@@ -404,7 +405,7 @@ func (win *MainWindow) searchPageOrder(status *tsutil.IPNStatus) []string {
 		if !ok || !peer.Valid() {
 			continue
 		}
-		score, match := peersearch.Score(peer, win.peerQuery)
+		score, match := peersearch.Score(peer, tokens)
 		if !match {
 			continue
 		}

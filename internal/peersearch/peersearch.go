@@ -1,61 +1,68 @@
 package peersearch
 
 import (
+	"iter"
 	"strings"
+	"unicode/utf8"
 
 	"tailscale.com/tailcfg"
 )
 
-// fieldWeights apply to Fields in order: display name, hostname, FQDN, addresses.
-var fieldWeights = []int{4, 3, 2, 1}
+// fieldWeights apply to the first fields yielded by Fields: display
+// name, hostname, FQDN. Later fields (addresses) use weight 1.
+var fieldWeights = []int{4, 3, 2}
 
-// Fields returns the strings that peer search matches against: display
-// name, hostname, FQDN, and Tailscale addresses.
-func Fields(peer tailcfg.NodeView) []string {
-	if !peer.Valid() {
-		return nil
-	}
-	host := ""
-	if hi := peer.Hostinfo(); hi.Valid() {
-		host = hi.Hostname()
-	}
-	var addrs []string
-	for _, pfx := range peer.Addresses().All() {
-		addrs = append(addrs, pfx.Addr().String())
-	}
-	return []string{
-		peer.DisplayName(true),
-		host,
-		strings.TrimSuffix(peer.Name(), "."),
-		strings.Join(addrs, " "),
+// Fields yields the strings that peer search matches against: display
+// name, hostname, FQDN, then each Tailscale address.
+func Fields(peer tailcfg.NodeView) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		if !peer.Valid() {
+			return
+		}
+		if !yield(peer.DisplayName(true)) {
+			return
+		}
+		host := ""
+		if hi := peer.Hostinfo(); hi.Valid() {
+			host = hi.Hostname()
+		}
+		if !yield(host) {
+			return
+		}
+		if !yield(strings.TrimSuffix(peer.Name(), ".")) {
+			return
+		}
+		for _, pfx := range peer.Addresses().All() {
+			if !yield(pfx.Addr().String()) {
+				return
+			}
+		}
 	}
 }
 
-// Score reports how well peer matches query. Query tokens are
-// whitespace-separated and all must match. The boolean is false if any
-// token matches no field.
-func Score(peer tailcfg.NodeView, query string) (int, bool) {
-	tokens := strings.Fields(query)
+// Score reports how well peer matches tokens. All tokens must match.
+// The boolean is false if any token matches no field.
+func Score(peer tailcfg.NodeView, tokens []string) (int, bool) {
 	if len(tokens) == 0 {
 		return 0, true
 	}
-	fields := Fields(peer)
 	total := 0
 	for _, tok := range tokens {
 		best := -1
-		for i, field := range fields {
+		i := 0
+		for field := range Fields(peer) {
 			s := scoreToken(field, tok)
-			if s < 0 {
-				continue
+			if s >= 0 {
+				weight := 1
+				if i < len(fieldWeights) {
+					weight = fieldWeights[i]
+				}
+				s *= weight
+				if s > best {
+					best = s
+				}
 			}
-			weight := 1
-			if i < len(fieldWeights) {
-				weight = fieldWeights[i]
-			}
-			s *= weight
-			if s > best {
-				best = s
-			}
+			i++
 		}
 		if best < 0 {
 			return 0, false
@@ -69,55 +76,87 @@ func scoreToken(text, token string) int {
 	if token == "" {
 		return 0
 	}
-	t := strings.ToLower(text)
-	q := strings.ToLower(token)
-	if t == q {
+	if strings.EqualFold(text, token) {
 		return 10000
 	}
-	if strings.HasPrefix(t, q) {
-		return 8000 - len(t)
+	n := utf8.RuneCountInString(text)
+	pos := 0
+	for i := range text {
+		if hasPrefixFold(text[i:], token) {
+			if pos == 0 {
+				return 8000 - n
+			}
+			return 6000 - pos*10 - n
+		}
+		pos++
 	}
-	if i := strings.Index(t, q); i >= 0 {
-		return 6000 - i*10 - len(t)
-	}
-	s, ok := subsequenceScore(t, q)
+	s, ok := subsequenceScore(text, token)
 	if !ok {
 		return -1
 	}
 	return s
 }
 
+func hasPrefixFold(s, prefix string) bool {
+	skip := utf8.RuneCountInString(prefix)
+	for i := range s {
+		if skip == 0 {
+			return strings.EqualFold(s[:i], prefix)
+		}
+		skip--
+	}
+	return skip == 0 && strings.EqualFold(s, prefix)
+}
+
 func subsequenceScore(text, query string) (int, bool) {
-	tr := []rune(text)
-	qr := []rune(query)
-	if len(qr) == 0 {
+	if query == "" {
 		return 0, true
 	}
-	ti := 0
+
 	score := 4000
-	for qi, q := range qr {
+	start := 0
+	first := true
+	rest := text
+	for qrest := query; qrest != ""; {
+		qchunk, qnext := splitRune(qrest)
+		qrest = qnext
+
 		found := -1
-		for i := ti; i < len(tr); i++ {
-			if tr[i] == q {
-				found = i
+		rel := 0
+		search := rest
+		for search != "" {
+			chunk, next := splitRune(search)
+			if strings.EqualFold(chunk, qchunk) {
+				found = rel
+				rest = next
 				break
 			}
+			search = next
+			rel++
 		}
 		if found < 0 {
 			return 0, false
 		}
-		if qi == 0 {
-			score -= found * 15
-		} else if gap := found - ti; gap > 0 {
-			score -= gap * 10
+		abs := start + found
+		if first {
+			score -= abs * 15
+			first = false
+		} else if found > 0 {
+			score -= found * 10
 		} else {
 			score += 25
 		}
-		ti = found + 1
+		start = abs + 1
 	}
-	score -= (len(tr) - len(qr)) * 2
+
+	score -= (utf8.RuneCountInString(text) - utf8.RuneCountInString(query)) * 2
 	if score < 0 {
 		score = 0
 	}
 	return score, true
+}
+
+func splitRune(s string) (first, rest string) {
+	_, n := utf8.DecodeRuneInString(s)
+	return s[:n], s[n:]
 }

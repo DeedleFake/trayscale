@@ -28,7 +28,7 @@ func TestScore(t *testing.T) {
 		{"dsk", false},
 	}
 	for _, tt := range tests {
-		if _, ok := peersearch.Score(peer, tt.query); ok != tt.want {
+		if _, ok := score(peer, tt.query); ok != tt.want {
 			t.Errorf("Score(%q) ok=%v, want %v", tt.query, ok, tt.want)
 		}
 	}
@@ -36,11 +36,15 @@ func TestScore(t *testing.T) {
 
 func TestFields(t *testing.T) {
 	peer := testPeer(t, "workstation.example.ts.net.", "workstation", "100.64.1.2/32")
-	text := strings.Join(peersearch.Fields(peer), " ")
-	if _, ok := peersearch.Score(peer, "workstation"); !ok {
+	var fields []string
+	for f := range peersearch.Fields(peer) {
+		fields = append(fields, f)
+	}
+	text := strings.Join(fields, " ")
+	if _, ok := score(peer, "workstation"); !ok {
 		t.Errorf("fields %q missing display/FQDN", text)
 	}
-	if _, ok := peersearch.Score(peer, "100.64.1.2"); !ok {
+	if _, ok := score(peer, "100.64.1.2"); !ok {
 		t.Errorf("fields %q missing address", text)
 	}
 }
@@ -48,8 +52,8 @@ func TestFields(t *testing.T) {
 func TestScoreOrder(t *testing.T) {
 	prefix := testPeer(t, "srv-backup.example.ts.net.", "srv-backup", "")
 	weak := testPeer(t, "server.example.ts.net.", "server", "")
-	sPrefix, ok1 := peersearch.Score(prefix, "srv")
-	sWeak, ok2 := peersearch.Score(weak, "srv")
+	sPrefix, ok1 := score(prefix, "srv")
+	sWeak, ok2 := score(weak, "srv")
 	if !ok1 || !ok2 {
 		t.Fatalf("both peers should match srv: prefix=%v weak=%v", ok1, ok2)
 	}
@@ -60,12 +64,39 @@ func TestScoreOrder(t *testing.T) {
 
 func TestScoreSubsequence(t *testing.T) {
 	peer := testPeer(t, "desktop.example.ts.net.", "desktop", "")
-	if _, ok := peersearch.Score(peer, "dsk"); !ok {
+	if _, ok := score(peer, "dsk"); !ok {
 		t.Error("dsk should match desktop")
 	}
-	if _, ok := peersearch.Score(peer, "td"); ok {
+	if _, ok := score(peer, "td"); ok {
 		t.Error("td should not match desktop")
 	}
+}
+
+func TestScoreUnicode(t *testing.T) {
+	peer := testPeer(t, "host.example.ts.net.", "Café", "")
+	if _, ok := score(peer, "Café"); !ok {
+		t.Error("Café should match hostname Café")
+	}
+	if _, ok := score(peer, "café"); !ok {
+		t.Error("café should match hostname Café")
+	}
+	if _, ok := score(peer, "caf"); !ok {
+		t.Error("caf should prefix-match hostname Café")
+	}
+
+	// Kelvin sign folds to k and is 3 UTF-8 bytes, so a byte-length
+	// prefix of "kelvin" is not a valid slice of "Kelvin".
+	peer = testPeer(t, "host.example.ts.net.", "Kelvin", "")
+	if _, ok := score(peer, "kelvin"); !ok {
+		t.Error("kelvin should match hostname Kelvin")
+	}
+	if _, ok := score(peer, "KELVIN"); !ok {
+		t.Error("KELVIN should match hostname Kelvin")
+	}
+}
+
+func score(peer tailcfg.NodeView, query string) (int, bool) {
+	return peersearch.Score(peer, strings.Fields(query))
 }
 
 func testPeer(t *testing.T, name, hostname, addr string) tailcfg.NodeView {

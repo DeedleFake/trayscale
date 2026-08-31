@@ -271,6 +271,7 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 
 	page.stackPage.SetTitle(peerName(page.peer))
 	page.stackPage.SetIconName(peerIconName(online, exitNodeOption, exitNode))
+	page.stackPage.SetNeedsAttention(exitNode)
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())

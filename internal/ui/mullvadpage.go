@@ -88,6 +88,7 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 	}
 
 	var exitNodeCountryCode string
+	var exitLoc tailcfg.LocationView
 	found := make(set.Set[tailcfg.StableNodeID])
 	for id, peer := range status.Peers {
 		if tsutil.IsMullvad(peer) {
@@ -105,6 +106,7 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 
 			if exitNode {
 				exitNodeCountryCode = countryCode
+				exitLoc = loc
 			}
 		}
 	}
@@ -123,6 +125,11 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 
 	if exitNodeCountryCode != "" {
 		page.locations[exitNodeCountryCode].SetSubtitle("Current exit node location")
+		page.stackPage.SetTitle(mullvadLongLocationName(exitLoc))
+		page.stackPage.SetNeedsAttention(true)
+	} else {
+		page.stackPage.SetTitle(mullvadPageBaseName)
+		page.stackPage.SetNeedsAttention(false)
 	}
 
 	return true
@@ -205,6 +212,15 @@ func (page *MullvadPage) getExitNodeRow(peer tailcfg.NodeView) *mullvadExitNodeR
 type mullvadExitNodeRow struct {
 	country string
 	row     *adw.SwitchRow
+}
+
+func mullvadLongLocationName(loc tailcfg.LocationView) string {
+	return fmt.Sprintf(
+		"%v %v, %v",
+		countryCodeToFlag(loc.CountryCode()),
+		loc.City(),
+		loc.Country(),
+	)
 }
 
 func mullvadLocationName(loc tailcfg.LocationView) string {

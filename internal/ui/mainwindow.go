@@ -1,11 +1,11 @@
 package ui
 
 import (
+	"cmp"
 	"context"
 	_ "embed"
 	"log/slog"
 	"slices"
-	"strings"
 	"time"
 
 	"deedles.dev/trayscale/internal/gutil"
@@ -17,6 +17,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn"
+	"tailscale.com/tailcfg"
 )
 
 var (
@@ -35,19 +36,13 @@ type MainWindow struct {
 	SplitView       *adw.NavigationSplitView
 	StatusSwitch    *gtk.Switch
 	MainMenuButton  *gtk.MenuButton
-	PeersList       *gtk.ListBox
+	PeersSidebar    *adw.ViewSwitcherSidebar
 	PeersStack      *adw.ViewStack
 	WorkSpinner     *adw.Spinner
 	ProfileDropDown *gtk.DropDown
 	PageMenuButton  *gtk.MenuButton
 
-	pages    map[string]Page
-	pageRows map[uintptr]*PageRow
-
-	// pagesModel and pagesBinding must be retained so gotk4 keeps the
-	// ViewStack pages list's items-changed closures alive.
-	pagesModel   *gtk.SelectionModel
-	pagesBinding *listmodels.Binding[*PageRow]
+	pages map[string]Page
 
 	profiles         []ipn.LoginProfile
 	profileModel     *gtk.StringList
@@ -56,11 +51,15 @@ type MainWindow struct {
 	activeProfileID  ipn.ProfileID
 }
 
+type stackedPage struct {
+	name string
+	page Page
+}
+
 func NewMainWindow(app *App) *MainWindow {
 	win := MainWindow{
-		app:      app,
-		pages:    make(map[string]Page),
-		pageRows: make(map[uintptr]*PageRow),
+		app:   app,
+		pages: make(map[string]Page),
 	}
 	gutil.FillFromUI(&win, menuXML, mainWindowXML)
 
@@ -75,59 +74,6 @@ func NewMainWindow(app *App) *MainWindow {
 		}
 		win.MainWindow.InsertActionGroup("peer", actions)
 		win.PageMenuButton.SetSensitive(actions != nil)
-	})
-
-	win.pagesModel = win.PeersStack.Pages()
-	win.pagesBinding = listmodels.Bind(
-		win.pagesModel,
-		NewPageRow,
-		func(i uint, row *PageRow) {
-			delete(win.pageRows, row.Row().Object.Native())
-			win.PeersList.Remove(row.Row())
-		},
-		func(i uint, row *PageRow) {
-			vp := row.Page()
-			row.SetTitle(vp.Title())
-			row.SetIconName(vp.IconName())
-
-			win.pageRows[row.Row().Object.Native()] = row
-			win.PeersList.Append(row.Row())
-
-			page := win.pages[vp.Name()]
-			if page != nil {
-				page.Init(row)
-				return
-			}
-
-			vp.NotifyProperty("title", func() {
-				row.SetTitle(vp.Title())
-			})
-			vp.NotifyProperty("icon-name", func() {
-				row.SetIconName(vp.IconName())
-			})
-		},
-	)
-	win.PeersList.SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
-		p1 := win.pageRows[r1.Object.Native()].Page()
-		p2 := win.pageRows[r2.Object.Native()].Page()
-
-		if v, ok := prioritize("self", p1.Name(), p2.Name()); ok {
-			return v
-		}
-		if v, ok := prioritize("mullvad", p1.Name(), p2.Name()); ok {
-			return v
-		}
-		return strings.Compare(p1.Title(), p2.Title())
-	})
-	win.PeersList.ConnectRowSelected(func(row *gtk.ListBoxRow) {
-		if row == nil {
-			return
-		}
-
-		page := win.pageRows[row.Object.Native()]
-		name := page.Page().Name()
-
-		win.PeersStack.SetVisibleChildName(name)
 	})
 
 	win.profileModel = gtk.NewStringList(nil)
@@ -195,7 +141,7 @@ func NewMainWindow(app *App) *MainWindow {
 	})
 
 	contentVariant := glib.NewVariantString("content")
-	win.PeersStack.NotifyProperty("visible-child", func() {
+	win.PeersSidebar.ConnectActivated(func() {
 		win.SplitView.ActivateAction("navigation.push", contentVariant)
 	})
 
@@ -205,46 +151,41 @@ func NewMainWindow(app *App) *MainWindow {
 func (win *MainWindow) addPage(name string, page Page) *adw.ViewStackPage {
 	win.pages[name] = page
 	vp := win.PeersStack.AddNamed(page.Widget(), name)
-	if win.rowForName(name) == nil {
-		win.bindPageRow(vp, page)
-	}
+	page.Init(vp)
 	return vp
 }
 
-func (win *MainWindow) bindPageRow(vp *adw.ViewStackPage, page Page) {
-	row := NewPageRow(vp)
-	row.SetTitle(vp.Title())
-	row.SetIconName(vp.IconName())
-	win.pageRows[row.Row().Object.Native()] = row
-	win.PeersList.Append(row.Row())
-	page.Init(row)
-}
-
-func (win *MainWindow) rowForName(name string) *PageRow {
-	for _, row := range win.pageRows {
-		if row.Page().Name() == name {
-			return row
+func (win *MainWindow) viewStackPages() []*adw.ViewStackPage {
+	model := win.PeersStack.Pages()
+	pages := make([]*adw.ViewStackPage, 0, model.NItems())
+	for i := range model.NItems() {
+		obj := model.Item(i)
+		if obj == nil {
+			continue
 		}
+		vp, ok := obj.Cast().(*adw.ViewStackPage)
+		if !ok {
+			continue
+		}
+		pages = append(pages, vp)
 	}
-	return nil
+	return pages
 }
 
 func (win *MainWindow) removePage(name string, page Page) {
-	var reselect bool
-	if win.PeersStack.VisibleChildName() == name {
-		reselect = true
-	}
+	reselect := win.PeersStack.VisibleChildName() == name
 
 	delete(win.pages, name)
 	win.PeersStack.Remove(page.Widget())
-	if row := win.rowForName(name); row != nil {
-		delete(win.pageRows, row.Row().Object.Native())
-		win.PeersList.Remove(row.Row())
-	}
 
-	if reselect {
-		win.PeersList.SelectRow(win.PeersList.RowAtIndex(0))
+	if !reselect {
+		return
 	}
+	remaining := win.viewStackPages()
+	if len(remaining) == 0 {
+		return
+	}
+	win.PeersStack.SetVisibleChildName(remaining[0].Name())
 }
 
 func (win *MainWindow) Update(status tsutil.Status) {
@@ -275,28 +216,81 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 		return
 	}
 
-	self, hasSelf := status.Self()
-	if _, ok := win.pages["self"]; !ok && hasSelf {
-		win.addPage("self", NewSelfPage(win.app, status))
-	}
-	if _, ok := win.pages["mullvad"]; !ok && hasSelf && tsutil.CanMullvad(self) {
-		win.addPage("mullvad", NewMullvadPage(win.app, status))
-	}
+	win.ensureSectionPages(status)
 
+	var newPeers []tailcfg.NodeView
 	for id, peer := range status.Peers {
 		if tsutil.IsMullvad(peer) {
 			continue
 		}
-
-		name := string(id)
-		if _, ok := win.pages[name]; ok {
+		if _, ok := win.pages[string(id)]; ok {
 			continue
 		}
-
-		win.addPage(name, NewPeerPage(win.app, status, peer))
+		newPeers = append(newPeers, peer)
+	}
+	slices.SortFunc(newPeers, func(p1, p2 tailcfg.NodeView) int {
+		return cmp.Or(
+			cmp.Compare(peerName(p1), peerName(p2)),
+			tsutil.ComparePeers(p1, p2),
+		)
+	})
+	for _, peer := range newPeers {
+		win.addPage(string(peer.StableID()), NewPeerPage(win.app, status, peer))
 	}
 
 	win.updatePages(status)
+}
+
+func (win *MainWindow) ensureSectionPages(status *tsutil.IPNStatus) {
+	self, hasSelf := status.Self()
+	needSelf := hasSelf && win.pages["self"] == nil
+	needMullvad := hasSelf && tsutil.CanMullvad(self) && win.pages["mullvad"] == nil
+	if !needSelf && !needMullvad {
+		return
+	}
+
+	// ViewStack only appends, so lift peers (and Mullvad, if Self is late)
+	// before inserting these section pages.
+	visible := win.PeersStack.VisibleChildName()
+	peers := win.detachPeerPages()
+	if needSelf {
+		if mullvad := win.pages["mullvad"]; mullvad != nil {
+			win.PeersStack.Remove(mullvad.Widget())
+			win.addPage("self", NewSelfPage(win.app, status))
+			win.addPage("mullvad", mullvad)
+		} else {
+			win.addPage("self", NewSelfPage(win.app, status))
+		}
+	}
+	if needMullvad {
+		win.addPage("mullvad", NewMullvadPage(win.app, status))
+	}
+	for _, e := range peers {
+		win.addPage(e.name, e.page)
+	}
+	if win.pages[visible] != nil {
+		win.PeersStack.SetVisibleChildName(visible)
+	}
+}
+
+func (win *MainWindow) detachPeerPages() []stackedPage {
+	var peers []stackedPage
+	for _, vp := range win.viewStackPages() {
+		name := vp.Name()
+		switch name {
+		case "self", "mullvad", "offline":
+			continue
+		}
+		page := win.pages[name]
+		if page == nil {
+			continue
+		}
+		peers = append(peers, stackedPage{name, page})
+	}
+	for _, e := range peers {
+		win.PeersStack.Remove(e.page.Widget())
+	}
+	return peers
 }
 
 func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
@@ -311,7 +305,25 @@ func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
 		win.removePage(name, win.pages[name])
 	}
 
-	win.PeersList.InvalidateSort()
+	win.syncPeerSection()
+}
+
+func (win *MainWindow) syncPeerSection() {
+	first := true
+	for _, vp := range win.viewStackPages() {
+		switch vp.Name() {
+		case "self", "mullvad", "offline":
+			continue
+		}
+		if first {
+			vp.SetStartsSection(true)
+			vp.SetSectionTitle("Peers")
+			first = false
+			continue
+		}
+		vp.SetStartsSection(false)
+		vp.SetSectionTitle("")
+	}
 }
 
 func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {

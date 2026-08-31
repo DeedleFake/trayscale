@@ -34,9 +34,9 @@ func (page *OfflinePage) Actions() gio.ActionGrouper {
 	return nil
 }
 
-func (page *OfflinePage) Init(row *PageRow) {
-	row.SetTitle(page.Page.Title())
-	row.SetIconName(page.Page.IconName())
+func (page *OfflinePage) Init(stackPage *adw.ViewStackPage) {
+	stackPage.SetTitle(page.Page.Title())
+	stackPage.SetIconName(page.Page.IconName())
 }
 
 func (page *OfflinePage) Update(status tsutil.Status) bool {

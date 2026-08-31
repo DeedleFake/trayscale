@@ -24,16 +24,14 @@ import (
 	"tailscale.com/tailcfg"
 )
 
-var selfIcon = gio.NewThemedIconWithDefaultFallbacks("computer-symbolic")
-
 //go:embed selfpage.ui
 var selfPageXML string
 
 type SelfPage struct {
-	app     *App
-	row     *PageRow
-	peer    tailcfg.NodeView
-	actions *gio.SimpleActionGroup
+	app       *App
+	stackPage *adw.ViewStackPage
+	peer      tailcfg.NodeView
+	actions   *gio.SimpleActionGroup
 
 	Page                 *adw.StatusPage
 	IPList               *gtk.ListBox
@@ -396,11 +394,11 @@ func (page *SelfPage) Actions() gio.ActionGrouper {
 	return page.actions
 }
 
-func (page *SelfPage) Init(row *PageRow) {
-	page.row = row
-	row.SetSubtitle("This machine")
-	page.row.SetIcon(selfIcon)
-	row.Row().AddCSSClass("self")
+func (page *SelfPage) Init(stackPage *adw.ViewStackPage) {
+	page.stackPage = stackPage
+	stackPage.SetIconName("computer-symbolic")
+	stackPage.SetStartsSection(true)
+	stackPage.SetSectionTitle("This machine")
 }
 
 func (page *SelfPage) Update(status tsutil.Status) bool {
@@ -425,7 +423,7 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 
 	page.peer = self
 
-	page.row.SetTitle(peerName(page.peer))
+	page.stackPage.SetTitle(peerName(page.peer))
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())

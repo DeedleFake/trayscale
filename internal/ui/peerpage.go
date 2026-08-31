@@ -28,10 +28,10 @@ import (
 var peerPageXML string
 
 type PeerPage struct {
-	app     *App
-	row     *PageRow
-	peer    tailcfg.NodeView
-	actions *gio.SimpleActionGroup
+	app       *App
+	stackPage *adw.ViewStackPage
+	peer      tailcfg.NodeView
+	actions   *gio.SimpleActionGroup
 
 	Page                  *adw.StatusPage
 	IPList                *gtk.ListBox
@@ -240,9 +240,8 @@ func (page *PeerPage) Actions() gio.ActionGrouper {
 	return page.actions
 }
 
-func (page *PeerPage) Init(row *PageRow) {
-	page.row = row
-	row.Row().AddCSSClass("peer")
+func (page *PeerPage) Init(stackPage *adw.ViewStackPage) {
+	page.stackPage = stackPage
 }
 
 func (page *PeerPage) Update(s tsutil.Status) bool {
@@ -270,10 +269,9 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 		enginePeer = status.Engine.LivePeers[page.peer.Key()]
 	}
 
-	page.row.SetTitle(peerName(page.peer))
-	page.row.SetSubtitle(peerSubtitle(exitNodeOption, exitNode))
-	page.row.SetIcon(peerIcon(online, exitNodeOption, exitNode))
-	gutil.SetCSSClass(page.row.Row(), "online", online)
+	page.stackPage.SetTitle(peerName(page.peer))
+	page.stackPage.SetIconName(peerIconName(online, exitNodeOption, exitNode))
+	page.stackPage.SetNeedsAttention(!online || exitNode)
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())
@@ -310,37 +308,18 @@ func peerName(peer tailcfg.NodeView) string {
 	return peer.DisplayName(true)
 }
 
-func peerSubtitle(exitNodeOption, exitNode bool) string {
-	if exitNode {
-		return "Current exit node"
-	}
-	if exitNodeOption {
-		return "Exit node option"
-	}
-	return ""
-}
-
-var (
-	peerIconExitNodeOffline = gio.NewThemedIconWithDefaultFallbacks("security-low-symbolic")
-	peerIconExitNodeOnline  = gio.NewThemedIconWithDefaultFallbacks("security-high-symbolic")
-	peerIconOffline         = gio.NewThemedIconWithDefaultFallbacks("network-offline-symbolic")
-	peerIconExitNodeOption  = gio.NewThemedIconWithDefaultFallbacks("network-vpn-symbolic")
-	peerIconDefault         = gio.NewThemedIconWithDefaultFallbacks("network-transmit-receive-symbolic")
-)
-
-func peerIcon(online, exitNodeOption, exitNode bool) gio.Iconner {
+func peerIconName(online, exitNodeOption, exitNode bool) string {
 	if exitNode {
 		if !online {
-			return peerIconExitNodeOffline
+			return "security-low-symbolic"
 		}
-		return peerIconExitNodeOnline
+		return "security-high-symbolic"
 	}
 	if !online {
-		return peerIconOffline
+		return "network-offline-symbolic"
 	}
 	if exitNodeOption {
-		return peerIconExitNodeOption
+		return "network-vpn-symbolic"
 	}
-
-	return peerIconDefault
+	return "network-transmit-receive-symbolic"
 }

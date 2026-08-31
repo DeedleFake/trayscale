@@ -2,7 +2,6 @@ package listmodels
 
 import (
 	"iter"
-	"slices"
 
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
@@ -118,48 +117,4 @@ func BindListBox[T any](lb *gtk.ListBox, m gio.ListModeller, f func(T) gtk.Widge
 	lb.BindModel(m, func(obj *glib.Object) gtk.Widgetter {
 		return f(Convert[T](obj))
 	})
-}
-
-// Binding is a live items-changed connection on a [gio.ListModeller].
-// The caller must retain the Binding for as long as the connection
-// should stay active. Dropping it may allow gotk4 to collect the
-// model and its signal closures.
-type Binding[V any] struct {
-	model  gio.ListModeller
-	vals   []V
-	handle glib.SignalHandle
-}
-
-func Bind[T, V any](
-	m gio.ListModeller,
-	f func(T) V,
-	remove func(uint, V),
-	add func(uint, V),
-) *Binding[V] {
-	binding := &Binding[V]{model: m}
-	binding.handle = m.ConnectItemsChanged(func(index, removed, added uint) {
-		for i, w := range binding.vals[index : index+removed] {
-			remove(index+uint(i), w)
-		}
-
-		newVals := make([]V, 0, added)
-		for i := index; i < index+added; i++ {
-			item := binding.model.Item(i)
-			w := f(Convert[T](item))
-			add(index+uint(i), w)
-
-			newVals = append(newVals, w)
-		}
-		binding.vals = slices.Replace(binding.vals, int(index), int(index+removed), newVals...)
-	})
-
-	return binding
-}
-
-func (b *Binding[V]) Vals() []V {
-	return b.vals
-}
-
-func (b *Binding[V]) SignalHandle() glib.SignalHandle {
-	return b.handle
 }

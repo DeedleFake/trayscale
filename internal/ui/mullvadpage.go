@@ -20,14 +20,12 @@ import (
 
 const mullvadPageBaseName = "Mullvad Exit Nodes"
 
-var mullvadIcon = gio.NewThemedIconWithDefaultFallbacks("network-workgroup-symbolic")
-
 //go:embed mullvadpage.ui
 var mullvadPageXML string
 
 type MullvadPage struct {
-	app *App
-	row *PageRow
+	app       *App
+	stackPage *adw.ViewStackPage
 
 	Page         *adw.StatusPage
 	LocationList *gtk.ListBox
@@ -61,11 +59,12 @@ func (page *MullvadPage) Actions() gio.ActionGrouper {
 	return nil
 }
 
-func (page *MullvadPage) Init(row *PageRow) {
-	page.row = row
-	row.SetTitle(mullvadPageBaseName)
-	row.SetIcon(mullvadIcon)
-	row.Row().AddCSSClass("mullvad")
+func (page *MullvadPage) Init(stackPage *adw.ViewStackPage) {
+	page.stackPage = stackPage
+	stackPage.SetTitle(mullvadPageBaseName)
+	stackPage.SetIconName("network-workgroup-symbolic")
+	stackPage.SetStartsSection(true)
+	stackPage.SetSectionTitle(mullvadPageBaseName)
 }
 
 func (page *MullvadPage) Update(s tsutil.Status) bool {
@@ -127,7 +126,12 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 		}
 	}
 
-	page.row.SetSubtitle(subtitle)
+	page.stackPage.SetNeedsAttention(subtitle != "")
+	if subtitle != "" {
+		page.stackPage.SetSectionTitle(subtitle)
+	} else {
+		page.stackPage.SetSectionTitle(mullvadPageBaseName)
+	}
 	if exitNodeCountryCode != "" {
 		page.locations[exitNodeCountryCode].SetSubtitle("Current exit node location")
 	}

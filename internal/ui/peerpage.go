@@ -305,6 +305,9 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 }
 
 func peerName(peer tailcfg.NodeView) string {
+	if !peer.Valid() {
+		return ""
+	}
 	return peer.DisplayName(true)
 }
 

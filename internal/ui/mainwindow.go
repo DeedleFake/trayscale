@@ -286,7 +286,7 @@ func (win *MainWindow) desiredPageOrder(status *tsutil.IPNStatus) []string {
 		order = append(order, "mullvad")
 	}
 
-	var exits, others []string
+	var exits, others, offline []string
 	for name := range win.pages {
 		switch name {
 		case "self", "mullvad", "offline":
@@ -300,11 +300,16 @@ func (win *MainWindow) desiredPageOrder(status *tsutil.IPNStatus) []string {
 			exits = append(exits, name)
 			continue
 		}
+		if !peerIsOnline(peer) {
+			offline = append(offline, name)
+			continue
+		}
 		others = append(others, name)
 	}
 	sortPeerPageNames(status, exits)
 	sortPeerPageNames(status, others)
-	return append(append(order, exits...), others...)
+	sortPeerPageNames(status, offline)
+	return slices.Concat(order, exits, others, offline)
 }
 
 func sortPeerPageNames(status *tsutil.IPNStatus, names []string) {
@@ -362,7 +367,7 @@ func (win *MainWindow) restack(order []string) {
 }
 
 func (win *MainWindow) syncSections(status *tsutil.IPNStatus) {
-	var startedExit, startedOther bool
+	var startedExit, startedOther, startedOffline bool
 	for _, vp := range win.viewStackPages() {
 		name := vp.Name()
 		switch name {
@@ -384,7 +389,11 @@ func (win *MainWindow) syncSections(status *tsutil.IPNStatus) {
 			startSection(vp, &startedExit, "Exit Nodes")
 			continue
 		}
-		startSection(vp, &startedOther, "Peers")
+		if !peerIsOnline(peer) {
+			startSection(vp, &startedOffline, "Offline")
+			continue
+		}
+		startSection(vp, &startedOther, "Online")
 	}
 }
 

@@ -312,6 +312,10 @@ func peerIsExitNodeOption(peer tailcfg.NodeView) bool {
 	return peer.Valid() && tsaddr.ContainsExitRoutes(peer.AllowedIPs())
 }
 
+func peerIsOnline(peer tailcfg.NodeView) bool {
+	return peer.Valid() && peer.Online().Get()
+}
+
 func peerIconName(online, exitNodeOption, exitNode bool) string {
 	if exitNode {
 		if !online {

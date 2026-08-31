@@ -287,7 +287,7 @@ require (
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gvisor.dev/gvisor v0.0.0-20260830223105-b3c2473c5e48 // indirect
+	gvisor.dev/gvisor v0.0.0-20260831211637-b25b5fa8aba8 // indirect
 	honnef.co/go/tools v0.8.1 // indirect
 	k8s.io/client-go v0.37.0 // indirect
 	mvdan.cc/gofumpt v0.11.0 // indirect

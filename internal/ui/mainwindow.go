@@ -42,7 +42,9 @@ type MainWindow struct {
 	ProfileDropDown *gtk.DropDown
 	PageMenuButton  *gtk.MenuButton
 
-	pages map[string]Page
+	pages       map[string]Page
+	showOffline bool
+	ipn         *tsutil.IPNStatus
 
 	profiles         []ipn.LoginProfile
 	profileModel     *gtk.StringList
@@ -51,15 +53,14 @@ type MainWindow struct {
 	activeProfileID  ipn.ProfileID
 }
 
-type stackedPage struct {
-	name string
-	page Page
-}
-
 func NewMainWindow(app *App) *MainWindow {
 	win := MainWindow{
-		app:   app,
-		pages: make(map[string]Page),
+		app:         app,
+		pages:       make(map[string]Page),
+		showOffline: true,
+	}
+	if app.settings != nil {
+		win.showOffline = app.settings.Boolean("show-offline-peers")
 	}
 	gutil.FillFromUI(&win, menuXML, mainWindowXML)
 
@@ -207,7 +208,26 @@ func (win *MainWindow) Update(status tsutil.Status) {
 	}
 }
 
+func (win *MainWindow) SetShowOffline(show bool) {
+	if win.showOffline == show {
+		return
+	}
+	win.showOffline = show
+	if win.ipn == nil || !win.ipn.Online() {
+		return
+	}
+	if win.restackIfNeeded(win.ipn) {
+		for _, vp := range win.viewStackPages() {
+			if page := win.pages[vp.Name()]; page != nil {
+				page.Update(win.ipn)
+			}
+		}
+	}
+	win.syncSections(win.ipn)
+}
+
 func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
+	win.ipn = status
 	if !status.Online() {
 		if _, ok := win.pages["offline"]; !ok {
 			win.addPage("offline", NewOfflinePage(win.app))
@@ -254,8 +274,10 @@ func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
 	}
 
 	if win.restackIfNeeded(status) {
-		for _, page := range win.pages {
-			page.Update(status)
+		for _, vp := range win.viewStackPages() {
+			if page := win.pages[vp.Name()]; page != nil {
+				page.Update(status)
+			}
 		}
 	}
 	win.syncSections(status)
@@ -301,7 +323,9 @@ func (win *MainWindow) desiredPageOrder(status *tsutil.IPNStatus) []string {
 			continue
 		}
 		if !peerIsOnline(peer) {
-			offline = append(offline, name)
+			if win.showOffline {
+				offline = append(offline, name)
+			}
 			continue
 		}
 		others = append(others, name)
@@ -334,35 +358,28 @@ func (win *MainWindow) restackIfNeeded(status *tsutil.IPNStatus) bool {
 
 func (win *MainWindow) restack(order []string) {
 	visible := win.PeersStack.VisibleChildName()
-	var items []stackedPage
-	seen := make(map[string]bool, len(order))
-	for _, name := range order {
-		page := win.pages[name]
-		if page == nil {
-			continue
-		}
-		items = append(items, stackedPage{name, page})
-		seen[name] = true
-	}
 	for _, vp := range win.viewStackPages() {
-		name := vp.Name()
-		if seen[name] {
-			continue
+		if page := win.pages[vp.Name()]; page != nil {
+			win.PeersStack.Remove(page.Widget())
 		}
+	}
+	for _, name := range order {
 		if page := win.pages[name]; page != nil {
-			items = append(items, stackedPage{name, page})
+			win.addPage(name, page)
 		}
 	}
+	win.restoreVisible(visible)
+}
 
-	// ViewStack only appends, so reorder by removing and re-adding.
-	for _, e := range items {
-		win.PeersStack.Remove(e.page.Widget())
+func (win *MainWindow) restoreVisible(name string) {
+	for _, vp := range win.viewStackPages() {
+		if vp.Name() == name {
+			win.PeersStack.SetVisibleChildName(name)
+			return
+		}
 	}
-	for _, e := range items {
-		win.addPage(e.name, e.page)
-	}
-	if win.pages[visible] != nil {
-		win.PeersStack.SetVisibleChildName(visible)
+	if remaining := win.viewStackPages(); len(remaining) > 0 {
+		win.PeersStack.SetVisibleChildName(remaining[0].Name())
 	}
 }
 

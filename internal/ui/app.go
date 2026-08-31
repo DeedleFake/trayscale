@@ -298,6 +298,19 @@ func (a *App) onAppActivate(ctx context.Context) {
 	useExitNodeAction.SetEnabled(false)
 	a.app.AddAction(useExitNodeAction)
 
+	if a.settings != nil {
+		a.app.AddAction(a.settings.CreateAction("show-offline-peers"))
+	} else {
+		showOffline := gio.NewSimpleActionStateful("show-offline-peers", nil, glib.NewVariantBoolean(true))
+		showOffline.ConnectChangeState(func(state *glib.Variant) {
+			showOffline.SetState(state)
+			if a.win != nil {
+				a.win.SetShowOffline(state.Boolean())
+			}
+		})
+		a.app.AddAction(showOffline)
+	}
+
 	changeControlServerAction := gio.NewSimpleAction("change_control_server", nil)
 	changeControlServerAction.ConnectActivate(func(p *glib.Variant) { a.showChangeControlServer() })
 	a.app.AddAction(changeControlServerAction)

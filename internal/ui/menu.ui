@@ -9,6 +9,10 @@
         <attribute name="action">app.use_exit_node</attribute>
         <attribute name="label">Use _Exit Node</attribute>
       </item>
+      <item>
+        <attribute name="action">app.show-offline-peers</attribute>
+        <attribute name="label">Show _Offline Peers</attribute>
+      </item>
     </section>
     <section>
       <item>

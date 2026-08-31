@@ -45,7 +45,7 @@ func (d *PreferencesDialog) addTrustedRow(a *App, ssid string) {
 
 	row := adw.NewActionRow()
 	row.SetTitle(ssid)
-	row.SetIconName("network-wireless-symbolic")
+	row.AddPrefix(gtk.NewImageFromIconName("network-wireless-symbolic"))
 
 	removeBtn := gtk.NewButtonFromIconName("user-trash-symbolic")
 	removeBtn.SetVAlign(gtk.AlignCenter)

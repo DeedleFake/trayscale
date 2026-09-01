@@ -15,6 +15,7 @@ import (
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/feature/taildrop"
 	"tailscale.com/ipn"
+	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/netmap"
 	"tailscale.com/util/set"
@@ -71,7 +72,7 @@ func (p *Poller) Run(ctx context.Context) {
 	go p.watchProfiles(ctx, n)
 
 	interval := p.Interval
-	if interval < 0 {
+	if interval <= 0 {
 		interval = 5 * time.Second
 	}
 
@@ -95,9 +96,22 @@ func (p *Poller) Run(ctx context.Context) {
 }
 
 func (p *Poller) watchIPN(ctx context.Context) {
-	const watcherOpts = ipn.NotifyInitialState | ipn.NotifyInitialPrefs | ipn.NotifyInitialNetMap | ipn.NotifyNoPrivateKeys | ipn.NotifyWatchEngineUpdates | ipn.NotifyRateLimit
+	// NotifyInitialNetMap is kept so older daemons that do not send
+	// InitialStatus still bootstrap. RateLimit cannot be combined with
+	// PeerChanges / NoNetMap / InitialStatus (HTTP 400).
+	const watcherOpts = ipn.NotifyInitialState |
+		ipn.NotifyInitialPrefs |
+		ipn.NotifyInitialNetMap |
+		ipn.NotifyNoPrivateKeys |
+		ipn.NotifyWatchEngineUpdates |
+		ipn.NotifyNoNetMap |
+		ipn.NotifyInitialStatus |
+		ipn.NotifyPeerChanges
 
 watch:
+	if ctx.Err() != nil {
+		return
+	}
 	watcher, err := localClient.WatchIPNBus(ctx, watcherOpts)
 	if err != nil {
 		slog.Error("start IPN bus watcher", "err", err)
@@ -148,28 +162,11 @@ watch:
 			slog.Error("watcher got error message", "state", state, "err", notify.ErrMessage)
 		}
 
-		var dirty bool
-		if notify.State != nil {
-			s.State = *notify.State
-			dirty = true
+		dirty, targetsDirty := s.applyNotify(&notify)
+		if targetsDirty {
+			s.refreshFileTargets(ctx)
 		}
-		if notify.Prefs != nil && notify.Prefs.Valid() {
-			s.Prefs = *notify.Prefs
-			dirty = true
-		}
-		if notify.NetMap != nil {
-			s.NetMap = notify.NetMap
-			s.rebuildPeers(ctx)
-			dirty = true
-		}
-		if notify.Engine != nil {
-			s.Engine = notify.Engine
-			dirty = true
-		}
-		if notify.BrowseToURL != nil {
-			s.BrowseToURL = *notify.BrowseToURL
-			dirty = true
-		}
+
 		// TODO: Handle health warnings.
 		if !dirty {
 			continue
@@ -240,8 +237,9 @@ func (p *Poller) watchProfiles(ctx context.Context, n *notifier) {
 	}
 }
 
-// Poll returns a channel that, when received from, causes a new
-// status to be fetched from Tailscale.
+// Poll returns a channel that, when received from, refreshes waiting
+// files and login profiles. IPN status comes from the watch bus;
+// receiving also unblocks publishing of a pending IPN update.
 func (p *Poller) Poll() <-chan struct{} {
 	p.init()
 
@@ -284,7 +282,7 @@ type Status interface {
 type IPNStatus struct {
 	State       ipn.State
 	Prefs       ipn.PrefsView
-	NetMap      *netmap.NetworkMap
+	self        tailcfg.NodeView
 	Peers       map[tailcfg.StableNodeID]tailcfg.NodeView
 	FileTargets set.Set[tailcfg.StableNodeID]
 	Engine      *ipn.EngineStatus
@@ -299,21 +297,144 @@ func (s IPNStatus) copy() *IPNStatus {
 	return &s
 }
 
-func (s *IPNStatus) rebuildPeers(ctx context.Context) {
+func (s *IPNStatus) ensurePeers() {
+	if s.Peers == nil {
+		mk.Map(&s.Peers, 0)
+	}
+}
+
+// applyNotify applies notify. targetsDirty is true when Taildrop eligibility
+// may have changed: bootstrap, peer add/remove, or self identity change.
+// Online-only upserts do not set it; FileTargets does not depend on Online.
+func (s *IPNStatus) applyNotify(notify *ipn.Notify) (dirty, targetsDirty bool) {
+	if notify.State != nil {
+		s.State = *notify.State
+		dirty = true
+	}
+	if notify.Prefs != nil && notify.Prefs.Valid() {
+		s.Prefs = *notify.Prefs
+		dirty = true
+	}
+	if notify.Engine != nil {
+		s.Engine = notify.Engine
+		dirty = true
+	}
+	if notify.BrowseToURL != nil {
+		s.BrowseToURL = *notify.BrowseToURL
+		dirty = true
+	}
+
+	if s.applyBootstrap(notify) {
+		dirty = true
+		targetsDirty = true
+	}
+	if notify.SelfChange != nil {
+		dirty = true
+		targetsDirty = s.applySelfChange(notify.SelfChange) || targetsDirty
+	}
+	if len(notify.PeersChanged) != 0 {
+		dirty = true
+		targetsDirty = s.applyPeersChanged(notify.PeersChanged) || targetsDirty
+	}
+	if len(notify.PeersRemoved) != 0 {
+		dirty = true
+		targetsDirty = s.applyPeersRemoved(notify.PeersRemoved) || targetsDirty
+	}
+	return dirty, targetsDirty
+}
+
+// applyBootstrap replaces the peer set from the notify's snapshot.
+// InitialStatus wins when both it and the deprecated NetMap are present.
+func (s *IPNStatus) applyBootstrap(n *ipn.Notify) bool {
+	if n.InitialStatus != nil {
+		s.applyInitialStatus(n.InitialStatus)
+		return true
+	}
+	nm := n.NetMap //nolint:staticcheck // fallback when InitialStatus is absent
+	if nm == nil {
+		return false
+	}
+	s.applyNetMap(nm)
+	return true
+}
+
+func (s *IPNStatus) applyNetMap(nm *netmap.NetworkMap) {
+	s.self = nm.SelfNode
+	s.ensurePeers()
+	clear(s.Peers)
+	for _, peer := range nm.Peers {
+		s.Peers[peer.StableID()] = peer
+	}
+}
+
+func (s *IPNStatus) applyInitialStatus(st *ipnstate.Status) {
+	var suffix string
+	if st.CurrentTailnet != nil {
+		suffix = st.CurrentTailnet.MagicDNSSuffix
+	}
+
+	if st.Self != nil {
+		s.self = nodeViewFromPeerStatus(st.Self, suffix)
+	}
+
+	s.ensurePeers()
+	clear(s.Peers)
+	for _, peer := range st.Peer {
+		if peer == nil {
+			continue
+		}
+		s.Peers[peer.ID] = nodeViewFromPeerStatus(peer, suffix)
+	}
+}
+
+func (s *IPNStatus) applySelfChange(self *tailcfg.Node) (identityChanged bool) {
+	nv := self.View()
+	if s.self.Valid() && nv.Valid() && !sameSelfNode(s.self, nv) {
+		// Profile switches reuse the watch session and send a complete
+		// PeersChanged list without PeersRemoved for the old nodes.
+		clear(s.Peers)
+		clear(s.FileTargets)
+		identityChanged = true
+	}
+	s.self = nv
+	return identityChanged
+}
+
+func sameSelfNode(a, b tailcfg.NodeView) bool {
+	return a.ID() == b.ID() && a.StableID() == b.StableID() && a.User() == b.User()
+}
+
+func (s *IPNStatus) applyPeersChanged(peers []*tailcfg.Node) (added bool) {
+	s.ensurePeers()
+	for _, peer := range peers {
+		if _, ok := s.Peers[peer.StableID]; !ok {
+			added = true
+		}
+		s.Peers[peer.StableID] = peer.View()
+	}
+	return added
+}
+
+func (s *IPNStatus) applyPeersRemoved(ids []tailcfg.NodeID) (removed bool) {
+	for _, id := range ids {
+		for stableID, peer := range s.Peers {
+			if peer.ID() == id {
+				delete(s.Peers, stableID)
+				removed = true
+				break
+			}
+		}
+	}
+	return removed
+}
+
+func (s *IPNStatus) refreshFileTargets(ctx context.Context) {
 	// This is a lot longer than it probably should be. It's basically
 	// just to make sure that the poller doesn't get completely stuck. If
 	// this is getting hit, though, the UI is going to be updating
 	// horribly slow.
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-
-	if s.Peers == nil {
-		mk.Map(&s.Peers, 0)
-	}
-	clear(s.Peers)
-	for _, peer := range s.NetMap.Peers {
-		s.Peers[peer.StableID()] = peer
-	}
 
 	targets, err := FileTargets(ctx)
 	if err != nil {
@@ -325,6 +446,61 @@ func (s *IPNStatus) rebuildPeers(ctx context.Context) {
 	for _, target := range targets {
 		s.FileTargets.Add(target.Node.StableID)
 	}
+}
+
+// nodeViewFromPeerStatus builds a NodeView from an ipnstate.PeerStatus for
+// the InitialStatus bootstrap. Subsequent updates use full Nodes from
+// SelfChange / PeersChanged.
+func nodeViewFromPeerStatus(ps *ipnstate.PeerStatus, magicDNSSuffix string) tailcfg.NodeView {
+	if ps == nil {
+		return tailcfg.NodeView{}
+	}
+
+	online := ps.Online
+	n := &tailcfg.Node{
+		ID:       ps.NodeID,
+		StableID: ps.ID,
+		Name:     ps.DNSName,
+		User:     ps.UserID,
+		Sharer:   ps.AltSharerUserID,
+		Key:      ps.PublicKey,
+		Created:  ps.Created,
+		Online:   &online,
+		Expired:  ps.Expired,
+		CapMap:   maps.Clone(ps.CapMap),
+	}
+	if ps.KeyExpiry != nil {
+		n.KeyExpiry = *ps.KeyExpiry
+	}
+	if !ps.LastSeen.IsZero() {
+		lastSeen := ps.LastSeen
+		n.LastSeen = &lastSeen
+	}
+	for _, ip := range ps.TailscaleIPs {
+		n.Addresses = append(n.Addresses, netip.PrefixFrom(ip, ip.BitLen()))
+	}
+	if ps.AllowedIPs != nil {
+		n.AllowedIPs = ps.AllowedIPs.AsSlice()
+	}
+	if ps.Tags != nil {
+		n.Tags = ps.Tags.AsSlice()
+	}
+	if ps.PrimaryRoutes != nil {
+		n.PrimaryRoutes = ps.PrimaryRoutes.AsSlice()
+	}
+
+	hi := &tailcfg.Hostinfo{
+		Hostname:   ps.HostName,
+		OS:         ps.OS,
+		ShareeNode: ps.ShareeNode,
+	}
+	if ps.Location != nil {
+		loc := *ps.Location
+		hi.Location = &loc
+	}
+	n.Hostinfo = hi.View()
+	n.InitDisplayNames(magicDNSSuffix)
+	return n.View()
 }
 
 // Online returns true if s indicates that the local node is online
@@ -346,8 +522,18 @@ func (s *IPNStatus) ExitNode() tailcfg.NodeView {
 		return node
 	}
 	if addr := s.Prefs.ExitNodeIP(); addr.IsValid() {
-		peer, _ := s.NetMap.PeerByTailscaleIP(addr)
-		return peer
+		return s.peerByTailscaleIP(addr)
+	}
+	return tailcfg.NodeView{}
+}
+
+func (s *IPNStatus) peerByTailscaleIP(ip netip.Addr) tailcfg.NodeView {
+	for _, peer := range s.Peers {
+		for _, a := range peer.Addresses().All() {
+			if a.Addr() == ip {
+				return peer
+			}
+		}
 	}
 	return tailcfg.NodeView{}
 }
@@ -362,13 +548,10 @@ func (s *IPNStatus) OperatorIsCurrent() bool {
 	return s.Prefs.OperatorUser() == current.Username
 }
 
-// Self returns the local node from the netmap. The boolean is false
-// when the netmap is missing or SelfNode is invalid.
+// Self returns the local node. The boolean is false when the node is
+// missing or invalid.
 func (s *IPNStatus) Self() (tailcfg.NodeView, bool) {
-	if s.NetMap == nil {
-		return tailcfg.NodeView{}, false
-	}
-	n := s.NetMap.SelfNode
+	n := s.self
 	return n, n.Valid()
 }
 

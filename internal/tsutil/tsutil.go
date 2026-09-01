@@ -42,11 +42,8 @@ func CompareLocations(loc1, loc2 tailcfg.LocationView) int {
 	)
 }
 
-// ComparePeers compares two peers. It does so by location if
-// available, then by hostname. It returns the peers in a
-// deterministic order if their locations or hostnames are identical,
-// so the result of calling this is never 0. To determine if peers are
-// the same, compare their IDs manually.
+// ComparePeers orders two peers by location if both have one, then by
+// hostname, then by node ID. Distinct IDs always compare as non-zero.
 func ComparePeers(p1, p2 tailcfg.NodeView) int {
 	i1 := p1.Hostinfo()
 	i2 := p2.Hostinfo()

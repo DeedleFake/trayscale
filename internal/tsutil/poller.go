@@ -162,8 +162,8 @@ watch:
 			slog.Error("watcher got error message", "state", state, "err", notify.ErrMessage)
 		}
 
-		dirty, netDirty := s.applyNotify(&notify)
-		if netDirty {
+		dirty, targetsDirty := s.applyNotify(&notify)
+		if targetsDirty {
 			s.refreshFileTargets(ctx)
 		}
 
@@ -302,7 +302,10 @@ func (s *IPNStatus) ensurePeers() {
 	}
 }
 
-func (s *IPNStatus) applyNotify(notify *ipn.Notify) (dirty, netDirty bool) {
+// applyNotify applies n. targetsDirty is true when Taildrop eligibility
+// may have changed: bootstrap, peer add/remove, or self identity change.
+// Online-only upserts do not set it; FileTargets does not depend on Online.
+func (s *IPNStatus) applyNotify(notify *ipn.Notify) (dirty, targetsDirty bool) {
 	if notify.State != nil {
 		s.State = *notify.State
 		dirty = true
@@ -324,28 +327,31 @@ func (s *IPNStatus) applyNotify(notify *ipn.Notify) (dirty, netDirty bool) {
 	if notify.InitialStatus != nil {
 		s.applyInitialStatus(notify.InitialStatus)
 		dirty = true
-		netDirty = true
+		targetsDirty = true
 	} else if nm != nil {
 		s.applyNetMap(nm)
 		dirty = true
-		netDirty = true
+		targetsDirty = true
 	}
 	if notify.SelfChange != nil {
-		s.applySelfChange(notify.SelfChange)
+		if s.applySelfChange(notify.SelfChange) {
+			targetsDirty = true
+		}
 		dirty = true
-		netDirty = true
 	}
 	if len(notify.PeersChanged) != 0 {
-		s.applyPeersChanged(notify.PeersChanged)
+		if s.applyPeersChanged(notify.PeersChanged) {
+			targetsDirty = true
+		}
 		dirty = true
-		netDirty = true
 	}
 	if len(notify.PeersRemoved) != 0 {
-		s.applyPeersRemoved(notify.PeersRemoved)
+		if s.applyPeersRemoved(notify.PeersRemoved) {
+			targetsDirty = true
+		}
 		dirty = true
-		netDirty = true
 	}
-	return dirty, netDirty
+	return dirty, targetsDirty
 }
 
 func (s *IPNStatus) applyNetMap(nm *netmap.NetworkMap) {
@@ -377,37 +383,45 @@ func (s *IPNStatus) applyInitialStatus(st *ipnstate.Status) {
 	}
 }
 
-func (s *IPNStatus) applySelfChange(self *tailcfg.Node) {
+func (s *IPNStatus) applySelfChange(self *tailcfg.Node) (identityChanged bool) {
 	nv := self.View()
 	if s.self.Valid() && nv.Valid() && !sameSelfNode(s.self, nv) {
 		// Profile switches reuse the watch session and send a complete
 		// PeersChanged list without PeersRemoved for the old nodes.
 		clear(s.Peers)
 		clear(s.FileTargets)
+		identityChanged = true
 	}
 	s.self = nv
+	return identityChanged
 }
 
 func sameSelfNode(a, b tailcfg.NodeView) bool {
 	return a.ID() == b.ID() && a.StableID() == b.StableID() && a.User() == b.User()
 }
 
-func (s *IPNStatus) applyPeersChanged(peers []*tailcfg.Node) {
+func (s *IPNStatus) applyPeersChanged(peers []*tailcfg.Node) (added bool) {
 	s.ensurePeers()
 	for _, peer := range peers {
+		if _, ok := s.Peers[peer.StableID]; !ok {
+			added = true
+		}
 		s.Peers[peer.StableID] = peer.View()
 	}
+	return added
 }
 
-func (s *IPNStatus) applyPeersRemoved(ids []tailcfg.NodeID) {
+func (s *IPNStatus) applyPeersRemoved(ids []tailcfg.NodeID) (removed bool) {
 	for _, id := range ids {
 		for stableID, peer := range s.Peers {
 			if peer.ID() == id {
 				delete(s.Peers, stableID)
+				removed = true
 				break
 			}
 		}
 	}
+	return removed
 }
 
 func (s *IPNStatus) refreshFileTargets(ctx context.Context) {

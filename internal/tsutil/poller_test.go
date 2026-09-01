@@ -138,6 +138,77 @@ func TestApplyNotifyDeltasAfterBootstrap(t *testing.T) {
 	require.True(t, s.Peers[id].Online().Get())
 }
 
+func TestApplyNotifyTargetsDirty(t *testing.T) {
+	t.Parallel()
+
+	id := tailcfg.StableNodeID("n1")
+	selfA := testSelfNode(10, "self-a", 100)
+
+	t.Run("bootstrap initial status", func(t *testing.T) {
+		var s IPNStatus
+		_, targetsDirty := s.applyNotify(&ipn.Notify{InitialStatus: testStatus(testPeerStatus(id, 1, true, time.Time{}))})
+		require.True(t, targetsDirty)
+	})
+
+	t.Run("bootstrap netmap", func(t *testing.T) {
+		var s IPNStatus
+		_, targetsDirty := s.applyNotify(testNotify(testNetMap(id, 1, false), nil))
+		require.True(t, targetsDirty)
+	})
+
+	t.Run("new peer", func(t *testing.T) {
+		var s IPNStatus
+		_, targetsDirty := s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, false)}})
+		require.True(t, targetsDirty)
+	})
+
+	t.Run("online upsert", func(t *testing.T) {
+		var s IPNStatus
+		s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, false)}})
+		_, targetsDirty := s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, true)}})
+		require.False(t, targetsDirty)
+		require.True(t, s.Peers[id].Online().Get())
+	})
+
+	t.Run("remove", func(t *testing.T) {
+		var s IPNStatus
+		s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, true)}})
+		_, targetsDirty := s.applyNotify(&ipn.Notify{PeersRemoved: []tailcfg.NodeID{1}})
+		require.True(t, targetsDirty)
+		require.NotContains(t, s.Peers, id)
+	})
+
+	t.Run("remove unknown", func(t *testing.T) {
+		var s IPNStatus
+		s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, true)}})
+		_, targetsDirty := s.applyNotify(&ipn.Notify{PeersRemoved: []tailcfg.NodeID{99}})
+		require.False(t, targetsDirty)
+		require.Contains(t, s.Peers, id)
+	})
+
+	t.Run("first self", func(t *testing.T) {
+		var s IPNStatus
+		_, targetsDirty := s.applyNotify(&ipn.Notify{SelfChange: selfA})
+		require.False(t, targetsDirty)
+	})
+
+	t.Run("same identity self", func(t *testing.T) {
+		var s IPNStatus
+		s.applyNotify(&ipn.Notify{SelfChange: selfA})
+		renamed := testSelfNode(selfA.ID, selfA.StableID, selfA.User)
+		renamed.Name = "renamed.tailnet.ts.net."
+		_, targetsDirty := s.applyNotify(&ipn.Notify{SelfChange: renamed})
+		require.False(t, targetsDirty)
+	})
+
+	t.Run("identity change", func(t *testing.T) {
+		var s IPNStatus
+		s.applyNotify(&ipn.Notify{SelfChange: selfA})
+		_, targetsDirty := s.applyNotify(&ipn.Notify{SelfChange: testSelfNode(11, "self-b", 200)})
+		require.True(t, targetsDirty)
+	})
+}
+
 func TestApplyNotifySelfIdentityChange(t *testing.T) {
 	t.Parallel()
 

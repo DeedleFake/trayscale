@@ -8,6 +8,7 @@ require (
 	deedles.dev/xiter v0.2.1
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20260808200908-d4aecaa0ff32
 	github.com/diamondburned/gotk4/pkg v0.4.1
+	github.com/godbus/dbus/v5 v5.2.2
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	github.com/klauspost/compress v1.19.2
 	github.com/stretchr/testify v1.12.1
@@ -121,7 +122,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-xmlfmt/xmlfmt v1.1.3 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/godoc-lint/godoc-lint v0.11.2 // indirect
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect

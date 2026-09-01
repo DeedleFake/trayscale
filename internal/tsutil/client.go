@@ -7,13 +7,11 @@ import (
 	"io"
 	"log/slog"
 	"net/netip"
-	"time"
 
 	"tailscale.com/client/local"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/cmd/tailscale/cli"
 	"tailscale.com/ipn"
-	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/netcheck"
 	"tailscale.com/net/netmon"
 	"tailscale.com/tailcfg"
@@ -37,17 +35,6 @@ func initMonitor() *netmon.Monitor {
 		slog.Error("init netmon monitor", "err", err)
 	}
 	return monitor
-}
-
-// GetStatus returns the status of the connection to the Tailscale
-// network. If the network is not currently connected, it returns
-// nil, nil.
-func GetStatus(ctx context.Context) (*ipnstate.Status, error) {
-	st, err := localClient.Status(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get tailscale status: %w", err)
-	}
-	return st, nil
 }
 
 // Prefs returns the options of the local node.
@@ -263,8 +250,7 @@ func DeleteWaitingFile(ctx context.Context, name string) error {
 // WaitingFiles polls for any pending incoming files. It returns
 // quickly if there are no files currently pending.
 func WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
-	// TODO: https://github.com/tailscale/tailscale/issues/8911
-	return localClient.AwaitWaitingFiles(ctx, time.Second)
+	return localClient.AwaitWaitingFiles(ctx, 0)
 }
 
 func FileTargets(ctx context.Context) ([]apitype.FileTarget, error) {

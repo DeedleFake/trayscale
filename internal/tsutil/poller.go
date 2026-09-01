@@ -72,7 +72,7 @@ func (p *Poller) Run(ctx context.Context) {
 	go p.watchProfiles(ctx, n)
 
 	interval := p.Interval
-	if interval < 0 {
+	if interval <= 0 {
 		interval = 5 * time.Second
 	}
 
@@ -237,8 +237,9 @@ func (p *Poller) watchProfiles(ctx context.Context, n *notifier) {
 	}
 }
 
-// Poll returns a channel that, when received from, causes a new
-// status to be fetched from Tailscale.
+// Poll returns a channel that, when received from, refreshes waiting
+// files and login profiles. IPN status comes from the watch bus;
+// receiving also unblocks publishing of a pending IPN update.
 func (p *Poller) Poll() <-chan struct{} {
 	p.init()
 
@@ -302,7 +303,7 @@ func (s *IPNStatus) ensurePeers() {
 	}
 }
 
-// applyNotify applies n. targetsDirty is true when Taildrop eligibility
+// applyNotify applies notify. targetsDirty is true when Taildrop eligibility
 // may have changed: bootstrap, peer add/remove, or self identity change.
 // Online-only upserts do not set it; FileTargets does not depend on Online.
 func (s *IPNStatus) applyNotify(notify *ipn.Notify) (dirty, targetsDirty bool) {
@@ -323,35 +324,38 @@ func (s *IPNStatus) applyNotify(notify *ipn.Notify) (dirty, targetsDirty bool) {
 		dirty = true
 	}
 
-	nm := notify.NetMap //nolint:staticcheck // fallback bootstrap when InitialStatus is absent
-	if notify.InitialStatus != nil {
-		s.applyInitialStatus(notify.InitialStatus)
-		dirty = true
-		targetsDirty = true
-	} else if nm != nil {
-		s.applyNetMap(nm)
+	if s.applyBootstrap(notify) {
 		dirty = true
 		targetsDirty = true
 	}
 	if notify.SelfChange != nil {
-		if s.applySelfChange(notify.SelfChange) {
-			targetsDirty = true
-		}
 		dirty = true
+		targetsDirty = s.applySelfChange(notify.SelfChange) || targetsDirty
 	}
 	if len(notify.PeersChanged) != 0 {
-		if s.applyPeersChanged(notify.PeersChanged) {
-			targetsDirty = true
-		}
 		dirty = true
+		targetsDirty = s.applyPeersChanged(notify.PeersChanged) || targetsDirty
 	}
 	if len(notify.PeersRemoved) != 0 {
-		if s.applyPeersRemoved(notify.PeersRemoved) {
-			targetsDirty = true
-		}
 		dirty = true
+		targetsDirty = s.applyPeersRemoved(notify.PeersRemoved) || targetsDirty
 	}
 	return dirty, targetsDirty
+}
+
+// applyBootstrap replaces the peer set from the notify's snapshot.
+// InitialStatus wins when both it and the deprecated NetMap are present.
+func (s *IPNStatus) applyBootstrap(n *ipn.Notify) bool {
+	if n.InitialStatus != nil {
+		s.applyInitialStatus(n.InitialStatus)
+		return true
+	}
+	nm := n.NetMap //nolint:staticcheck // fallback when InitialStatus is absent
+	if nm == nil {
+		return false
+	}
+	s.applyNetMap(nm)
+	return true
 }
 
 func (s *IPNStatus) applyNetMap(nm *netmap.NetworkMap) {

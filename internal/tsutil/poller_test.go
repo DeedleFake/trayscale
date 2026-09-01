@@ -320,7 +320,7 @@ func testStatus(ps *ipnstate.PeerStatus) *ipnstate.Status {
 func testNotify(nm *netmap.NetworkMap, initial *ipnstate.Status) *ipn.Notify {
 	n := ipn.Notify{InitialStatus: initial}
 	if nm != nil {
-		n.NetMap = nm //nolint:staticcheck // fallback bootstrap when InitialStatus is absent
+		n.NetMap = nm //nolint:staticcheck // applyNotify still reads NetMap as a fallback
 	}
 	return &n
 }

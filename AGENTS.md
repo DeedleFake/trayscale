@@ -141,6 +141,7 @@ tailscaled (local API)
 - **Logging** — `log/slog` with structured key-value fields.
 - **Context** — pass `context.Context` as the first argument for cancelable / long-running work.
 - **Errors** — handle explicitly; wrap with `fmt.Errorf("...: %w", err)` when adding context. Avoid panics except in true programmer-error / must-succeed paths (e.g. embedded asset load).
+- **Standard library first** — Go's standard library is very powerful and should be the first tool you reach for for most problems. Only consider a custom solution or a new dependency after showing that the standard library is not enough.
 - **Modern Go** — match existing use of generics, `iter`, `slices`, `maps`, `cmp`, and related stdlib helpers as used in this codebase and `go.mod`.
 - **Imports** — goimports-style groups: standard library, third-party, then `deedles.dev/...`.
 - **Comments** — full sentences for exported symbols; stay consistent with nearby code.

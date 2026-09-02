@@ -10,8 +10,6 @@ codeberg.org/chavacava/garif v0.2.0 h1:F0tVjhYbuOCnvNcU3YSpO6b3Waw6Bimy4K0mM8y6M
 codeberg.org/chavacava/garif v0.2.0/go.mod h1:P2BPbVbT4QcvLZrORc2T29szK3xEOlnl0GiPTJmEqBQ=
 codeberg.org/polyfloyd/go-errorlint v1.9.0 h1:VkdEEmA1VBpH6ecQoMR4LdphVI3fA4RrCh2an7YmodI=
 codeberg.org/polyfloyd/go-errorlint v1.9.0/go.mod h1:GPRRu2LzVijNn4YkrZYJfatQIdS+TrcK8rL5Xs24qw8=
-deedles.dev/mk v0.1.0 h1:xrvuJA3+R/j6/6AZPc+o31I1rotdKLrAYJxhZJwdOuc=
-deedles.dev/mk v0.1.0/go.mod h1:TSFsz0T+BvhNqJae0yrj+KadkN4elx248PCpq2Ol4ME=
 deedles.dev/tray v0.1.11-0.20260216023918-8e44c43dfc0b h1:enjE1KUvBCJeeYJIfuSpb8yqF8V51JqTikv4zfRo0xY=
 deedles.dev/tray v0.1.11-0.20260216023918-8e44c43dfc0b/go.mod h1:T6LSCKPLN2Y+PfawRiZOq3awibqxBm4RCmYrDQgMf04=
 deedles.dev/xiter v0.2.1 h1:yyyfo1sDwARp5lyMvILBJpEI28sIFN0TNYagAdBUa+s=

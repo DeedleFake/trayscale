@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"deedles.dev/mk"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/feature/taildrop"
 	"tailscale.com/ipn"
@@ -48,10 +47,10 @@ type Poller struct {
 
 func (p *Poller) init() {
 	p.once.Do(func() {
-		mk.Chan(&p.poll, 0)
-		mk.Chan(&p.getIPN, 0)
-		mk.Chan(&p.nextIPN, 0)
-		mk.Chan(&p.interval, 0)
+		p.poll = make(chan struct{})
+		p.getIPN = make(chan *IPNStatus)
+		p.nextIPN = make(chan *IPNStatus)
+		p.interval = make(chan time.Duration)
 	})
 }
 
@@ -299,7 +298,7 @@ func (s IPNStatus) copy() *IPNStatus {
 
 func (s *IPNStatus) ensurePeers() {
 	if s.Peers == nil {
-		mk.Map(&s.Peers, 0)
+		s.Peers = make(map[tailcfg.StableNodeID]tailcfg.NodeView)
 	}
 }
 

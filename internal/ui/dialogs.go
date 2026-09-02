@@ -109,10 +109,9 @@ func (d Info) Show(a *App, closed func()) {
 }
 
 type Select[T any] struct {
-	Heading  string
-	Body     string
-	Options  []SelectOption[T]
-	Multiple bool
+	Heading string
+	Body    string
+	Options []SelectOption[T]
 }
 
 type SelectOption[T any] struct {
@@ -125,10 +124,6 @@ func (d Select[T]) Show(a *App, res func([]SelectOption[T])) {
 	options := gtk.NewListBox()
 	options.AddCSSClass("boxed-list")
 	options.SetSelectionMode(gtk.SelectionSingle)
-	if d.Multiple {
-		// BUG: See https://gitlab.gnome.org/GNOME/gtk/-/issues/552.
-		options.SetSelectionMode(gtk.SelectionMultiple)
-	}
 	for _, option := range d.Options {
 		row := adw.NewActionRow()
 		row.SetTitle(option.Title)

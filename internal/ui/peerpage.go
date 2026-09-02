@@ -37,25 +37,6 @@ type PeerPage struct {
 	IPList                *gtk.ListBox
 	AdvertisedRoutesGroup *adw.PreferencesGroup
 	AdvertisedRoutesList  *gtk.ListBox
-	UDPRow                *adw.ActionRow
-	UDP                   *gtk.Image
-	IPv4Row               *adw.ActionRow
-	IPv4Icon              *gtk.Image
-	IPv4Addr              *gtk.Label
-	IPv6Row               *adw.ActionRow
-	IPv6Icon              *gtk.Image
-	IPv6Addr              *gtk.Label
-	UPnPRow               *adw.ActionRow
-	UPnP                  *gtk.Image
-	PMPRow                *adw.ActionRow
-	PMP                   *gtk.Image
-	PCPRow                *adw.ActionRow
-	PCP                   *gtk.Image
-	HairPinningRow        *adw.ActionRow
-	HairPinning           *gtk.Image
-	PreferredDERPRow      *adw.ActionRow
-	PreferredDERP         *gtk.Label
-	DERPLatencies         *adw.ExpanderRow
 	MiscGroup             *adw.PreferencesGroup
 	ExitNodeRow           *adw.SwitchRow
 	OnlineRow             *adw.ActionRow
@@ -70,8 +51,6 @@ type PeerPage struct {
 	RxBytes               *gtk.Label
 	TxBytesRow            *adw.ActionRow
 	TxBytes               *gtk.Label
-	SendFileBurron        *adw.ButtonRow
-	SendDirButton         *adw.ButtonRow
 	DropTarget            *gtk.DropTarget
 
 	sendFileAction *gio.SimpleAction

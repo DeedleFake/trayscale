@@ -3,7 +3,6 @@ module deedles.dev/trayscale
 go 1.27.0
 
 require (
-	deedles.dev/mk v0.1.0
 	deedles.dev/tray v0.1.11-0.20260216023918-8e44c43dfc0b
 	deedles.dev/xiter v0.2.1
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20260808200908-d4aecaa0ff32

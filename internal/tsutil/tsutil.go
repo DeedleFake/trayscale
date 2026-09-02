@@ -3,7 +3,6 @@ package tsutil
 import (
 	"cmp"
 
-	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/tailcfg"
 )
 
@@ -56,14 +55,5 @@ func ComparePeers(p1, p2 tailcfg.NodeView) int {
 		loc,
 		cmp.Compare(i1.Hostname(), i2.Hostname()),
 		cmp.Compare(p1.ID(), p2.ID()),
-	)
-}
-
-// CompareWaitingFiles compares two incoming files first by name and
-// then by size.
-func CompareWaitingFiles(f1, f2 apitype.WaitingFile) int {
-	return cmp.Or(
-		cmp.Compare(f1.Name, f2.Name),
-		cmp.Compare(f1.Size, f2.Size),
 	)
 }

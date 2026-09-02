@@ -1,0 +1,1036 @@
+#!/usr/bin/env python3
+"""Drive an isolated Trayscale window for verification.
+
+Public commands: launch, doctor, cleanup, action, actions, snapshot,
+screenshot, find, click, fill, press, wait. `_inner` is launch-only.
+
+This process never kills by binary name. Cleanup signals only the
+process group recorded at launch, so a user-owned Trayscale stays up.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+import time
+import uuid
+import warnings
+from pathlib import Path
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+APP_ID = "dev.deedles.Trayscale"
+APP_PATH = "/dev/deedles/Trayscale"
+APP_TITLE = "Trayscale"
+ATSPI_LAUNCHER = "/usr/lib/at-spi-bus-launcher"
+ATSPI_REGISTRY = "/usr/lib/at-spi2-registryd"
+SCHEMA_XML = "dev.deedles.Trayscale.gschema.xml"
+
+# Actions that change Tailscale or open a browser. Doctor still lists
+# them; recipes must not call them unless the feature file says so.
+MUTATING_ACTIONS = {
+    "use_exit_node",
+    "change_control_server",
+    "admin_dashboard",
+    "login",
+    "quit",
+}
+
+ROLE_ALIASES = {
+    "button": ("push button", "button", "toggle button"),
+    "toggle": ("toggle button", "check box", "switch"),
+    "switch": ("switch", "toggle button", "check box"),
+    "entry": ("entry", "text", "password text", "search box"),
+    "searchbox": ("search box", "entry", "text"),
+    "dialog": ("dialog", "alert", "frame"),
+    "window": ("frame", "window", "dialog"),
+    "menu": ("menu", "popup menu"),
+    "menuitem": ("menu item", "check menu item"),
+    "heading": ("heading", "label"),
+    "label": ("label", "heading"),
+    "page": ("page tab", "page"),
+    "list": ("list", "list box"),
+    "listitem": ("list item",),
+}
+
+
+def skill_dir() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def repo_dir() -> Path:
+    # .cursor/skills/verify-trayscale -> repo root
+    return skill_dir().parents[2]
+
+
+def runs_dir() -> Path:
+    return skill_dir() / "runs"
+
+
+def artifacts_dir() -> Path:
+    return skill_dir() / "artifacts"
+
+
+def current_pointer() -> Path:
+    return runs_dir() / "current"
+
+
+def run_dir(run_id: str | None = None) -> Path:
+    if run_id is None:
+        ptr = current_pointer()
+        if not ptr.exists():
+            raise SystemExit("no current run; launch first")
+        run_id = ptr.read_text().strip()
+    return runs_dir() / run_id
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8").strip()
+
+
+def write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def user_bus_from_run(run: Path) -> str:
+    return read_text(run / "user-bus")
+
+
+def app_bus_from_run(run: Path) -> str:
+    return read_text(run / "bus")
+
+
+def dbus_env(bus: str) -> dict[str, str]:
+    env = os.environ.copy()
+    env["DBUS_SESSION_BUS_ADDRESS"] = bus
+    return env
+
+
+def gdbus(bus: str, args: list[str], timeout: float = 10) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["gdbus", *args],
+        env=dbus_env(bus),
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
+
+
+def name_has_owner(bus: str, name: str) -> bool:
+    proc = gdbus(
+        bus,
+        [
+            "call",
+            "--session",
+            "--dest",
+            "org.freedesktop.DBus",
+            "--object-path",
+            "/org/freedesktop/DBus",
+            "--method",
+            "org.freedesktop.DBus.NameHasOwner",
+            name,
+        ],
+    )
+    return proc.returncode == 0 and "true" in proc.stdout.lower()
+
+
+def pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def cmdline_of(pid: int) -> str:
+    try:
+        return Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\x00", b" ").decode("utf-8", "replace").strip()
+    except OSError:
+        return ""
+
+
+def compile_schemas(run: Path) -> Path:
+    schemas = run / "schemas"
+    schemas.mkdir(parents=True, exist_ok=True)
+    src = repo_dir() / SCHEMA_XML
+    dest = schemas / SCHEMA_XML
+    dest.write_bytes(src.read_bytes())
+    proc = subprocess.run(
+        ["glib-compile-schemas", str(schemas)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise SystemExit(f"glib-compile-schemas failed: {proc.stderr.strip()}")
+    return schemas
+
+
+def build_binary(run: Path) -> Path:
+    binary = run / "trayscale"
+    proc = subprocess.run(
+        ["go", "build", "-o", str(binary), "./cmd/trayscale"],
+        cwd=repo_dir(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise SystemExit(f"go build failed:\n{proc.stdout}{proc.stderr}")
+    binary.chmod(0o755)
+    return binary
+
+
+def wait_name(bus: str, name: str, timeout: float) -> bool:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if name_has_owner(bus, name):
+            return True
+        time.sleep(0.2)
+    return False
+
+
+def parse_gdbus_string(stdout: str) -> str:
+    text = stdout.strip()
+    match = re.search(r"'([^']*)'", text)
+    if match:
+        return match.group(1)
+    if text.startswith("(") and text.endswith(")"):
+        inner = text[1:-1].strip().rstrip(",")
+        return inner.strip().strip("'\"")
+    return text
+
+
+def atspi_address(bus: str) -> str:
+    proc = gdbus(
+        bus,
+        [
+            "call",
+            "--session",
+            "--dest",
+            "org.a11y.Bus",
+            "--object-path",
+            "/org/a11y/bus",
+            "--method",
+            "org.a11y.Bus.GetAddress",
+        ],
+    )
+    if proc.returncode != 0:
+        raise SystemExit(f"org.a11y.Bus.GetAddress failed: {proc.stderr.strip() or proc.stdout.strip()}")
+    return parse_gdbus_string(proc.stdout)
+
+
+def cmd_inner() -> int:
+    run = Path(os.environ["TRAYSCALE_VERIFY_RUN"])
+    log = open(run / "inner.log", "ab", buffering=0)
+    os.dup2(log.fileno(), 1)
+    os.dup2(log.fileno(), 2)
+
+    bus = os.environ["DBUS_SESSION_BUS_ADDRESS"]
+    write_text(run / "bus", bus)
+
+    launcher = subprocess.Popen(
+        [ATSPI_LAUNCHER],
+        stdout=log,
+        stderr=log,
+        start_new_session=False,
+    )
+    write_text(run / "atspi-launcher.pid", str(launcher.pid))
+    if not wait_name(bus, "org.a11y.Bus", 15):
+        write_text(run / "inner-error", "org.a11y.Bus did not appear")
+        return 1
+    a11y_bus = atspi_address(bus)
+    write_text(run / "atspi-bus", a11y_bus)
+    os.environ["AT_SPI_BUS_ADDRESS"] = a11y_bus
+
+    # dbus-broker on the a11y bus tries systemd activation for the
+    # registry and fails inside dbus-run-session. Start it ourselves
+    # without --use-gnome-session so it does not talk to the user session.
+    registry = subprocess.Popen(
+        [ATSPI_REGISTRY],
+        stdout=log,
+        stderr=log,
+        start_new_session=False,
+    )
+    write_text(run / "atspi-registry.pid", str(registry.pid))
+    if not wait_name(a11y_bus, "org.a11y.atspi.Registry", 15):
+        write_text(run / "inner-error", "org.a11y.atspi.Registry did not appear")
+        return 1
+
+    os.environ["GTK_A11Y"] = "atspi"
+    os.environ["NO_AT_BRIDGE"] = "0"
+    os.environ["GTK_USE_PORTAL"] = "0"
+    os.execv(os.environ["TRAYSCALE_VERIFY_BIN"], [os.environ["TRAYSCALE_VERIFY_BIN"]])
+    return 1
+
+
+def cmd_launch(args: argparse.Namespace) -> int:
+    runs_dir().mkdir(parents=True, exist_ok=True)
+    artifacts_dir().mkdir(parents=True, exist_ok=True)
+
+    if current_pointer().exists():
+        try:
+            existing = run_dir()
+        except SystemExit:
+            existing = None
+        if existing is not None and (existing / "pgid").exists():
+            pgid = int(read_text(existing / "pgid"))
+            if pid_alive(pgid):
+                raise SystemExit(
+                    f"a verification instance is already running in {existing}\n"
+                    "run: control-trayscale cleanup"
+                )
+            cmd_cleanup(argparse.Namespace(force=True))
+
+    run_id = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
+    run = runs_dir() / run_id
+    run.mkdir(parents=True)
+    write_text(current_pointer(), run_id)
+
+    user_bus = os.environ.get("DBUS_SESSION_BUS_ADDRESS", "")
+    if not user_bus:
+        raise SystemExit("DBUS_SESSION_BUS_ADDRESS is empty; need a graphical session")
+    write_text(run / "user-bus", user_bus)
+    write_text(run / "user-wayland", os.environ.get("WAYLAND_DISPLAY", ""))
+    write_text(run / "user-display", os.environ.get("DISPLAY", ""))
+
+    print("compiling gsettings schema", file=sys.stderr)
+    schemas = compile_schemas(run)
+    print("building ./cmd/trayscale", file=sys.stderr)
+    binary = build_binary(run)
+
+    xdg = run / "xdg"
+    for name in ("config", "data", "cache", "state"):
+        (xdg / name).mkdir(parents=True)
+
+    env = os.environ.copy()
+    env["TRAYSCALE_VERIFY_RUN"] = str(run)
+    env["TRAYSCALE_VERIFY_BIN"] = str(binary)
+    env["GSETTINGS_SCHEMA_DIR"] = str(schemas)
+    env["GSETTINGS_BACKEND"] = "memory"
+    env["XDG_CONFIG_HOME"] = str(xdg / "config")
+    env["XDG_DATA_HOME"] = str(xdg / "data")
+    env["XDG_CACHE_HOME"] = str(xdg / "cache")
+    env["XDG_STATE_HOME"] = str(xdg / "state")
+    env["TRAYSCALE_PRIVATE"] = "1"
+    env["GTK_A11Y"] = "atspi"
+    env["NO_AT_BRIDGE"] = "0"
+    env["GTK_USE_PORTAL"] = "0"
+    env["LC_ALL"] = env.get("LC_ALL") or "C.UTF-8"
+
+    log = open(run / "session.log", "wb")
+    proc = subprocess.Popen(
+        ["dbus-run-session", "--", sys.executable, str(Path(__file__).resolve()), "_inner"],
+        cwd=repo_dir(),
+        env=env,
+        stdout=log,
+        stderr=log,
+        start_new_session=True,
+    )
+    write_text(run / "pgid", str(proc.pid))
+    write_text(run / "dbus-run.pid", str(proc.pid))
+
+    timeout = args.timeout
+    deadline = time.time() + timeout
+    bus = ""
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            extra = ""
+            err = run / "inner-error"
+            if err.exists():
+                extra = "\n" + read_text(err)
+            raise SystemExit(
+                f"isolated session exited early (code {proc.returncode}){extra}\n"
+                f"see {run / 'session.log'} and {run / 'inner.log'}"
+            )
+        if (run / "bus").exists():
+            bus = read_text(run / "bus")
+            if wait_name(bus, APP_ID, 0.1):
+                break
+        time.sleep(0.2)
+    else:
+        cmd_cleanup(argparse.Namespace(force=True))
+        raise SystemExit(f"Trayscale D-Bus name {APP_ID} did not appear within {timeout}s")
+
+    # Window + a11y can lag the D-Bus name while the first poller result
+    # lands. Wait a bit so doctor is useful immediately after launch.
+    apply_app_bus(run)
+    ready_deadline = time.time() + min(20, timeout)
+    last_err = "window not seen"
+    while time.time() < ready_deadline:
+        try:
+            find_accessible(role="window", name=APP_TITLE, exact=True)
+            last_err = ""
+            break
+        except SystemExit as exc:
+            last_err = str(exc)
+            time.sleep(0.3)
+    if last_err:
+        print(f"warning: D-Bus name is up but AT-SPI window not ready: {last_err}", file=sys.stderr)
+
+    print(run_id)
+    print(f"run_dir={run}")
+    print(f"pid={proc.pid}")
+    print(f"binary={binary}")
+    return 0
+
+
+def apply_app_bus(run: Path | None = None) -> Path:
+    run = run or run_dir()
+    os.environ["DBUS_SESSION_BUS_ADDRESS"] = app_bus_from_run(run)
+    atspi = run / "atspi-bus"
+    if atspi.exists():
+        os.environ["AT_SPI_BUS_ADDRESS"] = read_text(atspi)
+    os.environ["GTK_A11Y"] = "atspi"
+    return run
+
+
+_atspi_ready = False
+
+
+def atspi():
+    global _atspi_ready
+    import gi
+
+    gi.require_version("Atspi", "2.0")
+    from gi.repository import Atspi
+
+    if not _atspi_ready:
+        Atspi.init()
+        _atspi_ready = True
+    return Atspi
+
+
+def iter_apps():
+    Atspi = atspi()
+    desktop = Atspi.get_desktop(0)
+    count = desktop.get_child_count()
+    for i in range(count):
+        child = desktop.get_child_at_index(i)
+        if child is not None:
+            yield child
+
+
+def acc_name(acc) -> str:
+    try:
+        return acc.get_name() or ""
+    except Exception:
+        return ""
+
+
+def acc_role(acc) -> str:
+    try:
+        return acc.get_role_name() or ""
+    except Exception:
+        return ""
+
+
+def acc_desc(acc) -> str:
+    try:
+        return acc.get_description() or ""
+    except Exception:
+        return ""
+
+
+def acc_states(acc) -> list[str]:
+    try:
+        state = acc.get_state_set()
+        names = []
+        Atspi = atspi()
+        for member in Atspi.StateType.__enum_values__.values():  # type: ignore[attr-defined]
+            try:
+                if state.contains(member) and member != Atspi.StateType.INVALID:
+                    names.append(member.value_nick)
+            except Exception:
+                continue
+        return names
+    except Exception:
+        return []
+
+
+def walk(acc, depth: int = 0, max_depth: int = 30, max_nodes: int = 4000):
+    n = 1
+    yield depth, acc
+    if depth >= max_depth:
+        return
+    try:
+        count = acc.get_child_count()
+    except Exception:
+        return
+    for i in range(count):
+        if n >= max_nodes:
+            return
+        try:
+            child = acc.get_child_at_index(i)
+        except Exception:
+            continue
+        if child is None:
+            continue
+        for d, c in walk(child, depth + 1, max_depth, max_nodes - n):
+            yield d, c
+            n += 1
+            if n >= max_nodes:
+                return
+
+
+def trayscale_apps():
+    found = []
+    for app in iter_apps():
+        name = acc_name(app).lower()
+        role = acc_role(app)
+        if role != "application":
+            continue
+        if "trayscale" in name or name in {"", "trayscale"}:
+            found.append(app)
+            continue
+        try:
+            pid = app.get_process_id()
+        except Exception:
+            pid = 0
+        run = run_dir()
+        bin_path = str(run / "trayscale")
+        if pid and bin_path in cmdline_of(pid):
+            found.append(app)
+    if found:
+        return found
+    # Isolated a11y bus should only have this app plus a11y helpers.
+    apps = [a for a in iter_apps() if acc_role(a) == "application"]
+    skip = {"at-spi-bus-launcher", "at-spi2-registryd"}
+    return [a for a in apps if acc_name(a) not in skip]
+
+
+def interesting_states(acc) -> list[str]:
+    names = []
+    try:
+        state = acc.get_state_set()
+        Atspi = atspi()
+        for label, member in (
+            ("checked", Atspi.StateType.CHECKED),
+            ("focused", Atspi.StateType.FOCUSED),
+            ("expanded", Atspi.StateType.EXPANDED),
+            ("selected", Atspi.StateType.SELECTED),
+            ("modal", Atspi.StateType.MODAL),
+        ):
+            if state.contains(member):
+                names.append(label)
+    except Exception:
+        return names
+    return names
+
+
+def format_node(depth: int, acc) -> str:
+    name = acc_name(acc).replace("\n", " ")
+    role = acc_role(acc)
+    desc = acc_desc(acc).replace("\n", " ")
+    extra = f" desc={desc!r}" if desc else ""
+    states = interesting_states(acc)
+    if states:
+        extra += f" states={','.join(states)}"
+    return f"{'  ' * depth}{role} {name!r}{extra}"
+
+
+def cmd_snapshot(args: argparse.Namespace) -> int:
+    apply_app_bus()
+    lines = []
+    apps = trayscale_apps()
+    if not apps:
+        raise SystemExit("AT-SPI found no Trayscale application on the isolated bus")
+    for app in apps:
+        for depth, acc in walk(app, max_depth=args.max_depth, max_nodes=args.max_nodes):
+            lines.append(format_node(depth, acc))
+    text = "\n".join(lines) + "\n"
+    if args.path:
+        path = Path(args.path)
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        print(path)
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
+def normalize_role(role: str | None) -> tuple[str, ...] | None:
+    if not role:
+        return None
+    key = role.lower().replace("_", " ").strip()
+    if key in ROLE_ALIASES:
+        return ROLE_ALIASES[key]
+    return (key,)
+
+
+def name_matches(got: str, want: str, exact: bool) -> bool:
+    if want is None:
+        return True
+    if exact:
+        return got == want or got.casefold() == want.casefold()
+    return want.casefold() in got.casefold()
+
+
+def find_accessible(
+    role: str | None = None,
+    name: str | None = None,
+    exact: bool = False,
+    index: int = 0,
+):
+    apply_app_bus()
+    roles = normalize_role(role)
+    matches = []
+    need = index + 1
+    for app in trayscale_apps():
+        for _, acc in walk(app):
+            if roles is not None and acc_role(acc).lower() not in roles:
+                continue
+            if name is not None and not name_matches(acc_name(acc), name, exact):
+                continue
+            matches.append(acc)
+            if len(matches) >= need:
+                return matches[index]
+    if not matches:
+        raise SystemExit(f"no accessible matched role={role!r} name={name!r}")
+    raise SystemExit(f"match index {index} out of range ({len(matches)} matches)")
+
+
+def describe(acc) -> str:
+    return f"{acc_role(acc)} {acc_name(acc)!r}"
+
+
+def cmd_find(args: argparse.Namespace) -> int:
+    acc = find_accessible(role=args.role, name=args.name, exact=args.exact, index=args.index)
+    print(describe(acc))
+    return 0
+
+
+PREFERRED_ACTIONS = ("click", "press", "activate", "toggle")
+
+
+def action_names(acc) -> list[str]:
+    try:
+        n = acc.get_n_actions()
+    except Exception:
+        return []
+    return [acc.get_action_name(i) for i in range(n)]
+
+
+def pick_action(acc, requested: str | None) -> tuple[int, str]:
+    names = action_names(acc)
+    if not names:
+        raise SystemExit(f"{describe(acc)} has no actions")
+    if requested:
+        if requested not in names:
+            raise SystemExit(f"{describe(acc)} actions are {names}, not {requested!r}")
+        return names.index(requested), requested
+    for pref in PREFERRED_ACTIONS:
+        if pref in names:
+            return names.index(pref), pref
+    for i, name in enumerate(names):
+        if name.startswith("clipboard.") or name.startswith("selection."):
+            continue
+        return i, name
+    raise SystemExit(
+        f"{describe(acc)} only has {names}; that is not a click. "
+        "For a sidebar row use: control-trayscale select --name ..."
+    )
+
+
+def ancestor_selection(acc):
+    node = acc
+    item = None
+    lst = None
+    for _ in range(12):
+        if node is None:
+            break
+        role = acc_role(node)
+        if role == "list item":
+            item = node
+        if role == "list":
+            try:
+                if node.is_selection():
+                    lst = node
+                    break
+            except Exception:
+                pass
+        try:
+            node = node.get_parent()
+        except Exception:
+            break
+    return lst, item
+
+
+def cmd_click(args: argparse.Namespace) -> int:
+    acc = find_accessible(role=args.role, name=args.name, exact=args.exact, index=args.index)
+    which, name = pick_action(acc, args.action)
+    ok = acc.do_action(which)
+    if not ok:
+        raise SystemExit(f"do_action failed on {describe(acc)}")
+    print(f"clicked {describe(acc)} action={name!r}")
+    return 0
+
+
+def cmd_select(args: argparse.Namespace) -> int:
+    acc = find_accessible(role=args.role, name=args.name, exact=args.exact, index=args.index)
+    lst, item = ancestor_selection(acc)
+    if lst is None or item is None:
+        raise SystemExit(f"{describe(acc)} is not inside a selectable list")
+    idx = item.get_index_in_parent()
+    if not lst.select_child(idx):
+        raise SystemExit(f"select_child({idx}) failed for {describe(acc)}")
+    print(f"selected list item {idx} for {describe(acc)}")
+    return 0
+
+
+def cmd_fill(args: argparse.Namespace) -> int:
+    acc = find_accessible(role=args.role, name=args.name, exact=args.exact, index=args.index)
+    try:
+        acc.set_text_contents(args.value)
+    except Exception as exc:
+        raise SystemExit(f"set_text_contents failed on {describe(acc)}: {exc}") from exc
+    print(f"filled {describe(acc)}")
+    return 0
+
+
+def cmd_press(args: argparse.Namespace) -> int:
+    apply_app_bus()
+    Atspi = atspi()
+    key = args.key
+    # Control+f / <Ctrl>f / ctrl+f
+    key = key.strip("<>")
+    key = key.replace("<Control>", "Control+").replace("<Ctrl>", "Control+")
+    parts = [p for p in re.split(r"[+ ]+", key) if p]
+    mods = []
+    char = None
+    for p in parts:
+        low = p.lower()
+        if low in {"control", "ctrl"}:
+            mods.append("Control_L")
+        elif low in {"shift"}:
+            mods.append("Shift_L")
+        elif low in {"alt"}:
+            mods.append("Alt_L")
+        elif low in {"super", "meta"}:
+            mods.append("Super_L")
+        else:
+            char = p
+    for mod in mods:
+        Atspi.generate_keyboard_event(0, mod, Atspi.KeySynthType.PRESS)
+    if char:
+        if len(char) == 1:
+            Atspi.generate_keyboard_event(0, char, Atspi.KeySynthType.STRING)
+        else:
+            Atspi.generate_keyboard_event(0, char, Atspi.KeySynthType.PRESSRELEASE)
+    for mod in reversed(mods):
+        Atspi.generate_keyboard_event(0, mod, Atspi.KeySynthType.RELEASE)
+    print(f"pressed {args.key}")
+    return 0
+
+
+def cmd_wait(args: argparse.Namespace) -> int:
+    deadline = time.time() + args.timeout
+    last = "not found"
+    while time.time() < deadline:
+        try:
+            acc = find_accessible(role=args.role, name=args.name, exact=args.exact, index=args.index)
+            print(describe(acc))
+            return 0
+        except SystemExit as exc:
+            last = str(exc)
+            time.sleep(0.2)
+    raise SystemExit(f"wait timed out after {args.timeout}s: {last}")
+
+
+def action_call(method: str, extra: list[str]) -> subprocess.CompletedProcess[str]:
+    run = apply_app_bus()
+    return gdbus(
+        app_bus_from_run(run),
+        [
+            "call",
+            "--session",
+            "--dest",
+            APP_ID,
+            "--object-path",
+            APP_PATH,
+            "--method",
+            method,
+            *extra,
+        ],
+    )
+
+
+def cmd_actions(_: argparse.Namespace) -> int:
+    proc = action_call("org.gtk.Actions.DescribeAll", [])
+    if proc.returncode != 0:
+        raise SystemExit(proc.stderr.strip() or proc.stdout.strip() or "DescribeAll failed")
+    print(proc.stdout.strip())
+    return 0
+
+
+def cmd_action(args: argparse.Namespace) -> int:
+    name = args.name
+    if name.startswith("app."):
+        name = name[4:]
+    if name in MUTATING_ACTIONS and not args.i_mean_it:
+        raise SystemExit(
+            f"action {name!r} changes Tailscale, opens a browser, or quits the app\n"
+            "pass --i-mean-it only when a feature file requires this action"
+        )
+    extra = [name, "[]", "{}"]
+    proc = action_call("org.gtk.Actions.Activate", extra)
+    if proc.returncode != 0:
+        raise SystemExit(proc.stderr.strip() or proc.stdout.strip() or "Activate failed")
+    print(proc.stdout.strip() or f"activated {name}")
+    return 0
+
+
+def screenshot_window(user_bus: str, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    proc = gdbus(
+        user_bus,
+        [
+            "call",
+            "--session",
+            "--dest",
+            "org.gnome.Shell.Screenshot",
+            "--object-path",
+            "/org/gnome/Shell/Screenshot",
+            "--method",
+            "org.gnome.Shell.Screenshot.ScreenshotWindow",
+            "true",
+            "false",
+            "false",
+            str(path),
+        ],
+        timeout=20,
+    )
+    if proc.returncode != 0 or "false" in proc.stdout.lower():
+        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "ScreenshotWindow failed")
+
+
+def screenshot_full(user_bus: str, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    proc = gdbus(
+        user_bus,
+        [
+            "call",
+            "--session",
+            "--dest",
+            "org.gnome.Shell.Screenshot",
+            "--object-path",
+            "/org/gnome/Shell/Screenshot",
+            "--method",
+            "org.gnome.Shell.Screenshot.Screenshot",
+            "false",
+            "false",
+            str(path),
+        ],
+        timeout=20,
+    )
+    if proc.returncode != 0 or "false" in proc.stdout.lower():
+        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "Screenshot failed")
+
+
+def cmd_screenshot(args: argparse.Namespace) -> int:
+    run = apply_app_bus()
+    path = Path(args.path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    try:
+        frame = find_accessible(role="window", name=APP_TITLE, exact=True)
+        try:
+            frame.grab_focus()
+        except Exception:
+            pass
+    except SystemExit:
+        pass
+    time.sleep(0.3)
+    user_bus = user_bus_from_run(run)
+    try:
+        screenshot_window(user_bus, path)
+    except Exception as window_err:
+        try:
+            screenshot_full(user_bus, path)
+            print(f"warning: window screenshot failed ({window_err}); wrote full screen", file=sys.stderr)
+        except Exception as full_err:
+            msg = f"screenshot failed: window={window_err}; full={full_err}"
+            if args.allow_fail:
+                skip = path.with_name(path.name + ".skipped.txt")
+                skip.write_text(msg + "\n", encoding="utf-8")
+                print(skip)
+                return 0
+            raise SystemExit(msg) from full_err
+    if not path.exists() or path.stat().st_size == 0:
+        raise SystemExit(f"screenshot did not write {path}")
+    print(path)
+    return 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    run = run_dir()
+    pgid = int(read_text(run / "pgid"))
+    bus = app_bus_from_run(run)
+    binary = run / "trayscale"
+    info = {
+        "run_dir": str(run),
+        "pgid": pgid,
+        "pgid_alive": pid_alive(pgid),
+        "cmdline": cmdline_of(pgid),
+        "binary": str(binary),
+        "binary_exists": binary.exists(),
+        "app_id": APP_ID,
+        "bus_name_owned": name_has_owner(bus, APP_ID),
+        "gsettings_backend": "memory",
+        "private_mode": True,
+    }
+    apply_app_bus(run)
+    try:
+        apps = trayscale_apps()
+        info["atspi_apps"] = [acc_name(a) for a in apps]
+        frame = find_accessible(role="window", name=APP_TITLE, exact=True)
+        info["window"] = describe(frame)
+    except SystemExit as exc:
+        info["atspi_error"] = str(exc)
+
+    print(json.dumps(info, indent=2, sort_keys=True))
+    ok = (
+        info["pgid_alive"]
+        and info["binary_exists"]
+        and info["bus_name_owned"]
+        and "window" in info
+    )
+    if not ok:
+        return 1
+    return 0
+
+
+def cmd_cleanup(args: argparse.Namespace) -> int:
+    ptr = current_pointer()
+    if not ptr.exists():
+        print("no current run")
+        return 0
+    run = runs_dir() / ptr.read_text().strip()
+    pgid_file = run / "pgid"
+    if pgid_file.exists():
+        pgid = int(read_text(pgid_file))
+        if pid_alive(pgid):
+            try:
+                os.killpg(pgid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            deadline = time.time() + 5
+            while time.time() < deadline and pid_alive(pgid):
+                time.sleep(0.1)
+            if pid_alive(pgid):
+                try:
+                    os.killpg(pgid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        # Never pkill trayscale: the user may have their own instance.
+    if run.exists() and not args.keep_run:
+        import shutil
+
+        shutil.rmtree(run, ignore_errors=True)
+    if ptr.exists():
+        ptr.unlink()
+    print(f"cleaned {run}")
+    print(f"artifacts kept under {artifacts_dir()}")
+    return 0
+
+
+def add_finder_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--role", help="accessible role, for example button, entry, dialog, window")
+    p.add_argument("--name", help="accessible name")
+    p.add_argument("--exact", action="store_true", help="match the name exactly (default: substring)")
+    p.add_argument("--index", type=int, default=0, help="match index if several nodes match")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    p_launch = sub.add_parser("launch", help="build and start an isolated Trayscale")
+    p_launch.add_argument("--timeout", type=float, default=180)
+    p_launch.set_defaults(func=cmd_launch)
+
+    p_doctor = sub.add_parser("doctor", help="read-only health check of the current isolated instance")
+    p_doctor.set_defaults(func=cmd_doctor)
+
+    p_cleanup = sub.add_parser("cleanup", help="stop the isolated instance; keep artifacts")
+    p_cleanup.add_argument("--force", action="store_true")
+    p_cleanup.add_argument("--keep-run", action="store_true", help="leave the run directory on disk")
+    p_cleanup.set_defaults(func=cmd_cleanup)
+
+    p_actions = sub.add_parser("actions", help="list GApplication actions on the isolated instance")
+    p_actions.set_defaults(func=cmd_actions)
+
+    p_action = sub.add_parser("action", help="activate a GApplication action (same handlers as the UI)")
+    p_action.add_argument("name")
+    p_action.add_argument(
+        "--i-mean-it",
+        action="store_true",
+        help="required for actions that change Tailscale, open a browser, or quit",
+    )
+    p_action.set_defaults(func=cmd_action)
+
+    p_snap = sub.add_parser("snapshot", help="dump the AT-SPI tree")
+    p_snap.add_argument("--path")
+    p_snap.add_argument("--max-depth", type=int, default=25)
+    p_snap.add_argument("--max-nodes", type=int, default=4000)
+    p_snap.set_defaults(func=cmd_snapshot)
+
+    p_shot = sub.add_parser("screenshot", help="capture the focused Trayscale window")
+    p_shot.add_argument("--path", required=True)
+    p_shot.add_argument(
+        "--allow-fail",
+        action="store_true",
+        help="write path.skipped.txt and exit 0 when the compositor denies screenshots",
+    )
+    p_shot.set_defaults(func=cmd_screenshot)
+
+    p_select = sub.add_parser("select", help="select the list item that contains a named accessible")
+    add_finder_args(p_select)
+    p_select.set_defaults(func=cmd_select)
+
+    p_find = sub.add_parser("find", help="print the first matching accessible")
+    add_finder_args(p_find)
+    p_find.set_defaults(func=cmd_find)
+
+    p_click = sub.add_parser("click", help="invoke an accessible action (usually click)")
+    add_finder_args(p_click)
+    p_click.add_argument("--action", help="action name; default is the first action")
+    p_click.set_defaults(func=cmd_click)
+
+    p_fill = sub.add_parser("fill", help="replace editable text")
+    add_finder_args(p_fill)
+    p_fill.add_argument("--value", required=True)
+    p_fill.set_defaults(func=cmd_fill)
+
+    p_press = sub.add_parser("press", help="synthesize a key, for example Control+f")
+    p_press.add_argument("--key", required=True)
+    p_press.set_defaults(func=cmd_press)
+
+    p_wait = sub.add_parser("wait", help="poll until an accessible exists")
+    add_finder_args(p_wait)
+    p_wait.add_argument("--timeout", type=float, default=10)
+    p_wait.set_defaults(func=cmd_wait)
+
+    sub.add_parser("_inner", help=argparse.SUPPRESS).set_defaults(func=lambda _: cmd_inner())
+
+    args = parser.parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except subprocess.TimeoutExpired as exc:
+        print(f"command timed out: {exc.cmd}", file=sys.stderr)
+        sys.exit(1)

@@ -109,7 +109,7 @@
     <child>
       <object class="AdwBreakpoint">
         <!-- Custom object fragments -->
-        <condition>max-width: 400sp</condition>
+        <condition>max-width: 660sp</condition>
         <setter object="SplitView" property="collapsed">True</setter>
         <setter object="PeersSidebar" property="mode">page</setter>
       </object>

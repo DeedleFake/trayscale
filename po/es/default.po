@@ -1,0 +1,194 @@
+# Trayscale Spanish sample catalog (partial).
+# Demonstrates runtime locale selection; many strings still fall back to English.
+msgid ""
+msgstr ""
+"Project-Id-Version: trayscale\n"
+"Report-Msgid-Bugs-To: https://github.com/DeedleFake/trayscale/issues\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Add IP Prefix"
+msgstr ""
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Connect"
+msgstr "Conectar"
+
+msgid "Control Server URL"
+msgstr ""
+
+msgid "Copied FQDN to clipboard"
+msgstr "FQDN copiado al portapapeles"
+
+msgid "Copied address to clipboard"
+msgstr "Dirección copiada al portapapeles"
+
+msgid "Copied to clipboard"
+msgstr "Copiado al portapapeles"
+
+msgid "Copy to Clipboard"
+msgstr "Copiar al portapapeles"
+
+msgid "Current exit node location"
+msgstr "Ubicación actual del nodo de salida"
+
+msgid "Delete"
+msgstr "Eliminar"
+
+msgid "Delete file?"
+msgstr ""
+
+msgid "Disable exit node"
+msgstr "Desactivar nodo de salida"
+
+msgid "Disabled"
+msgstr "Desactivado"
+
+msgid "Disconnect"
+msgstr "Desconectar"
+
+msgid "Enable exit node"
+msgstr "Activar nodo de salida"
+
+msgid "Enabled"
+msgstr "Activado"
+
+msgid "Error setting control URL: %v"
+msgstr ""
+
+msgid "Exit Nodes"
+msgstr "Nodos de salida"
+
+msgid "Exit node"
+msgstr "Nodo de salida"
+
+msgid "Failed to start login"
+msgstr ""
+
+msgid "Failed to toggle exit node"
+msgstr ""
+
+msgid "Hide window on initial start"
+msgstr ""
+
+msgid "If you delete this file, you will no longer be able to save it to your local machine."
+msgstr ""
+
+msgid "Login Required"
+msgstr "Inicio de sesión requerido"
+
+msgid "Mullvad Exit Nodes"
+msgstr "Nodos de salida Mullvad"
+
+msgid "New Incoming File"
+msgstr ""
+
+msgid "No addresses."
+msgstr "Sin direcciones."
+
+msgid "No advertised routes."
+msgstr "Sin rutas anunciadas."
+
+msgid "No folder selected"
+msgstr "Ninguna carpeta seleccionada"
+
+msgid "No incoming files."
+msgstr "Sin archivos entrantes."
+
+msgid "Not connected"
+msgstr "No conectado"
+
+msgid "Offline"
+msgstr "Fuera de línea"
+
+msgid "Online"
+msgstr "En línea"
+
+msgid "Open a browser to authenticate with Tailscale?"
+msgstr ""
+
+msgid "Quit"
+msgstr "Salir"
+
+msgid "Remove"
+msgstr "Quitar"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "Select"
+msgstr "Seleccionar"
+
+msgid "Select %v(s) to send to %v"
+msgstr ""
+
+msgid "Select Auto-save Folder"
+msgstr ""
+
+msgid "Send file(s) to..."
+msgstr ""
+
+msgid "Sending %v file(s) to %v..."
+msgstr "Enviando %v archivo(s) a %v..."
+
+msgid "Settings schema not found"
+msgstr ""
+
+msgid "Show"
+msgstr "Mostrar"
+
+msgid "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
+msgstr ""
+
+msgid "Taildrop"
+msgstr "Taildrop"
+
+msgid "Tailscale Status"
+msgstr "Estado de Tailscale"
+
+msgid "Tailscale is connected."
+msgstr "Tailscale está conectado."
+
+msgid "Tailscale is not connected."
+msgstr "Tailscale no está conectado."
+
+msgid "This machine"
+msgstr "Esta máquina"
+
+msgid "This machine: %v"
+msgstr "Esta máquina: %v"
+
+msgid "Toggle exit node"
+msgstr ""
+
+msgid "Trayscale"
+msgstr "Trayscale"
+
+msgid "Use _Default"
+msgstr ""
+
+msgid "User is not Tailscale Operator"
+msgstr ""
+
+msgid "_Add"
+msgstr ""
+
+msgid "_Cancel"
+msgstr "_Cancelar"
+
+msgid "_Close"
+msgstr ""
+
+msgid "_Delete"
+msgstr ""
+
+msgid "_Open Browser"
+msgstr ""
+
+msgid "_Set URL"
+msgstr ""

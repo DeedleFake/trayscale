@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"runtime/pprof"
 
+	"deedles.dev/trayscale"
+	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/ui"
 )
 
@@ -41,6 +43,8 @@ func profile() func() {
 
 func main() {
 	defer profile()()
+
+	locale.Init(trayscale.LocaleFS())
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()

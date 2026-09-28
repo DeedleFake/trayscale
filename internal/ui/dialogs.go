@@ -2,6 +2,7 @@ package ui
 
 import (
 	"deedles.dev/trayscale/internal/gutil"
+	"deedles.dev/trayscale/internal/locale"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
@@ -93,7 +94,7 @@ type Info struct {
 func (d Info) Show(a *App, closed func()) {
 	dialog := adw.NewAlertDialog(d.Heading, d.Body)
 	dialog.SetBodyUseMarkup(true)
-	dialog.AddResponse("close", "_Close")
+	dialog.AddResponse("close", locale.Get("_Close"))
 	dialog.SetDefaultResponse("close")
 	if d.Extra != nil {
 		dialog.SetExtraChild(d.Extra())
@@ -135,11 +136,11 @@ func (d Select[T]) Show(a *App, res func([]SelectOption[T])) {
 	dialog := adw.NewAlertDialog(d.Heading, d.Body)
 	dialog.SetExtraChild(options)
 
-	dialog.AddResponse("select", "Select")
+	dialog.AddResponse("select", locale.Get("Select"))
 	dialog.SetResponseAppearance("select", adw.ResponseSuggested)
 	dialog.SetDefaultResponse("select")
 
-	dialog.AddResponse("cancel", "Cancel")
+	dialog.AddResponse("cancel", locale.Get("Cancel"))
 
 	dialog.ConnectResponse(func(response string) {
 		if response != "select" {

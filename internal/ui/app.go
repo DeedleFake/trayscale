@@ -13,6 +13,7 @@ import (
 
 	"deedles.dev/trayscale/internal/autosave"
 	"deedles.dev/trayscale/internal/gutil"
+	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -84,8 +85,8 @@ func (a *App) stopSpin() {
 
 func (a *App) showOperatorDialog() {
 	Info{
-		Heading: "User is not Tailscale Operator",
-		Body:    "Some functionality may not work as expected. To resolve, run the following command in a terminal:",
+		Heading: locale.Get("User is not Tailscale Operator"),
+		Body:    locale.Get("Some functionality may not work as expected. To resolve, run the following command in a terminal:"),
 		Extra: func() gtk.Widgetter {
 			const command = "sudo tailscale set --operator=$USER"
 			w := gtk.NewLabel(command)
@@ -105,11 +106,11 @@ func (a *App) update(status tsutil.Status) {
 		if a.online != online {
 			a.online = online
 
-			body := "Tailscale is not connected."
+			body := locale.Get("Tailscale is not connected.")
 			if online {
-				body = "Tailscale is connected."
+				body = locale.Get("Tailscale is connected.")
 			}
-			a.notify("Tailscale Status", body) // TODO: Notify on startup if not connected?
+			a.notify(locale.Get("Tailscale Status"), body) // TODO: Notify on startup if not connected?
 		}
 
 		useExitNodeAction, ok := gutil.Assert[*gio.SimpleAction](a.app.LookupAction("use_exit_node"))
@@ -148,7 +149,7 @@ func (a *App) update(status tsutil.Status) {
 						continue
 					}
 					body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
-					a.notify("New Incoming File", body)
+					a.notify(locale.Get("New Incoming File"), body)
 				}
 			}
 		}
@@ -176,7 +177,7 @@ func (a *App) init(ctx context.Context) {
 	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
 	var hideWindow bool
-	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, "Hide window on initial start", "")
+	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, locale.Get("Hide window on initial start"), "")
 	a.app.ConnectHandleLocalOptions(func(options *glib.VariantDict) int {
 		if options.Contains("hide-window") {
 			hideWindow = true
@@ -208,10 +209,10 @@ func (a *App) startTS(ctx context.Context) error {
 	status := <-a.poller.GetIPN()
 	if status.NeedsAuth() {
 		Confirmation{
-			Heading: "Login Required",
-			Body:    "Open a browser to authenticate with Tailscale?",
-			Accept:  "_Open Browser",
-			Reject:  "_Cancel",
+			Heading: locale.Get("Login Required"),
+			Body:    locale.Get("Open a browser to authenticate with Tailscale?"),
+			Accept:  locale.Get("_Open Browser"),
+			Reject:  locale.Get("_Cancel"),
 		}.Show(a, func(accept bool) {
 			if accept {
 				a.app.ActivateAction("login", nil)
@@ -261,13 +262,13 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 	}
 
 	Select[tailcfg.NodeView]{
-		Heading: "Send file(s) to...",
+		Heading: locale.Get("Send file(s) to..."),
 		Options: slices.SortedFunc(options, func(o1, o2 selectOption) int {
 			return cmp.Compare(o1.Title, o2.Title)
 		}),
 	}.Show(a, func(options []selectOption) {
 		for _, option := range options {
-			a.notify("Taildrop", fmt.Sprintf("Sending %v file(s) to %v...", len(files), option.Title))
+			a.notify(locale.Get("Taildrop"), locale.Get("Sending %v file(s) to %v...", len(files), option.Title))
 			for _, file := range files {
 				go a.pushFile(ctx, option.Value.StableID(), file)
 			}
@@ -291,7 +292,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 		if err != nil {
 			slog.Error("failed to set exit node state", "state", s, "err", err)
 			if a.win != nil {
-				a.win.Toast("Failed to toggle exit node")
+				a.win.Toast(locale.Get("Failed to toggle exit node"))
 			}
 		}
 	})
@@ -356,7 +357,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 		if err != nil {
 			slog.Error("failed to start login", "err", err)
 			if a.win != nil {
-				a.win.Toast("Failed to start login")
+				a.win.Toast(locale.Get("Failed to start login"))
 			}
 			return
 		}
@@ -365,7 +366,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				if a.win != nil {
-					a.win.Toast("Failed to start login")
+					a.win.Toast(locale.Get("Failed to start login"))
 				}
 				return
 			case status := <-a.poller.NextIPN():
@@ -437,16 +438,16 @@ func (a *App) initTray(ctx context.Context) {
 				toggle := !s.ExitNodeActive()
 				err := tsutil.SetUseExitNode(ctx, toggle)
 				if err != nil {
-					a.notify("Toggle exit node", err.Error())
+					a.notify(locale.Get("Toggle exit node"), err.Error())
 					slog.Error("toggle exit node from tray", "err", err)
 					return
 				}
 
 				if toggle {
-					a.notify("Exit node", "Enabled")
+					a.notify(locale.Get("Exit node"), locale.Get("Enabled"))
 					return
 				}
-				a.notify("Exit node", "Disabled")
+				a.notify(locale.Get("Exit node"), locale.Get("Disabled"))
 			})
 		},
 
@@ -459,7 +460,7 @@ func (a *App) initTray(ctx context.Context) {
 				}
 				a.clip(glib.NewValue(addr.String()))
 				if a.win != nil {
-					a.notify("Trayscale", "Copied address to clipboard")
+					a.notify(locale.Get("Trayscale"), locale.Get("Copied address to clipboard"))
 				}
 			})
 		},

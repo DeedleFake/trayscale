@@ -13,6 +13,7 @@ import (
 
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
+	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/peersearch"
 	"deedles.dev/trayscale/internal/tsutil"
@@ -420,16 +421,16 @@ func sidebarLayout(pageNames iter.Seq[string], status *tsutil.IPNStatus, showOff
 
 	var layout []sidebarPage
 	if hasSelf {
-		layout = appendGroup(layout, []string{"self"}, "This machine")
+		layout = appendGroup(layout, []string{"self"}, locale.Get("This machine"))
 	}
 	if hasMullvad {
-		layout = appendGroup(layout, []string{"mullvad"}, "Exit Nodes")
+		layout = appendGroup(layout, []string{"mullvad"}, locale.Get("Exit Nodes"))
 		layout = appendGroup(layout, exits, "")
 	} else {
-		layout = appendGroup(layout, exits, "Exit Nodes")
+		layout = appendGroup(layout, exits, locale.Get("Exit Nodes"))
 	}
-	layout = appendGroup(layout, others, "Online")
-	layout = appendGroup(layout, offline, "Offline")
+	layout = appendGroup(layout, others, locale.Get("Online"))
+	layout = appendGroup(layout, offline, locale.Get("Offline"))
 	return layout
 }
 

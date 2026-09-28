@@ -65,6 +65,12 @@ $ ./dist.sh build
 $ ./dist.sh install-macos
 ```
 
+
+Localization
+------------
+
+Trayscale can display UI strings in other languages via gettext catalogs under [`po/`](po/). English is the default source language; see [`po/README.md`](po/README.md) for how to add a translation. Set `LANGUAGE` / `LANG` (or your desktop locale) to select a catalog at runtime.
+
 Donate
 ------
 

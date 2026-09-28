@@ -7,7 +7,7 @@ description: Drive the Trayscale GTK 4 / Libadwaita desktop UI the way a user do
 
 Trayscale is an unofficial Tailscale GUI. The user-facing surface is a Libadwaita window titled `Trayscale` plus an optional tray icon. There is no web UI and no first-party CLI besides `tailscale` itself.
 
-This skill drives **this checkout's binary** in an isolated D-Bus session. It does not drive a Trayscale the user already started.
+This skill drives **this checkout's binary** in an isolated D-Bus session. It does not drive a Trayscale the user already started. Isolation must also cover the user document portal at `/run/user/$UID/doc`.
 
 Set `CTRL` to the helper and run every command from the repo root:
 
@@ -20,6 +20,8 @@ Read `features/README.md` before a proof. Drive every entry point the matching f
 ## Isolation
 
 GApplication owns the session-bus name `dev.deedles.Trayscale`. A second process on the user bus only activates the first. `launch` starts `dbus-run-session` so the user instance can stay running.
+
+Keep that D-Bus isolation. Also isolate or protect `XDG_RUNTIME_DIR` document-portal (`/run/user/$UID/doc`). Point the verify session at a private `XDG_RUNTIME_DIR` under the run dir. Do not spawn a second `xdg-document-portal`. After `$CTRL cleanup`, restore the user FUSE mount at `/run/user/$UID/doc` if the verify session unmounted or replaced it. Process-group teardown is not enough.
 
 Shared with the user and **not** isolated:
 

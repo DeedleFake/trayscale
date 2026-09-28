@@ -1,0 +1,194 @@
+# Trayscale Japanese catalog.
+msgid ""
+msgstr ""
+"Project-Id-Version: trayscale\n"
+"Report-Msgid-Bugs-To: https://github.com/DeedleFake/trayscale/issues\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Add IP Prefix"
+msgstr "IPプレフィックスを追加"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Connect"
+msgstr "接続"
+
+msgid "Control Server URL"
+msgstr "コントロールサーバーのURL"
+
+msgid "Copied FQDN to clipboard"
+msgstr "FQDNをクリップボードにコピーしました"
+
+msgid "Copied address to clipboard"
+msgstr "アドレスをクリップボードにコピーしました"
+
+msgid "Copied to clipboard"
+msgstr "クリップボードにコピーしました"
+
+msgid "Copy to Clipboard"
+msgstr "クリップボードにコピー"
+
+msgid "Current exit node location"
+msgstr "現在の出口ノードの場所"
+
+msgid "Delete"
+msgstr "削除"
+
+msgid "Delete file?"
+msgstr "ファイルを削除しますか？"
+
+msgid "Disable exit node"
+msgstr "出口ノードを無効にする"
+
+msgid "Disabled"
+msgstr "無効"
+
+msgid "Disconnect"
+msgstr "切断"
+
+msgid "Enable exit node"
+msgstr "出口ノードを有効にする"
+
+msgid "Enabled"
+msgstr "有効"
+
+msgid "Error setting control URL: %v"
+msgstr "コントロールURLの設定エラー: %v"
+
+msgid "Exit Nodes"
+msgstr "出口ノード"
+
+msgid "Exit node"
+msgstr "出口ノード"
+
+msgid "Failed to start login"
+msgstr "ログインの開始に失敗しました"
+
+msgid "Failed to toggle exit node"
+msgstr "出口ノードの切り替えに失敗しました"
+
+msgid "Hide window on initial start"
+msgstr "起動時にウィンドウを隠す"
+
+msgid "If you delete this file, you will no longer be able to save it to your local machine."
+msgstr "このファイルを削除すると、ローカルマシンに保存できなくなります。"
+
+msgid "Login Required"
+msgstr "ログインが必要です"
+
+msgid "Mullvad Exit Nodes"
+msgstr "Mullvad出口ノード"
+
+msgid "New Incoming File"
+msgstr "新しい受信ファイル"
+
+msgid "No addresses."
+msgstr "アドレスがありません。"
+
+msgid "No advertised routes."
+msgstr "アドバタイズされたルートがありません。"
+
+msgid "No folder selected"
+msgstr "フォルダが選択されていません"
+
+msgid "No incoming files."
+msgstr "受信ファイルがありません。"
+
+msgid "Not connected"
+msgstr "未接続"
+
+msgid "Offline"
+msgstr "オフライン"
+
+msgid "Online"
+msgstr "オンライン"
+
+msgid "Open a browser to authenticate with Tailscale?"
+msgstr "ブラウザを開いてTailscaleで認証しますか？"
+
+msgid "Quit"
+msgstr "終了"
+
+msgid "Remove"
+msgstr "削除"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Select"
+msgstr "選択"
+
+msgid "Select %v(s) to send to %v"
+msgstr "%v(s) を選択して %v に送信"
+
+msgid "Select Auto-save Folder"
+msgstr "自動保存フォルダを選択"
+
+msgid "Send file(s) to..."
+msgstr "ファイルを送信..."
+
+msgid "Sending %v file(s) to %v..."
+msgstr "%v 個のファイルを %v に送信中..."
+
+msgid "Settings schema not found"
+msgstr "設定スキーマが見つかりません"
+
+msgid "Show"
+msgstr "表示"
+
+msgid "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
+msgstr "一部の機能が正常に動作しない可能性があります。解決するには、ターミナルで次のコマンドを実行してください:"
+
+msgid "Taildrop"
+msgstr "Taildrop"
+
+msgid "Tailscale Status"
+msgstr "Tailscaleの状態"
+
+msgid "Tailscale is connected."
+msgstr "Tailscaleは接続されています。"
+
+msgid "Tailscale is not connected."
+msgstr "Tailscaleは接続されていません。"
+
+msgid "This machine"
+msgstr "このマシン"
+
+msgid "This machine: %v"
+msgstr "このマシン: %v"
+
+msgid "Toggle exit node"
+msgstr "出口ノードを切り替え"
+
+msgid "Trayscale"
+msgstr "Trayscale"
+
+msgid "Use _Default"
+msgstr "デフォルトを使用(_D)"
+
+msgid "User is not Tailscale Operator"
+msgstr "ユーザーはTailscaleオペレーターではありません"
+
+msgid "_Add"
+msgstr "追加(_A)"
+
+msgid "_Cancel"
+msgstr "キャンセル(_C)"
+
+msgid "_Close"
+msgstr "閉じる(_C)"
+
+msgid "_Delete"
+msgstr "削除(_D)"
+
+msgid "_Open Browser"
+msgstr "ブラウザを開く(_O)"
+
+msgid "_Set URL"
+msgstr "URLを設定(_S)"
+

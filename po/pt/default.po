@@ -1,16 +1,16 @@
-# Trayscale Spanish catalog.
+# Trayscale Portuguese catalog.
 msgid ""
 msgstr ""
 "Project-Id-Version: trayscale\n"
 "Report-Msgid-Bugs-To: https://github.com/DeedleFake/trayscale/issues\n"
-"Language: es\n"
+"Language: pt\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 msgid "Add IP Prefix"
-msgstr "Añadir prefijo IP"
+msgstr "Adicionar prefixo IP"
 
 msgid "Cancel"
 msgstr "Cancelar"
@@ -19,142 +19,142 @@ msgid "Connect"
 msgstr "Conectar"
 
 msgid "Control Server URL"
-msgstr "URL del servidor de control"
+msgstr "URL do servidor de controle"
 
 msgid "Copied FQDN to clipboard"
-msgstr "FQDN copiado al portapapeles"
+msgstr "FQDN copiado para a área de transferência"
 
 msgid "Copied address to clipboard"
-msgstr "Dirección copiada al portapapeles"
+msgstr "Endereço copiado para a área de transferência"
 
 msgid "Copied to clipboard"
-msgstr "Copiado al portapapeles"
+msgstr "Copiado para a área de transferência"
 
 msgid "Copy to Clipboard"
-msgstr "Copiar al portapapeles"
+msgstr "Copiar para a área de transferência"
 
 msgid "Current exit node location"
-msgstr "Ubicación actual del nodo de salida"
+msgstr "Localização atual do nó de saída"
 
 msgid "Delete"
-msgstr "Eliminar"
+msgstr "Excluir"
 
 msgid "Delete file?"
-msgstr "¿Eliminar el archivo?"
+msgstr "Excluir o arquivo?"
 
 msgid "Disable exit node"
-msgstr "Desactivar nodo de salida"
+msgstr "Desativar nó de saída"
 
 msgid "Disabled"
-msgstr "Desactivado"
+msgstr "Desativado"
 
 msgid "Disconnect"
 msgstr "Desconectar"
 
 msgid "Enable exit node"
-msgstr "Activar nodo de salida"
+msgstr "Ativar nó de saída"
 
 msgid "Enabled"
-msgstr "Activado"
+msgstr "Ativado"
 
 msgid "Error setting control URL: %v"
-msgstr "Error al establecer la URL de control: %v"
+msgstr "Erro ao definir a URL de controle: %v"
 
 msgid "Exit Nodes"
-msgstr "Nodos de salida"
+msgstr "Nós de saída"
 
 msgid "Exit node"
-msgstr "Nodo de salida"
+msgstr "Nó de saída"
 
 msgid "Failed to start login"
-msgstr "No se pudo iniciar el inicio de sesión"
+msgstr "Falha ao iniciar o login"
 
 msgid "Failed to toggle exit node"
-msgstr "No se pudo alternar el nodo de salida"
+msgstr "Falha ao alternar o nó de saída"
 
 msgid "Hide window on initial start"
-msgstr "Ocultar la ventana al inicio"
+msgstr "Ocultar a janela na inicialização"
 
 msgid "If you delete this file, you will no longer be able to save it to your local machine."
-msgstr "Si elimina este archivo, ya no podrá guardarlo en su máquina local."
+msgstr "Se você excluir este arquivo, não poderá mais salvá-lo na sua máquina local."
 
 msgid "Login Required"
-msgstr "Inicio de sesión requerido"
+msgstr "Login necessário"
 
 msgid "Mullvad Exit Nodes"
-msgstr "Nodos de salida Mullvad"
+msgstr "Nós de saída Mullvad"
 
 msgid "New Incoming File"
-msgstr "Nuevo archivo entrante"
+msgstr "Novo arquivo recebido"
 
 msgid "No addresses."
-msgstr "Sin direcciones."
+msgstr "Nenhum endereço."
 
 msgid "No advertised routes."
-msgstr "Sin rutas anunciadas."
+msgstr "Nenhuma rota anunciada."
 
 msgid "No folder selected"
-msgstr "Ninguna carpeta seleccionada"
+msgstr "Nenhuma pasta selecionada"
 
 msgid "No incoming files."
-msgstr "Sin archivos entrantes."
+msgstr "Nenhum arquivo recebido."
 
 msgid "Not connected"
-msgstr "No conectado"
+msgstr "Não conectado"
 
 msgid "Offline"
-msgstr "Fuera de línea"
+msgstr "Offline"
 
 msgid "Online"
-msgstr "En línea"
+msgstr "Online"
 
 msgid "Open a browser to authenticate with Tailscale?"
-msgstr "¿Abrir un navegador para autenticarse con Tailscale?"
+msgstr "Abrir um navegador para autenticar com o Tailscale?"
 
 msgid "Quit"
-msgstr "Salir"
+msgstr "Sair"
 
 msgid "Remove"
-msgstr "Quitar"
+msgstr "Remover"
 
 msgid "Save"
-msgstr "Guardar"
+msgstr "Salvar"
 
 msgid "Select"
-msgstr "Seleccionar"
+msgstr "Selecionar"
 
 msgid "Select %v(s) to send to %v"
-msgstr "Seleccione %v(s) para enviar a %v"
+msgstr "Selecione %v(s) para enviar a %v"
 
 msgid "Select Auto-save Folder"
-msgstr "Seleccionar carpeta de guardado automático"
+msgstr "Selecionar pasta de salvamento automático"
 
 msgid "Send file(s) to..."
-msgstr "Enviar archivo(s) a..."
+msgstr "Enviar arquivo(s) para..."
 
 msgid "Sending %v file(s) to %v..."
-msgstr "Enviando %v archivo(s) a %v..."
+msgstr "Enviando %v arquivo(s) para %v..."
 
 msgid "Settings schema not found"
-msgstr "Esquema de ajustes no encontrado"
+msgstr "Esquema de configurações não encontrado"
 
 msgid "Show"
 msgstr "Mostrar"
 
 msgid "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
-msgstr "Algunas funciones pueden no funcionar como se espera. Para solucionarlo, ejecute el siguiente comando en una terminal:"
+msgstr "Algumas funcionalidades podem não funcionar como esperado. Para resolver, execute o seguinte comando em um terminal:"
 
 msgid "Taildrop"
 msgstr "Taildrop"
 
 msgid "Tailscale Status"
-msgstr "Estado de Tailscale"
+msgstr "Status do Tailscale"
 
 msgid "Tailscale is connected."
-msgstr "Tailscale está conectado."
+msgstr "O Tailscale está conectado."
 
 msgid "Tailscale is not connected."
-msgstr "Tailscale no está conectado."
+msgstr "O Tailscale não está conectado."
 
 msgid "This machine"
 msgstr "Esta máquina"
@@ -163,32 +163,32 @@ msgid "This machine: %v"
 msgstr "Esta máquina: %v"
 
 msgid "Toggle exit node"
-msgstr "Alternar nodo de salida"
+msgstr "Alternar nó de saída"
 
 msgid "Trayscale"
 msgstr "Trayscale"
 
 msgid "Use _Default"
-msgstr "Usar _Predeterminado"
+msgstr "Usar _Padrão"
 
 msgid "User is not Tailscale Operator"
-msgstr "El usuario no es operador de Tailscale"
+msgstr "O usuário não é operador do Tailscale"
 
 msgid "_Add"
-msgstr "_Añadir"
+msgstr "_Adicionar"
 
 msgid "_Cancel"
 msgstr "_Cancelar"
 
 msgid "_Close"
-msgstr "_Cerrar"
+msgstr "_Fechar"
 
 msgid "_Delete"
-msgstr "_Eliminar"
+msgstr "_Excluir"
 
 msgid "_Open Browser"
 msgstr "_Abrir navegador"
 
 msgid "_Set URL"
-msgstr "_Establecer URL"
+msgstr "_Definir URL"
 

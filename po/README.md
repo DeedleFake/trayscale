@@ -9,7 +9,9 @@ po/<lang>/default.po
 ```
 
 - `en/default.po` — English source catalog (msgid == msgstr). Copy this when starting a new language.
-- `es/default.po` — Partial Spanish sample used to verify locale selection.
+- `es/default.po` — Spanish
+- `pt/default.po` — Portuguese
+- `ja/default.po` — Japanese
 
 Language codes follow the usual gettext forms (`es`, `en_US`, …). At startup the app picks the best match from the GTK/GLib language list (`LANG` / `LANGUAGE` / locale settings).
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -44,7 +45,11 @@ func profile() func() {
 func main() {
 	defer profile()()
 
-	locale.Init(trayscale.LocaleFS())
+	po, err := fs.Sub(trayscale.Assets(), "po")
+	if err != nil {
+		panic(err)
+	}
+	locale.Init(po)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()

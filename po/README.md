@@ -46,6 +46,26 @@ Prefer `LANGUAGE=ja` (or install the system locale, e.g. `ja_JP.UTF-8`) when tes
 
 On hosts that only provide `C` / `C.UTF-8`, `BindGettext` clones `C.utf8` into the cache as a synthetic `en_US.UTF-8` and sets `LOCPATH` so libintl still honors `LANGUAGE` (GNU gettext ignores `LANGUAGE` in the C locale).
 
+
+## Networking terminology (es / pt / ja)
+
+Product brands stay English in every catalog: **Trayscale**, **Tailscale**, **Taildrop**, **Mullvad**.
+
+Standard networking acronyms stay as the English acronym in UI labels (GNOME NetworkManager, OpenWrt LuCI, Microsoft networking docs, vendor Japanese manuals). Do not invent calques for short controls:
+
+| Term | Practice |
+| --- | --- |
+| FQDN | Keep `FQDN` (docs may say “nombre de dominio completo (FQDN)” / “nome de domínio completamente qualificado” / 完全修飾ドメイン名; UI keeps the acronym) |
+| DNS, LAN, NAT, UDP, UPnP, IPv4, IPv6 | Keep the acronym |
+| DERP | Keep `DERP` (Tailscale relay protocol name, like STUN) |
+
+Loanwords / daemon:
+
+| Term | es | pt | ja |
+| --- | --- | --- | --- |
+| Online / Offline | `Conectado` / `Desconectado` (GNOME/VPN peer-status practice; preferred over *en línea* for connection badges) | Keep `Online` / `Offline` (dominant BR peer-status UI loanwords; GNOME sometimes uses *conectado*/*desconectado*) | `オンライン` / `オフライン` |
+| daemon | `demonio` (GNOME) | Keep `daemon` (Unix loanword in BR tech UIs) | `デーモン` |
+
 ## What is / isn’t translated yet
 
 **Wrapped (Go):** tray menu labels, notifications/toasts, dialog headings and buttons constructed in Go, sidebar section titles, and other `locale.Get` call sites under `internal/ui` and `internal/tray`.

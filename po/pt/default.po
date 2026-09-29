@@ -82,7 +82,7 @@ msgid "Current exit node location"
 msgstr "Localização atual do nó de saída"
 
 msgid "DERP Latencies"
-msgstr "Latências DERP"
+msgstr "Latências de DERP"
 
 msgid "Delete"
 msgstr "Excluir"

@@ -82,7 +82,7 @@ msgid "Current exit node location"
 msgstr "Ubicación actual del nodo de salida"
 
 msgid "DERP Latencies"
-msgstr "Latencias DERP"
+msgstr "Latencias de DERP"
 
 msgid "Delete"
 msgstr "Eliminar"
@@ -199,10 +199,10 @@ msgid "Not connected"
 msgstr "No conectado"
 
 msgid "Offline"
-msgstr "Fuera de línea"
+msgstr "Desconectado"
 
 msgid "Online"
-msgstr "En línea"
+msgstr "Conectado"
 
 msgid "Open Browser to Login"
 msgstr "Abrir navegador para iniciar sesión"

@@ -10,11 +10,11 @@
       <object class="AdwPreferencesPage" id="PreferencesPage">
         <child>
           <object class="AdwPreferencesGroup">
-            <property name="title">General</property>
+            <property name="title" translatable="yes">General</property>
             <child>
               <object class="AdwSwitchRow" id="UseTrayIconRow">
-                <property name="subtitle">If enabled, an icon will be added to the system tray</property>
-                <property name="title">Use Tray Icon</property>
+                <property name="subtitle" translatable="yes">If enabled, an icon will be added to the system tray</property>
+                <property name="title" translatable="yes">Use Tray Icon</property>
               </object>
             </child>
             <child>
@@ -27,24 +27,24 @@
                     <property name="value">5.0</property>
                   </object>
                 </property>
-                <property name="subtitle">Interval, in seconds, at which to poll the Tailscale daemon</property>
-                <property name="title">Polling Interval</property>
+                <property name="subtitle" translatable="yes">Interval, in seconds, at which to poll the Tailscale daemon</property>
+                <property name="title" translatable="yes">Polling Interval</property>
               </object>
             </child>
           </object>
         </child>
         <child>
           <object class="AdwPreferencesGroup">
-            <property name="title">Taildrop</property>
+            <property name="title" translatable="yes">Taildrop</property>
             <child>
               <object class="AdwSwitchRow" id="TaildropAutoSaveRow">
-                <property name="subtitle">No folder selected</property>
-                <property name="title">Auto-save Received Files</property>
+                <property name="subtitle" translatable="yes">No folder selected</property>
+                <property name="title" translatable="yes">Auto-save Received Files</property>
                 <child type="suffix">
                   <object class="GtkButton" id="TaildropAutoSaveFolderButton">
                     <property name="has-frame">False</property>
                     <property name="icon-name">folder-open-symbolic</property>
-                    <property name="tooltip-text">Choose folder</property>
+                    <property name="tooltip-text" translatable="yes">Choose folder</property>
                     <property name="valign">center</property>
                   </object>
                 </child>

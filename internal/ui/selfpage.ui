@@ -13,7 +13,7 @@
             <property name="spacing">12</property>
             <child>
               <object class="AdwPreferencesGroup" id="IPGroup">
-                <property name="title">Tailscale IPs</property>
+                <property name="title" translatable="yes">Tailscale IPs</property>
                 <child>
                   <object class="GtkListBox" id="IPList">
                     <property name="css-classes">boxed-list</property>
@@ -24,36 +24,36 @@
             </child>
             <child>
               <object class="AdwPreferencesGroup" id="OptionsGroup">
-                <property name="title">Options</property>
+                <property name="title" translatable="yes">Options</property>
                 <child>
                   <object class="AdwSwitchRow" id="AdvertiseExitNodeRow">
-                    <property name="subtitle">Allow this machine to be used as an exit node</property>
-                    <property name="title">Advertise exit node</property>
+                    <property name="subtitle" translatable="yes">Allow this machine to be used as an exit node</property>
+                    <property name="title" translatable="yes">Advertise exit node</property>
                   </object>
                 </child>
                 <child>
                   <object class="AdwSwitchRow" id="AllowLANAccessRow">
-                    <property name="subtitle">Bypass Tailscale routing for local network access</property>
-                    <property name="title">Allow LAN access</property>
+                    <property name="subtitle" translatable="yes">Bypass Tailscale routing for local network access</property>
+                    <property name="title" translatable="yes">Allow LAN access</property>
                   </object>
                 </child>
                 <child>
                   <object class="AdwSwitchRow" id="AcceptRoutesRow">
-                    <property name="subtitle">Use exported routes from other machines</property>
-                    <property name="title">Accept routes</property>
+                    <property name="subtitle" translatable="yes">Use exported routes from other machines</property>
+                    <property name="title" translatable="yes">Accept routes</property>
                   </object>
                 </child>
                 <child>
                   <object class="AdwSwitchRow" id="AcceptDNSRow">
-                    <property name="subtitle">Use Tailscale DNS configuration</property>
-                    <property name="title">Accept DNS</property>
+                    <property name="subtitle" translatable="yes">Use Tailscale DNS configuration</property>
+                    <property name="title" translatable="yes">Accept DNS</property>
                   </object>
                 </child>
               </object>
             </child>
             <child>
               <object class="AdwPreferencesGroup" id="FilesGroup">
-                <property name="title">Files</property>
+                <property name="title" translatable="yes">Files</property>
                 <child>
                   <object class="GtkListBox" id="FilesList">
                     <property name="css-classes">boxed-list</property>
@@ -70,7 +70,7 @@
                     <property name="icon-name">list-add-symbolic</property>
                   </object>
                 </property>
-                <property name="title">Advertised Routes</property>
+                <property name="title" translatable="yes">Advertised Routes</property>
                 <child>
                   <object class="GtkListBox" id="AdvertisedRoutesList">
                     <property name="css-classes">boxed-list</property>
@@ -87,20 +87,20 @@
                     <property name="icon-name">view-refresh-symbolic</property>
                   </object>
                 </property>
-                <property name="title">Network Check</property>
+                <property name="title" translatable="yes">Network Check</property>
                 <child>
                   <object class="AdwActionRow" id="LastNetCheckRow">
-                    <property name="title">Last run</property>
+                    <property name="title" translatable="yes">Last run</property>
                     <child>
                       <object class="GtkLabel" id="LastNetCheck">
-                        <property name="label">Never</property>
+                        <property name="label" translatable="yes">Never</property>
                       </object>
                     </child>
                   </object>
                 </child>
                 <child>
                   <object class="AdwActionRow" id="UDPRow">
-                    <property name="title">UDP</property>
+                    <property name="title" translatable="yes">UDP</property>
                     <property name="visible">False</property>
                     <child>
                       <object class="GtkImage" id="UDP"/>
@@ -109,7 +109,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="IPv4Row">
-                    <property name="title">IPv4</property>
+                    <property name="title" translatable="yes">IPv4</property>
                     <property name="visible">False</property>
                     <child>
                       <object class="GtkImage" id="IPv4Icon"/>
@@ -121,7 +121,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="IPv6Row">
-                    <property name="title">IPv6</property>
+                    <property name="title" translatable="yes">IPv6</property>
                     <property name="visible">False</property>
                     <child>
                       <object class="GtkImage" id="IPv6Icon"/>
@@ -133,7 +133,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="UPnPRow">
-                    <property name="title">UPnP</property>
+                    <property name="title" translatable="yes">UPnP</property>
                     <property name="visible">False</property>
                     <child>
                       <object class="GtkImage" id="UPnP"/>
@@ -142,7 +142,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="PMPRow">
-                    <property name="title">NAT port mapping protocol</property>
+                    <property name="title" translatable="yes">NAT port mapping protocol</property>
                     <property name="visible">False</property>
                     <child>
                       <object class="GtkImage" id="PMP"/>
@@ -151,7 +151,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="PCPRow">
-                    <property name="title">Port control protocol</property>
+                    <property name="title" translatable="yes">Port control protocol</property>
                     <property name="visible">False</property>
                     <child>
                       <object class="GtkImage" id="PCP"/>
@@ -160,25 +160,25 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="PreferredDERPRow">
-                    <property name="title">Preferred DERP</property>
+                    <property name="title" translatable="yes">Preferred DERP</property>
                     <property name="visible">False</property>
                     <child>
                       <object class="GtkLabel" id="PreferredDERP">
-                        <property name="label">Never</property>
+                        <property name="label" translatable="yes">Never</property>
                       </object>
                     </child>
                   </object>
                 </child>
                 <child>
                   <object class="AdwExpanderRow" id="DERPLatencies">
-                    <property name="title">DERP Latencies</property>
+                    <property name="title" translatable="yes">DERP Latencies</property>
                     <property name="visible">False</property>
                   </object>
                 </child>
                 <child>
                   <object class="AdwActionRow" id="CaptivePortalRow">
                     <property name="activatable-widget">CaptivePortal</property>
-                    <property name="title">Captive portal detected</property>
+                    <property name="title" translatable="yes">Captive portal detected</property>
                     <property name="visible">False</property>
                     <child>
                       <object class="GtkImage" id="CaptivePortal"/>

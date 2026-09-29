@@ -9,17 +9,53 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
+msgid "Accept DNS"
+msgstr "DNSを受け入れる"
+
+msgid "Accept routes"
+msgstr "ルートを受け入れる"
+
 msgid "Add IP Prefix"
 msgstr "IPプレフィックスを追加"
 
 msgid "Admin _Dashboard"
 msgstr "管理ダッシュボード(_D)"
 
+msgid "Advertise exit node"
+msgstr "出口ノードをアドバタイズ"
+
+msgid "Advertised Routes"
+msgstr "アドバタイズされたルート"
+
+msgid "Allow LAN access"
+msgstr "LANアクセスを許可"
+
+msgid "Allow this machine to be used as an exit node"
+msgstr "このマシンを出口ノードとして使用できるようにする"
+
+msgid "Auto-save Received Files"
+msgstr "受信ファイルを自動保存"
+
+msgid "Bypass Tailscale routing for local network access"
+msgstr "ローカルネットワークアクセスのためTailscaleルーティングをバイパス"
+
+msgid "Bytes received"
+msgstr "受信バイト数"
+
+msgid "Bytes sent"
+msgstr "送信バイト数"
+
 msgid "Cancel"
 msgstr "キャンセル"
 
+msgid "Captive portal detected"
+msgstr "キャプティブポータルを検出"
+
 msgid "Change Control _Server"
 msgstr "コントロールサーバーを変更(_S)"
+
+msgid "Choose folder"
+msgstr "フォルダを選択"
 
 msgid "Connect"
 msgstr "接続"
@@ -39,8 +75,14 @@ msgstr "クリップボードにコピーしました"
 msgid "Copy to Clipboard"
 msgstr "クリップボードにコピー"
 
+msgid "Created at"
+msgstr "作成日時"
+
 msgid "Current exit node location"
 msgstr "現在の出口ノードの場所"
+
+msgid "DERP Latencies"
+msgstr "DERPレイテンシ"
 
 msgid "Delete"
 msgstr "削除"
@@ -78,17 +120,56 @@ msgstr "ログインの開始に失敗しました"
 msgid "Failed to toggle exit node"
 msgstr "出口ノードの切り替えに失敗しました"
 
+msgid "Files"
+msgstr "ファイル"
+
+msgid "General"
+msgstr "一般"
+
 msgid "Hide window on initial start"
 msgstr "起動時にウィンドウを隠す"
+
+msgid "IPv4"
+msgstr "IPv4"
+
+msgid "IPv6"
+msgstr "IPv6"
+
+msgid "If enabled, an icon will be added to the system tray"
+msgstr "有効にすると、システムトレイにアイコンが追加されます"
 
 msgid "If you delete this file, you will no longer be able to save it to your local machine."
 msgstr "このファイルを削除すると、ローカルマシンに保存できなくなります。"
 
+msgid "Interval, in seconds, at which to poll the Tailscale daemon"
+msgstr "Tailscaleデーモンをポーリングする間隔（秒）"
+
+msgid "Last handshake"
+msgstr "最後のハンドシェイク"
+
+msgid "Last run"
+msgstr "最終実行"
+
+msgid "Last seen"
+msgstr "最終確認"
+
 msgid "Login Required"
 msgstr "ログインが必要です"
 
+msgid "Misc."
+msgstr "その他"
+
 msgid "Mullvad Exit Nodes"
 msgstr "Mullvad出口ノード"
+
+msgid "NAT port mapping protocol"
+msgstr "NATポートマッピングプロトコル"
+
+msgid "Network Check"
+msgstr "ネットワークチェック"
+
+msgid "Never"
+msgstr "なし"
 
 msgid "New Incoming File"
 msgstr "新しい受信ファイル"
@@ -105,6 +186,15 @@ msgstr "フォルダが選択されていません"
 msgid "No incoming files."
 msgstr "受信ファイルがありません。"
 
+msgid "No matching exit nodes"
+msgstr "一致する出口ノードがありません"
+
+msgid "No matching peers"
+msgstr "一致するピアがありません"
+
+msgid "Not Connected"
+msgstr "未接続"
+
 msgid "Not connected"
 msgstr "未接続"
 
@@ -114,8 +204,23 @@ msgstr "オフライン"
 msgid "Online"
 msgstr "オンライン"
 
+msgid "Open Browser to Login"
+msgstr "ブラウザを開いてログイン"
+
 msgid "Open a browser to authenticate with Tailscale?"
 msgstr "ブラウザを開いてTailscaleで認証しますか？"
+
+msgid "Options"
+msgstr "オプション"
+
+msgid "Polling Interval"
+msgstr "ポーリング間隔"
+
+msgid "Port control protocol"
+msgstr "ポート制御プロトコル"
+
+msgid "Preferred DERP"
+msgstr "優先DERP"
 
 msgid "Quit"
 msgstr "終了"
@@ -125,6 +230,9 @@ msgstr "削除"
 
 msgid "Save"
 msgstr "保存"
+
+msgid "Search peers"
+msgstr "ピアを検索"
 
 msgid "Select"
 msgstr "選択"
@@ -162,6 +270,9 @@ msgstr "一部の機能が正常に動作しない可能性があります。解
 msgid "Taildrop"
 msgstr "Taildrop"
 
+msgid "Tailscale IPs"
+msgstr "Tailscale IP"
+
 msgid "Tailscale Status"
 msgstr "Tailscaleの状態"
 
@@ -183,11 +294,29 @@ msgstr "出口ノードを切り替え"
 msgid "Trayscale"
 msgstr "Trayscale"
 
+msgid "UDP"
+msgstr "UDP"
+
+msgid "UPnP"
+msgstr "UPnP"
+
+msgid "Use Tailscale DNS configuration"
+msgstr "TailscaleのDNS設定を使用"
+
+msgid "Use Tray Icon"
+msgstr "トレイアイコンを使用"
+
 msgid "Use _Default"
 msgstr "デフォルトを使用(_D)"
 
 msgid "Use _Exit Node"
 msgstr "出口ノードを使用(_E)"
+
+msgid "Use as exit node"
+msgstr "出口ノードとして使用"
+
+msgid "Use exported routes from other machines"
+msgstr "他のマシンからエクスポートされたルートを使用"
 
 msgid "User is not Tailscale Operator"
 msgstr "ユーザーはTailscaleオペレーターではありません"

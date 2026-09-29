@@ -9,7 +9,7 @@
     <property name="default-height">600</property>
     <property name="default-width">800</property>
     <property name="height-request">400</property>
-    <property name="title">Trayscale</property>
+    <property name="title" translatable="yes">Trayscale</property>
     <property name="width-request">200</property>
     <child>
       <object class="AdwToastOverlay" id="ToastOverlay">
@@ -56,7 +56,7 @@
                         <property name="placeholder">
                           <object class="AdwStatusPage">
                             <property name="icon-name">edit-find-symbolic</property>
-                            <property name="title">No matching peers</property>
+                            <property name="title" translatable="yes">No matching peers</property>
                           </object>
                         </property>
                         <property name="stack">PeersStack</property>
@@ -78,7 +78,7 @@
                         <child type="end">
                           <object class="GtkToggleButton" id="PeerSearchButton">
                             <property name="icon-name">edit-find-symbolic</property>
-                            <property name="tooltip-text">Search peers</property>
+                            <property name="tooltip-text" translatable="yes">Search peers</property>
                           </object>
                         </child>
                         <child type="title">
@@ -99,7 +99,7 @@
                   </object>
                 </property>
                 <property name="tag">sidebar</property>
-                <property name="title">Trayscale</property>
+                <property name="title" translatable="yes">Trayscale</property>
               </object>
             </property>
           </object>

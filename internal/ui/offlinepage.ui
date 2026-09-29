@@ -10,13 +10,13 @@
         <property name="child">
           <object class="AdwPreferencesGroup" id="NeedsAuthGroup">
             <property name="description">Tailscale must be authenticated before it can connect.</property>
-            <property name="title">Login Required</property>
+            <property name="title" translatable="yes">Login Required</property>
             <child>
               <object class="AdwButtonRow">
                 <property name="action-name">app.login</property>
                 <property name="css-classes">button
 suggested-action</property>
-                <property name="title">Open Browser to Login</property>
+                <property name="title" translatable="yes">Open Browser to Login</property>
               </object>
             </child>
           </object>
@@ -25,6 +25,6 @@ suggested-action</property>
     </property>
     <property name="description">Tailscale is not connected</property>
     <property name="icon-name">network-offline-symbolic</property>
-    <property name="title">Not Connected</property>
+    <property name="title" translatable="yes">Not Connected</property>
   </object>
 </interface>

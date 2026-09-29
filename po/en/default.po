@@ -10,17 +10,53 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+msgid "Accept DNS"
+msgstr "Accept DNS"
+
+msgid "Accept routes"
+msgstr "Accept routes"
+
 msgid "Add IP Prefix"
 msgstr "Add IP Prefix"
 
 msgid "Admin _Dashboard"
 msgstr "Admin _Dashboard"
 
+msgid "Advertise exit node"
+msgstr "Advertise exit node"
+
+msgid "Advertised Routes"
+msgstr "Advertised Routes"
+
+msgid "Allow LAN access"
+msgstr "Allow LAN access"
+
+msgid "Allow this machine to be used as an exit node"
+msgstr "Allow this machine to be used as an exit node"
+
+msgid "Auto-save Received Files"
+msgstr "Auto-save Received Files"
+
+msgid "Bypass Tailscale routing for local network access"
+msgstr "Bypass Tailscale routing for local network access"
+
+msgid "Bytes received"
+msgstr "Bytes received"
+
+msgid "Bytes sent"
+msgstr "Bytes sent"
+
 msgid "Cancel"
 msgstr "Cancel"
 
+msgid "Captive portal detected"
+msgstr "Captive portal detected"
+
 msgid "Change Control _Server"
 msgstr "Change Control _Server"
+
+msgid "Choose folder"
+msgstr "Choose folder"
 
 msgid "Connect"
 msgstr "Connect"
@@ -40,8 +76,14 @@ msgstr "Copied to clipboard"
 msgid "Copy to Clipboard"
 msgstr "Copy to Clipboard"
 
+msgid "Created at"
+msgstr "Created at"
+
 msgid "Current exit node location"
 msgstr "Current exit node location"
+
+msgid "DERP Latencies"
+msgstr "DERP Latencies"
 
 msgid "Delete"
 msgstr "Delete"
@@ -79,17 +121,56 @@ msgstr "Failed to start login"
 msgid "Failed to toggle exit node"
 msgstr "Failed to toggle exit node"
 
+msgid "Files"
+msgstr "Files"
+
+msgid "General"
+msgstr "General"
+
 msgid "Hide window on initial start"
 msgstr "Hide window on initial start"
+
+msgid "IPv4"
+msgstr "IPv4"
+
+msgid "IPv6"
+msgstr "IPv6"
+
+msgid "If enabled, an icon will be added to the system tray"
+msgstr "If enabled, an icon will be added to the system tray"
 
 msgid "If you delete this file, you will no longer be able to save it to your local machine."
 msgstr "If you delete this file, you will no longer be able to save it to your local machine."
 
+msgid "Interval, in seconds, at which to poll the Tailscale daemon"
+msgstr "Interval, in seconds, at which to poll the Tailscale daemon"
+
+msgid "Last handshake"
+msgstr "Last handshake"
+
+msgid "Last run"
+msgstr "Last run"
+
+msgid "Last seen"
+msgstr "Last seen"
+
 msgid "Login Required"
 msgstr "Login Required"
 
+msgid "Misc."
+msgstr "Misc."
+
 msgid "Mullvad Exit Nodes"
 msgstr "Mullvad Exit Nodes"
+
+msgid "NAT port mapping protocol"
+msgstr "NAT port mapping protocol"
+
+msgid "Network Check"
+msgstr "Network Check"
+
+msgid "Never"
+msgstr "Never"
 
 msgid "New Incoming File"
 msgstr "New Incoming File"
@@ -106,6 +187,15 @@ msgstr "No folder selected"
 msgid "No incoming files."
 msgstr "No incoming files."
 
+msgid "No matching exit nodes"
+msgstr "No matching exit nodes"
+
+msgid "No matching peers"
+msgstr "No matching peers"
+
+msgid "Not Connected"
+msgstr "Not Connected"
+
 msgid "Not connected"
 msgstr "Not connected"
 
@@ -115,8 +205,23 @@ msgstr "Offline"
 msgid "Online"
 msgstr "Online"
 
+msgid "Open Browser to Login"
+msgstr "Open Browser to Login"
+
 msgid "Open a browser to authenticate with Tailscale?"
 msgstr "Open a browser to authenticate with Tailscale?"
+
+msgid "Options"
+msgstr "Options"
+
+msgid "Polling Interval"
+msgstr "Polling Interval"
+
+msgid "Port control protocol"
+msgstr "Port control protocol"
+
+msgid "Preferred DERP"
+msgstr "Preferred DERP"
 
 msgid "Quit"
 msgstr "Quit"
@@ -126,6 +231,9 @@ msgstr "Remove"
 
 msgid "Save"
 msgstr "Save"
+
+msgid "Search peers"
+msgstr "Search peers"
 
 msgid "Select"
 msgstr "Select"
@@ -163,6 +271,9 @@ msgstr "Some functionality may not work as expected. To resolve, run the followi
 msgid "Taildrop"
 msgstr "Taildrop"
 
+msgid "Tailscale IPs"
+msgstr "Tailscale IPs"
+
 msgid "Tailscale Status"
 msgstr "Tailscale Status"
 
@@ -184,11 +295,29 @@ msgstr "Toggle exit node"
 msgid "Trayscale"
 msgstr "Trayscale"
 
+msgid "UDP"
+msgstr "UDP"
+
+msgid "UPnP"
+msgstr "UPnP"
+
+msgid "Use Tailscale DNS configuration"
+msgstr "Use Tailscale DNS configuration"
+
+msgid "Use Tray Icon"
+msgstr "Use Tray Icon"
+
 msgid "Use _Default"
 msgstr "Use _Default"
 
 msgid "Use _Exit Node"
 msgstr "Use _Exit Node"
+
+msgid "Use as exit node"
+msgstr "Use as exit node"
+
+msgid "Use exported routes from other machines"
+msgstr "Use exported routes from other machines"
 
 msgid "User is not Tailscale Operator"
 msgstr "User is not Tailscale Operator"

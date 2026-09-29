@@ -9,17 +9,53 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+msgid "Accept DNS"
+msgstr "Aceptar DNS"
+
+msgid "Accept routes"
+msgstr "Aceptar rutas"
+
 msgid "Add IP Prefix"
 msgstr "Añadir prefijo IP"
 
 msgid "Admin _Dashboard"
 msgstr "Panel de _administración"
 
+msgid "Advertise exit node"
+msgstr "Anunciar nodo de salida"
+
+msgid "Advertised Routes"
+msgstr "Rutas anunciadas"
+
+msgid "Allow LAN access"
+msgstr "Permitir acceso a la LAN"
+
+msgid "Allow this machine to be used as an exit node"
+msgstr "Permitir que esta máquina se use como nodo de salida"
+
+msgid "Auto-save Received Files"
+msgstr "Guardar automáticamente los archivos recibidos"
+
+msgid "Bypass Tailscale routing for local network access"
+msgstr "Omitir el enrutamiento de Tailscale para acceso a la red local"
+
+msgid "Bytes received"
+msgstr "Bytes recibidos"
+
+msgid "Bytes sent"
+msgstr "Bytes enviados"
+
 msgid "Cancel"
 msgstr "Cancelar"
 
+msgid "Captive portal detected"
+msgstr "Portal cautivo detectado"
+
 msgid "Change Control _Server"
 msgstr "Cambiar _servidor de control"
+
+msgid "Choose folder"
+msgstr "Elegir carpeta"
 
 msgid "Connect"
 msgstr "Conectar"
@@ -39,8 +75,14 @@ msgstr "Copiado al portapapeles"
 msgid "Copy to Clipboard"
 msgstr "Copiar al portapapeles"
 
+msgid "Created at"
+msgstr "Creado el"
+
 msgid "Current exit node location"
 msgstr "Ubicación actual del nodo de salida"
+
+msgid "DERP Latencies"
+msgstr "Latencias DERP"
 
 msgid "Delete"
 msgstr "Eliminar"
@@ -78,17 +120,56 @@ msgstr "No se pudo iniciar el inicio de sesión"
 msgid "Failed to toggle exit node"
 msgstr "No se pudo alternar el nodo de salida"
 
+msgid "Files"
+msgstr "Archivos"
+
+msgid "General"
+msgstr "General"
+
 msgid "Hide window on initial start"
 msgstr "Ocultar la ventana al inicio"
+
+msgid "IPv4"
+msgstr "IPv4"
+
+msgid "IPv6"
+msgstr "IPv6"
+
+msgid "If enabled, an icon will be added to the system tray"
+msgstr "Si está activado, se añadirá un icono a la bandeja del sistema"
 
 msgid "If you delete this file, you will no longer be able to save it to your local machine."
 msgstr "Si elimina este archivo, ya no podrá guardarlo en su máquina local."
 
+msgid "Interval, in seconds, at which to poll the Tailscale daemon"
+msgstr "Intervalo, en segundos, para consultar el demonio de Tailscale"
+
+msgid "Last handshake"
+msgstr "Último handshake"
+
+msgid "Last run"
+msgstr "Última ejecución"
+
+msgid "Last seen"
+msgstr "Visto por última vez"
+
 msgid "Login Required"
 msgstr "Inicio de sesión requerido"
 
+msgid "Misc."
+msgstr "Varios"
+
 msgid "Mullvad Exit Nodes"
 msgstr "Nodos de salida Mullvad"
+
+msgid "NAT port mapping protocol"
+msgstr "Protocolo de asignación de puertos NAT"
+
+msgid "Network Check"
+msgstr "Comprobación de red"
+
+msgid "Never"
+msgstr "Nunca"
 
 msgid "New Incoming File"
 msgstr "Nuevo archivo entrante"
@@ -105,6 +186,15 @@ msgstr "Ninguna carpeta seleccionada"
 msgid "No incoming files."
 msgstr "Sin archivos entrantes."
 
+msgid "No matching exit nodes"
+msgstr "No hay nodos de salida coincidentes"
+
+msgid "No matching peers"
+msgstr "No hay peers coincidentes"
+
+msgid "Not Connected"
+msgstr "No conectado"
+
 msgid "Not connected"
 msgstr "No conectado"
 
@@ -114,8 +204,23 @@ msgstr "Fuera de línea"
 msgid "Online"
 msgstr "En línea"
 
+msgid "Open Browser to Login"
+msgstr "Abrir navegador para iniciar sesión"
+
 msgid "Open a browser to authenticate with Tailscale?"
 msgstr "¿Abrir un navegador para autenticarse con Tailscale?"
+
+msgid "Options"
+msgstr "Opciones"
+
+msgid "Polling Interval"
+msgstr "Intervalo de consulta"
+
+msgid "Port control protocol"
+msgstr "Protocolo de control de puertos"
+
+msgid "Preferred DERP"
+msgstr "DERP preferido"
 
 msgid "Quit"
 msgstr "Salir"
@@ -125,6 +230,9 @@ msgstr "Quitar"
 
 msgid "Save"
 msgstr "Guardar"
+
+msgid "Search peers"
+msgstr "Buscar peers"
 
 msgid "Select"
 msgstr "Seleccionar"
@@ -162,6 +270,9 @@ msgstr "Algunas funciones pueden no funcionar como se espera. Para solucionarlo,
 msgid "Taildrop"
 msgstr "Taildrop"
 
+msgid "Tailscale IPs"
+msgstr "IPs de Tailscale"
+
 msgid "Tailscale Status"
 msgstr "Estado de Tailscale"
 
@@ -183,11 +294,29 @@ msgstr "Alternar nodo de salida"
 msgid "Trayscale"
 msgstr "Trayscale"
 
+msgid "UDP"
+msgstr "UDP"
+
+msgid "UPnP"
+msgstr "UPnP"
+
+msgid "Use Tailscale DNS configuration"
+msgstr "Usar la configuración DNS de Tailscale"
+
+msgid "Use Tray Icon"
+msgstr "Usar icono de bandeja"
+
 msgid "Use _Default"
 msgstr "Usar _Predeterminado"
 
 msgid "Use _Exit Node"
 msgstr "Usar nodo de _salida"
+
+msgid "Use as exit node"
+msgstr "Usar como nodo de salida"
+
+msgid "Use exported routes from other machines"
+msgstr "Usar rutas exportadas de otras máquinas"
 
 msgid "User is not Tailscale Operator"
 msgstr "El usuario no es operador de Tailscale"

@@ -50,13 +50,10 @@ On hosts that only provide `C` / `C.UTF-8`, `BindGettext` clones `C.utf8` into t
 
 **Wrapped (Go):** tray menu labels, notifications/toasts, dialog headings and buttons constructed in Go, sidebar section titles, and other `locale.Get` call sites under `internal/ui` and `internal/tray`.
 
-**Menus from `menu.ui`:** Main and page menu labels use GtkBuilder gettext (`translatable="yes"` + domain `trayscale`).
+**Builder `.ui` files:** Static `title` / `subtitle` / `label` / `tooltip-text` (and menu `label` attributes in `menu.ui`) marked `translatable="yes"` use GtkBuilder gettext with domain `trayscale`. Helper: `scripts/mark-ui-translatable.py`.
 
 **Not wrapped yet:**
 
-- Other static labels in GtkBuilder `.ui` / Cambalache layouts (`mainwindow.ui`, page `.ui` files, preferences, etc.)
 - GSettings schema summaries (`dev.deedles.Trayscale.gschema.xml`)
 - Desktop / AppStream metadata
 - Proper nouns and dynamic Tailscale data (hostnames, IPs, region names from the control plane)
-
-Marking remaining `.ui` strings with `translatable="yes"` (same domain) is a natural follow-up; no further bind wiring is required.

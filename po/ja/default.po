@@ -12,8 +12,14 @@ msgstr ""
 msgid "Add IP Prefix"
 msgstr "IPプレフィックスを追加"
 
+msgid "Admin _Dashboard"
+msgstr "管理ダッシュボード(_D)"
+
 msgid "Cancel"
 msgstr "キャンセル"
+
+msgid "Change Control _Server"
+msgstr "コントロールサーバーを変更(_S)"
 
 msgid "Connect"
 msgstr "接続"
@@ -129,6 +135,12 @@ msgstr "%v(s) を選択して %v に送信"
 msgid "Select Auto-save Folder"
 msgstr "自動保存フォルダを選択"
 
+msgid "Send _directory..."
+msgstr "ディレクトリを送信(_D)..."
+
+msgid "Send _file..."
+msgstr "ファイルを送信(_F)..."
+
 msgid "Send file(s) to..."
 msgstr "ファイルを送信..."
 
@@ -140,6 +152,9 @@ msgstr "設定スキーマが見つかりません"
 
 msgid "Show"
 msgstr "表示"
+
+msgid "Show _Offline Peers"
+msgstr "オフラインのピアを表示(_O)"
 
 msgid "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
 msgstr "一部の機能が正常に動作しない可能性があります。解決するには、ターミナルで次のコマンドを実行してください:"
@@ -171,8 +186,14 @@ msgstr "Trayscale"
 msgid "Use _Default"
 msgstr "デフォルトを使用(_D)"
 
+msgid "Use _Exit Node"
+msgstr "出口ノードを使用(_E)"
+
 msgid "User is not Tailscale Operator"
 msgstr "ユーザーはTailscaleオペレーターではありません"
+
+msgid "_About"
+msgstr "このアプリケーションについて(_A)"
 
 msgid "_Add"
 msgstr "追加(_A)"
@@ -183,12 +204,20 @@ msgstr "キャンセル(_C)"
 msgid "_Close"
 msgstr "閉じる(_C)"
 
+msgid "_Copy FQDN"
+msgstr "FQDNをコピー(_C)"
+
 msgid "_Delete"
 msgstr "削除(_D)"
 
 msgid "_Open Browser"
 msgstr "ブラウザを開く(_O)"
 
+msgid "_Preferences"
+msgstr "設定(_P)"
+
+msgid "_Quit"
+msgstr "終了(_Q)"
+
 msgid "_Set URL"
 msgstr "URLを設定(_S)"
-

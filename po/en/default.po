@@ -13,8 +13,14 @@ msgstr ""
 msgid "Add IP Prefix"
 msgstr "Add IP Prefix"
 
+msgid "Admin _Dashboard"
+msgstr "Admin _Dashboard"
+
 msgid "Cancel"
 msgstr "Cancel"
+
+msgid "Change Control _Server"
+msgstr "Change Control _Server"
 
 msgid "Connect"
 msgstr "Connect"
@@ -130,6 +136,12 @@ msgstr "Select %v(s) to send to %v"
 msgid "Select Auto-save Folder"
 msgstr "Select Auto-save Folder"
 
+msgid "Send _directory..."
+msgstr "Send _directory..."
+
+msgid "Send _file..."
+msgstr "Send _file..."
+
 msgid "Send file(s) to..."
 msgstr "Send file(s) to..."
 
@@ -141,6 +153,9 @@ msgstr "Settings schema not found"
 
 msgid "Show"
 msgstr "Show"
+
+msgid "Show _Offline Peers"
+msgstr "Show _Offline Peers"
 
 msgid "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
 msgstr "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
@@ -172,8 +187,14 @@ msgstr "Trayscale"
 msgid "Use _Default"
 msgstr "Use _Default"
 
+msgid "Use _Exit Node"
+msgstr "Use _Exit Node"
+
 msgid "User is not Tailscale Operator"
 msgstr "User is not Tailscale Operator"
+
+msgid "_About"
+msgstr "_About"
 
 msgid "_Add"
 msgstr "_Add"
@@ -184,11 +205,20 @@ msgstr "_Cancel"
 msgid "_Close"
 msgstr "_Close"
 
+msgid "_Copy FQDN"
+msgstr "_Copy FQDN"
+
 msgid "_Delete"
 msgstr "_Delete"
 
 msgid "_Open Browser"
 msgstr "_Open Browser"
+
+msgid "_Preferences"
+msgstr "_Preferences"
+
+msgid "_Quit"
+msgstr "_Quit"
 
 msgid "_Set URL"
 msgstr "_Set URL"

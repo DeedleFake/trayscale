@@ -12,8 +12,14 @@ msgstr ""
 msgid "Add IP Prefix"
 msgstr "Adicionar prefixo IP"
 
+msgid "Admin _Dashboard"
+msgstr "Painel de _administração"
+
 msgid "Cancel"
 msgstr "Cancelar"
+
+msgid "Change Control _Server"
+msgstr "Alterar _servidor de controle"
 
 msgid "Connect"
 msgstr "Conectar"
@@ -129,6 +135,12 @@ msgstr "Selecione %v(s) para enviar a %v"
 msgid "Select Auto-save Folder"
 msgstr "Selecionar pasta de salvamento automático"
 
+msgid "Send _directory..."
+msgstr "Enviar _diretório..."
+
+msgid "Send _file..."
+msgstr "Enviar _arquivo..."
+
 msgid "Send file(s) to..."
 msgstr "Enviar arquivo(s) para..."
 
@@ -140,6 +152,9 @@ msgstr "Esquema de configurações não encontrado"
 
 msgid "Show"
 msgstr "Mostrar"
+
+msgid "Show _Offline Peers"
+msgstr "Mostrar peers _offline"
 
 msgid "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
 msgstr "Algumas funcionalidades podem não funcionar como esperado. Para resolver, execute o seguinte comando em um terminal:"
@@ -171,8 +186,14 @@ msgstr "Trayscale"
 msgid "Use _Default"
 msgstr "Usar _Padrão"
 
+msgid "Use _Exit Node"
+msgstr "Usar nó de _saída"
+
 msgid "User is not Tailscale Operator"
 msgstr "O usuário não é operador do Tailscale"
+
+msgid "_About"
+msgstr "_Sobre"
 
 msgid "_Add"
 msgstr "_Adicionar"
@@ -183,12 +204,20 @@ msgstr "_Cancelar"
 msgid "_Close"
 msgstr "_Fechar"
 
+msgid "_Copy FQDN"
+msgstr "_Copiar FQDN"
+
 msgid "_Delete"
 msgstr "_Excluir"
 
 msgid "_Open Browser"
 msgstr "_Abrir navegador"
 
+msgid "_Preferences"
+msgstr "_Preferências"
+
+msgid "_Quit"
+msgstr "_Sair"
+
 msgid "_Set URL"
 msgstr "_Definir URL"
-

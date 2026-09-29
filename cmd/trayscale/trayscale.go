@@ -45,6 +45,8 @@ func profile() func() {
 func main() {
 	defer profile()()
 
+	locale.SanitizeEnvironment()
+
 	po, err := fs.Sub(trayscale.Assets(), "po")
 	if err != nil {
 		panic(err)

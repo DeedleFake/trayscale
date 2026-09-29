@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 
@@ -102,7 +103,7 @@ func languageCandidates() []string {
 	var out []string
 	add := func(s string) {
 		s = strings.TrimSpace(s)
-		if s == "" || s == "C" || s == "POSIX" {
+		if isCLocale(s) {
 			return
 		}
 		for _, part := range strings.Split(s, ":") {
@@ -180,4 +181,177 @@ func localeAvailable(poFS fs.FS, code string) bool {
 		}
 	}
 	return false
+}
+
+// SanitizeEnvironment ensures libc/GTK can call setlocale successfully.
+//
+// When LANG / LC_* name a locale that is not generated on this system
+// (for example LANG=ja with no ja_JP.UTF-8 in locale -a), glibc prints
+// "Cannot set LC_* to default locale" warnings and GTK/GLib can hang
+// during init. This copies the user's language preference into LANGUAGE
+// (if unset) so gotext still selects the right catalog, then forces a
+// known-good UTF-8 libc locale (C.UTF-8 / C.utf8) via LC_ALL.
+//
+// Call once at process start before gtk.Init and before [Init].
+func SanitizeEnvironment() {
+	pref := firstEnv("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG")
+	if !needsLocaleSanitize() {
+		return
+	}
+
+	if os.Getenv("LANGUAGE") == "" {
+		if lang := languageFromLocale(pref); lang != "" {
+			_ = os.Setenv("LANGUAGE", lang)
+		}
+	}
+
+	fallback := fallbackLibcLocale()
+	_ = os.Setenv("LC_ALL", fallback)
+	if v := os.Getenv("LANG"); v != "" && !libcSupports(v) {
+		_ = os.Setenv("LANG", fallback)
+	}
+}
+
+func needsLocaleSanitize() bool {
+	for _, key := range []string{"LC_ALL", "LC_MESSAGES", "LC_CTYPE", "LANG"} {
+		if v := os.Getenv(key); v != "" && !libcSupports(v) {
+			return true
+		}
+	}
+	return false
+}
+
+func firstEnv(keys ...string) string {
+	for _, key := range keys {
+		if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+			// LANGUAGE may be colon-separated; take the first entry.
+			if key == "LANGUAGE" {
+				if i := strings.IndexByte(v, ':'); i >= 0 {
+					v = strings.TrimSpace(v[:i])
+				}
+			}
+			return v
+		}
+	}
+	return ""
+}
+
+func isCLocale(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return true
+	}
+	base := s
+	if i := strings.IndexAny(base, ".@"); i >= 0 {
+		base = base[:i]
+	}
+	return base == "C" || base == "POSIX"
+}
+
+// languageFromLocale turns a locale name into a gettext language tag
+// (ja_JP.UTF-8 → ja_JP, en-US → en_US).
+func languageFromLocale(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" || isCLocale(s) {
+		return ""
+	}
+	s = strings.ReplaceAll(s, "-", "_")
+	if i := strings.IndexByte(s, '.'); i >= 0 {
+		s = s[:i]
+	}
+	if i := strings.IndexByte(s, '@'); i >= 0 {
+		s = s[:i]
+	}
+	if isCLocale(s) {
+		return ""
+	}
+	return s
+}
+
+var (
+	libcLocalesOnce sync.Once
+	libcLocalesSet  map[string]struct{}
+	libcLocalesErr  error
+)
+
+func libcLocales() map[string]struct{} {
+	libcLocalesOnce.Do(func() {
+		libcLocalesSet = make(map[string]struct{})
+		cmd := exec.Command("locale", "-a")
+		// Avoid "Cannot set LC_*" warnings from locale(1) itself when the
+		// process already has an unsupported LANG.
+		cmd.Env = []string{
+			"PATH=" + os.Getenv("PATH"),
+			"LOCALE_ARCHIVE=" + os.Getenv("LOCALE_ARCHIVE"),
+			"LC_ALL=C",
+			"LANG=C",
+		}
+		out, err := cmd.Output()
+		if err != nil {
+			libcLocalesErr = err
+			return
+		}
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			libcLocalesSet[normalizeLocaleName(line)] = struct{}{}
+		}
+	})
+	return libcLocalesSet
+}
+
+func normalizeLocaleName(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.ReplaceAll(s, "-", "_")
+	return strings.ToLower(s)
+}
+
+func libcSupports(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" || isCLocale(name) {
+		return true
+	}
+	avail := libcLocales()
+	if libcLocalesErr != nil || len(avail) == 0 {
+		// If we cannot enumerate locales, be conservative only for
+		// bare language codes that commonly lack a generated locale
+		// (e.g. LANG=ja). Full names like en_US.UTF-8 are left alone.
+		base := languageFromLocale(name)
+		return base == "" || strings.Contains(base, "_")
+	}
+	for _, cand := range localeMatchNames(name) {
+		if _, ok := avail[cand]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func localeMatchNames(name string) []string {
+	n := normalizeLocaleName(name)
+	base := n
+	if i := strings.IndexByte(base, '.'); i >= 0 {
+		base = base[:i]
+	}
+	if i := strings.IndexByte(base, '@'); i >= 0 {
+		base = base[:i]
+	}
+	out := []string{n, base, base + ".utf8", base + ".utf-8"}
+	return out
+}
+
+func fallbackLibcLocale() string {
+	avail := libcLocales()
+	for _, cand := range []string{"C.UTF-8", "C.utf8", "c.utf8", "C"} {
+		if _, ok := avail[normalizeLocaleName(cand)]; ok {
+			// Prefer the canonical spelling when both exist.
+			if cand == "c.utf8" {
+				return "C.utf8"
+			}
+			return cand
+		}
+	}
+	return "C"
 }

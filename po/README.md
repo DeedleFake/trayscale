@@ -50,7 +50,6 @@ On hosts that only provide `C` / `C.UTF-8`, `BindGettext` clones `C.utf8` into t
 
 **Wrapped (Go):** tray menu labels, notifications/toasts, dialog headings and buttons constructed in Go, sidebar section titles, and other `locale.Get` call sites under `internal/ui` and `internal/tray`.
 
-**Builder `.ui` files:** Static `title` / `subtitle` / `label` / `tooltip-text` (and menu `label` attributes in `menu.ui`) marked `translatable="yes"` use GtkBuilder gettext with domain `trayscale`. Helper: `scripts/mark-ui-translatable.py`.
 
 **Not wrapped yet:**
 

@@ -44,6 +44,24 @@
 				destination is configured.
 			</description>
 		</key>
+		<key name="auto-vpn-enabled" type="b">
+			<default>false</default>
+			<summary>Enable Auto-VPN</summary>
+			<description>
+				Automatically toggle the Tailscale VPN on or off based on the
+				current Wi-Fi network. When connected to a trusted network, VPN
+				is disabled. On untrusted or non-Wi-Fi networks, VPN is enabled.
+			</description>
+		</key>
+		<key name="auto-vpn-trusted-ssids" type="as">
+			<default>[]</default>
+			<summary>Trusted Wi-Fi SSIDs for Auto-VPN</summary>
+			<description>
+				A list of Wi-Fi network names (SSIDs) considered trusted. When
+				connected to one of these networks, Auto-VPN will disable the
+				Tailscale tunnel.
+			</description>
+		</key>
 	</schema>
 </schemalist>
 

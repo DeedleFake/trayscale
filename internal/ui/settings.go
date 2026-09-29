@@ -56,6 +56,18 @@ func (a *App) initSettings(ctx context.Context) {
 					a.win.SetShowOffline(a.settings.Boolean("show-offline-peers"))
 				}
 			})
+
+		case "auto-vpn-enabled":
+			if a.settings.Boolean("auto-vpn-enabled") {
+				a.startAutoWatcher(ctx)
+			} else {
+				a.stopAutoWatcher()
+			}
+
+		case "auto-vpn-trusted-ssids":
+			if a.autoWatcher != nil {
+				go a.autoWatcher.Reevaluate(ctx)
+			}
 		}
 	})
 
@@ -171,6 +183,7 @@ func (a *App) showPreferences() {
 		})
 	})
 
+	dialog.addAutoVPNActions(a, a.settings)
 	dialog.PreferencesDialog.Present(a.window())
 }
 

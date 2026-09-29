@@ -52,6 +52,24 @@
             </child>
           </object>
         </child>
+        <child>
+          <object class="AdwPreferencesGroup" id="AutoVpnGroup">
+            <property name="title">Auto-VPN</property>
+            <property name="description">Automatically toggle VPN based on Wi-Fi network</property>
+            <child>
+              <object class="AdwSwitchRow" id="AutoVpnEnabledRow">
+                <property name="title">Enable Auto-VPN</property>
+                <property name="subtitle">Disable VPN on trusted Wi-Fi, enable on untrusted</property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow" id="AutoVpnCurrentNetworkRow">
+                <property name="title">Current Network</property>
+                <property name="subtitle">Detecting...</property>
+              </object>
+            </child>
+          </object>
+        </child>
       </object>
     </child>
   </object>

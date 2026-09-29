@@ -9,7 +9,7 @@
       <object class="AdwClamp">
         <property name="child">
           <object class="AdwPreferencesGroup" id="NeedsAuthGroup">
-            <property name="description">Tailscale must be authenticated before it can connect.</property>
+            <property name="description" translatable="yes">Tailscale must be authenticated before it can connect.</property>
             <property name="title" translatable="yes">Login Required</property>
             <child>
               <object class="AdwButtonRow">
@@ -23,7 +23,7 @@ suggested-action</property>
         </property>
       </object>
     </property>
-    <property name="description">Tailscale is not connected</property>
+    <property name="description" translatable="yes">Tailscale is not connected</property>
     <property name="icon-name">network-offline-symbolic</property>
     <property name="title" translatable="yes">Not Connected</property>
   </object>

@@ -279,6 +279,12 @@ msgstr "Tailscaleの状態"
 msgid "Tailscale is connected."
 msgstr "Tailscaleは接続されています。"
 
+msgid "Tailscale is not connected"
+msgstr "Tailscale は接続されていません"
+
+msgid "Tailscale must be authenticated before it can connect."
+msgstr "接続する前に Tailscale の認証が必要です。"
+
 msgid "Tailscale is not connected."
 msgstr "Tailscaleは接続されていません。"
 

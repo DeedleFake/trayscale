@@ -280,6 +280,12 @@ msgstr "Tailscale Status"
 msgid "Tailscale is connected."
 msgstr "Tailscale is connected."
 
+msgid "Tailscale is not connected"
+msgstr "Tailscale is not connected"
+
+msgid "Tailscale must be authenticated before it can connect."
+msgstr "Tailscale must be authenticated before it can connect."
+
 msgid "Tailscale is not connected."
 msgstr "Tailscale is not connected."
 

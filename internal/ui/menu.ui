@@ -7,35 +7,35 @@
     <section>
       <item>
         <attribute name="action">app.use_exit_node</attribute>
-        <attribute name="label">Use _Exit Node</attribute>
+        <attribute name="label" translatable="yes">Use _Exit Node</attribute>
       </item>
       <item>
         <attribute name="action">app.show-offline-peers</attribute>
-        <attribute name="label">Show _Offline Peers</attribute>
+        <attribute name="label" translatable="yes">Show _Offline Peers</attribute>
       </item>
     </section>
     <section>
       <item>
         <attribute name="action">app.change_control_server</attribute>
-        <attribute name="label">Change Control _Server</attribute>
+        <attribute name="label" translatable="yes">Change Control _Server</attribute>
       </item>
       <item>
         <attribute name="action">app.preferences</attribute>
-        <attribute name="label">_Preferences</attribute>
+        <attribute name="label" translatable="yes">_Preferences</attribute>
       </item>
       <item>
         <attribute name="action">app.admin_dashboard</attribute>
-        <attribute name="label">Admin _Dashboard</attribute>
+        <attribute name="label" translatable="yes">Admin _Dashboard</attribute>
       </item>
     </section>
     <section>
       <item>
         <attribute name="action">app.about</attribute>
-        <attribute name="label">_About</attribute>
+        <attribute name="label" translatable="yes">_About</attribute>
       </item>
       <item>
         <attribute name="action">app.quit</attribute>
-        <attribute name="label">_Quit</attribute>
+        <attribute name="label" translatable="yes">_Quit</attribute>
       </item>
     </section>
   </menu>
@@ -43,18 +43,18 @@
     <section>
       <item>
         <attribute name="action">peer.copyFQDN</attribute>
-        <attribute name="label">_Copy FQDN</attribute>
+        <attribute name="label" translatable="yes">_Copy FQDN</attribute>
       </item>
     </section>
     <section>
       <item>
         <attribute name="action">peer.sendFile</attribute>
-        <attribute name="label">Send _file...</attribute>
+        <attribute name="label" translatable="yes">Send _file...</attribute>
         <attribute name="target">file</attribute>
       </item>
       <item>
         <attribute name="action">peer.sendFile</attribute>
-        <attribute name="label">Send _directory...</attribute>
+        <attribute name="label" translatable="yes">Send _directory...</attribute>
         <attribute name="target">dir</attribute>
       </item>
     </section>

@@ -1,10 +1,12 @@
 // Package locale provides gettext-style string translation for Trayscale
-// using [github.com/leonelquinteros/gotext], matching the usual approach
-// for gotk4 GNOME apps.
+// using [github.com/leonelquinteros/gotext] for Go-constructed strings and
+// libintl/GtkBuilder gettext for .ui attributes marked translatable="yes".
 //
-// Catalogs live under po/<lang>/default.po (embedded at build time).
-// Call [Init] once at process start before showing UI. Untranslated
-// strings fall back to the English source msgid.
+// Catalogs live under po/<lang>/default.po (embedded at build time). The
+// same files feed gotext and, via a pure-Go .po→.mo compile at [Init], the
+// [TranslationDomain] bindtextdomain tree. Call [SanitizeEnvironment] then
+// [Init] once at process start before showing UI. Untranslated strings fall
+// back to the English source msgid.
 package locale
 
 import (
@@ -29,15 +31,17 @@ var (
 // language. poFS should contain directories named by locale code
 // (for example "en", "es", "en_US") each with a default.po file.
 // It is safe to call with a nil FS; Get then returns the source string.
+//
+// Init also compiles catalogs for GtkBuilder gettext ([BindGettext]).
 func Init(poFS fs.FS) {
 	if poFS == nil {
 		return
 	}
 	lang := matchLanguage(poFS, languageCandidates())
-	if lang == "" {
-		return
+	if lang != "" {
+		InitLanguage(poFS, lang)
 	}
-	InitLanguage(poFS, lang)
+	_ = BindGettext(poFS)
 }
 
 // InitLanguage loads the given language catalog from poFS.

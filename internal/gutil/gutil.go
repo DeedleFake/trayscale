@@ -5,6 +5,7 @@ import (
 	"iter"
 	"reflect"
 
+	"deedles.dev/trayscale/internal/locale"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gerror"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -61,6 +62,7 @@ func FillFromBuilder[T any](dst *T, builder *gtk.Builder) {
 // from embedded files.
 func FillFromUI[T any](into *T, xml ...string) {
 	builder := gtk.NewBuilder()
+	builder.SetTranslationDomain(locale.TranslationDomain)
 	for _, v := range xml {
 		builder.AddFromString(v)
 	}

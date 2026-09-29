@@ -69,7 +69,7 @@ $ ./dist.sh install-macos
 Localization
 ------------
 
-Trayscale can display UI strings in other languages via gettext catalogs under [`po/`](po/). English is the default source language; see [`po/README.md`](po/README.md) for how to add a translation. Prefer `LANGUAGE=ja` (or install the matching system locale); bare `LANG=ja` without a generated libc locale is sanitized so GTK does not hang.
+Trayscale can display UI strings in other languages via gettext catalogs under [`po/`](po/). Go-constructed strings use gotext; GtkBuilder labels marked `translatable="yes"` use the same catalogs through libintl. See [`po/README.md`](po/README.md). Prefer `LANGUAGE=ja` (or install the matching system locale); bare `LANG=ja` without a generated libc locale is sanitized so GTK does not hang.
 
 Donate
 ------

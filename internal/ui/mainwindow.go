@@ -71,7 +71,7 @@ func NewMainWindow(app *App) *MainWindow {
 	if app.settings != nil {
 		win.showOffline = app.settings.Boolean("show-offline-peers")
 	}
-	gutil.FillFromUI(&win, localizeXMLLabels(menuXML), mainWindowXML)
+	gutil.FillFromUI(&win, menuXML, mainWindowXML)
 
 	win.MainWindow.SetApplication(&app.app.Application)
 

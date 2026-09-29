@@ -2,12 +2,12 @@ package ui
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"slices"
 	"time"
 
 	"deedles.dev/trayscale/internal/gutil"
+	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
@@ -74,12 +74,12 @@ func (a *App) showChangeControlServer() {
 	status := <-a.poller.GetIPN()
 
 	Prompt{
-		Heading: "Control Server URL",
+		Heading: locale.Get("Control Server URL"),
 		Purpose: gtk.InputPurposeURL,
 		Responses: []PromptResponse{
-			{ID: "cancel", Label: "_Cancel"},
-			{ID: "default", Label: "Use _Default"},
-			{ID: "set", Label: "_Set URL", Appearance: adw.ResponseSuggested, Default: true},
+			{ID: "cancel", Label: locale.Get("_Cancel")},
+			{ID: "default", Label: locale.Get("Use _Default")},
+			{ID: "set", Label: locale.Get("_Set URL"), Appearance: adw.ResponseSuggested, Default: true},
 		},
 	}.Show(a, status.Prefs.ControlURL(), func(response, val string) {
 		switch response {
@@ -93,7 +93,7 @@ func (a *App) showChangeControlServer() {
 			err := tsutil.SetControlURL(ctx, val)
 			if err != nil {
 				slog.Error("update control plane server URL", "err", err, "url", val)
-				a.win.Toast(fmt.Sprintf("Error setting control URL: %v", err))
+				a.win.Toast(locale.Get("Error setting control URL: %v", err))
 				return
 			}
 			<-a.poller.Poll()
@@ -103,7 +103,7 @@ func (a *App) showChangeControlServer() {
 
 func (a *App) showPreferences() {
 	if a.settings == nil {
-		a.win.Toast("Settings schema not found")
+		a.win.Toast(locale.Get("Settings schema not found"))
 		return
 	}
 
@@ -115,7 +115,7 @@ func (a *App) showPreferences() {
 	updateAutoSaveSubtitle := func() {
 		dir := a.settings.String("taildrop-auto-save-dir")
 		if dir == "" {
-			dialog.TaildropAutoSaveRow.SetSubtitle("No folder selected")
+			dialog.TaildropAutoSaveRow.SetSubtitle(locale.Get("No folder selected"))
 			return
 		}
 		dialog.TaildropAutoSaveRow.SetSubtitle(dir)
@@ -133,7 +133,7 @@ func (a *App) showPreferences() {
 	selectFolder := func(onCancel func()) {
 		fileDialog := gtk.NewFileDialog()
 		fileDialog.SetModal(true)
-		fileDialog.SetTitle("Select Auto-save Folder")
+		fileDialog.SetTitle(locale.Get("Select Auto-save Folder"))
 		if dir := a.settings.String("taildrop-auto-save-dir"); dir != "" {
 			fileDialog.SetInitialFolder(gio.NewFileForPath(dir))
 		}

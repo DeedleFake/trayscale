@@ -1,0 +1,359 @@
+# Trayscale English (source) catalog.
+# This file is the template translators copy when adding a language.
+msgid ""
+msgstr ""
+"Project-Id-Version: trayscale\n"
+"Report-Msgid-Bugs-To: https://github.com/DeedleFake/trayscale/issues\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Accept DNS"
+msgstr "Accept DNS"
+
+msgid "Accept routes"
+msgstr "Accept routes"
+
+msgid "Add IP Prefix"
+msgstr "Add IP Prefix"
+
+msgid "Admin _Dashboard"
+msgstr "Admin _Dashboard"
+
+msgid "Advertise exit node"
+msgstr "Advertise exit node"
+
+msgid "Advertised Routes"
+msgstr "Advertised Routes"
+
+msgid "Allow LAN access"
+msgstr "Allow LAN access"
+
+msgid "Allow this machine to be used as an exit node"
+msgstr "Allow this machine to be used as an exit node"
+
+msgid "Auto-save Received Files"
+msgstr "Auto-save Received Files"
+
+msgid "Bypass Tailscale routing for local network access"
+msgstr "Bypass Tailscale routing for local network access"
+
+msgid "Bytes received"
+msgstr "Bytes received"
+
+msgid "Bytes sent"
+msgstr "Bytes sent"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Captive portal detected"
+msgstr "Captive portal detected"
+
+msgid "Change Control _Server"
+msgstr "Change Control _Server"
+
+msgid "Choose folder"
+msgstr "Choose folder"
+
+msgid "Connect"
+msgstr "Connect"
+
+msgid "Control Server URL"
+msgstr "Control Server URL"
+
+msgid "Copied FQDN to clipboard"
+msgstr "Copied FQDN to clipboard"
+
+msgid "Copied address to clipboard"
+msgstr "Copied address to clipboard"
+
+msgid "Copied to clipboard"
+msgstr "Copied to clipboard"
+
+msgid "Copy to Clipboard"
+msgstr "Copy to Clipboard"
+
+msgid "Created at"
+msgstr "Created at"
+
+msgid "Current exit node location"
+msgstr "Current exit node location"
+
+msgid "DERP Latencies"
+msgstr "DERP Latencies"
+
+msgid "Delete"
+msgstr "Delete"
+
+msgid "Delete file?"
+msgstr "Delete file?"
+
+msgid "Disable exit node"
+msgstr "Disable exit node"
+
+msgid "Disabled"
+msgstr "Disabled"
+
+msgid "Disconnect"
+msgstr "Disconnect"
+
+msgid "Enable exit node"
+msgstr "Enable exit node"
+
+msgid "Enabled"
+msgstr "Enabled"
+
+msgid "Error setting control URL: %v"
+msgstr "Error setting control URL: %v"
+
+msgid "Exit Nodes"
+msgstr "Exit Nodes"
+
+msgid "Exit node"
+msgstr "Exit node"
+
+msgid "Failed to start login"
+msgstr "Failed to start login"
+
+msgid "Failed to toggle exit node"
+msgstr "Failed to toggle exit node"
+
+msgid "Files"
+msgstr "Files"
+
+msgid "General"
+msgstr "General"
+
+msgid "Hide window on initial start"
+msgstr "Hide window on initial start"
+
+msgid "IPv4"
+msgstr "IPv4"
+
+msgid "IPv6"
+msgstr "IPv6"
+
+msgid "If enabled, an icon will be added to the system tray"
+msgstr "If enabled, an icon will be added to the system tray"
+
+msgid "If you delete this file, you will no longer be able to save it to your local machine."
+msgstr "If you delete this file, you will no longer be able to save it to your local machine."
+
+msgid "Interval, in seconds, at which to poll the Tailscale daemon"
+msgstr "Interval, in seconds, at which to poll the Tailscale daemon"
+
+msgid "Last handshake"
+msgstr "Last handshake"
+
+msgid "Last run"
+msgstr "Last run"
+
+msgid "Last seen"
+msgstr "Last seen"
+
+msgid "Login Required"
+msgstr "Login Required"
+
+msgid "Misc."
+msgstr "Misc."
+
+msgid "Mullvad Exit Nodes"
+msgstr "Mullvad Exit Nodes"
+
+msgid "NAT port mapping protocol"
+msgstr "NAT port mapping protocol"
+
+msgid "Network Check"
+msgstr "Network Check"
+
+msgid "Never"
+msgstr "Never"
+
+msgid "New Incoming File"
+msgstr "New Incoming File"
+
+msgid "No addresses."
+msgstr "No addresses."
+
+msgid "No advertised routes."
+msgstr "No advertised routes."
+
+msgid "No folder selected"
+msgstr "No folder selected"
+
+msgid "No incoming files."
+msgstr "No incoming files."
+
+msgid "No matching exit nodes"
+msgstr "No matching exit nodes"
+
+msgid "No matching peers"
+msgstr "No matching peers"
+
+msgid "Not Connected"
+msgstr "Not Connected"
+
+msgid "Not connected"
+msgstr "Not connected"
+
+msgid "Offline"
+msgstr "Offline"
+
+msgid "Online"
+msgstr "Online"
+
+msgid "Open Browser to Login"
+msgstr "Open Browser to Login"
+
+msgid "Open a browser to authenticate with Tailscale?"
+msgstr "Open a browser to authenticate with Tailscale?"
+
+msgid "Options"
+msgstr "Options"
+
+msgid "Polling Interval"
+msgstr "Polling Interval"
+
+msgid "Port control protocol"
+msgstr "Port control protocol"
+
+msgid "Preferred DERP"
+msgstr "Preferred DERP"
+
+msgid "Quit"
+msgstr "Quit"
+
+msgid "Remove"
+msgstr "Remove"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Search peers"
+msgstr "Search peers"
+
+msgid "Select"
+msgstr "Select"
+
+msgid "Select %v(s) to send to %v"
+msgstr "Select %v(s) to send to %v"
+
+msgid "Select Auto-save Folder"
+msgstr "Select Auto-save Folder"
+
+msgid "Send _directory..."
+msgstr "Send _directory..."
+
+msgid "Send _file..."
+msgstr "Send _file..."
+
+msgid "Send file(s) to..."
+msgstr "Send file(s) to..."
+
+msgid "Sending %v file(s) to %v..."
+msgstr "Sending %v file(s) to %v..."
+
+msgid "Settings schema not found"
+msgstr "Settings schema not found"
+
+msgid "Show"
+msgstr "Show"
+
+msgid "Show _Offline Peers"
+msgstr "Show _Offline Peers"
+
+msgid "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
+msgstr "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
+
+msgid "Taildrop"
+msgstr "Taildrop"
+
+msgid "Tailscale IPs"
+msgstr "Tailscale IPs"
+
+msgid "Tailscale Status"
+msgstr "Tailscale Status"
+
+msgid "Tailscale is connected."
+msgstr "Tailscale is connected."
+
+msgid "Tailscale is not connected"
+msgstr "Tailscale is not connected"
+
+msgid "Tailscale must be authenticated before it can connect."
+msgstr "Tailscale must be authenticated before it can connect."
+
+msgid "Tailscale is not connected."
+msgstr "Tailscale is not connected."
+
+msgid "This machine"
+msgstr "This machine"
+
+msgid "This machine: %v"
+msgstr "This machine: %v"
+
+msgid "Toggle exit node"
+msgstr "Toggle exit node"
+
+msgid "Trayscale"
+msgstr "Trayscale"
+
+msgid "UDP"
+msgstr "UDP"
+
+msgid "UPnP"
+msgstr "UPnP"
+
+msgid "Use Tailscale DNS configuration"
+msgstr "Use Tailscale DNS configuration"
+
+msgid "Use Tray Icon"
+msgstr "Use Tray Icon"
+
+msgid "Use _Default"
+msgstr "Use _Default"
+
+msgid "Use _Exit Node"
+msgstr "Use _Exit Node"
+
+msgid "Use as exit node"
+msgstr "Use as exit node"
+
+msgid "Use exported routes from other machines"
+msgstr "Use exported routes from other machines"
+
+msgid "User is not Tailscale Operator"
+msgstr "User is not Tailscale Operator"
+
+msgid "_About"
+msgstr "_About"
+
+msgid "_Add"
+msgstr "_Add"
+
+msgid "_Cancel"
+msgstr "_Cancel"
+
+msgid "_Close"
+msgstr "_Close"
+
+msgid "_Copy FQDN"
+msgstr "_Copy FQDN"
+
+msgid "_Delete"
+msgstr "_Delete"
+
+msgid "_Open Browser"
+msgstr "_Open Browser"
+
+msgid "_Preferences"
+msgstr "_Preferences"
+
+msgid "_Quit"
+msgstr "_Quit"
+
+msgid "_Set URL"
+msgstr "_Set URL"

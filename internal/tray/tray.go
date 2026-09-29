@@ -10,6 +10,7 @@ import (
 	"unique"
 
 	"deedles.dev/tray"
+	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/tsutil"
 )
 
@@ -89,13 +90,13 @@ func (t *Tray) Start(status *tsutil.IPNStatus) error {
 
 	menu := item.Menu()
 
-	t.showItem, _ = menu.AddChild(tray.MenuItemLabel("Show"), handler(t.OnShow))
+	t.showItem, _ = menu.AddChild(tray.MenuItemLabel(locale.Get("Show")), handler(t.OnShow))
 	menu.AddChild(tray.MenuItemType(tray.Separator))
 	t.connToggleItem, _ = menu.AddChild(handler(t.OnConnToggle))
 	t.exitToggleItem, _ = menu.AddChild(handler(t.OnExitToggle))
 	t.selfNodeItem, _ = menu.AddChild(handler(t.OnSelfNode))
 	menu.AddChild(tray.MenuItemType(tray.Separator))
-	t.quitItem, _ = menu.AddChild(tray.MenuItemLabel("Quit"), handler(t.OnQuit))
+	t.quitItem, _ = menu.AddChild(tray.MenuItemLabel(locale.Get("Quit")), handler(t.OnQuit))
 
 	t.update(status)
 
@@ -159,7 +160,7 @@ func (t *Tray) update(status *tsutil.IPNStatus) {
 
 	if t.dirty(selfHandle, selfTitle, connected) {
 		t.selfNodeItem.SetProps(
-			tray.MenuItemLabel(fmt.Sprintf("This machine: %v", selfTitle)),
+			tray.MenuItemLabel(locale.Get("This machine: %v", selfTitle)),
 			tray.MenuItemEnabled(connected),
 		)
 	}
@@ -198,11 +199,11 @@ func statusIcon(status *tsutil.IPNStatus) *tray.Pixmap {
 func selfTitle(status *tsutil.IPNStatus) (string, bool) {
 	self, ok := status.Self()
 	if !ok {
-		return "Not connected", false
+		return locale.Get("Not connected"), false
 	}
 	addr := status.SelfAddr()
 	if !addr.IsValid() {
-		return "Not connected", false
+		return locale.Get("Not connected"), false
 	}
 
 	return fmt.Sprintf("%v (%v)", self.DisplayName(true), addr), true
@@ -210,17 +211,17 @@ func selfTitle(status *tsutil.IPNStatus) (string, bool) {
 
 func connToggleText(online bool) string {
 	if online {
-		return "Disconnect"
+		return locale.Get("Disconnect")
 	}
 
-	return "Connect"
+	return locale.Get("Connect")
 }
 
 func exitToggleText(status *tsutil.IPNStatus) string {
 	if status.ExitNodeActive() {
 		// TODO: Show some actual information about the current exit node?
-		return "Disable exit node"
+		return locale.Get("Disable exit node")
 	}
 
-	return "Enable exit node"
+	return locale.Get("Enable exit node")
 }

@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/signal"
 	"runtime/pprof"
 
+	"deedles.dev/trayscale"
+	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/ui"
 )
 
@@ -41,6 +44,14 @@ func profile() func() {
 
 func main() {
 	defer profile()()
+
+	locale.SanitizeEnvironment()
+
+	po, err := fs.Sub(trayscale.Assets(), "po")
+	if err != nil {
+		panic(err)
+	}
+	locale.Init(po)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()

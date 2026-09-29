@@ -12,6 +12,7 @@ import (
 
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
+	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -93,7 +94,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	copyFQDN := gio.NewSimpleAction("copyFQDN", nil)
 	copyFQDN.ConnectActivate(func(p *glib.Variant) {
 		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.Name(), ".")))
-		a.win.Toast("Copied FQDN to clipboard")
+		a.win.Toast(locale.Get("Copied FQDN to clipboard"))
 	})
 	page.actions.AddAction(copyFQDN)
 
@@ -107,10 +108,10 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 			copyButton.SetMarginTop(12) // Why is this necessary?
 			copyButton.SetMarginBottom(12)
 			copyButton.SetHasFrame(false)
-			copyButton.SetTooltipText("Copy to Clipboard")
+			copyButton.SetTooltipText(locale.Get("Copy to Clipboard"))
 			copyButton.ConnectClicked(func() {
 				a.clip(glib.NewValue(addr.String()))
-				a.win.Toast("Copied to clipboard")
+				a.win.Toast(locale.Get("Copied to clipboard"))
 			})
 
 			row := adw.NewActionRow()
@@ -124,7 +125,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	)
 
 	ipListPlaceholder := adw.NewActionRow()
-	ipListPlaceholder.SetTitle("No addresses.")
+	ipListPlaceholder.SetTitle(locale.Get("No addresses."))
 	page.IPList.SetPlaceholder(ipListPlaceholder)
 
 	page.routeModel = gioutil.NewListModel[netip.Prefix]()
@@ -137,7 +138,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 			removeButton.SetMarginTop(12)
 			removeButton.SetMarginBottom(12)
 			removeButton.SetHasFrame(false)
-			removeButton.SetTooltipText("Remove")
+			removeButton.SetTooltipText(locale.Get("Remove"))
 			removeButton.ConnectClicked(func() {
 				routes := slices.Collect(xiter.Filter(page.routeModel.All(), func(p netip.Prefix) bool {
 					return p.Compare(route) != 0
@@ -159,7 +160,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	)
 
 	advertisedRoutesListPlaceholder := adw.NewActionRow()
-	advertisedRoutesListPlaceholder.SetTitle("No advertised routes.")
+	advertisedRoutesListPlaceholder.SetTitle(locale.Get("No advertised routes."))
 	page.AdvertisedRoutesList.SetPlaceholder(advertisedRoutesListPlaceholder)
 
 	page.fileModel = gioutil.NewListModel[apitype.WaitingFile]()
@@ -171,7 +172,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 			saveButton.SetMarginTop(12)
 			saveButton.SetMarginBottom(12)
 			saveButton.SetHasFrame(false)
-			saveButton.SetTooltipText("Save")
+			saveButton.SetTooltipText(locale.Get("Save"))
 			saveButton.ConnectClicked(func() {
 				dialog := gtk.NewFileDialog()
 				dialog.SetModal(true)
@@ -193,13 +194,13 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 			deleteButton.SetMarginTop(12)
 			deleteButton.SetMarginBottom(12)
 			deleteButton.SetHasFrame(false)
-			deleteButton.SetTooltipText("Delete")
+			deleteButton.SetTooltipText(locale.Get("Delete"))
 			deleteButton.ConnectClicked(func() {
 				Confirmation{
-					Heading: "Delete file?",
-					Body:    "If you delete this file, you will no longer be able to save it to your local machine.",
-					Accept:  "_Delete",
-					Reject:  "_Cancel",
+					Heading: locale.Get("Delete file?"),
+					Body:    locale.Get("If you delete this file, you will no longer be able to save it to your local machine."),
+					Accept:  locale.Get("_Delete"),
+					Reject:  locale.Get("_Cancel"),
 				}.Show(a, func(accept bool) {
 					if accept {
 						err := tsutil.DeleteWaitingFile(context.TODO(), file.Name)
@@ -223,7 +224,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	)
 
 	filesListPlaceholder := adw.NewActionRow()
-	filesListPlaceholder.SetTitle("No incoming files.")
+	filesListPlaceholder.SetTitle(locale.Get("No incoming files."))
 	page.FilesList.SetPlaceholder(filesListPlaceholder)
 
 	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
@@ -292,11 +293,11 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 
 	page.AdvertiseRouteButton.ConnectClicked(func() {
 		Prompt{
-			Heading:     "Add IP Prefix",
+			Heading:     locale.Get("Add IP Prefix"),
 			Placeholder: "10.0.0.0/24",
 			Responses: []PromptResponse{
-				{ID: "cancel", Label: "_Cancel"},
-				{ID: "add", Label: "_Add", Appearance: adw.ResponseSuggested, Default: true},
+				{ID: "cancel", Label: locale.Get("_Cancel")},
+				{ID: "add", Label: locale.Get("_Add"), Appearance: adw.ResponseSuggested, Default: true},
 			},
 		}.Show(a, "", func(response, val string) {
 			if response != "add" {

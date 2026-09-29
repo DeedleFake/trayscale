@@ -5,7 +5,7 @@ import (
 	"io/fs"
 )
 
-//go:embed LICENSE *.metainfo.xml
+//go:embed LICENSE *.metainfo.xml po
 var assetsFS embed.FS
 
 func Assets() fs.FS {

@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	_ "embed"
-	"fmt"
 	"log/slog"
 	"net/netip"
 	"slices"
@@ -12,6 +11,7 @@ import (
 
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
+	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -75,7 +75,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 	copyFQDNAction := gio.NewSimpleAction("copyFQDN", nil)
 	copyFQDNAction.ConnectActivate(func(p *glib.Variant) {
 		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.Name(), ".")))
-		a.win.Toast("Copied FQDN to clipboard")
+		a.win.Toast(locale.Get("Copied FQDN to clipboard"))
 	})
 	page.actions.AddAction(copyFQDNAction)
 
@@ -90,7 +90,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 			open, finish = dialog.SelectMultipleFolders, dialog.SelectMultipleFoldersFinish
 		}
 
-		dialog.SetTitle(fmt.Sprintf("Select %v(s) to send to %v", mode, page.peer.Hostinfo().Hostname()))
+		dialog.SetTitle(locale.Get("Select %v(s) to send to %v", mode, page.peer.Hostinfo().Hostname()))
 
 		open(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
 			files, err := finish(res)
@@ -129,10 +129,10 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 			copyButton.SetMarginTop(12) // Why is this necessary?
 			copyButton.SetMarginBottom(12)
 			copyButton.SetHasFrame(false)
-			copyButton.SetTooltipText("Copy to Clipboard")
+			copyButton.SetTooltipText(locale.Get("Copy to Clipboard"))
 			copyButton.ConnectClicked(func() {
 				a.clip(glib.NewValue(addr.String()))
-				a.win.Toast("Copied to clipboard")
+				a.win.Toast(locale.Get("Copied to clipboard"))
 			})
 
 			row := adw.NewActionRow()
@@ -146,7 +146,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 	)
 
 	ipListPlaceholder := adw.NewActionRow()
-	ipListPlaceholder.SetTitle("No addresses.")
+	ipListPlaceholder.SetTitle(locale.Get("No addresses."))
 	page.IPList.SetPlaceholder(ipListPlaceholder)
 
 	page.routeModel = gioutil.NewListModel[netip.Prefix]()
@@ -159,7 +159,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 			removeButton.SetMarginTop(12)
 			removeButton.SetMarginBottom(12)
 			removeButton.SetHasFrame(false)
-			removeButton.SetTooltipText("Remove")
+			removeButton.SetTooltipText(locale.Get("Remove"))
 			removeButton.ConnectClicked(func() {
 				routes := slices.Collect(xiter.Filter(page.routeModel.All(), func(p netip.Prefix) bool {
 					return p.Compare(route) != 0
@@ -181,7 +181,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 	)
 
 	advertisedRoutesListPlaceholder := adw.NewActionRow()
-	advertisedRoutesListPlaceholder.SetTitle("No advertised routes.")
+	advertisedRoutesListPlaceholder.SetTitle(locale.Get("No advertised routes."))
 	page.AdvertisedRoutesList.SetPlaceholder(advertisedRoutesListPlaceholder)
 
 	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {

@@ -13,7 +13,7 @@
             <property name="spacing">12</property>
             <child>
               <object class="AdwPreferencesGroup" id="IPGroup">
-                <property name="title">Tailscale IPs</property>
+                <property name="title" translatable="yes">Tailscale IPs</property>
                 <child>
                   <object class="GtkListBox" id="IPList">
                     <property name="css-classes">boxed-list</property>
@@ -24,15 +24,15 @@
             </child>
             <child>
               <object class="AdwPreferencesGroup" id="MiscGroup">
-                <property name="title">Misc.</property>
+                <property name="title" translatable="yes">Misc.</property>
                 <child>
                   <object class="AdwSwitchRow" id="ExitNodeRow">
-                    <property name="title">Use as exit node</property>
+                    <property name="title" translatable="yes">Use as exit node</property>
                   </object>
                 </child>
                 <child>
                   <object class="AdwActionRow" id="OnlineRow">
-                    <property name="title">Online</property>
+                    <property name="title" translatable="yes">Online</property>
                     <child>
                       <object class="GtkImage" id="Online"/>
                     </child>
@@ -40,7 +40,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="LastSeenRow">
-                    <property name="title">Last seen</property>
+                    <property name="title" translatable="yes">Last seen</property>
                     <child>
                       <object class="GtkLabel" id="LastSeen"/>
                     </child>
@@ -48,7 +48,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="CreatedRow">
-                    <property name="title">Created at</property>
+                    <property name="title" translatable="yes">Created at</property>
                     <child>
                       <object class="GtkLabel" id="Created"/>
                     </child>
@@ -56,7 +56,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="LastHandshakeRow">
-                    <property name="title">Last handshake</property>
+                    <property name="title" translatable="yes">Last handshake</property>
                     <child>
                       <object class="GtkLabel" id="LastHandshake"/>
                     </child>
@@ -64,7 +64,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="RxBytesRow">
-                    <property name="title">Bytes received</property>
+                    <property name="title" translatable="yes">Bytes received</property>
                     <child>
                       <object class="GtkLabel" id="RxBytes"/>
                     </child>
@@ -72,7 +72,7 @@
                 </child>
                 <child>
                   <object class="AdwActionRow" id="TxBytesRow">
-                    <property name="title">Bytes sent</property>
+                    <property name="title" translatable="yes">Bytes sent</property>
                     <child>
                       <object class="GtkLabel" id="TxBytes"/>
                     </child>
@@ -82,7 +82,7 @@
             </child>
             <child>
               <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
-                <property name="title">Advertised Routes</property>
+                <property name="title" translatable="yes">Advertised Routes</property>
                 <child>
                   <object class="GtkListBox" id="AdvertisedRoutesList">
                     <property name="css-classes">boxed-list</property>

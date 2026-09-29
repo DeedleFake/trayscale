@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"deedles.dev/trayscale/internal/gutil"
+	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/peersearch"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -20,8 +21,6 @@ import (
 	"tailscale.com/tailcfg"
 	"tailscale.com/util/set"
 )
-
-const mullvadPageBaseName = "Mullvad Exit Nodes"
 
 //go:embed mullvadpage.ui
 var mullvadPageXML string
@@ -115,7 +114,7 @@ func (page *MullvadPage) Actions() gio.ActionGrouper {
 
 func (page *MullvadPage) Bind(stackPage *adw.ViewStackPage) {
 	page.stackPage = stackPage
-	stackPage.SetTitle(mullvadPageBaseName)
+	stackPage.SetTitle(locale.Get("Mullvad Exit Nodes"))
 	stackPage.SetIconName("network-workgroup-symbolic")
 }
 
@@ -179,11 +178,11 @@ func (page *MullvadPage) Update(s tsutil.Status) bool {
 	}
 
 	if exitNodeCountryCode != "" {
-		page.locations[exitNodeCountryCode].SetSubtitle("Current exit node location")
+		page.locations[exitNodeCountryCode].SetSubtitle(locale.Get("Current exit node location"))
 		page.stackPage.SetTitle(mullvadLongLocationName(exitLoc))
 		page.stackPage.SetNeedsAttention(true)
 	} else {
-		page.stackPage.SetTitle(mullvadPageBaseName)
+		page.stackPage.SetTitle(locale.Get("Mullvad Exit Nodes"))
 		page.stackPage.SetNeedsAttention(false)
 	}
 

@@ -1,0 +1,358 @@
+# Trayscale Spanish catalog.
+msgid ""
+msgstr ""
+"Project-Id-Version: trayscale\n"
+"Report-Msgid-Bugs-To: https://github.com/DeedleFake/trayscale/issues\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Accept DNS"
+msgstr "Aceptar DNS"
+
+msgid "Accept routes"
+msgstr "Aceptar rutas"
+
+msgid "Add IP Prefix"
+msgstr "Añadir prefijo IP"
+
+msgid "Admin _Dashboard"
+msgstr "Panel de _administración"
+
+msgid "Advertise exit node"
+msgstr "Anunciar nodo de salida"
+
+msgid "Advertised Routes"
+msgstr "Rutas anunciadas"
+
+msgid "Allow LAN access"
+msgstr "Permitir acceso a la LAN"
+
+msgid "Allow this machine to be used as an exit node"
+msgstr "Permitir que esta máquina se use como nodo de salida"
+
+msgid "Auto-save Received Files"
+msgstr "Guardar automáticamente los archivos recibidos"
+
+msgid "Bypass Tailscale routing for local network access"
+msgstr "Omitir el enrutamiento de Tailscale para acceso a la red local"
+
+msgid "Bytes received"
+msgstr "Bytes recibidos"
+
+msgid "Bytes sent"
+msgstr "Bytes enviados"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Captive portal detected"
+msgstr "Portal cautivo detectado"
+
+msgid "Change Control _Server"
+msgstr "Cambiar _servidor de control"
+
+msgid "Choose folder"
+msgstr "Elegir carpeta"
+
+msgid "Connect"
+msgstr "Conectar"
+
+msgid "Control Server URL"
+msgstr "URL del servidor de control"
+
+msgid "Copied FQDN to clipboard"
+msgstr "FQDN copiado al portapapeles"
+
+msgid "Copied address to clipboard"
+msgstr "Dirección copiada al portapapeles"
+
+msgid "Copied to clipboard"
+msgstr "Copiado al portapapeles"
+
+msgid "Copy to Clipboard"
+msgstr "Copiar al portapapeles"
+
+msgid "Created at"
+msgstr "Creado el"
+
+msgid "Current exit node location"
+msgstr "Ubicación actual del nodo de salida"
+
+msgid "DERP Latencies"
+msgstr "Latencias de DERP"
+
+msgid "Delete"
+msgstr "Eliminar"
+
+msgid "Delete file?"
+msgstr "¿Eliminar el archivo?"
+
+msgid "Disable exit node"
+msgstr "Desactivar nodo de salida"
+
+msgid "Disabled"
+msgstr "Desactivado"
+
+msgid "Disconnect"
+msgstr "Desconectar"
+
+msgid "Enable exit node"
+msgstr "Activar nodo de salida"
+
+msgid "Enabled"
+msgstr "Activado"
+
+msgid "Error setting control URL: %v"
+msgstr "Error al establecer la URL de control: %v"
+
+msgid "Exit Nodes"
+msgstr "Nodos de salida"
+
+msgid "Exit node"
+msgstr "Nodo de salida"
+
+msgid "Failed to start login"
+msgstr "No se pudo iniciar el inicio de sesión"
+
+msgid "Failed to toggle exit node"
+msgstr "No se pudo alternar el nodo de salida"
+
+msgid "Files"
+msgstr "Archivos"
+
+msgid "General"
+msgstr "General"
+
+msgid "Hide window on initial start"
+msgstr "Ocultar la ventana al inicio"
+
+msgid "IPv4"
+msgstr "IPv4"
+
+msgid "IPv6"
+msgstr "IPv6"
+
+msgid "If enabled, an icon will be added to the system tray"
+msgstr "Si está activado, se añadirá un icono a la bandeja del sistema"
+
+msgid "If you delete this file, you will no longer be able to save it to your local machine."
+msgstr "Si elimina este archivo, ya no podrá guardarlo en su máquina local."
+
+msgid "Interval, in seconds, at which to poll the Tailscale daemon"
+msgstr "Intervalo, en segundos, para consultar el demonio de Tailscale"
+
+msgid "Last handshake"
+msgstr "Último handshake"
+
+msgid "Last run"
+msgstr "Última ejecución"
+
+msgid "Last seen"
+msgstr "Visto por última vez"
+
+msgid "Login Required"
+msgstr "Inicio de sesión requerido"
+
+msgid "Misc."
+msgstr "Varios"
+
+msgid "Mullvad Exit Nodes"
+msgstr "Nodos de salida Mullvad"
+
+msgid "NAT port mapping protocol"
+msgstr "Protocolo de asignación de puertos NAT"
+
+msgid "Network Check"
+msgstr "Comprobación de red"
+
+msgid "Never"
+msgstr "Nunca"
+
+msgid "New Incoming File"
+msgstr "Nuevo archivo entrante"
+
+msgid "No addresses."
+msgstr "Sin direcciones."
+
+msgid "No advertised routes."
+msgstr "Sin rutas anunciadas."
+
+msgid "No folder selected"
+msgstr "Ninguna carpeta seleccionada"
+
+msgid "No incoming files."
+msgstr "Sin archivos entrantes."
+
+msgid "No matching exit nodes"
+msgstr "No hay nodos de salida coincidentes"
+
+msgid "No matching peers"
+msgstr "No hay peers coincidentes"
+
+msgid "Not Connected"
+msgstr "No conectado"
+
+msgid "Not connected"
+msgstr "No conectado"
+
+msgid "Offline"
+msgstr "Desconectado"
+
+msgid "Online"
+msgstr "Conectado"
+
+msgid "Open Browser to Login"
+msgstr "Abrir navegador para iniciar sesión"
+
+msgid "Open a browser to authenticate with Tailscale?"
+msgstr "¿Abrir un navegador para autenticarse con Tailscale?"
+
+msgid "Options"
+msgstr "Opciones"
+
+msgid "Polling Interval"
+msgstr "Intervalo de consulta"
+
+msgid "Port control protocol"
+msgstr "Protocolo de control de puertos"
+
+msgid "Preferred DERP"
+msgstr "DERP preferido"
+
+msgid "Quit"
+msgstr "Salir"
+
+msgid "Remove"
+msgstr "Quitar"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "Search peers"
+msgstr "Buscar peers"
+
+msgid "Select"
+msgstr "Seleccionar"
+
+msgid "Select %v(s) to send to %v"
+msgstr "Seleccione %v(s) para enviar a %v"
+
+msgid "Select Auto-save Folder"
+msgstr "Seleccionar carpeta de guardado automático"
+
+msgid "Send _directory..."
+msgstr "Enviar _directorio..."
+
+msgid "Send _file..."
+msgstr "Enviar _archivo..."
+
+msgid "Send file(s) to..."
+msgstr "Enviar archivo(s) a..."
+
+msgid "Sending %v file(s) to %v..."
+msgstr "Enviando %v archivo(s) a %v..."
+
+msgid "Settings schema not found"
+msgstr "Esquema de ajustes no encontrado"
+
+msgid "Show"
+msgstr "Mostrar"
+
+msgid "Show _Offline Peers"
+msgstr "Mostrar peers _desconectados"
+
+msgid "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
+msgstr "Algunas funciones pueden no funcionar como se espera. Para solucionarlo, ejecute el siguiente comando en una terminal:"
+
+msgid "Taildrop"
+msgstr "Taildrop"
+
+msgid "Tailscale IPs"
+msgstr "IPs de Tailscale"
+
+msgid "Tailscale Status"
+msgstr "Estado de Tailscale"
+
+msgid "Tailscale is connected."
+msgstr "Tailscale está conectado."
+
+msgid "Tailscale is not connected"
+msgstr "Tailscale no está conectado"
+
+msgid "Tailscale must be authenticated before it can connect."
+msgstr "Tailscale debe autenticarse antes de poder conectarse."
+
+msgid "Tailscale is not connected."
+msgstr "Tailscale no está conectado."
+
+msgid "This machine"
+msgstr "Esta máquina"
+
+msgid "This machine: %v"
+msgstr "Esta máquina: %v"
+
+msgid "Toggle exit node"
+msgstr "Alternar nodo de salida"
+
+msgid "Trayscale"
+msgstr "Trayscale"
+
+msgid "UDP"
+msgstr "UDP"
+
+msgid "UPnP"
+msgstr "UPnP"
+
+msgid "Use Tailscale DNS configuration"
+msgstr "Usar la configuración DNS de Tailscale"
+
+msgid "Use Tray Icon"
+msgstr "Usar icono de bandeja"
+
+msgid "Use _Default"
+msgstr "Usar _Predeterminado"
+
+msgid "Use _Exit Node"
+msgstr "Usar nodo de _salida"
+
+msgid "Use as exit node"
+msgstr "Usar como nodo de salida"
+
+msgid "Use exported routes from other machines"
+msgstr "Usar rutas exportadas de otras máquinas"
+
+msgid "User is not Tailscale Operator"
+msgstr "El usuario no es operador de Tailscale"
+
+msgid "_About"
+msgstr "_Acerca de"
+
+msgid "_Add"
+msgstr "_Añadir"
+
+msgid "_Cancel"
+msgstr "_Cancelar"
+
+msgid "_Close"
+msgstr "_Cerrar"
+
+msgid "_Copy FQDN"
+msgstr "_Copiar FQDN"
+
+msgid "_Delete"
+msgstr "_Eliminar"
+
+msgid "_Open Browser"
+msgstr "_Abrir navegador"
+
+msgid "_Preferences"
+msgstr "_Preferencias"
+
+msgid "_Quit"
+msgstr "_Salir"
+
+msgid "_Set URL"
+msgstr "_Establecer URL"

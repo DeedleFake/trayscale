@@ -72,8 +72,10 @@ Loanwords / daemon:
 
 **Builder `.ui` files:** Static `title` / `subtitle` / `label` / `tooltip-text` / `description` (and menu `label` attributes in `menu.ui`) marked `translatable="yes"` use GtkBuilder gettext with domain `trayscale`.
 
+**Desktop launcher:** `dev.deedles.Trayscale.desktop` uses Desktop Entry locale keys (`Name[es]`, `Comment[ja]`, …) for es / pt / ja.
+
 **Not wrapped yet:**
 
 - GSettings schema summaries (`dev.deedles.Trayscale.gschema.xml`)
-- Desktop / AppStream metadata
+- AppStream metadata (`.metainfo.xml`)
 - Proper nouns and dynamic Tailscale data (hostnames, IPs, region names from the control plane)

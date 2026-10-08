@@ -312,6 +312,9 @@ func peerIsOnline(peer tailcfg.NodeView) bool {
 	return peer.Valid() && peer.Online().Get()
 }
 
+// peerIconNames returns icon names in order of preference: the name
+// Adwaita uses, then Breeze's if Adwaita's is missing there, then one
+// that nearly every theme has.
 func peerIconNames(online, exitNodeOption, exitNode bool) []string {
 	if exitNode {
 		if !online {
@@ -323,8 +326,7 @@ func peerIconNames(online, exitNodeOption, exitNode bool) []string {
 		return []string{"network-offline-symbolic"}
 	}
 	if exitNodeOption {
-		return []string{"network-vpn-symbolic"}
+		return []string{"network-vpn-symbolic", "channel-secure-symbolic"}
 	}
-	// Breeze doesn't have network-transmit-receive.
-	return []string{"network-transmit-receive-symbolic", "network-wired-activated-symbolic"}
+	return []string{"network-transmit-receive-symbolic", "network-wired-activated-symbolic", "network-server-symbolic"}
 }

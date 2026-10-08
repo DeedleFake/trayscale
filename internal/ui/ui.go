@@ -29,7 +29,7 @@ var (
 		return cmp.Compare(s1.String(), s2.String())
 	}))
 
-	boolTrueIcon    = gio.NewThemedIconWithDefaultFallbacks("emblem-ok-symbolic")
+	boolTrueIcon    = gio.NewThemedIconWithDefaultFallbacks("object-select-symbolic")
 	boolFalseIcon   = gio.NewThemedIconWithDefaultFallbacks("window-close-symbolic")
 	boolUnknownIcon = gio.NewThemedIconWithDefaultFallbacks("dialog-question-symbolic")
 )

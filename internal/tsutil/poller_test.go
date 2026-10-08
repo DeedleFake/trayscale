@@ -10,7 +10,6 @@ import (
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/key"
-	"tailscale.com/types/netmap"
 )
 
 func TestSelfAndSelfAddr(t *testing.T) {
@@ -66,13 +65,13 @@ func TestIsShareeNode(t *testing.T) {
 func TestApplyInitialStatusClearsPeersWhenEmpty(t *testing.T) {
 	id := tailcfg.StableNodeID("n1")
 	var s IPNStatus
-	s.applyNetMap(testNetMap(id, 1, false))
+	s.applyInitialStatus(testStatus(testPeerStatus(id, 1, false, time.Time{})))
 	require.Contains(t, s.Peers, id)
 
 	s.applyInitialStatus(&ipnstate.Status{Peer: nil})
 	require.Empty(t, s.Peers)
 
-	s.applyNetMap(testNetMap(id, 1, false))
+	s.applyInitialStatus(testStatus(testPeerStatus(id, 1, false, time.Time{})))
 	s.applyInitialStatus(&ipnstate.Status{Peer: map[key.NodePublic]*ipnstate.PeerStatus{}})
 	require.Empty(t, s.Peers)
 }
@@ -80,52 +79,17 @@ func TestApplyInitialStatusClearsPeersWhenEmpty(t *testing.T) {
 func TestApplyInitialStatusReplacesNonEmptyPeerMap(t *testing.T) {
 	keep := tailcfg.StableNodeID("keep")
 	drop := tailcfg.StableNodeID("drop")
-	var s IPNStatus
-	s.applyNetMap(&netmap.NetworkMap{
-		Peers: []tailcfg.NodeView{
-			testPeer(keep, 1, false),
-			testPeer(drop, 2, true),
-		},
-	})
-	require.Len(t, s.Peers, 2)
-
-	s.applyInitialStatus(testStatus(testPeerStatus(keep, 1, true, time.Time{})))
-	require.Len(t, s.Peers, 1)
-	require.Contains(t, s.Peers, keep)
-	require.True(t, s.Peers[keep].Online().Get())
-}
-
-func TestApplyNotifyPrefersInitialStatusOverNetMap(t *testing.T) {
-	keep := tailcfg.StableNodeID("keep")
-	drop := tailcfg.StableNodeID("drop")
 	lastSeen := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
+	s := IPNStatus{Peers: map[tailcfg.StableNodeID]tailcfg.NodeView{
+		keep: testPeer(keep, 1, false),
+		drop: testPeer(drop, 2, true),
+	}}
 
-	n := testNotify(
-		&netmap.NetworkMap{
-			Peers: []tailcfg.NodeView{
-				testPeer(keep, 1, false),
-				testPeer(drop, 2, true),
-			},
-		},
-		testStatus(testPeerStatus(keep, 1, true, lastSeen)),
-	)
-
-	var s IPNStatus
-	s.applyNotify(n)
+	s.applyInitialStatus(testStatus(testPeerStatus(keep, 1, true, lastSeen)))
 	require.Len(t, s.Peers, 1)
 	require.Contains(t, s.Peers, keep)
-	require.NotContains(t, s.Peers, drop)
 	require.True(t, s.Peers[keep].Online().Get())
 	require.Equal(t, lastSeen, s.Peers[keep].LastSeen().Get())
-}
-
-func TestApplyNotifyFallsBackToNetMap(t *testing.T) {
-	id := tailcfg.StableNodeID("n1")
-	var s IPNStatus
-	s.applyNotify(testNotify(testNetMap(id, 1, false), nil))
-	require.Len(t, s.Peers, 1)
-	require.Contains(t, s.Peers, id)
-	require.False(t, s.Peers[id].Online().Get())
 }
 
 func TestApplyNotifyDeltasAfterBootstrap(t *testing.T) {
@@ -147,12 +111,6 @@ func TestApplyNotifyTargetsDirty(t *testing.T) {
 	t.Run("bootstrap initial status", func(t *testing.T) {
 		var s IPNStatus
 		_, targetsDirty := s.applyNotify(&ipn.Notify{InitialStatus: testStatus(testPeerStatus(id, 1, true, time.Time{}))})
-		require.True(t, targetsDirty)
-	})
-
-	t.Run("bootstrap netmap", func(t *testing.T) {
-		var s IPNStatus
-		_, targetsDirty := s.applyNotify(testNotify(testNetMap(id, 1, false), nil))
 		require.True(t, targetsDirty)
 	})
 
@@ -294,12 +252,6 @@ func testSelfNode(id tailcfg.NodeID, stable tailcfg.StableNodeID, user tailcfg.U
 	}
 }
 
-func testNetMap(id tailcfg.StableNodeID, nodeID tailcfg.NodeID, online bool) *netmap.NetworkMap {
-	return &netmap.NetworkMap{
-		Peers: []tailcfg.NodeView{testPeer(id, nodeID, online)},
-	}
-}
-
 func testPeerStatus(id tailcfg.StableNodeID, nodeID tailcfg.NodeID, online bool, lastSeen time.Time) *ipnstate.PeerStatus {
 	return &ipnstate.PeerStatus{
 		ID:       id,
@@ -315,12 +267,4 @@ func testStatus(ps *ipnstate.PeerStatus) *ipnstate.Status {
 	return &ipnstate.Status{
 		Peer: map[key.NodePublic]*ipnstate.PeerStatus{pub: ps},
 	}
-}
-
-func testNotify(nm *netmap.NetworkMap, initial *ipnstate.Status) *ipn.Notify {
-	n := ipn.Notify{InitialStatus: initial}
-	if nm != nil {
-		n.NetMap = nm //nolint:staticcheck // applyNotify still reads NetMap as a fallback
-	}
-	return &n
 }

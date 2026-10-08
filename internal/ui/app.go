@@ -176,6 +176,17 @@ func (a *App) init(ctx context.Context) {
 	css.LoadFromString(appCSS)
 	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
+	gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault()).ConnectChanged(func() {
+		if a.win == nil {
+			return
+		}
+		for _, page := range a.win.pages {
+			if page, ok := page.(*PeerPage); ok {
+				page.updateIcon()
+			}
+		}
+	})
+
 	var hideWindow bool
 	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, locale.Get("Hide window on initial start"), "")
 	a.app.ConnectHandleLocalOptions(func(options *glib.VariantDict) int {

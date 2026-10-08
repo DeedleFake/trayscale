@@ -32,6 +32,7 @@ type PeerPage struct {
 	stackPage *adw.ViewStackPage
 	peer      tailcfg.NodeView
 	actions   *gio.SimpleActionGroup
+	iconNames *[]string
 
 	Page                  *adw.StatusPage
 	IPList                *gtk.ListBox
@@ -221,6 +222,16 @@ func (page *PeerPage) Actions() gio.ActionGrouper {
 
 func (page *PeerPage) Bind(stackPage *adw.ViewStackPage) {
 	page.stackPage = stackPage
+	page.updateIcon()
+}
+
+func (page *PeerPage) updateIcon() {
+	if page.iconNames == nil {
+		// Bind runs before the first Update.
+		return
+	}
+	theme := gtk.IconThemeGetForDisplay(page.Page.Display())
+	page.stackPage.SetIconName(gutil.FirstIconName(theme, *page.iconNames...))
 }
 
 func (page *PeerPage) Update(s tsutil.Status) bool {
@@ -249,7 +260,10 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	}
 
 	page.stackPage.SetTitle(peerName(page.peer))
-	page.stackPage.SetIconName(peerIconName(online, exitNodeOption, exitNode))
+	if iconNames := peerIconNames(online, exitNodeOption, exitNode); iconNames != page.iconNames {
+		page.iconNames = iconNames
+		page.updateIcon()
+	}
 	page.stackPage.SetNeedsAttention(exitNode)
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
@@ -298,18 +312,29 @@ func peerIsOnline(peer tailcfg.NodeView) bool {
 	return peer.Valid() && peer.Online().Get()
 }
 
-func peerIconName(online, exitNodeOption, exitNode bool) string {
+// Peer icon names in order of preference: the name Adwaita uses, then
+// Breeze's if Adwaita's is missing there, then one that nearly every
+// theme has.
+var (
+	offlineExitNodeIcons = []string{"security-low-symbolic"}
+	onlineExitNodeIcons  = []string{"security-high-symbolic"}
+	offlinePeerIcons     = []string{"network-offline-symbolic"}
+	exitNodeOptionIcons  = []string{"network-vpn-symbolic", "channel-secure-symbolic"}
+	onlinePeerIcons      = []string{"network-transmit-receive-symbolic", "network-wired-activated-symbolic", "network-server-symbolic"}
+)
+
+func peerIconNames(online, exitNodeOption, exitNode bool) *[]string {
 	if exitNode {
 		if !online {
-			return "security-low-symbolic"
+			return &offlineExitNodeIcons
 		}
-		return "security-high-symbolic"
+		return &onlineExitNodeIcons
 	}
 	if !online {
-		return "network-offline-symbolic"
+		return &offlinePeerIcons
 	}
 	if exitNodeOption {
-		return "network-vpn-symbolic"
+		return &exitNodeOptionIcons
 	}
-	return "network-transmit-receive-symbolic"
+	return &onlinePeerIcons
 }

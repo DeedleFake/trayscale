@@ -177,8 +177,13 @@ func (a *App) init(ctx context.Context) {
 	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
 	gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault()).ConnectChanged(func() {
-		if a.win != nil {
-			a.win.updateStackPages(a.win.ipn)
+		if a.win == nil {
+			return
+		}
+		for _, page := range a.win.pages {
+			if page, ok := page.(*PeerPage); ok {
+				page.updateIcon()
+			}
 		}
 	})
 

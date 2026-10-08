@@ -32,6 +32,7 @@ type PeerPage struct {
 	stackPage *adw.ViewStackPage
 	peer      tailcfg.NodeView
 	actions   *gio.SimpleActionGroup
+	iconNames []string
 
 	Page                  *adw.StatusPage
 	IPList                *gtk.ListBox
@@ -221,6 +222,16 @@ func (page *PeerPage) Actions() gio.ActionGrouper {
 
 func (page *PeerPage) Bind(stackPage *adw.ViewStackPage) {
 	page.stackPage = stackPage
+	page.updateIcon()
+}
+
+func (page *PeerPage) updateIcon() {
+	if len(page.iconNames) == 0 {
+		// Bind runs before the first Update.
+		return
+	}
+	theme := gtk.IconThemeGetForDisplay(page.Page.Display())
+	page.stackPage.SetIconName(gutil.FirstIconName(theme, page.iconNames...))
 }
 
 func (page *PeerPage) Update(s tsutil.Status) bool {
@@ -249,7 +260,10 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	}
 
 	page.stackPage.SetTitle(peerName(page.peer))
-	page.stackPage.SetIconName(peerIconName(gtk.IconThemeGetForDisplay(page.Page.Display()), online, exitNodeOption, exitNode))
+	if iconNames := peerIconNames(online, exitNodeOption, exitNode); !slices.Equal(iconNames, page.iconNames) {
+		page.iconNames = iconNames
+		page.updateIcon()
+	}
 	page.stackPage.SetNeedsAttention(exitNode)
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
@@ -298,19 +312,19 @@ func peerIsOnline(peer tailcfg.NodeView) bool {
 	return peer.Valid() && peer.Online().Get()
 }
 
-func peerIconName(theme *gtk.IconTheme, online, exitNodeOption, exitNode bool) string {
+func peerIconNames(online, exitNodeOption, exitNode bool) []string {
 	if exitNode {
 		if !online {
-			return "security-low-symbolic"
+			return []string{"security-low-symbolic"}
 		}
-		return "security-high-symbolic"
+		return []string{"security-high-symbolic"}
 	}
 	if !online {
-		return "network-offline-symbolic"
+		return []string{"network-offline-symbolic"}
 	}
 	if exitNodeOption {
-		return "network-vpn-symbolic"
+		return []string{"network-vpn-symbolic"}
 	}
 	// Breeze doesn't have network-transmit-receive.
-	return gutil.FirstIconName(theme, "network-transmit-receive-symbolic", "network-wired-activated-symbolic")
+	return []string{"network-transmit-receive-symbolic", "network-wired-activated-symbolic"}
 }

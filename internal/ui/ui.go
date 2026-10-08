@@ -2,7 +2,6 @@ package ui
 
 import (
 	"cmp"
-	_ "embed"
 	"net/netip"
 	"time"
 
@@ -34,21 +33,6 @@ var (
 	boolFalseIcon   = gio.NewThemedIconWithDefaultFallbacks("window-close-symbolic")
 	boolUnknownIcon = gio.NewThemedIconWithDefaultFallbacks("dialog-question-symbolic")
 )
-
-// GtkApplication looks up icons under its resource base path after the icon
-// theme, so these fill in icons that a theme doesn't have.
-//
-//go:generate glib-compile-resources icons.gresource.xml
-//go:embed icons.gresource
-var iconsGResource []byte
-
-func init() {
-	icons, err := gio.NewResourceFromData(glib.NewBytes(iconsGResource))
-	if err != nil {
-		panic(err)
-	}
-	gio.ResourcesRegister(icons)
-}
 
 func formatTime(t time.Time) string {
 	if t.IsZero() {

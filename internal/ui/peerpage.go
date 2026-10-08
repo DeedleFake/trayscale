@@ -249,7 +249,7 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	}
 
 	page.stackPage.SetTitle(peerName(page.peer))
-	page.stackPage.SetIconName(peerIconName(online, exitNodeOption, exitNode))
+	page.stackPage.SetIconName(peerIconName(gtk.IconThemeGetForDisplay(page.Page.Display()), online, exitNodeOption, exitNode))
 	page.stackPage.SetNeedsAttention(exitNode)
 
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
@@ -298,7 +298,7 @@ func peerIsOnline(peer tailcfg.NodeView) bool {
 	return peer.Valid() && peer.Online().Get()
 }
 
-func peerIconName(online, exitNodeOption, exitNode bool) string {
+func peerIconName(theme *gtk.IconTheme, online, exitNodeOption, exitNode bool) string {
 	if exitNode {
 		if !online {
 			return "security-low-symbolic"
@@ -311,5 +311,6 @@ func peerIconName(online, exitNodeOption, exitNode bool) string {
 	if exitNodeOption {
 		return "network-vpn-symbolic"
 	}
-	return "network-transmit-receive-symbolic"
+	// Breeze doesn't have network-transmit-receive.
+	return gutil.FirstIconName(theme, "network-transmit-receive-symbolic", "network-wired-activated-symbolic")
 }

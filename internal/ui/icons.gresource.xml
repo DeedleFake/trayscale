@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/dev/deedles/Trayscale">
+    <file>icons/scalable/status/network-transmit-receive-symbolic.svg</file>
+  </gresource>
+</gresources>

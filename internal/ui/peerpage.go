@@ -32,7 +32,7 @@ type PeerPage struct {
 	stackPage *adw.ViewStackPage
 	peer      tailcfg.NodeView
 	actions   *gio.SimpleActionGroup
-	iconNames []string
+	iconNames *[]string
 
 	Page                  *adw.StatusPage
 	IPList                *gtk.ListBox
@@ -226,12 +226,12 @@ func (page *PeerPage) Bind(stackPage *adw.ViewStackPage) {
 }
 
 func (page *PeerPage) updateIcon() {
-	if len(page.iconNames) == 0 {
+	if page.iconNames == nil {
 		// Bind runs before the first Update.
 		return
 	}
 	theme := gtk.IconThemeGetForDisplay(page.Page.Display())
-	page.stackPage.SetIconName(gutil.FirstIconName(theme, page.iconNames...))
+	page.stackPage.SetIconName(gutil.FirstIconName(theme, *page.iconNames...))
 }
 
 func (page *PeerPage) Update(s tsutil.Status) bool {
@@ -260,7 +260,7 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	}
 
 	page.stackPage.SetTitle(peerName(page.peer))
-	if iconNames := peerIconNames(online, exitNodeOption, exitNode); !slices.Equal(iconNames, page.iconNames) {
+	if iconNames := peerIconNames(online, exitNodeOption, exitNode); iconNames != page.iconNames {
 		page.iconNames = iconNames
 		page.updateIcon()
 	}
@@ -312,21 +312,29 @@ func peerIsOnline(peer tailcfg.NodeView) bool {
 	return peer.Valid() && peer.Online().Get()
 }
 
-// peerIconNames returns icon names in order of preference: the name
-// Adwaita uses, then Breeze's if Adwaita's is missing there, then one
-// that nearly every theme has.
-func peerIconNames(online, exitNodeOption, exitNode bool) []string {
+// Peer icon names in order of preference: the name Adwaita uses, then
+// Breeze's if Adwaita's is missing there, then one that nearly every
+// theme has.
+var (
+	offlineExitNodeIcons = []string{"security-low-symbolic"}
+	onlineExitNodeIcons  = []string{"security-high-symbolic"}
+	offlinePeerIcons     = []string{"network-offline-symbolic"}
+	exitNodeOptionIcons  = []string{"network-vpn-symbolic", "channel-secure-symbolic"}
+	onlinePeerIcons      = []string{"network-transmit-receive-symbolic", "network-wired-activated-symbolic", "network-server-symbolic"}
+)
+
+func peerIconNames(online, exitNodeOption, exitNode bool) *[]string {
 	if exitNode {
 		if !online {
-			return []string{"security-low-symbolic"}
+			return &offlineExitNodeIcons
 		}
-		return []string{"security-high-symbolic"}
+		return &onlineExitNodeIcons
 	}
 	if !online {
-		return []string{"network-offline-symbolic"}
+		return &offlinePeerIcons
 	}
 	if exitNodeOption {
-		return []string{"network-vpn-symbolic", "channel-secure-symbolic"}
+		return &exitNodeOptionIcons
 	}
-	return []string{"network-transmit-receive-symbolic", "network-wired-activated-symbolic", "network-server-symbolic"}
+	return &onlinePeerIcons
 }

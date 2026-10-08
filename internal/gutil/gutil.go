@@ -168,3 +168,15 @@ func Assert[T any, V any, C interface {
 	v, ok = obj.Cast().(T)
 	return v, ok
 }
+
+// FirstIconName returns the first of names that theme has. If theme
+// has none of them, it returns the first name so that the usual
+// missing icon handling applies.
+func FirstIconName(theme *gtk.IconTheme, names ...string) string {
+	for _, name := range names {
+		if theme.HasIcon(name) {
+			return name
+		}
+	}
+	return names[0]
+}

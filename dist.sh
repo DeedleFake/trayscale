@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # This script is intended to help with correct packaging of Trayscale.
 # It is not intended for general usage. If you'd like to install
 # Trayscale manually, you can read through the installation section of
@@ -37,7 +39,9 @@ _install() {
 	fi
 
 	echo "Installing to $dstdir"
-	install -D -t "$dstdir/bin" trayscale
+	if [ -f trayscale ]; then
+		install -D -t "$dstdir/bin" trayscale
+	fi
 	install -Dm644 -t "$dstdir/share/icons/hicolor/256x256/apps" dev.deedles.Trayscale.png
 	install -Dm644 -t "$dstdir/share/applications" dev.deedles.Trayscale.desktop
 	install -Dm644 -t "$dstdir/share/metainfo" dev.deedles.Trayscale.metainfo.xml

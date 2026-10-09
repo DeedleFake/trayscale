@@ -55,6 +55,17 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.20.0" date="2026-10-08">
+			<description>
+				<ul>
+					<li>Support Tailscale v1.104's changes to IPN bus notification. Tailscale v1.100 or newer is now required.</li>
+					<li>Add localization support, with Spanish, Portuguese, and Japanese translations.</li>
+					<li>Add fallbacks for peer list icons for themes that are missing the defaults.</li>
+					<li>Collapse the sidebar at a wider window width.</li>
+					<li>Update Tailscale to v1.104.1 and other dependencies.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.19.0" date="2026-08-31">
 			<description>
 				<ul>

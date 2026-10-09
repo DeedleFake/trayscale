@@ -2,7 +2,7 @@
 """Drive an isolated Trayscale window for verification.
 
 Public commands: launch, doctor, cleanup, action, actions, snapshot,
-screenshot, find, click, fill, press, wait. `_inner` is launch-only.
+screenshot, find, click, select, fill, press, wait. `_inner` is launch-only.
 
 This process never kills by binary name. Cleanup signals only the
 process group recorded at launch, so a user-owned Trayscale stays up.
@@ -27,8 +27,9 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 APP_ID = "dev.deedles.Trayscale"
 APP_PATH = "/dev/deedles/Trayscale"
 APP_TITLE = "Trayscale"
-ATSPI_LAUNCHER = "/usr/lib/at-spi-bus-launcher"
-ATSPI_REGISTRY = "/usr/lib/at-spi2-registryd"
+# at-spi2-core installs its helpers under a distro-specific libexec dir:
+# /usr/lib on Arch, /usr/libexec on Fedora, /usr/lib/at-spi2-core on Debian.
+ATSPI_DIRS = ("/usr/lib", "/usr/libexec", "/usr/lib/at-spi2-core", "/usr/lib64")
 SCHEMA_XML = "dev.deedles.Trayscale.gschema.xml"
 
 # Actions that change Tailscale or open a browser. Doctor still lists
@@ -227,6 +228,14 @@ def atspi_address(bus: str) -> str:
     return parse_gdbus_string(proc.stdout)
 
 
+def atspi_helper(name: str) -> str:
+    for d in ATSPI_DIRS:
+        path = Path(d) / name
+        if os.access(path, os.X_OK):
+            return str(path)
+    raise SystemExit(f"{name} not found in {', '.join(ATSPI_DIRS)}; install at-spi2-core")
+
+
 def cmd_inner() -> int:
     run = Path(os.environ["TRAYSCALE_VERIFY_RUN"])
     log = open(run / "inner.log", "ab", buffering=0)
@@ -237,7 +246,7 @@ def cmd_inner() -> int:
     write_text(run / "bus", bus)
 
     launcher = subprocess.Popen(
-        [ATSPI_LAUNCHER],
+        [atspi_helper("at-spi-bus-launcher")],
         stdout=log,
         stderr=log,
         start_new_session=False,
@@ -254,7 +263,7 @@ def cmd_inner() -> int:
     # registry and fails inside dbus-run-session. Start it ourselves
     # without --use-gnome-session so it does not talk to the user session.
     registry = subprocess.Popen(
-        [ATSPI_REGISTRY],
+        [atspi_helper("at-spi2-registryd")],
         stdout=log,
         stderr=log,
         start_new_session=False,
@@ -287,7 +296,7 @@ def cmd_launch(args: argparse.Namespace) -> int:
                     f"a verification instance is already running in {existing}\n"
                     "run: control-trayscale cleanup"
                 )
-            cmd_cleanup(argparse.Namespace(force=True))
+            cmd_cleanup(argparse.Namespace(force=True, keep_run=False))
 
     run_id = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
     run = runs_dir() / run_id
@@ -301,10 +310,16 @@ def cmd_launch(args: argparse.Namespace) -> int:
     write_text(run / "user-wayland", os.environ.get("WAYLAND_DISPLAY", ""))
     write_text(run / "user-display", os.environ.get("DISPLAY", ""))
 
-    print("compiling gsettings schema", file=sys.stderr)
-    schemas = compile_schemas(run)
-    print("building ./cmd/trayscale", file=sys.stderr)
-    binary = build_binary(run)
+    try:
+        print("compiling gsettings schema", file=sys.stderr)
+        schemas = compile_schemas(run)
+        print("building ./cmd/trayscale", file=sys.stderr)
+        binary = build_binary(run)
+    except SystemExit:
+        # Nothing was started; drop the run so doctor and the next
+        # launch do not trip over a run without a pgid.
+        cmd_cleanup(argparse.Namespace(force=True, keep_run=False))
+        raise
 
     xdg = run / "xdg"
     for name in ("config", "data", "cache", "state"):
@@ -323,7 +338,12 @@ def cmd_launch(args: argparse.Namespace) -> int:
     env["GTK_A11Y"] = "atspi"
     env["NO_AT_BRIDGE"] = "0"
     env["GTK_USE_PORTAL"] = "0"
-    env["LC_ALL"] = env.get("LC_ALL") or "C.UTF-8"
+    # Pin English so AT-SPI names match the feature map. Trayscale picks
+    # its UI language from LANGUAGE, LC_ALL, LC_MESSAGES, then LANG.
+    env["LANGUAGE"] = "en"
+    env["LC_ALL"] = "C.UTF-8"
+    env["LANG"] = "C.UTF-8"
+    env.pop("LC_MESSAGES", None)
 
     log = open(run / "session.log", "wb")
     proc = subprocess.Popen(
@@ -356,8 +376,11 @@ def cmd_launch(args: argparse.Namespace) -> int:
                 break
         time.sleep(0.2)
     else:
-        cmd_cleanup(argparse.Namespace(force=True))
-        raise SystemExit(f"Trayscale D-Bus name {APP_ID} did not appear within {timeout}s")
+        cmd_cleanup(argparse.Namespace(force=True, keep_run=True))
+        raise SystemExit(
+            f"Trayscale D-Bus name {APP_ID} did not appear within {timeout}s\n"
+            f"logs kept in {run}"
+        )
 
     # Window + a11y can lag the D-Bus name while the first poller result
     # lands. Wait a bit so doctor is useful immediately after launch.
@@ -938,7 +961,7 @@ def cmd_cleanup(args: argparse.Namespace) -> int:
         shutil.rmtree(run, ignore_errors=True)
     if ptr.exists():
         ptr.unlink()
-    print(f"cleaned {run}")
+    print(f"kept {run}" if args.keep_run else f"cleaned {run}")
     print(f"artifacts kept under {artifacts_dir()}")
     return 0
 

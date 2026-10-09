@@ -96,9 +96,7 @@ func (p *Poller) Run(ctx context.Context) {
 func (p *Poller) watchIPN(ctx context.Context) {
 	const watcherOpts = ipn.NotifyInitialState |
 		ipn.NotifyInitialPrefs |
-		ipn.NotifyNoPrivateKeys |
 		ipn.NotifyWatchEngineUpdates |
-		ipn.NotifyNoNetMap |
 		ipn.NotifyInitialStatus |
 		ipn.NotifyPeerChanges
 

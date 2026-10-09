@@ -16,7 +16,6 @@ import (
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
-	"tailscale.com/types/netmap"
 	"tailscale.com/util/set"
 )
 
@@ -95,15 +94,9 @@ func (p *Poller) Run(ctx context.Context) {
 }
 
 func (p *Poller) watchIPN(ctx context.Context) {
-	// NotifyInitialNetMap is kept so older daemons that do not send
-	// InitialStatus still bootstrap. RateLimit cannot be combined with
-	// PeerChanges / NoNetMap / InitialStatus (HTTP 400).
 	const watcherOpts = ipn.NotifyInitialState |
 		ipn.NotifyInitialPrefs |
-		ipn.NotifyInitialNetMap |
-		ipn.NotifyNoPrivateKeys |
 		ipn.NotifyWatchEngineUpdates |
-		ipn.NotifyNoNetMap |
 		ipn.NotifyInitialStatus |
 		ipn.NotifyPeerChanges
 
@@ -323,7 +316,8 @@ func (s *IPNStatus) applyNotify(notify *ipn.Notify) (dirty, targetsDirty bool) {
 		dirty = true
 	}
 
-	if s.applyBootstrap(notify) {
+	if notify.InitialStatus != nil {
+		s.applyInitialStatus(notify.InitialStatus)
 		dirty = true
 		targetsDirty = true
 	}
@@ -340,30 +334,6 @@ func (s *IPNStatus) applyNotify(notify *ipn.Notify) (dirty, targetsDirty bool) {
 		targetsDirty = s.applyPeersRemoved(notify.PeersRemoved) || targetsDirty
 	}
 	return dirty, targetsDirty
-}
-
-// applyBootstrap replaces the peer set from the notify's snapshot.
-// InitialStatus wins when both it and the deprecated NetMap are present.
-func (s *IPNStatus) applyBootstrap(n *ipn.Notify) bool {
-	if n.InitialStatus != nil {
-		s.applyInitialStatus(n.InitialStatus)
-		return true
-	}
-	nm := n.NetMap //nolint:staticcheck // fallback when InitialStatus is absent
-	if nm == nil {
-		return false
-	}
-	s.applyNetMap(nm)
-	return true
-}
-
-func (s *IPNStatus) applyNetMap(nm *netmap.NetworkMap) {
-	s.self = nm.SelfNode
-	s.ensurePeers()
-	clear(s.Peers)
-	for _, peer := range nm.Peers {
-		s.Peers[peer.StableID()] = peer
-	}
 }
 
 func (s *IPNStatus) applyInitialStatus(st *ipnstate.Status) {

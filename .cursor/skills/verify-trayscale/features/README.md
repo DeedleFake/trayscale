@@ -10,7 +10,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 - `tailscaled` is shared. Stay on read-only paths unless a feature file names a mutating action.
 - Put proof under `.cursor/skills/verify-trayscale/artifacts/<feature>/`.
 
-When Tailscale is connected, the sidebar shows `This machine`, `Exit Nodes`, `Online`, and `Offline` (offline peers depend on `show-offline-peers`, default on). When it is not connected, the content page is `Not Connected` and those sections are absent. Feature files say which of those states they need.
+When Tailscale is connected, the sidebar shows `This machine`, `Exit Nodes`, `Online`, and `Offline`. A section title appears only when that section has peers, and offline peers also depend on `show-offline-peers` (default on). When it is not connected, the content page is `Not Connected` and those sections are absent. Feature files say which of those states they need.
 
 ## Driving conventions
 
@@ -41,8 +41,9 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 ## Features
 
-- [Main window](./main-window.md) covers the window title, sidebar sections, and connected vs not-connected chrome.
+- [Main window](./main-window.md) covers the window title, sidebar sections, the Show Offline Peers toggle, and connected vs not-connected chrome.
 - [This machine](./this-machine.md) covers the self page: hostname, Tailscale IPs, options, files, routes, and network check.
 - [About](./about.md) covers the About dialog from the app menu action.
 - [Preferences](./preferences.md) covers the Preferences dialog and its General and Taildrop groups.
-- [Peer search](./peer-search.md) covers opening search from the toolbar button and from Ctrl+F.
+- [Peer search](./peer-search.md) covers opening search from the toolbar button and from Ctrl+F, filtering, the empty result, and closing search.
+- [Peer page](./peer-page.md) covers a peer's page: hostname, Tailscale IPs, the Misc. group, and advertised routes.

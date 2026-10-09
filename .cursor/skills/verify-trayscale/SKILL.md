@@ -1,6 +1,6 @@
 ---
 name: verify-trayscale
-description: Drive the Trayscale GTK 4 / Libadwaita desktop UI the way a user does. Use when proving a Trayscale UI change, checking the main window, About, Preferences, peer search, or this-machine page against a live tailscaled.
+description: Drive the Trayscale GTK 4 / Libadwaita desktop UI the way a user does. Use when proving a Trayscale UI change, checking the main window, About, Preferences, peer search, the this-machine page, or a peer page against a live tailscaled.
 ---
 
 # Verify Trayscale
@@ -32,6 +32,8 @@ Two verify launches at once are refused. Two user-plus-verify instances are allo
 
 ## Launch
 
+The helper needs `go`, `glib-compile-schemas`, `dbus-run-session`, `gdbus`, at-spi2-core, and PyGObject with the `Atspi` 2.0 typelib (`python3 -c 'import gi; gi.require_version("Atspi", "2.0")'` must succeed).
+
 ```bash
 $CTRL launch
 ```
@@ -42,10 +44,13 @@ This compiles `dev.deedles.Trayscale.gschema.xml` into the run dir, builds `./cm
 - `TRAYSCALE_PRIVATE=1` (profile names render as `profile@example.com`)
 - `GTK_A11Y=atspi` and a private AT-SPI registry
 - isolated `XDG_*` directories under the run dir
+- `LANGUAGE=en` and `LANG`/`LC_ALL` set to `C.UTF-8`, so labels match this map whatever the user's locale
 
 Ready when `doctor` prints `"window": "frame 'Trayscale'"` and `"bus_name_owned": true`. First build can take more than a minute. `--timeout` default is 180 seconds. A `dbind-WARNING` about `/org/a11y/atspi/cache` during launch is ignorable if doctor then succeeds.
 
 Tray registration on the private bus is expected to fail (`StatusNotifierWatcher` is absent). That is isolation working, not a product bug.
+
+If the build fails, `launch` removes its run directory and exits nonzero. If the D-Bus name never appears, it stops the session and keeps `runs/<id>/` for its logs; delete that directory once you have read them.
 
 Teardown is `cleanup`. There is no long-lived server besides the process `launch` started.
 
@@ -82,9 +87,14 @@ AT-SPI handles that exist in this app:
 | --- | --- | --- |
 | `Trayscale` | `frame` | Main window |
 | `Search peers` | `toggle button` | Sidebar search control |
+| `profile@example.com` | `combo box` | Profile dropdown under `TRAYSCALE_PRIVATE=1` |
+| (empty) | `entry` | Peer search entry. Present only while search is open |
+| `No matching peers` | `grouping` | Sidebar placeholder when a search matches nothing |
 | `This machine`, `Exit Nodes`, `Online`, `Offline` | `label` | Sidebar section titles when connected |
 | `Tailscale IPs`, `Options`, `Files`, `Advertised Routes`, `Network Check` | `grouping` | This-machine page |
 | `Advertise exit node` and the other option rows | `switch` | Read only |
+| `Tailscale IPs`, `Misc.`, `Advertised Routes` | `grouping` | Peer page |
+| `Use as exit node` | `switch` | Peer page of an exit node. Read only |
 | `About` | `dialog` | After `action about` |
 | `Trayscale`, `DeedleFake` | `label` | Inside the About dialog |
 | `Preferences` | `dialog` | After `action preferences` |
@@ -96,12 +106,12 @@ $CTRL find --role dialog --name About --exact
 $CTRL wait --role dialog --name About --exact --timeout 10
 $CTRL click --role toggle --name "Search peers" --exact
 $CTRL select --role label --name "<peer sidebar label>" --exact
-$CTRL fill --role entry --name "Search peers" --value "query"
+$CTRL fill --role entry --value "query"
 ```
 
-`click` uses a `click`/`press`/`activate`/`toggle` action. It refuses to default to `clipboard.copy` (GTK exposes that on selectable labels). Sidebar rows have empty `list item` names; `select --name` selects the list item that contains that label. Selection proves the row is selected (`states=selected`). It does not always realize the peer page widget tree.
+`click` uses a `click`/`press`/`activate`/`toggle` action. It refuses to default to `clipboard.copy` (GTK exposes that on selectable labels). Sidebar rows have empty `list item` names and no AT-SPI actions; `select --name` selects the list item that contains that label. That marks the row `states=selected` but does not change the content page. To show a peer page, search for the peer. When the visible page is not among the matches, the first match becomes the visible page (see `features/peer-page.md`).
 
-`fill` needs an AT-SPI text interface. GtkSearchEntry currently has none, so peer-search typing is not automatable. Do not treat a missing entry as a product regression unless the feature file says the entry became exposed.
+The peer search entry has no accessible name. Address it as `--role entry` without `--name`; it is the only entry while no dialog is open. `fill` replaces its text and the sidebar filters as if the user typed.
 
 `press` synthesizes AT-SPI key events. On GNOME Wayland those events often do nothing. Prefer `action search-peers` over `press --key Control+f`.
 

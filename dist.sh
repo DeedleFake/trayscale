@@ -39,9 +39,7 @@ _install() {
 	fi
 
 	echo "Installing to $dstdir"
-	if [ -f trayscale ]; then
-		install -D -t "$dstdir/bin" trayscale
-	fi
+	install -D -t "$dstdir/bin" trayscale
 	install -Dm644 -t "$dstdir/share/icons/hicolor/256x256/apps" dev.deedles.Trayscale.png
 	install -Dm644 -t "$dstdir/share/applications" dev.deedles.Trayscale.desktop
 	install -Dm644 -t "$dstdir/share/metainfo" dev.deedles.Trayscale.metainfo.xml

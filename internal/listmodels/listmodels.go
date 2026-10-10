@@ -2,8 +2,8 @@ package listmodels
 
 import (
 	"iter"
+	"slices"
 
-	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -69,37 +69,69 @@ func StringsBackward(m *gtk.StringList) iter.Seq2[uint, string] {
 	}
 }
 
+// UpdateStrings removes from m the strings s does not yield, then appends the ones
+// m lacks. Existing entries keep their order and new ones follow s's order. s is
+// read once, so a single-pass sequence is fine.
 func UpdateStrings(m *gtk.StringList, s iter.Seq[string]) {
 	m.FreezeNotify()
 	defer m.ThawNotify()
 
-	for i, v := range StringsBackward(m) {
-		if !xiter.Contains(s, v) {
-			m.Remove(i)
-		}
+	want := slices.Collect(s)
+
+	wanted := make(map[string]struct{}, len(want))
+	for _, v := range want {
+		wanted[v] = struct{}{}
 	}
 
-	for v := range s {
-		if !xiter.Contains(xiter.V2(StringsBackward(m)), v) {
-			m.Append(v)
+	// Backwards, so a removal never shifts an entry still to be visited.
+	present := make(map[string]struct{}, len(want))
+	for i, v := range StringsBackward(m) {
+		if _, ok := wanted[v]; !ok {
+			m.Remove(i)
+			continue
 		}
+		present[v] = struct{}{}
+	}
+
+	for _, v := range want {
+		if _, ok := present[v]; ok {
+			continue
+		}
+		present[v] = struct{}{}
+		m.Append(v)
 	}
 }
 
+// Update removes from m the values s does not yield, then appends the ones m lacks.
+// Existing entries keep their order and new ones follow s's order. s is read once,
+// so a single-pass sequence is fine.
 func Update[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
 	m.FreezeNotify()
 	defer m.ThawNotify()
 
-	for i, v := range ValuesBackward[T](m) {
-		if !xiter.Contains(s, v) {
-			m.Remove(int(i))
-		}
+	want := slices.Collect(s)
+
+	wanted := make(map[T]struct{}, len(want))
+	for _, v := range want {
+		wanted[v] = struct{}{}
 	}
 
-	for v := range s {
-		if !xiter.Contains(m.All(), v) {
-			m.Append(v)
+	// Backwards, so a removal never shifts an entry still to be visited.
+	present := make(map[T]struct{}, len(want))
+	for i, v := range ValuesBackward[T](m) {
+		if _, ok := wanted[v]; !ok {
+			m.Remove(int(i))
+			continue
 		}
+		present[v] = struct{}{}
+	}
+
+	for _, v := range want {
+		if _, ok := present[v]; ok {
+			continue
+		}
+		present[v] = struct{}{}
+		m.Append(v)
 	}
 }
 

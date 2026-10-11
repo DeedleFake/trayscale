@@ -78,26 +78,25 @@ func UpdateStrings(m *gtk.StringList, s iter.Seq[string]) {
 
 	want := slices.Collect(s)
 
-	wanted := make(map[string]struct{}, len(want))
+	inModel := make(map[string]bool, len(want))
 	for _, v := range want {
-		wanted[v] = struct{}{}
+		inModel[v] = false
 	}
 
 	// Backwards, so a removal never shifts an entry still to be visited.
-	present := make(map[string]struct{}, len(want))
 	for i, v := range StringsBackward(m) {
-		if _, ok := wanted[v]; !ok {
+		if _, ok := inModel[v]; !ok {
 			m.Remove(i)
 			continue
 		}
-		present[v] = struct{}{}
+		inModel[v] = true
 	}
 
 	for _, v := range want {
-		if _, ok := present[v]; ok {
+		if inModel[v] {
 			continue
 		}
-		present[v] = struct{}{}
+		inModel[v] = true
 		m.Append(v)
 	}
 }
@@ -111,26 +110,25 @@ func Update[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
 
 	want := slices.Collect(s)
 
-	wanted := make(map[T]struct{}, len(want))
+	inModel := make(map[T]bool, len(want))
 	for _, v := range want {
-		wanted[v] = struct{}{}
+		inModel[v] = false
 	}
 
 	// Backwards, so a removal never shifts an entry still to be visited.
-	present := make(map[T]struct{}, len(want))
 	for i, v := range ValuesBackward[T](m) {
-		if _, ok := wanted[v]; !ok {
+		if _, ok := inModel[v]; !ok {
 			m.Remove(int(i))
 			continue
 		}
-		present[v] = struct{}{}
+		inModel[v] = true
 	}
 
 	for _, v := range want {
-		if _, ok := present[v]; ok {
+		if inModel[v] {
 			continue
 		}
-		present[v] = struct{}{}
+		inModel[v] = true
 		m.Append(v)
 	}
 }

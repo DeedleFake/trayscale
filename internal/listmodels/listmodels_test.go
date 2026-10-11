@@ -78,6 +78,7 @@ func TestUpdateStrings(t *testing.T) {
 		{"add and remove at once", []string{"a", "b", "c"}, []string{"c", "d", "a"}, []string{"a", "c", "d"}},
 		{"existing order wins", []string{"b", "a"}, []string{"a", "b"}, []string{"b", "a"}},
 		{"new values keep s order", []string{"b"}, []string{"a", "b"}, []string{"b", "a"}},
+		{"duplicate in s appended once", nil, []string{"a", "a", "b", "a"}, []string{"a", "b"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -158,7 +158,7 @@ func libcHas(t *testing.T, prefix string) bool {
 		return false
 	}
 	prefix = strings.ToLower(prefix)
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		line = strings.ToLower(strings.TrimSpace(line))
 		if line == prefix || strings.HasPrefix(line, prefix+"_") || strings.HasPrefix(line, prefix+".") {
 			return true

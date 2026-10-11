@@ -2,8 +2,8 @@ package listmodels
 
 import (
 	"iter"
+	"slices"
 
-	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -69,37 +69,73 @@ func StringsBackward(m *gtk.StringList) iter.Seq2[uint, string] {
 	}
 }
 
+const (
+	unwanted uint8 = iota
+	wanted
+	inModel
+)
+
+// UpdateStrings removes from m the strings s does not yield, then appends the ones
+// m lacks. Existing entries keep their order and new ones follow s's order. s is
+// read once, so a single-pass sequence is fine.
 func UpdateStrings(m *gtk.StringList, s iter.Seq[string]) {
 	m.FreezeNotify()
 	defer m.ThawNotify()
 
-	for i, v := range StringsBackward(m) {
-		if !xiter.Contains(s, v) {
-			m.Remove(i)
-		}
+	want := slices.Collect(s)
+
+	state := make(map[string]uint8, len(want))
+	for _, v := range want {
+		state[v] = wanted
 	}
 
-	for v := range s {
-		if !xiter.Contains(xiter.V2(StringsBackward(m)), v) {
-			m.Append(v)
+	// Backwards, so a removal never shifts an entry still to be visited.
+	for i, v := range StringsBackward(m) {
+		if state[v] == unwanted {
+			m.Remove(i)
+			continue
 		}
+		state[v] = inModel
+	}
+
+	for _, v := range want {
+		if state[v] == inModel {
+			continue
+		}
+		state[v] = inModel
+		m.Append(v)
 	}
 }
 
+// Update removes from m the values s does not yield, then appends the ones m lacks.
+// Existing entries keep their order and new ones follow s's order. s is read once,
+// so a single-pass sequence is fine.
 func Update[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
 	m.FreezeNotify()
 	defer m.ThawNotify()
 
-	for i, v := range ValuesBackward[T](m) {
-		if !xiter.Contains(s, v) {
-			m.Remove(int(i))
-		}
+	want := slices.Collect(s)
+
+	state := make(map[T]uint8, len(want))
+	for _, v := range want {
+		state[v] = wanted
 	}
 
-	for v := range s {
-		if !xiter.Contains(m.All(), v) {
-			m.Append(v)
+	// Backwards, so a removal never shifts an entry still to be visited.
+	for i, v := range ValuesBackward[T](m) {
+		if state[v] == unwanted {
+			m.Remove(int(i))
+			continue
 		}
+		state[v] = inModel
+	}
+
+	for _, v := range want {
+		if state[v] == inModel {
+			continue
+		}
+		state[v] = inModel
+		m.Append(v)
 	}
 }
 

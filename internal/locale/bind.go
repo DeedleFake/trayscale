@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -176,10 +177,8 @@ func prependPathEnv(key, dir string) error {
 		return os.Setenv(key, dir)
 	}
 	parts := filepath.SplitList(cur)
-	for _, p := range parts {
-		if p == dir {
-			return nil
-		}
+	if slices.Contains(parts, dir) {
+		return nil
 	}
 	return os.Setenv(key, dir+string(os.PathListSeparator)+cur)
 }

@@ -110,7 +110,7 @@ func languageCandidates() []string {
 		if isCLocale(s) {
 			return
 		}
-		for _, part := range strings.Split(s, ":") {
+		for part := range strings.SplitSeq(s, ":") {
 			part = strings.TrimSpace(part)
 			if part == "" {
 				continue
@@ -295,7 +295,7 @@ func libcLocales() map[string]struct{} {
 			libcLocalesErr = err
 			return
 		}
-		for _, line := range strings.Split(string(out), "\n") {
+		for line := range strings.SplitSeq(string(out), "\n") {
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue

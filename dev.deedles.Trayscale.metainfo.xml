@@ -55,7 +55,7 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
-		<release version="v0.20.0" date="2026-10-08">
+		<release version="v0.20.0" date="2026-10-11">
 			<description>
 				<ul>
 					<li>Support Tailscale v1.104's changes to IPN bus notification. Tailscale v1.100 or newer is now required.</li>

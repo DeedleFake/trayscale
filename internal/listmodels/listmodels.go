@@ -69,6 +69,12 @@ func StringsBackward(m *gtk.StringList) iter.Seq2[uint, string] {
 	}
 }
 
+const (
+	unwanted uint8 = iota
+	wanted
+	inModel
+)
+
 // UpdateStrings removes from m the strings s does not yield, then appends the ones
 // m lacks. Existing entries keep their order and new ones follow s's order. s is
 // read once, so a single-pass sequence is fine.
@@ -78,25 +84,25 @@ func UpdateStrings(m *gtk.StringList, s iter.Seq[string]) {
 
 	want := slices.Collect(s)
 
-	inModel := make(map[string]bool, len(want))
+	state := make(map[string]uint8, len(want))
 	for _, v := range want {
-		inModel[v] = false
+		state[v] = wanted
 	}
 
 	// Backwards, so a removal never shifts an entry still to be visited.
 	for i, v := range StringsBackward(m) {
-		if _, ok := inModel[v]; !ok {
+		if state[v] == unwanted {
 			m.Remove(i)
 			continue
 		}
-		inModel[v] = true
+		state[v] = inModel
 	}
 
 	for _, v := range want {
-		if inModel[v] {
+		if state[v] == inModel {
 			continue
 		}
-		inModel[v] = true
+		state[v] = inModel
 		m.Append(v)
 	}
 }
@@ -110,25 +116,25 @@ func Update[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
 
 	want := slices.Collect(s)
 
-	inModel := make(map[T]bool, len(want))
+	state := make(map[T]uint8, len(want))
 	for _, v := range want {
-		inModel[v] = false
+		state[v] = wanted
 	}
 
 	// Backwards, so a removal never shifts an entry still to be visited.
 	for i, v := range ValuesBackward[T](m) {
-		if _, ok := inModel[v]; !ok {
+		if state[v] == unwanted {
 			m.Remove(int(i))
 			continue
 		}
-		inModel[v] = true
+		state[v] = inModel
 	}
 
 	for _, v := range want {
-		if inModel[v] {
+		if state[v] == inModel {
 			continue
 		}
-		inModel[v] = true
+		state[v] = inModel
 		m.Append(v)
 	}
 }

@@ -8,8 +8,9 @@ import (
 	"strconv"
 	"testing"
 
+	"codeberg.org/puregotk/puregotk/v4/gtk"
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 // once returns a sequence over vs that fails the test if it is read twice.
@@ -50,6 +51,7 @@ func TestUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := listmodels.NewModel(strconv.Itoa)
+			defer m.Unref()
 			for _, v := range tt.in {
 				m.Append(v)
 			}
@@ -71,6 +73,7 @@ func TestUpdateRefreshesValues(t *testing.T) {
 		size int
 	}
 	m := listmodels.NewModel(func(f file) string { return f.name })
+	defer m.Unref()
 	m.Update(slices.Values([]file{{"a", 1}, {"b", 2}}))
 	m.Update(slices.Values([]file{{"b", 3}, {"c", 4}}))
 
@@ -82,24 +85,46 @@ func TestUpdateRefreshesValues(t *testing.T) {
 		t.Fatalf("Len() = %d, want %d", m.Len(), len(want))
 	}
 	for i, w := range want {
-		if got := m.Value(m.ListModel().Item(uint(i))); got != w {
+		obj := m.ListModel().GetObject(uint32(i))
+		if got := m.Value(obj); got != w {
 			t.Errorf("Value(item %d) = %v, want %v", i, got, w)
 		}
+		obj.Unref()
 	}
 }
 
 // TestComparer sorts through a GtkSortListModel, the way the pages use it.
 func TestComparer(t *testing.T) {
 	m := listmodels.NewModel(strconv.Itoa)
+	defer m.Unref()
 	m.Update(slices.Values([]int{3, 1, 2}))
-	sorted := gtk.NewSortListModel(m.ListModel(), &gtk.NewCustomSorter(m.Comparer(cmp.Compare[int])).Sorter)
+	sorted := m.NewSortListModel(cmp.Compare[int])
+	defer sorted.Unref()
 
 	var got []int
-	for i := range sorted.NItems() {
-		got = append(got, m.Value(sorted.Item(i)))
+	for _, obj := range listmodels.Objects(sorted) {
+		got = append(got, m.Value(obj))
 	}
 	if want := []int{1, 2, 3}; !slices.Equal(got, want) {
 		t.Errorf("sorted = %v, want %v", got, want)
+	}
+}
+
+// TestSorterFreesCallbacks checks that sort models free their callback
+// slots when destroyed, so pages can be opened and closed forever.
+func TestSorterFreesCallbacks(t *testing.T) {
+	m := listmodels.NewModel(strconv.Itoa)
+	defer m.Unref()
+	m.Update(slices.Values([]int{3, 1, 2}))
+
+	before := gutil.FreeCallbackSlots()
+	for range 500 {
+		sorted := m.NewSortListModel(cmp.Compare[int])
+		sorted.GetNItems()
+		sorted.Unref()
+	}
+	if after := gutil.FreeCallbackSlots(); after != before {
+		t.Errorf("free callback slots: %d before, %d after 500 sort models", before, after)
 	}
 }
 
@@ -123,12 +148,13 @@ func TestUpdateStrings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := gtk.NewStringList(tt.in)
+			defer m.Unref()
 
 			listmodels.UpdateStrings(m, once(t, tt.s...))
 
-			got := make([]string, 0, m.NItems())
-			for i := range m.NItems() {
-				got = append(got, m.String(i))
+			got := make([]string, 0, m.GetNItems())
+			for _, v := range listmodels.StringsForward(m) {
+				got = append(got, v)
 			}
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("UpdateStrings(%v, %v) = %v, want %v", tt.in, tt.s, got, tt.want)
@@ -143,6 +169,7 @@ func BenchmarkUpdate(b *testing.B) {
 	for _, n := range []int{100, 1000, 5478} {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			m := listmodels.NewModel(netip.Prefix.String)
+			defer m.Unref()
 			prefixes := makePrefixes(n)
 			m.Update(slices.Values(prefixes))
 

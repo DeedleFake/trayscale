@@ -295,3 +295,38 @@ func FirstIconName(theme *gtk.IconTheme, names ...string) string {
 	}
 	return names[0]
 }
+
+// OnFinalize runs f once obj is finalized. It uses a weak reference,
+// so it doesn't keep obj alive, and the weak-notify callback frees its
+// own callback slot after running.
+func OnFinalize(obj gobject.Ptr, f func()) {
+	var notify gobject.WeakNotify
+	notify = func(uintptr, uintptr) {
+		f()
+		glib.UnrefCallback(&notify)
+	}
+	gobject.ObjectNewFromInternalPtr(obj.GoPointer()).WeakRef(&notify, 0)
+}
+
+// Connect connects fn to a signal of obj with connect, which is one of
+// puregotk's Connect methods on obj, such as btn.ConnectClicked. The
+// callback slot is freed when obj is finalized. It returns the handler
+// ID.
+func Connect[F any](obj gobject.Ptr, connect func(*F) uint32, fn F) uint32 {
+	p := &fn
+	id := connect(p)
+	OnFinalize(obj, func() { glib.UnrefCallback(p) })
+	return id
+}
+
+// IdleAdd runs f once on the main loop. The callback frees its own
+// slot after running. It is safe to call from any goroutine.
+func IdleAdd(f func()) {
+	var fn glib.SourceFunc
+	fn = func(uintptr) bool {
+		f()
+		glib.UnrefCallback(&fn)
+		return false
+	}
+	glib.IdleAdd(&fn, 0)
+}

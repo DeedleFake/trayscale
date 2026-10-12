@@ -119,7 +119,7 @@ func NewMainWindow(app *App) *MainWindow {
 			return
 		}
 
-		obj, ok := win.ProfileDropDown.SelectedItem().Cast().(*gtk.StringObject)
+		obj, ok := gutil.Cast[*gtk.StringObject](win.ProfileDropDown.SelectedItem(), gtk.GTypeStringObject)
 		if !ok {
 			return
 		}
@@ -201,7 +201,7 @@ func (win *MainWindow) viewStackPages() []*adw.ViewStackPage {
 		if obj == nil {
 			continue
 		}
-		vp, ok := obj.Cast().(*adw.ViewStackPage)
+		vp, ok := gutil.Cast[*adw.ViewStackPage](obj, adw.GTypeViewStackPage)
 		if !ok {
 			continue
 		}
@@ -536,7 +536,7 @@ func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {
 		}
 	})
 
-	profileIndex, ok := listmodels.Index(win.profileSortModel, func(obj *gtk.StringObject) bool {
+	profileIndex, ok := listmodels.Index(win.profileSortModel, gtk.GTypeStringObject, func(obj *gtk.StringObject) bool {
 		return obj.String() == status.Profile.Name
 	})
 	if ok {

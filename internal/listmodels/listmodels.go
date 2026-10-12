@@ -1,6 +1,7 @@
 package listmodels
 
 import (
+	"deedles.dev/trayscale/internal/gutil"
 	"iter"
 	"slices"
 
@@ -9,8 +10,10 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
-func Convert[T any](obj *glib.Object) T {
-	return obj.Cast().(T)
+// Convert returns obj as T, panicking if obj is not a gtype. See
+// [gutil.MustCast].
+func Convert[T any](obj *glib.Object, gtype glib.Type) T {
+	return gutil.MustCast[T](obj, gtype)
 }
 
 func Objects(list gio.ListModeller) iter.Seq2[uint, *glib.Object] {
@@ -25,10 +28,10 @@ func Objects(list gio.ListModeller) iter.Seq2[uint, *glib.Object] {
 	}
 }
 
-func Values[T any](list gio.ListModeller) iter.Seq2[uint, T] {
+func Values[T any](list gio.ListModeller, gtype glib.Type) iter.Seq2[uint, T] {
 	return func(yield func(uint, T) bool) {
 		for i, obj := range Objects(list) {
-			if !yield(i, Convert[T](obj)) {
+			if !yield(i, Convert[T](obj, gtype)) {
 				return
 			}
 		}
@@ -45,10 +48,10 @@ func Backward(list gio.ListModeller) iter.Seq2[uint, *glib.Object] {
 	}
 }
 
-func ValuesBackward[T any](list gio.ListModeller) iter.Seq2[uint, T] {
+func ValuesBackward[T any](list gio.ListModeller, gtype glib.Type) iter.Seq2[uint, T] {
 	return func(yield func(uint, T) bool) {
 		for i, obj := range Backward(list) {
-			if !yield(i, Convert[T](obj)) {
+			if !yield(i, Convert[T](obj, gtype)) {
 				return
 			}
 		}
@@ -103,18 +106,12 @@ func UpdateStrings(m *gtk.StringList, s iter.Seq[string]) {
 	}
 }
 
-func Index[T any](m gio.ListModeller, f func(T) bool) (uint, bool) {
+func Index[T any](m gio.ListModeller, gtype glib.Type, f func(T) bool) (uint, bool) {
 	length := m.NItems()
 	for i := range length {
-		if f(Convert[T](m.Item(i))) {
+		if f(Convert[T](m.Item(i), gtype)) {
 			return i, true
 		}
 	}
 	return 0, false
-}
-
-func BindListBox[T any](lb *gtk.ListBox, m gio.ListModeller, f func(T) gtk.Widgetter) {
-	lb.BindModel(m, func(obj *glib.Object) gtk.Widgetter {
-		return f(Convert[T](obj))
-	})
 }

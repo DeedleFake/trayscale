@@ -308,8 +308,8 @@ func (page *MullvadPage) getLocationRow(loc tailcfg.LocationView) *adw.ExpanderR
 	row.SetName(loc.CountryCode())
 	row.SetTitle(mullvadLocationName(loc))
 	gutil.ExpanderRowListBox(row).SetSortFunc(func(r1, r2 *gtk.ListBoxRow) int {
-		sw1 := r1.Cast().(*adw.SwitchRow)
-		sw2 := r2.Cast().(*adw.SwitchRow)
+		sw1 := gutil.MustCast[*adw.SwitchRow](r1, adw.GTypeSwitchRow)
+		sw2 := gutil.MustCast[*adw.SwitchRow](r2, adw.GTypeSwitchRow)
 		c1, s1 := splitCityState(sw1.Title())
 		c2, s2 := splitCityState(sw2.Title())
 		return cmp.Or(

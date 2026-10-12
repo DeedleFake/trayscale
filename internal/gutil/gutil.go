@@ -2,6 +2,7 @@ package gutil
 
 import (
 	"errors"
+	"fmt"
 	"iter"
 	"reflect"
 
@@ -118,17 +119,14 @@ func widgetChildrenPush(yield func(gtk.Widgetter) bool, w WidgetParent) bool {
 // when it is expanded. This is quite hacky and should be avoided if
 // it can be, but is unfortunately necessary for a couple of things.
 func ExpanderRowListBox(row *adw.ExpanderRow) *gtk.ListBox {
-	type caster interface{ Cast() glib.Objector }
-
 	var revealer bool
 	for child := range WidgetChildren(row) {
 		if !revealer {
-			_, ok := child.(caster).Cast().(*gtk.Revealer)
-			revealer = ok
+			_, revealer = Cast[*gtk.Revealer](child, gtk.GTypeRevealer)
 			continue
 		}
 
-		box, ok := child.(caster).Cast().(*gtk.ListBox)
+		box, ok := Cast[*gtk.ListBox](child, gtk.GTypeListBox)
 		if ok {
 			return box
 		}
@@ -150,23 +148,66 @@ func PointerToWidgetter[T any, P interface {
 	return p
 }
 
-// Caster wraps the [glib.Object.Cast] method.
-type Caster interface {
-	Cast() glib.Objector
+// Cast returns obj as T if obj's runtime GType is gtype or derives
+// from (or, for an interface, implements) it. It returns false for a
+// nil obj or a GType mismatch. It never relies on the bindings guessing
+// the Go wrapper type, so it maps directly onto bindings whose casts
+// are unchecked: check the GType, then convert.
+//
+// gtype must be the GType that T wraps. If the GType matches but obj
+// can't be converted to T, the two disagree, which is a bug, so Cast
+// panics.
+func Cast[T any](obj glib.Objector, gtype glib.Type) (T, bool) {
+	var zero T
+	base := baseObject(obj)
+	if base == nil {
+		return zero, false
+	}
+	if !base.Type().IsA(gtype) {
+		return zero, false
+	}
+	if v, ok := obj.(T); ok {
+		return v, true
+	}
+	v, ok := base.Cast().(T)
+	if !ok {
+		panic(fmt.Sprintf("gutil.Cast: %v is a %v but its wrapper %T is not %T", base.Type(), gtype, base.Cast(), zero))
+	}
+	return v, true
 }
 
-// Assert casts anything that implements Cast to the specified type.
-// Its main point is to safely and conveniently handle nil.
-func Assert[T any, V any, C interface {
-	Caster
-	*V
-}](obj C) (v T, ok bool) {
-	if obj == nil {
-		return v, false
+// MustCast is like [Cast] but panics if obj is not a gtype.
+func MustCast[T any](obj glib.Objector, gtype glib.Type) T {
+	v, ok := Cast[T](obj, gtype)
+	if !ok {
+		var zero T
+		panic(fmt.Sprintf("gutil.MustCast: %v is not a %v (%T)", typeName(obj), gtype, zero))
 	}
+	return v
+}
 
-	v, ok = obj.Cast().(T)
-	return v, ok
+func typeName(obj glib.Objector) string {
+	base := baseObject(obj)
+	if base == nil {
+		return "nil"
+	}
+	return base.Type().String()
+}
+
+// baseObject returns obj's underlying object, or nil if obj is nil,
+// a typed nil pointer, or wraps no instance.
+func baseObject(obj glib.Objector) *glib.Object {
+	if obj == nil {
+		return nil
+	}
+	if rv := reflect.ValueOf(obj); rv.Kind() == reflect.Pointer && rv.IsNil() {
+		return nil
+	}
+	base := glib.BaseObject(obj)
+	if base == nil || base.Native() == 0 {
+		return nil
+	}
+	return base
 }
 
 // FirstIconName returns the first of names that theme has. If theme

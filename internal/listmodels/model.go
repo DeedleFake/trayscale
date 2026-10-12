@@ -41,7 +41,7 @@ func (m *Model[T]) Len() int { return int(m.list.NItems()) }
 // Value returns the value for an item of m's list model, or of a model
 // wrapping it such as a GtkSortListModel.
 func (m *Model[T]) Value(obj *glib.Object) T {
-	return m.values[obj.Cast().(*gtk.StringObject).String()]
+	return m.values[Convert[*gtk.StringObject](obj, gtk.GTypeStringObject).String()]
 }
 
 // All yields the values in model order.

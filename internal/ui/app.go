@@ -113,7 +113,7 @@ func (a *App) update(status tsutil.Status) {
 			a.notify(locale.Get("Tailscale Status"), body) // TODO: Notify on startup if not connected?
 		}
 
-		useExitNodeAction, ok := gutil.Assert[*gio.SimpleAction](a.app.LookupAction("use_exit_node"))
+		useExitNodeAction, ok := gutil.Cast[*gio.SimpleAction](a.app.LookupAction("use_exit_node"), gio.GTypeSimpleAction)
 		if ok {
 			useExitNodeAction.SetEnabled(online)
 			useExitNodeAction.SetState(glib.NewVariantBoolean(status.ExitNodeActive()))

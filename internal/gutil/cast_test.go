@@ -3,47 +3,88 @@ package gutil_test
 import (
 	"testing"
 
+	"codeberg.org/puregotk/puregotk/v4/gio"
+	"codeberg.org/puregotk/puregotk/v4/gobject"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/gutil"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 func TestCast(t *testing.T) {
 	str := gtk.NewStringObject("a")
-	asObject := glib.BaseObject(str) // the shape list models hand out
+	defer str.Unref()
+	asObject := gobject.ObjectNewFromInternalPtr(str.GoPointer()) // the shape list models hand out
 
-	if v, ok := gutil.Cast[*gtk.StringObject](asObject, gtk.GTypeStringObject); !ok || v.String() != "a" {
+	if v, ok := gutil.Cast[gtk.StringObject](asObject, gtk.StringObjectGLibType()); !ok || v.GetString() != "a" {
 		t.Errorf("Cast(StringObject) = %v, %v; want the object", v, ok)
 	}
-	if _, ok := gutil.Cast[*gio.SimpleAction](asObject, gio.GTypeSimpleAction); ok {
+	if _, ok := gutil.Cast[gio.SimpleAction](asObject, gio.SimpleActionGLibType()); ok {
 		t.Error("Cast(StringObject as SimpleAction) succeeded")
 	}
 
-	// Interface GType: a GFile implementation is a gio.Filer.
-	file := gio.NewFileForPath("/tmp")
-	if _, ok := gutil.Cast[gio.Filer](glib.BaseObject(file), gio.GTypeFile); !ok {
-		t.Error("Cast(GFile as gio.Filer) failed")
+	// Interface GType: a GFile implementation is a GFile.
+	file := gio.FileNewForPath("/tmp")
+	defer gobject.ObjectNewFromInternalPtr(file.GoPointer()).Unref()
+	if !gutil.IsA(file, gio.FileGLibType()) {
+		t.Error("IsA(GFile, GFile) = false")
 	}
 
-	var nilObj *glib.Object
-	if _, ok := gutil.Cast[*gtk.StringObject](nilObj, gtk.GTypeStringObject); ok {
+	var nilObj *gobject.Object
+	if _, ok := gutil.Cast[gtk.StringObject](nilObj, gtk.StringObjectGLibType()); ok {
 		t.Error("Cast(typed nil) succeeded")
 	}
-	if _, ok := gutil.Cast[*gtk.StringObject](nil, gtk.GTypeStringObject); ok {
+	if _, ok := gutil.Cast[gtk.StringObject](nil, gtk.StringObjectGLibType()); ok {
 		t.Error("Cast(nil) succeeded")
 	}
-	var nilStr *gtk.StringObject
-	if _, ok := gutil.Cast[*gtk.StringObject](nilStr, gtk.GTypeStringObject); ok {
-		t.Error("Cast(typed nil wrapper) succeeded")
+	if got := gutil.TypeName(str); got != "GtkStringObject" {
+		t.Errorf("TypeName = %q", got)
 	}
 }
 
 func TestMustCastPanics(t *testing.T) {
+	str := gtk.NewStringObject("a")
+	defer str.Unref()
 	defer func() {
 		if recover() == nil {
 			t.Error("MustCast on the wrong GType did not panic")
 		}
 	}()
-	gutil.MustCast[*gio.SimpleAction](gtk.NewStringObject("a"), gio.GTypeSimpleAction)
+	gutil.MustCast[gio.SimpleAction](str, gio.SimpleActionGLibType())
+}
+
+func TestFillFromUI(t *testing.T) {
+	const ui = `<interface>
+  <object class="GtkAdjustment" id="Adj"><property name="upper">10</property></object>
+  <object class="GtkAdjustment" id="Other"/>
+</interface>`
+	var dst struct {
+		Adj     *gtk.Adjustment
+		Renamed *gtk.Adjustment `gtk:"Other"`
+		Missing *gtk.Adjustment
+		Skipped *gtk.Adjustment `gtk:"-"`
+	}
+	gutil.FillFromUI(&dst, ui)
+	if dst.Adj == nil || dst.Adj.GetUpper() != 10 || dst.Renamed == nil {
+		t.Fatalf("FillFromUI did not fill fields: %+v", dst)
+	}
+	if dst.Missing != nil || dst.Skipped != nil {
+		t.Errorf("FillFromUI filled missing/skipped fields: %+v", dst)
+	}
+	// The builder is gone; our references must keep the objects alive.
+	if dst.Adj.GetUpper() != 10 {
+		t.Error("object did not survive the builder")
+	}
+	gutil.UnrefFields(&dst)
+	if dst.Adj != nil || dst.Renamed != nil {
+		t.Error("UnrefFields did not clear fields")
+	}
+}
+
+func TestFillFromUIWrongType(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("FillFromUI with a wrong field type did not panic")
+		}
+	}()
+	var dst struct{ Adj *gtk.Label }
+	gutil.FillFromUI(&dst, `<interface><object class="GtkAdjustment" id="Adj"/></interface>`)
 }

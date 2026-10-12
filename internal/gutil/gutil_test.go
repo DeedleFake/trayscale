@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"deedles.dev/trayscale/internal/gutil"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 )
 
 func TestFirstIconName(t *testing.T) {
@@ -19,6 +19,7 @@ func TestFirstIconName(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "test", "status", "present-symbolic.svg"), `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/>`)
 
 	theme := gtk.NewIconTheme()
+	defer theme.Unref()
 	theme.SetSearchPath([]string{dir})
 	theme.SetThemeName("test")
 

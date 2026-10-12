@@ -39,6 +39,7 @@ func (a *App) initSettings(ctx context.Context) {
 					a.initTray(ctx)
 					return
 				}
+				a.stopTray()
 				a.tray.Close()
 				a.tray = nil
 			})

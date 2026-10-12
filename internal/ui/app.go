@@ -42,6 +42,8 @@ type App struct {
 	win      *MainWindow
 	settings *gio.Settings
 	tray     *tray.Tray
+	// trayDone stops the goroutine started by startTray.
+	trayDone context.CancelFunc
 
 	spinnum        int
 	operatorCheck  bool
@@ -537,6 +539,7 @@ func (a *App) initTray(ctx context.Context) {
 // never arrives while tailscaled is down. The menu fills in from the
 // latest status once there is one, and from update after that.
 func (a *App) startTray(ctx context.Context) {
+	a.stopTray()
 	t := a.tray
 	err := t.Start()
 	if err != nil {
@@ -544,6 +547,7 @@ func (a *App) startTray(ctx context.Context) {
 		return
 	}
 
+	ctx, a.trayDone = context.WithCancel(ctx)
 	go func() {
 		select {
 		case s := <-a.poller.GetIPN():
@@ -551,6 +555,14 @@ func (a *App) startTray(ctx context.Context) {
 		case <-ctx.Done():
 		}
 	}()
+}
+
+// stopTray stops the goroutine started by the last startTray.
+func (a *App) stopTray() {
+	if a.trayDone != nil {
+		a.trayDone()
+		a.trayDone = nil
+	}
 }
 
 // Quit exits the app completely, causing Run to return. It may be

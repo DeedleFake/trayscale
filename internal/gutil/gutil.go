@@ -190,20 +190,21 @@ func WidgetChildren(w *gtk.Widget) iter.Seq[*gtk.Widget] {
 	}
 }
 
-// widgetChildrenPush yields borrowed children: puregotk's getters
-// return new references, which are dropped right away since w's
-// hierarchy keeps the children alive.
+// widgetChildrenPush holds a reference to the current child and its
+// next sibling while yielding, so yield may remove the child.
 func widgetChildrenPush(yield func(*gtk.Widget) bool, w *gtk.Widget) bool {
 	cur := w.GetFirstChild()
 	for cur != nil {
+		next := cur.GetNextSibling()
+		ok := yield(cur) && widgetChildrenPush(yield, cur)
 		cur.Unref()
-		if !yield(cur) {
+		if !ok {
+			if next != nil {
+				next.Unref()
+			}
 			return false
 		}
-		if !widgetChildrenPush(yield, cur) {
-			return false
-		}
-		cur = cur.GetNextSibling()
+		cur = next
 	}
 	return true
 }

@@ -3,7 +3,6 @@ package tsutil
 import (
 	"context"
 	"errors"
-	"io"
 	"log/slog"
 	"maps"
 	"net/netip"
@@ -138,60 +137,91 @@ func (p *Poller) run(ctx context.Context, up bool) error {
 }
 
 func (p *Poller) watchIPN(ctx context.Context) {
+	set := make(chan *IPNStatus)
+	go p.holdIPN(ctx, set)
+
+	publish := func(s *IPNStatus) bool {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-p.poll:
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case set <- s:
+		}
+		select {
+		case p.nextIPN <- s:
+		default:
+		}
+		return true
+	}
+
+	down := false
+	for {
+		connected, err := p.watchIPNOnce(ctx, publish)
+		if ctx.Err() != nil {
+			return
+		}
+		slog.Error("IPN bus watcher stopped", "err", err)
+		if connected || !down {
+			// tailscaled is gone or unreachable, so its last status no
+			// longer applies.
+			down = true
+			if !publish(&IPNStatus{State: ipn.NoState}) {
+				return
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(5 * time.Second):
+		}
+	}
+}
+
+// holdIPN keeps the latest IPN status for GetIPN and resend.
+func (p *Poller) holdIPN(ctx context.Context, set <-chan *IPNStatus) {
+	var get chan *IPNStatus
+	var s *IPNStatus
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case s = <-set:
+			get = p.getIPN
+			p.New(s)
+		case get <- s:
+		case <-p.resend:
+			if s != nil {
+				p.New(s)
+			}
+		}
+	}
+}
+
+// watchIPNOnce follows one IPN bus connection until it fails.
+// connected reports whether the connection was ever made.
+func (p *Poller) watchIPNOnce(ctx context.Context, publish func(*IPNStatus) bool) (connected bool, err error) {
 	const watcherOpts = ipn.NotifyInitialState |
 		ipn.NotifyInitialPrefs |
 		ipn.NotifyWatchEngineUpdates |
 		ipn.NotifyInitialStatus |
 		ipn.NotifyPeerChanges
 
-watch:
-	if ctx.Err() != nil {
-		return
-	}
 	watcher, err := localClient.WatchIPNBus(ctx, watcherOpts)
 	if err != nil {
-		slog.Error("start IPN bus watcher", "err", err)
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(5 * time.Second):
-			goto watch
-		}
+		return false, err
 	}
 	defer watcher.Close()
-
-	set := make(chan *IPNStatus)
-	go func() {
-		var get chan *IPNStatus
-		var s *IPNStatus
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case s = <-set:
-				get = p.getIPN
-				p.New(s)
-			case get <- s:
-			case <-p.resend:
-				if s != nil {
-					p.New(s)
-				}
-			}
-		}
-	}()
 
 	var s IPNStatus
 	for {
 		notify, err := watcher.Next()
 		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
-				goto watch
-			}
-			slog.Error("get next IPN bus notification", "err", err)
-			continue
+			// Any error ends the stream; Next would keep failing.
+			return true, err
 		}
 
 		if notify.ErrMessage != nil {
@@ -211,22 +241,8 @@ watch:
 		if !dirty {
 			continue
 		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-p.poll:
-		}
-
-		c := s.copy()
-		select {
-		case <-ctx.Done():
-			return
-		case set <- c:
-		}
-		select {
-		case p.nextIPN <- c:
-		default:
+		if !publish(s.copy()) {
+			return true, ctx.Err()
 		}
 	}
 }

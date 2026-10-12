@@ -9,3 +9,12 @@
 # Fontconfig's configuration, loaded once and kept until exit.
 leak:FcInit*
 leak:FcConfigEnsure
+# Pango's font map caches its fontsets, fonts, and families, and its
+# fontconfig thread caches matched patterns.
+leak:pango_fc_font_map_load_fontset
+leak:pango_fc_font_map_load_font
+leak:pango_fc_font_map_get_family
+leak:fc_thread_func
+# Fontconfig rule evaluation for those cached patterns. The stacks are
+# too deep for LeakSanitizer to show the pango frame above it.
+leak:FcConfigValues

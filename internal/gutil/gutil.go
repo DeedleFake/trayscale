@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gio"
 	"codeberg.org/puregotk/puregotk/v4/glib"
 	"codeberg.org/puregotk/puregotk/v4/gobject"
 	"codeberg.org/puregotk/puregotk/v4/gobject/types"
@@ -340,4 +341,36 @@ func Err(err error) error {
 		return nil
 	}
 	return err
+}
+
+// ConnectNotify runs f whenever prop changes on obj ("notify::prop").
+// The callback slot is freed when obj is finalized.
+func ConnectNotify(obj gobject.Ptr, prop string, f func()) uint32 {
+	fn := func(uintptr, uintptr, uintptr) { f() }
+	id := gobject.SignalConnect(obj.GoPointer(), "notify::"+prop, glib.NewCallback(&fn))
+	OnFinalize(obj, func() { glib.UnrefCallback(&fn) })
+	return id
+}
+
+// Obj returns obj as a *gobject.Object sharing its reference, for
+// calling GObject methods such as Ref and Unref on interface wrappers.
+func Obj(obj gobject.Ptr) *gobject.Object {
+	return gobject.ObjectNewFromInternalPtr(obj.GoPointer())
+}
+
+// Ptr converts a C pointer received as a uintptr, such as a callback
+// argument, to a *T for puregotk's boxed types like glib.Variant.
+func Ptr[T any](p uintptr) *T {
+	return (*T)(*(*unsafe.Pointer)(unsafe.Pointer(&p)))
+}
+
+// Async returns a GAsyncReadyCallback that runs f with the result and
+// then frees its own callback slot. Use a new one for each operation.
+func Async(f func(res *gio.AsyncResultBase)) *gio.AsyncReadyCallback {
+	var cb gio.AsyncReadyCallback
+	cb = func(_, res, _ uintptr) {
+		f(&gio.AsyncResultBase{Ptr: res})
+		glib.UnrefCallback(&cb)
+	}
+	return &cb
 }

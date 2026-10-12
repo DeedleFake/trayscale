@@ -15,10 +15,10 @@ import (
 	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gio"
+	"codeberg.org/puregotk/puregotk/v4/glib"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/tailcfg"
@@ -72,6 +72,7 @@ type SelfPage struct {
 	fileModel  *listmodels.Model[apitype.WaitingFile]
 
 	incomingFiles int
+	latencyRows   rowManager[xiter.Pair[string, time.Duration]]
 }
 
 func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
@@ -90,147 +91,36 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 
 	page.actions = gio.NewSimpleActionGroup()
 
-	copyFQDN := gio.NewSimpleAction("copyFQDN", nil)
-	copyFQDN.ConnectActivate(func(p *glib.Variant) {
-		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.Name(), ".")))
+	addPageAction(page.actions, gio.NewSimpleAction("copyFQDN", nil), func(*glib.Variant) {
+		a.clip(strings.TrimSuffix(page.peer.Name(), "."))
 		a.win.Toast(locale.Get("Copied FQDN to clipboard"))
 	})
-	page.actions.AddAction(copyFQDN)
 
 	page.addrModel = listmodels.NewModel(netip.Addr.String)
-	page.addrModel.BindListBox(
-		page.IPList,
-		gtk.NewSortListModel(page.addrModel.ListModel(), &gtk.NewCustomSorter(page.addrModel.Comparer(netip.Addr.Compare)).Sorter),
-		func(addr netip.Addr) gtk.Widgetter {
-			copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
-
-			copyButton.SetMarginTop(12) // Why is this necessary?
-			copyButton.SetMarginBottom(12)
-			copyButton.SetHasFrame(false)
-			copyButton.SetTooltipText(locale.Get("Copy to Clipboard"))
-			copyButton.ConnectClicked(func() {
-				a.clip(glib.NewValue(addr.String()))
-				a.win.Toast(locale.Get("Copied to clipboard"))
-			})
-
-			row := adw.NewActionRow()
-			row.SetObjectProperty("title-selectable", true)
-			row.AddSuffix(copyButton)
-			row.SetActivatableWidget(copyButton)
-			row.SetTitle(addr.String())
-
-			return row
-		},
-	)
-
-	ipListPlaceholder := adw.NewActionRow()
-	ipListPlaceholder.SetTitle(locale.Get("No addresses."))
-	page.IPList.SetPlaceholder(ipListPlaceholder)
+	addrs := page.addrModel.NewSortListModel(netip.Addr.Compare)
+	page.addrModel.BindListBox(page.IPList, addrs, func(addr netip.Addr) *gtk.Widget {
+		return a.copyRow(addr.String())
+	})
+	addrs.Unref() // The list box holds it.
+	setPlaceholder(page.IPList, locale.Get("No addresses."))
 
 	page.routeModel = listmodels.NewModel(netip.Prefix.String)
-	page.routeModel.BindListBox(
-		page.AdvertisedRoutesList,
-		gtk.NewSortListModel(page.routeModel.ListModel(), &gtk.NewCustomSorter(page.routeModel.Comparer(netip.Prefix.Compare)).Sorter),
-		func(route netip.Prefix) gtk.Widgetter {
-			removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
-
-			removeButton.SetMarginTop(12)
-			removeButton.SetMarginBottom(12)
-			removeButton.SetHasFrame(false)
-			removeButton.SetTooltipText(locale.Get("Remove"))
-			removeButton.ConnectClicked(func() {
-				routes := slices.Collect(xiter.Filter(page.routeModel.All(), func(p netip.Prefix) bool {
-					return p.Compare(route) != 0
-				}))
-				err := tsutil.AdvertiseRoutes(context.TODO(), routes)
-				if err != nil {
-					slog.Error("advertise routes", "err", err)
-					return
-				}
-			})
-
-			row := adw.NewActionRow()
-			row.SetObjectProperty("title-selectable", true)
-			row.AddSuffix(removeButton)
-			row.SetTitle(route.String())
-
-			return row
-		},
-	)
-
-	advertisedRoutesListPlaceholder := adw.NewActionRow()
-	advertisedRoutesListPlaceholder.SetTitle(locale.Get("No advertised routes."))
-	page.AdvertisedRoutesList.SetPlaceholder(advertisedRoutesListPlaceholder)
+	routes := page.routeModel.NewSortListModel(netip.Prefix.Compare)
+	page.routeModel.BindListBox(page.AdvertisedRoutesList, routes, func(route netip.Prefix) *gtk.Widget {
+		return routeRow(page.routeModel, route)
+	})
+	routes.Unref()
+	setPlaceholder(page.AdvertisedRoutesList, locale.Get("No advertised routes."))
 
 	page.fileModel = listmodels.NewModel(waitingFileKey)
-	page.fileModel.BindListBox(
-		page.FilesList,
-		gtk.NewSortListModel(page.fileModel.ListModel(), &gtk.NewCustomSorter(page.fileModel.Comparer(compareWaitingFiles)).Sorter),
-		func(file apitype.WaitingFile) gtk.Widgetter {
-			saveButton := gtk.NewButtonFromIconName("document-save-symbolic")
-			saveButton.SetMarginTop(12)
-			saveButton.SetMarginBottom(12)
-			saveButton.SetHasFrame(false)
-			saveButton.SetTooltipText(locale.Get("Save"))
-			saveButton.ConnectClicked(func() {
-				dialog := gtk.NewFileDialog()
-				dialog.SetModal(true)
-				dialog.SetInitialName(file.Name)
-				dialog.Save(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
-					f, err := dialog.SaveFinish(res)
-					if err != nil {
-						if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissed)) {
-							slog.Error("save file", "err", err)
-						}
-						return
-					}
+	files := page.fileModel.NewSortListModel(compareWaitingFiles)
+	page.fileModel.BindListBox(page.FilesList, files, func(file apitype.WaitingFile) *gtk.Widget {
+		return page.fileRow(file)
+	})
+	files.Unref()
+	setPlaceholder(page.FilesList, locale.Get("No incoming files."))
 
-					go a.saveFile(context.TODO(), file.Name, f)
-				})
-			})
-
-			deleteButton := gtk.NewButtonFromIconName("edit-delete-symbolic")
-			deleteButton.SetMarginTop(12)
-			deleteButton.SetMarginBottom(12)
-			deleteButton.SetHasFrame(false)
-			deleteButton.SetTooltipText(locale.Get("Delete"))
-			deleteButton.ConnectClicked(func() {
-				Confirmation{
-					Heading: locale.Get("Delete file?"),
-					Body:    locale.Get("If you delete this file, you will no longer be able to save it to your local machine."),
-					Accept:  locale.Get("_Delete"),
-					Reject:  locale.Get("_Cancel"),
-				}.Show(a, func(accept bool) {
-					if accept {
-						err := tsutil.DeleteWaitingFile(context.TODO(), file.Name)
-						if err != nil {
-							slog.Error("delete file", "err", err)
-							return
-						}
-						<-a.poller.Poll()
-					}
-				})
-			})
-
-			row := adw.NewActionRow()
-			row.AddSuffix(saveButton)
-			row.AddSuffix(deleteButton)
-			row.SetTitle(file.Name)
-			row.SetSubtitle(bytesize.ByteSize(file.Size).String())
-
-			return row
-		},
-	)
-
-	filesListPlaceholder := adw.NewActionRow()
-	filesListPlaceholder.SetTitle(locale.Get("No incoming files."))
-	page.FilesList.SetPlaceholder(filesListPlaceholder)
-
-	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
-		if s == page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).State() {
-			return false
-		}
-
+	page.connectSwitch(page.AdvertiseExitNodeRow, "advertise exit node", func(s bool) error {
 		if s {
 			err := tsutil.ExitNode(context.TODO(), "")
 			if err != nil {
@@ -238,65 +128,25 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 				// Continue anyways.
 			}
 		}
-
-		err := tsutil.AdvertiseExitNode(context.TODO(), s)
-		if err != nil {
-			slog.Error("advertise exit node", "err", err)
-			page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
-			return true
-		}
-		return true
+		return tsutil.AdvertiseExitNode(context.TODO(), s)
+	})
+	page.connectSwitch(page.AllowLANAccessRow, "allow LAN access", func(s bool) error {
+		return tsutil.AllowLANAccess(context.TODO(), s)
+	})
+	page.connectSwitch(page.AcceptRoutesRow, "accept routes", func(s bool) error {
+		return tsutil.AcceptRoutes(context.TODO(), s)
+	})
+	page.connectSwitch(page.AcceptDNSRow, "accept DNS", func(s bool) error {
+		return tsutil.AcceptDNS(context.TODO(), s)
 	})
 
-	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
-		if s == page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).State() {
-			return false
-		}
-
-		err := tsutil.AllowLANAccess(context.TODO(), s)
-		if err != nil {
-			slog.Error("allow LAN access", "err", err)
-			page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
-			return true
-		}
-		return true
-	})
-
-	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
-		if s == page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).State() {
-			return false
-		}
-
-		err := tsutil.AcceptRoutes(context.TODO(), s)
-		if err != nil {
-			slog.Error("accept routes", "err", err)
-			page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
-			return true
-		}
-		return true
-	})
-
-	page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
-		if s == page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).State() {
-			return false
-		}
-
-		err := tsutil.AcceptDNS(context.TODO(), s)
-		if err != nil {
-			slog.Error("accept DNS", "err", err)
-			page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
-			return true
-		}
-		return true
-	})
-
-	page.AdvertiseRouteButton.ConnectClicked(func() {
+	gutil.Connect(page.AdvertiseRouteButton, page.AdvertiseRouteButton.ConnectClicked, func(gtk.Button) {
 		Prompt{
 			Heading:     locale.Get("Add IP Prefix"),
 			Placeholder: "10.0.0.0/24",
 			Responses: []PromptResponse{
 				{ID: "cancel", Label: locale.Get("_Cancel")},
-				{ID: "add", Label: locale.Get("_Add"), Appearance: adw.ResponseSuggested, Default: true},
+				{ID: "add", Label: locale.Get("_Add"), Appearance: adw.ResponseSuggestedValue, Default: true},
 			},
 		}.Show(a, "", func(response, val string) {
 			if response != "add" {
@@ -327,17 +177,18 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	})
 
 	type latencyEntry = xiter.Pair[string, time.Duration]
-	latencyRows := rowManager[latencyEntry]{
+	page.latencyRows = rowManager[latencyEntry]{
 		Parent: rowAdderParent{page.DERPLatencies},
 		New: func(lat latencyEntry) row[latencyEntry] {
 			label := gtk.NewLabel(lat.V2.String())
 
 			row := adw.NewActionRow()
 			row.SetTitle(lat.V1)
-			row.AddSuffix(label)
+			row.AddSuffix(&label.Widget)
+			label.Unref() // The row holds it; the closure below borrows it.
 
 			return &simpleRow[latencyEntry]{
-				W: row,
+				W: &row.Widget,
 				U: func(lat latencyEntry) {
 					label.SetText(lat.V2.String())
 					row.SetTitle(lat.V1)
@@ -346,7 +197,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 		},
 	}
 
-	page.NetCheckButton.ConnectClicked(func() {
+	gutil.Connect(page.NetCheckButton, page.NetCheckButton.ConnectClicked, func(gtk.Button) {
 		r, dm, err := tsutil.NetCheck(context.TODO(), true)
 		if err != nil {
 			slog.Error("netcheck", "err", err)
@@ -355,25 +206,25 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 
 		page.LastNetCheck.SetText(formatTime(time.Now()))
 		page.UDPRow.SetVisible(true)
-		page.UDP.SetFromGIcon(boolIcon(r.UDP))
+		page.UDP.SetFromGicon(boolIcon(r.UDP))
 		page.IPv4Row.SetVisible(true)
 		page.IPv4Icon.SetVisible(!r.IPv4)
-		page.IPv4Icon.SetFromGIcon(boolIcon(r.IPv4))
+		page.IPv4Icon.SetFromGicon(boolIcon(r.IPv4))
 		page.IPv4Addr.SetVisible(r.IPv4)
 		page.IPv4Addr.SetText(r.GlobalV4.String())
 		page.IPv6Row.SetVisible(true)
 		page.IPv6Icon.SetVisible(!r.IPv6)
-		page.IPv6Icon.SetFromGIcon(boolIcon(r.IPv6))
+		page.IPv6Icon.SetFromGicon(boolIcon(r.IPv6))
 		page.IPv6Addr.SetVisible(r.IPv6)
 		page.IPv6Addr.SetText(r.GlobalV6.String())
 		page.UPnPRow.SetVisible(true)
-		page.UPnP.SetFromGIcon(optBoolIcon(r.UPnP))
+		page.UPnP.SetFromGicon(optBoolIcon(r.UPnP))
 		page.PMPRow.SetVisible(true)
-		page.PMP.SetFromGIcon(optBoolIcon(r.PMP))
+		page.PMP.SetFromGicon(optBoolIcon(r.PMP))
 		page.PCPRow.SetVisible(true)
-		page.PCP.SetFromGIcon(optBoolIcon(r.PCP))
+		page.PCP.SetFromGicon(optBoolIcon(r.PCP))
 		page.CaptivePortalRow.SetVisible(true)
-		page.CaptivePortal.SetFromGIcon(optBoolIcon(r.CaptivePortal))
+		page.CaptivePortal.SetFromGicon(optBoolIcon(r.CaptivePortal))
 		page.PreferredDERPRow.SetVisible(true)
 		page.PreferredDERP.SetText(dm.Regions[r.PreferredDERP].RegionName)
 
@@ -387,16 +238,106 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 			}
 		}
 		sortedLats := slices.SortedFunc(namedLats, func(p1, p2 latencyEntry) int { return cmp.Compare(p1.V2, p2.V2) })
-		latencyRows.Update(sortedLats)
+		page.latencyRows.Update(sortedLats)
 	})
 }
 
-func (page *SelfPage) Widget() gtk.Widgetter {
-	return page.Page
+// connectSwitch connects a switch row to set, which applies a new
+// state. On error the switch flips back.
+func (page *SelfPage) connectSwitch(row *adw.SwitchRow, what string, set func(bool) error) {
+	sw := rowSwitch(row)
+	gutil.Connect(sw, sw.ConnectStateSet, func(_ gtk.Switch, s bool) bool {
+		if s == sw.GetState() {
+			return false
+		}
+
+		err := set(s)
+		if err != nil {
+			slog.Error(what, "err", err)
+			sw.SetActive(!s)
+			return true
+		}
+		return true
+	})
 }
 
-func (page *SelfPage) Actions() gio.ActionGrouper {
+func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
+	a := page.app
+
+	saveButton := gtk.NewButtonFromIconName("document-save-symbolic")
+	saveButton.SetMarginTop(12)
+	saveButton.SetMarginBottom(12)
+	saveButton.SetHasFrame(false)
+	saveButton.SetTooltipText(locale.Get("Save"))
+	gutil.Connect(saveButton, saveButton.ConnectClicked, func(gtk.Button) {
+		dialog := gtk.NewFileDialog()
+		defer dialog.Unref() // The operation keeps it alive.
+		dialog.SetModal(true)
+		dialog.SetInitialName(file.Name)
+		dialog.Save(&a.win.MainWindow.Window, nil, gutil.Async(func(res *gio.AsyncResultBase) {
+			f, err := dialog.SaveFinish(res)
+			if err = gutil.Err(err); err != nil || f == nil {
+				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissedValue)) {
+					slog.Error("save file", "err", err)
+				}
+				return
+			}
+
+			go func() {
+				a.saveFile(context.TODO(), file.Name, f)
+				gutil.IdleAdd(gutil.Obj(f).Unref)
+			}()
+		}), 0)
+	})
+
+	deleteButton := gtk.NewButtonFromIconName("edit-delete-symbolic")
+	deleteButton.SetMarginTop(12)
+	deleteButton.SetMarginBottom(12)
+	deleteButton.SetHasFrame(false)
+	deleteButton.SetTooltipText(locale.Get("Delete"))
+	gutil.Connect(deleteButton, deleteButton.ConnectClicked, func(gtk.Button) {
+		Confirmation{
+			Heading: locale.Get("Delete file?"),
+			Body:    locale.Get("If you delete this file, you will no longer be able to save it to your local machine."),
+			Accept:  locale.Get("_Delete"),
+			Reject:  locale.Get("_Cancel"),
+		}.Show(a, func(accept bool) {
+			if accept {
+				err := tsutil.DeleteWaitingFile(context.TODO(), file.Name)
+				if err != nil {
+					slog.Error("delete file", "err", err)
+					return
+				}
+				<-a.poller.Poll()
+			}
+		})
+	})
+
+	row := adw.NewActionRow()
+	row.AddSuffix(&saveButton.Widget)
+	row.AddSuffix(&deleteButton.Widget)
+	saveButton.Unref()
+	deleteButton.Unref()
+	row.SetTitle(file.Name)
+	row.SetSubtitle(bytesize.ByteSize(file.Size).String())
+	return &row.Widget
+}
+
+func (page *SelfPage) Widget() *gtk.Widget {
+	return &page.Page.Widget
+}
+
+func (page *SelfPage) Actions() *gio.SimpleActionGroup {
 	return page.actions
+}
+
+func (page *SelfPage) Destroy() {
+	page.latencyRows.Update(nil)
+	page.addrModel.Unref()
+	page.routeModel.Unref()
+	page.fileModel.Unref()
+	page.actions.Unref()
+	gutil.UnrefFields(page)
 }
 
 func (page *SelfPage) Bind(stackPage *adw.ViewStackPage) {
@@ -432,14 +373,10 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())
 
-	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.AdvertisesExitNode())
-	page.AdvertiseExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.AdvertisesExitNode())
-	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.ExitNodeAllowLANAccess())
-	page.AllowLANAccessRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.ExitNodeAllowLANAccess())
-	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.RouteAll())
-	page.AcceptRoutesRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.RouteAll())
-	page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).SetState(status.Prefs.CorpDNS())
-	page.AcceptDNSRow.ActivatableWidget().(*gtk.Switch).SetActive(status.Prefs.CorpDNS())
+	setSwitch(page.AdvertiseExitNodeRow, status.Prefs.AdvertisesExitNode())
+	setSwitch(page.AllowLANAccessRow, status.Prefs.ExitNodeAllowLANAccess())
+	setSwitch(page.AcceptRoutesRow, status.Prefs.RouteAll())
+	setSwitch(page.AcceptDNSRow, status.Prefs.CorpDNS())
 
 	routes := func(yield func(netip.Prefix) bool) {
 		for _, r := range status.Prefs.AdvertiseRoutes().All() {
@@ -468,7 +405,7 @@ func (page *SelfPage) applyIncomingBadge() {
 	if page.stackPage == nil {
 		return
 	}
-	page.stackPage.SetBadgeNumber(uint(page.incomingFiles))
+	page.stackPage.SetBadgeNumber(uint32(page.incomingFiles))
 }
 
 func waitingFileKey(f apitype.WaitingFile) string { return f.Name }

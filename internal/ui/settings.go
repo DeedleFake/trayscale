@@ -3,35 +3,39 @@ package ui
 import (
 	"context"
 	"log/slog"
-	"slices"
 	"time"
 
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/xiter"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gio"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"tailscale.com/ipn"
 )
 
 func (a *App) initSettings(ctx context.Context) {
-	nonreloc, reloc := gio.SettingsSchemaSourceGetDefault().ListSchemas(true)
-	schemas := xiter.Concat(slices.Values(nonreloc), slices.Values(reloc))
-	if !xiter.Contains(schemas, metadata.AppID) {
+	// The default source can be NULL when no schemas are installed.
+	source := gio.SettingsSchemaSourceGetDefault()
+	if source == nil {
 		a.runSettings(ctx)
 		return
 	}
+	schema := source.Lookup(metadata.AppID, true)
+	if schema == nil {
+		a.runSettings(ctx)
+		return
+	}
+	schema.Unref()
 
+	// Lives as long as the app.
 	a.settings = gio.NewSettings(metadata.AppID)
-	a.settings.ConnectChanged(func(key string) {
+	gutil.Connect(a.settings, a.settings.ConnectChanged, func(_ gio.Settings, key string) {
 		switch key {
 		case "tray-icon":
-			glib.IdleAdd(func() {
-				if a.settings.Boolean("tray-icon") {
+			gutil.IdleAdd(func() {
+				if a.settings.GetBoolean("tray-icon") {
 					a.initTray(ctx)
 					return
 				}
@@ -43,7 +47,7 @@ func (a *App) initSettings(ctx context.Context) {
 			a.poller.SetInterval() <- a.getInterval()
 
 		case "taildrop-auto-save", "taildrop-auto-save-dir":
-			glib.IdleAdd(func() {
+			gutil.IdleAdd(func() {
 				// New enable/dir selection should retry files that failed
 				// against the previous configuration.
 				a.clearAutoSaveFailures()
@@ -51,9 +55,9 @@ func (a *App) initSettings(ctx context.Context) {
 			})
 
 		case "show-offline-peers":
-			glib.IdleAdd(func() {
+			gutil.IdleAdd(func() {
 				if a.win != nil {
-					a.win.SetShowOffline(a.settings.Boolean("show-offline-peers"))
+					a.win.SetShowOffline(a.settings.GetBoolean("show-offline-peers"))
 				}
 			})
 		}
@@ -63,8 +67,8 @@ func (a *App) initSettings(ctx context.Context) {
 }
 
 func (a *App) runSettings(ctx context.Context) {
-	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
-		glib.IdleAdd(func() {
+	if (a.settings == nil) || a.settings.GetBoolean("tray-icon") {
+		gutil.IdleAdd(func() {
 			a.initTray(ctx)
 		})
 	}
@@ -75,11 +79,11 @@ func (a *App) showChangeControlServer() {
 
 	Prompt{
 		Heading: locale.Get("Control Server URL"),
-		Purpose: gtk.InputPurposeURL,
+		Purpose: gtk.InputPurposeUrlValue,
 		Responses: []PromptResponse{
 			{ID: "cancel", Label: locale.Get("_Cancel")},
 			{ID: "default", Label: locale.Get("Use _Default")},
-			{ID: "set", Label: locale.Get("_Set URL"), Appearance: adw.ResponseSuggested, Default: true},
+			{ID: "set", Label: locale.Get("_Set URL"), Appearance: adw.ResponseSuggestedValue, Default: true},
 		},
 	}.Show(a, status.Prefs.ControlURL(), func(response, val string) {
 		switch response {
@@ -108,12 +112,12 @@ func (a *App) showPreferences() {
 	}
 
 	dialog := NewPreferencesDialog()
-	a.settings.Bind("tray-icon", dialog.UseTrayIconRow.Object, "active", gio.SettingsBindDefault)
-	a.settings.Bind("polling-interval", dialog.PollingIntervalAdjustment.Object, "value", gio.SettingsBindDefault)
-	a.settings.Bind("taildrop-auto-save", dialog.TaildropAutoSaveRow.Object, "active", gio.SettingsBindDefault)
+	a.settings.Bind("tray-icon", &dialog.UseTrayIconRow.Object, "active", gio.GSettingsBindDefaultValue)
+	a.settings.Bind("polling-interval", &dialog.PollingIntervalAdjustment.Object, "value", gio.GSettingsBindDefaultValue)
+	a.settings.Bind("taildrop-auto-save", &dialog.TaildropAutoSaveRow.Object, "active", gio.GSettingsBindDefaultValue)
 
 	updateAutoSaveSubtitle := func() {
-		dir := a.settings.String("taildrop-auto-save-dir")
+		dir := a.settings.GetString("taildrop-auto-save-dir")
 		if dir == "" {
 			dialog.TaildropAutoSaveRow.SetSubtitle(locale.Get("No folder selected"))
 			return
@@ -125,22 +129,25 @@ func (a *App) showPreferences() {
 	// Location can only be changed while auto-save is enabled; the
 	// switch is the single enable control for the combined row.
 	syncFolderButton := func() {
-		dialog.TaildropAutoSaveFolderButton.SetSensitive(dialog.TaildropAutoSaveRow.Active())
+		dialog.TaildropAutoSaveFolderButton.SetSensitive(dialog.TaildropAutoSaveRow.GetActive())
 	}
 	syncFolderButton()
-	dialog.TaildropAutoSaveRow.Connect("notify::active", syncFolderButton)
+	gutil.ConnectNotify(dialog.TaildropAutoSaveRow, "active", syncFolderButton)
 
 	selectFolder := func(onCancel func()) {
 		fileDialog := gtk.NewFileDialog()
+		defer fileDialog.Unref() // The operation keeps it alive.
 		fileDialog.SetModal(true)
 		fileDialog.SetTitle(locale.Get("Select Auto-save Folder"))
-		if dir := a.settings.String("taildrop-auto-save-dir"); dir != "" {
-			fileDialog.SetInitialFolder(gio.NewFileForPath(dir))
+		if dir := a.settings.GetString("taildrop-auto-save-dir"); dir != "" {
+			initial := gio.FileNewForPath(dir)
+			fileDialog.SetInitialFolder(initial)
+			gutil.Obj(initial).Unref()
 		}
-		fileDialog.SelectFolder(context.TODO(), a.window(), func(res gio.AsyncResulter) {
+		fileDialog.SelectFolder(a.window(), nil, gutil.Async(func(res *gio.AsyncResultBase) {
 			folder, err := fileDialog.SelectFolderFinish(res)
-			if err != nil {
-				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissed)) {
+			if err = gutil.Err(err); err != nil || folder == nil {
+				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissedValue)) {
 					slog.Error("select auto-save folder", "err", err)
 				}
 				if onCancel != nil {
@@ -148,22 +155,23 @@ func (a *App) showPreferences() {
 				}
 				return
 			}
-			a.settings.SetString("taildrop-auto-save-dir", folder.Path())
+			a.settings.SetString("taildrop-auto-save-dir", folder.GetPath())
+			gutil.Obj(folder).Unref()
 			updateAutoSaveSubtitle()
-		})
+		}), 0)
 	}
 
-	dialog.TaildropAutoSaveFolderButton.ConnectClicked(func() {
+	gutil.Connect(dialog.TaildropAutoSaveFolderButton, dialog.TaildropAutoSaveFolderButton.ConnectClicked, func(gtk.Button) {
 		selectFolder(nil)
 	})
 
 	// Enabling without a directory prompts for a folder; cancel leaves
 	// auto-save off so the combined row never ends half-configured.
-	dialog.TaildropAutoSaveRow.Connect("notify::active", func() {
-		if !dialog.TaildropAutoSaveRow.Active() {
+	gutil.ConnectNotify(dialog.TaildropAutoSaveRow, "active", func() {
+		if !dialog.TaildropAutoSaveRow.GetActive() {
 			return
 		}
-		if a.settings.String("taildrop-auto-save-dir") != "" {
+		if a.settings.GetString("taildrop-auto-save-dir") != "" {
 			return
 		}
 		selectFolder(func() {
@@ -171,20 +179,26 @@ func (a *App) showPreferences() {
 		})
 	})
 
-	dialog.PreferencesDialog.Present(a.window())
+	// The presented dialog keeps itself alive; drop the fields'
+	// references once it's closed.
+	gutil.Connect(dialog.PreferencesDialog, dialog.PreferencesDialog.ConnectClosed, func(adw.Dialog) {
+		gutil.IdleAdd(func() { gutil.UnrefFields(dialog) })
+	})
+	dialog.PreferencesDialog.Present(a.parent())
 }
 
 // showAbout shows the app's about dialog.
 func (a *App) showAbout() {
 	dialog := adw.NewAboutDialog()
+	defer dialog.Unref() // Presented dialogs keep themselves alive.
 	dialog.SetDeveloperName("DeedleFake")
 	dialog.SetCopyright("Copyright (c) 2025 DeedleFake")
 	dialog.SetLicense(metadata.License())
-	dialog.SetLicenseType(gtk.LicenseCustom)
+	dialog.SetLicenseType(gtk.LicenseCustomValue)
 	dialog.SetApplicationIcon(metadata.AppID)
 	dialog.SetApplicationName("Trayscale")
 	dialog.SetWebsite("https://github.com/DeedleFake/trayscale")
-	dialog.SetIssueURL("https://github.com/DeedleFake/trayscale/issues")
+	dialog.SetIssueUrl("https://github.com/DeedleFake/trayscale/issues")
 
 	rnv, rn := metadata.ReleaseNotes()
 	dialog.SetReleaseNotesVersion(rnv)
@@ -194,12 +208,12 @@ func (a *App) showAbout() {
 		dialog.SetVersion(v)
 	}
 
-	dialog.Present(a.window())
+	dialog.Present(a.parent())
 }
 
 func (a *App) getInterval() time.Duration {
 	if a.settings == nil {
 		return 5 * time.Second
 	}
-	return time.Duration(a.settings.Double("polling-interval") * float64(time.Second))
+	return time.Duration(a.settings.GetDouble("polling-interval") * float64(time.Second))
 }

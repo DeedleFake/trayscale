@@ -11,16 +11,16 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/puregotk/puregotk/v4/gio"
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/peersearch"
 	"deedles.dev/trayscale/internal/tsutil"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/glib"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
 )
@@ -69,29 +69,35 @@ func NewMainWindow(app *App) *MainWindow {
 		showOffline: true,
 	}
 	if app.settings != nil {
-		win.showOffline = app.settings.Boolean("show-offline-peers")
+		win.showOffline = app.settings.GetBoolean("show-offline-peers")
 	}
 	gutil.FillFromUI(&win, menuXML, mainWindowXML)
 
 	win.MainWindow.SetApplication(&app.app.Application)
 
-	win.PeersStack.NotifyProperty("visible-child-name", func() {
-		page := win.pages[win.PeersStack.VisibleChildName()]
+	gutil.ConnectNotify(win.PeersStack, "visible-child-name", func() {
+		page := win.pages[win.PeersStack.GetVisibleChildName()]
 
-		var actions gio.ActionGrouper
+		var actions *gio.SimpleActionGroup
 		if page != nil {
 			actions = page.Actions()
 		}
-		win.MainWindow.InsertActionGroup("peer", actions)
+		if actions != nil {
+			win.MainWindow.InsertActionGroup("peer", actions)
+		} else {
+			removeActionGroup(&win.MainWindow.Widget, "peer")
+		}
 		win.PageMenuButton.SetSensitive(actions != nil)
 	})
 
 	win.profileModel = gtk.NewStringList(nil)
-	win.profileSortModel = gtk.NewSortListModel(win.profileModel, &stringListSorter.Sorter)
+	// gtk_sort_list_model_new takes ownership of the model and sorter.
+	win.profileModel.Ref()
+	win.profileSortModel = gtk.NewSortListModel(win.profileModel, &newStringSorter().Sorter)
 	win.ProfileDropDown.SetModel(win.profileSortModel)
 
-	win.StatusSwitch.ConnectStateSet(func(s bool) bool {
-		if s == win.StatusSwitch.State() {
+	gutil.Connect(win.StatusSwitch, win.StatusSwitch.ConnectStateSet, func(_ gtk.Switch, s bool) bool {
+		if s == win.StatusSwitch.GetState() {
 			return false
 		}
 
@@ -114,17 +120,17 @@ func NewMainWindow(app *App) *MainWindow {
 		return true
 	})
 
-	win.ProfileDropDown.NotifyProperty("selected-item", func() {
+	gutil.ConnectNotify(win.ProfileDropDown, "selected-item", func() {
 		if win.updatingProfiles {
 			return
 		}
 
-		obj, ok := gutil.Cast[*gtk.StringObject](win.ProfileDropDown.SelectedItem(), gtk.GTypeStringObject)
+		obj, ok := gutil.Cast[gtk.StringObject](win.ProfileDropDown.GetSelectedItem(), gtk.StringObjectGLibType())
 		if !ok {
 			return
 		}
 
-		item := obj.String()
+		item := obj.GetString()
 		index := slices.IndexFunc(win.profiles, func(p ipn.LoginProfile) bool {
 			// TODO: Find a reasonable way to do this by profile ID instead.
 			return p.Name == item
@@ -150,10 +156,11 @@ func NewMainWindow(app *App) *MainWindow {
 		<-app.poller.Poll()
 	})
 
-	contentVariant := glib.NewVariantString("content")
-	win.PeersSidebar.ConnectActivated(func() {
-		win.SplitView.ActivateAction("navigation.push", contentVariant)
+	contentVariant := glib.NewVariantString("content").RefSink()
+	gutil.Connect(win.PeersSidebar, win.PeersSidebar.ConnectActivated, func(adw.ViewSwitcherSidebar) {
+		win.SplitView.ActivateActionVariant("navigation.push", contentVariant)
 	})
+	gutil.OnFinalize(win.PeersSidebar, contentVariant.Unref)
 
 	win.initPeerSearch()
 
@@ -161,15 +168,15 @@ func NewMainWindow(app *App) *MainWindow {
 }
 
 func (win *MainWindow) initPeerSearch() {
-	win.PeerSearchBar.SetKeyCaptureWidget(win.MainWindow)
+	win.PeerSearchBar.SetKeyCaptureWidget(&win.MainWindow.Widget)
 	win.PeerSearchBar.ConnectEntry(win.PeerSearchEntry)
 
-	win.PeerSearchButton.Connect("notify::active", func() {
-		win.PeerSearchBar.SetSearchMode(win.PeerSearchButton.Active())
+	gutil.ConnectNotify(win.PeerSearchButton, "active", func() {
+		win.PeerSearchBar.SetSearchMode(win.PeerSearchButton.GetActive())
 	})
-	win.PeerSearchBar.NotifyProperty("search-mode-enabled", func() {
-		searching := win.PeerSearchBar.SearchMode()
-		if win.PeerSearchButton.Active() != searching {
+	gutil.ConnectNotify(win.PeerSearchBar, "search-mode-enabled", func() {
+		searching := win.PeerSearchBar.GetSearchMode()
+		if win.PeerSearchButton.GetActive() != searching {
 			win.PeerSearchButton.SetActive(searching)
 		}
 		if !searching {
@@ -177,8 +184,8 @@ func (win *MainWindow) initPeerSearch() {
 			win.setPeerQuery("")
 		}
 	})
-	win.PeerSearchEntry.ConnectSearchChanged(func() {
-		win.setPeerQuery(win.PeerSearchEntry.Text())
+	gutil.Connect(win.PeerSearchEntry, win.PeerSearchEntry.ConnectSearchChanged, func(gtk.SearchEntry) {
+		win.setPeerQuery(win.PeerSearchEntry.GetText())
 	})
 }
 
@@ -193,28 +200,37 @@ func (win *MainWindow) addPage(name string, page Page) {
 	page.Bind(vp)
 }
 
-func (win *MainWindow) viewStackPages() []*adw.ViewStackPage {
-	model := win.PeersStack.Pages()
-	pages := make([]*adw.ViewStackPage, 0, model.NItems())
-	for i := range model.NItems() {
-		obj := model.Item(i)
-		if obj == nil {
-			continue
-		}
-		vp, ok := gutil.Cast[*adw.ViewStackPage](obj, adw.GTypeViewStackPage)
+// viewStackPage is the name and the (borrowed) ViewStackPage of one
+// page in the stack.
+type viewStackPage struct {
+	name string
+	page *adw.ViewStackPage
+}
+
+func (win *MainWindow) viewStackPages() []viewStackPage {
+	// GtkSelectionModel is a GListModel.
+	model := &gio.ListModelBase{Ptr: win.PeersStack.GetPages().GoPointer()}
+	defer gutil.Obj(model).Unref()
+
+	pages := make([]viewStackPage, 0, model.GetNItems())
+	for _, obj := range listmodels.Objects(model) {
+		vp, ok := gutil.Cast[adw.ViewStackPage](obj, adw.ViewStackPageGLibType())
 		if !ok {
 			continue
 		}
-		pages = append(pages, vp)
+		// The stack keeps the page alive after the model's item
+		// reference is dropped.
+		pages = append(pages, viewStackPage{name: vp.GetName(), page: vp})
 	}
 	return pages
 }
 
 func (win *MainWindow) removePage(name string, page Page) {
-	reselect := win.PeersStack.VisibleChildName() == name
+	reselect := win.PeersStack.GetVisibleChildName() == name
 
 	delete(win.pages, name)
 	win.PeersStack.Remove(page.Widget())
+	page.Destroy()
 
 	if !reselect {
 		return
@@ -223,7 +239,19 @@ func (win *MainWindow) removePage(name string, page Page) {
 	if len(remaining) == 0 {
 		return
 	}
-	win.PeersStack.SetVisibleChildName(remaining[0].Name())
+	win.PeersStack.SetVisibleChildName(remaining[0].name)
+}
+
+// Destroy releases the window's pages and Go-side references after the
+// window has been closed.
+func (win *MainWindow) Destroy() {
+	for _, page := range win.pages {
+		page.Destroy()
+	}
+	clear(win.pages)
+	win.profileModel.Unref()
+	win.profileSortModel.Unref()
+	gutil.UnrefFields(win)
 }
 
 func (win *MainWindow) Update(status tsutil.Status) {
@@ -280,7 +308,7 @@ func (win *MainWindow) applyLayout(status *tsutil.IPNStatus) {
 
 func (win *MainWindow) updateStackPages(status *tsutil.IPNStatus) {
 	for _, vp := range win.viewStackPages() {
-		if page := win.pages[vp.Name()]; page != nil {
+		if page := win.pages[vp.name]; page != nil {
 			page.Update(status)
 		}
 	}
@@ -340,7 +368,7 @@ func (win *MainWindow) stackPageNames() []string {
 	vps := win.viewStackPages()
 	names := make([]string, 0, len(vps))
 	for _, vp := range vps {
-		names = append(names, vp.Name())
+		names = append(names, vp.name)
 	}
 	return names
 }
@@ -479,9 +507,9 @@ func sortPeerPageNames(status *tsutil.IPNStatus, names []string) {
 }
 
 func (win *MainWindow) restack(order []string) {
-	visible := win.PeersStack.VisibleChildName()
+	visible := win.PeersStack.GetVisibleChildName()
 	for _, vp := range win.viewStackPages() {
-		if page := win.pages[vp.Name()]; page != nil {
+		if page := win.pages[vp.name]; page != nil {
 			win.PeersStack.Remove(page.Widget())
 		}
 	}
@@ -495,13 +523,13 @@ func (win *MainWindow) restack(order []string) {
 
 func (win *MainWindow) restoreVisible(name string) {
 	for _, vp := range win.viewStackPages() {
-		if vp.Name() == name {
+		if vp.name == name {
 			win.PeersStack.SetVisibleChildName(name)
 			return
 		}
 	}
 	if remaining := win.viewStackPages(); len(remaining) > 0 {
-		win.PeersStack.SetVisibleChildName(remaining[0].Name())
+		win.PeersStack.SetVisibleChildName(remaining[0].name)
 	}
 }
 
@@ -511,9 +539,9 @@ func (win *MainWindow) applySections(layout []sidebarPage) {
 		section[p.name] = p.section
 	}
 	for _, vp := range win.viewStackPages() {
-		title := section[vp.Name()]
-		vp.SetStartsSection(title != "")
-		vp.SetSectionTitle(title)
+		title := section[vp.name]
+		vp.page.SetStartsSection(title != "")
+		vp.page.SetSectionTitle(title)
 	}
 }
 
@@ -536,17 +564,23 @@ func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {
 		}
 	})
 
-	profileIndex, ok := listmodels.Index(win.profileSortModel, gtk.GTypeStringObject, func(obj *gtk.StringObject) bool {
-		return obj.String() == status.Profile.Name
+	profileIndex, ok := listmodels.Index[gtk.StringObject](win.profileSortModel, gtk.StringObjectGLibType(), func(obj *gtk.StringObject) bool {
+		return obj.GetString() == status.Profile.Name
 	})
 	if ok {
-		win.ProfileDropDown.SetSelected(uint(profileIndex))
+		win.ProfileDropDown.SetSelected(profileIndex)
 	}
 }
 
-func (win *MainWindow) Toast(msg string) *adw.Toast {
+func (win *MainWindow) Toast(msg string) {
 	toast := adw.NewToast(msg)
 	toast.SetTimeout(3)
-	win.ToastOverlay.AddToast(toast)
-	return toast
+	win.ToastOverlay.AddToast(toast) // Takes ownership.
+}
+
+// removeActionGroup removes the action group inserted into w under
+// prefix, if any. puregotk calls GoPointer on interface arguments, so a
+// nil group can't be passed; a wrapper around NULL can.
+func removeActionGroup(w *gtk.Widget, prefix string) {
+	w.InsertActionGroup(prefix, &gio.SimpleActionGroup{})
 }

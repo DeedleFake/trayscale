@@ -1,12 +1,13 @@
 package ui
 
 import (
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/locale"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
+// window returns the main window, borrowed, or nil.
 func (a *App) window() *gtk.Window {
 	if a == nil {
 		return nil
@@ -16,6 +17,23 @@ func (a *App) window() *gtk.Window {
 	}
 
 	return &a.win.MainWindow.Window
+}
+
+// parent returns the main window as a dialog parent. puregotk can't
+// pass a nil pointer for a nullable parameter, so with no window it
+// returns a wrapper around NULL.
+func (a *App) parent() *gtk.Widget {
+	if w := a.window(); w != nil {
+		return &w.Widget
+	}
+	return &gtk.Widget{}
+}
+
+// present shows dialog and drops the caller's reference; a presented
+// dialog keeps itself alive until it's closed.
+func (a *App) present(dialog *adw.AlertDialog) {
+	dialog.Present(a.parent())
+	dialog.Unref()
 }
 
 type Confirmation struct {
@@ -30,14 +48,14 @@ func (d Confirmation) Show(a *App, res func(bool)) {
 	dialog.AddResponse("reject", d.Reject)
 	dialog.SetCloseResponse("reject")
 	dialog.AddResponse("accept", d.Accept)
-	dialog.SetResponseAppearance("accept", adw.ResponseSuggested)
+	dialog.SetResponseAppearance("accept", adw.ResponseSuggestedValue)
 	dialog.SetDefaultResponse("accept")
 
-	dialog.ConnectResponse(func(response string) {
+	gutil.Connect(dialog, dialog.ConnectResponse, func(_ adw.AlertDialog, response string) {
 		res(response == "accept")
 	})
 
-	dialog.Present(gutil.PointerToWidgetter(a.window()))
+	a.present(dialog)
 }
 
 type Prompt struct {
@@ -62,7 +80,7 @@ func (d Prompt) Show(a *App, initialValue string, res func(response, val string)
 	input.SetPlaceholderText(d.Placeholder)
 
 	dialog := adw.NewAlertDialog(d.Heading, d.Body)
-	dialog.SetExtraChild(input)
+	dialog.SetExtraChild(&input.Widget)
 
 	def := "activate"
 	for _, r := range d.Responses {
@@ -74,21 +92,23 @@ func (d Prompt) Show(a *App, initialValue string, res func(response, val string)
 		}
 	}
 
-	dialog.ConnectResponse(func(response string) {
-		res(response, input.Text())
+	gutil.Connect(dialog, dialog.ConnectResponse, func(_ adw.AlertDialog, response string) {
+		res(response, input.GetText())
 	})
-	input.ConnectActivate(func() {
+	gutil.Connect(input, input.ConnectActivate, func(gtk.Entry) {
 		defer dialog.Close()
-		res(def, input.Text())
+		res(def, input.GetText())
 	})
+	input.Unref() // The dialog holds it now.
 
-	dialog.Present(gutil.PointerToWidgetter(a.window()))
+	a.present(dialog)
 }
 
 type Info struct {
 	Heading string
 	Body    string
-	Extra   func() gtk.Widgetter
+	// Extra returns a new widget, which the dialog takes over.
+	Extra func() *gtk.Widget
 }
 
 func (d Info) Show(a *App, closed func()) {
@@ -97,16 +117,18 @@ func (d Info) Show(a *App, closed func()) {
 	dialog.AddResponse("close", locale.Get("_Close"))
 	dialog.SetDefaultResponse("close")
 	if d.Extra != nil {
-		dialog.SetExtraChild(d.Extra())
+		extra := d.Extra()
+		dialog.SetExtraChild(extra)
+		extra.Unref()
 	}
 
 	if closed != nil {
-		dialog.ConnectResponse(func(string) {
+		gutil.Connect(dialog, dialog.ConnectResponse, func(adw.AlertDialog, string) {
 			closed()
 		})
 	}
 
-	dialog.Present(gutil.PointerToWidgetter(a.window()))
+	a.present(dialog)
 }
 
 type Select[T any] struct {
@@ -123,39 +145,40 @@ type SelectOption[T any] struct {
 
 func (d Select[T]) Show(a *App, res func([]SelectOption[T])) {
 	options := gtk.NewListBox()
-	options.AddCSSClass("boxed-list")
-	options.SetSelectionMode(gtk.SelectionSingle)
+	options.AddCssClass("boxed-list")
+	options.SetSelectionMode(gtk.SelectionSingleValue)
 	for _, option := range d.Options {
 		row := adw.NewActionRow()
 		row.SetTitle(option.Title)
 		row.SetSubtitle(option.Subtitle)
 		row.SetSelectable(true)
-		options.Append(row)
+		options.Append(&row.Widget)
+		row.Unref()
 	}
 
 	dialog := adw.NewAlertDialog(d.Heading, d.Body)
-	dialog.SetExtraChild(options)
+	dialog.SetExtraChild(&options.Widget)
 
 	dialog.AddResponse("select", locale.Get("Select"))
-	dialog.SetResponseAppearance("select", adw.ResponseSuggested)
+	dialog.SetResponseAppearance("select", adw.ResponseSuggestedValue)
 	dialog.SetDefaultResponse("select")
 
 	dialog.AddResponse("cancel", locale.Get("Cancel"))
 
-	dialog.ConnectResponse(func(response string) {
+	gutil.Connect(dialog, dialog.ConnectResponse, func(_ adw.AlertDialog, response string) {
 		if response != "select" {
 			res(nil)
 			return
 		}
 
-		rows := options.SelectedRows()
-		selected := make([]SelectOption[T], 0, len(rows))
-		for _, row := range rows {
-			option := d.Options[row.Index()]
-			selected = append(selected, option)
+		// Single selection, so there is at most one selected row.
+		var selected []SelectOption[T]
+		if row := options.GetSelectedRow(); row != nil {
+			selected = append(selected, d.Options[row.GetIndex()])
 		}
 		res(selected)
 	})
+	options.Unref() // The dialog holds it now.
 
-	dialog.Present(gutil.PointerToWidgetter(a.window()))
+	a.present(dialog)
 }

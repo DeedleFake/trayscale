@@ -4,8 +4,8 @@ import (
 	_ "embed"
 
 	"deedles.dev/trayscale/internal/gutil"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 )
 
 //go:embed preferences.ui

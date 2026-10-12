@@ -5,9 +5,9 @@ import (
 
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/tsutil"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gio"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 )
 
 //go:embed offlinepage.ui
@@ -26,17 +26,21 @@ func NewOfflinePage(app *App) *OfflinePage {
 	return &page
 }
 
-func (page *OfflinePage) Widget() gtk.Widgetter {
-	return page.Page
+func (page *OfflinePage) Widget() *gtk.Widget {
+	return &page.Page.Widget
 }
 
-func (page *OfflinePage) Actions() gio.ActionGrouper {
+func (page *OfflinePage) Actions() *gio.SimpleActionGroup {
 	return nil
 }
 
 func (page *OfflinePage) Bind(stackPage *adw.ViewStackPage) {
-	stackPage.SetTitle(page.Page.Title())
-	stackPage.SetIconName(page.Page.IconName())
+	stackPage.SetTitle(page.Page.GetTitle())
+	stackPage.SetIconName(page.Page.GetIconName())
+}
+
+func (page *OfflinePage) Destroy() {
+	gutil.UnrefFields(page)
 }
 
 func (page *OfflinePage) Update(status tsutil.Status) bool {

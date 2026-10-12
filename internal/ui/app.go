@@ -10,18 +10,20 @@ import (
 	"slices"
 	"sync"
 	"time"
+	"unsafe"
 
 	"deedles.dev/trayscale/internal/autosave"
+	"deedles.dev/trayscale/internal/giofs"
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gdk"
+	"codeberg.org/puregotk/puregotk/v4/gio"
+	"codeberg.org/puregotk/puregotk/v4/glib"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/tailcfg"
@@ -49,24 +51,24 @@ type App struct {
 	autoSaveDirBad string   // destination dir last logged as unusable; avoids log spam
 }
 
-func (a *App) clip(v *glib.Value) {
-	gdk.DisplayGetDefault().Clipboard().Set(v)
+func (a *App) clip(text string) {
+	gdk.DisplayGetDefault().GetClipboard().SetText(text)
 }
 
 func (a *App) notify(title, body string) {
-	icon, iconerr := gio.NewIconForString(metadata.AppID)
-
 	n := gio.NewNotification(title)
+	defer n.Unref()
 	n.SetBody(body)
-	if iconerr == nil {
+	if icon, err := gio.IconNewForString(metadata.AppID); gutil.Err(err) == nil && icon != nil {
 		n.SetIcon(icon)
+		gutil.Obj(icon).Unref()
 	}
 
 	a.app.SendNotification("tailscale-status", n)
 }
 
 func (a *App) spin() {
-	glib.IdleAdd(func() {
+	gutil.IdleAdd(func() {
 		a.spinnum++
 		if a.win != nil {
 			a.win.WorkSpinner.SetVisible(a.spinnum > 0)
@@ -75,7 +77,7 @@ func (a *App) spin() {
 }
 
 func (a *App) stopSpin() {
-	glib.IdleAdd(func() {
+	gutil.IdleAdd(func() {
 		a.spinnum--
 		if a.win != nil {
 			a.win.WorkSpinner.SetVisible(a.spinnum > 0)
@@ -87,14 +89,14 @@ func (a *App) showOperatorDialog() {
 	Info{
 		Heading: locale.Get("User is not Tailscale Operator"),
 		Body:    locale.Get("Some functionality may not work as expected. To resolve, run the following command in a terminal:"),
-		Extra: func() gtk.Widgetter {
+		Extra: func() *gtk.Widget {
 			const command = "sudo tailscale set --operator=$USER"
 			w := gtk.NewLabel(command)
-			w.AddCSSClass("code")
-			w.AddCSSClass("monospace")
-			w.AddCSSClass("frame")
+			w.AddCssClass("code")
+			w.AddCssClass("monospace")
+			w.AddCssClass("frame")
 			w.SetSelectable(true)
-			return w
+			return &w.Widget
 		},
 	}.Show(a, nil)
 }
@@ -113,7 +115,7 @@ func (a *App) update(status tsutil.Status) {
 			a.notify(locale.Get("Tailscale Status"), body) // TODO: Notify on startup if not connected?
 		}
 
-		useExitNodeAction, ok := gutil.Cast[*gio.SimpleAction](a.app.LookupAction("use_exit_node"), gio.GTypeSimpleAction)
+		useExitNodeAction, ok := gutil.Cast[gio.SimpleAction](a.app.LookupAction("use_exit_node"), gio.SimpleActionGLibType())
 		if ok {
 			useExitNodeAction.SetEnabled(online)
 			useExitNodeAction.SetState(glib.NewVariantBoolean(status.ExitNodeActive()))
@@ -170,13 +172,15 @@ func (a *App) update(status tsutil.Status) {
 func (a *App) init(ctx context.Context) {
 	gtk.Init()
 
-	a.app = adw.NewApplication(metadata.AppID, gio.ApplicationHandlesOpen)
+	a.app = adw.NewApplication(metadata.AppID, gio.GApplicationHandlesOpenValue)
 
-	css := gtk.NewCSSProvider()
+	css := gtk.NewCssProvider()
 	css.LoadFromString(appCSS)
-	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, uint32(gtk.STYLE_PROVIDER_PRIORITY_APPLICATION))
+	css.Unref()
 
-	gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault()).ConnectChanged(func() {
+	theme := gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault())
+	gutil.Connect(theme, theme.ConnectChanged, func(gtk.IconTheme) {
 		if a.win == nil {
 			return
 		}
@@ -188,24 +192,24 @@ func (a *App) init(ctx context.Context) {
 	})
 
 	var hideWindow bool
-	a.app.AddMainOption("hide-window", 0, glib.OptionFlagNone, glib.OptionArgNone, locale.Get("Hide window on initial start"), "")
-	a.app.ConnectHandleLocalOptions(func(options *glib.VariantDict) int {
-		if options.Contains("hide-window") {
+	a.app.AddMainOption("hide-window", 0, glib.GOptionFlagNoneValue, glib.GOptionArgNoneValue, locale.Get("Hide window on initial start"), "")
+	gutil.Connect(a.app, a.app.ConnectHandleLocalOptions, func(_ gio.Application, options uintptr) int32 {
+		if gutil.Ptr[glib.VariantDict](options).Contains("hide-window") {
 			hideWindow = true
 		}
 
 		return -1
 	})
 
-	a.app.ConnectOpen(func(files []gio.Filer, hint string) {
-		a.onAppOpen(ctx, files)
+	gutil.Connect(a.app, a.app.ConnectOpen, func(_ gio.Application, files uintptr, n int32, hint string) {
+		a.onAppOpen(ctx, fileArray(files, n))
 	})
 
-	a.app.ConnectStartup(func() {
+	gutil.Connect(a.app, a.app.ConnectStartup, func(gio.Application) {
 		a.app.Hold()
 	})
 
-	a.app.ConnectActivate(func() {
+	gutil.Connect(a.app, a.app.ConnectActivate, func(gio.Application) {
 		if hideWindow {
 			hideWindow = false
 			return
@@ -214,6 +218,26 @@ func (a *App) init(ctx context.Context) {
 	})
 
 	a.initSettings(ctx)
+}
+
+// fileArray copies a C array of n GFile pointers, as passed to
+// GApplication::open, taking a reference to each. The caller releases
+// them with unrefFiles.
+func fileArray(p uintptr, n int32) []*gio.FileBase {
+	ptrs := unsafe.Slice(*(**uintptr)(unsafe.Pointer(&p)), n)
+	files := make([]*gio.FileBase, 0, n)
+	for _, ptr := range ptrs {
+		f := &gio.FileBase{Ptr: ptr}
+		gutil.Obj(f).Ref()
+		files = append(files, f)
+	}
+	return files
+}
+
+func unrefFiles(files []*gio.FileBase) {
+	for _, f := range files {
+		gutil.Obj(f).Unref()
+	}
 }
 
 func (a *App) startTS(ctx context.Context) error {
@@ -249,11 +273,12 @@ func (a *App) stopTS(ctx context.Context) error {
 	return nil
 }
 
-func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
+func (a *App) onAppOpen(ctx context.Context, files []*gio.FileBase) {
 	type selectOption = SelectOption[tailcfg.NodeView]
 
 	s := <-a.poller.GetIPN()
 	if !s.Online() {
+		unrefFiles(files)
 		return
 	}
 	options := func(yield func(selectOption) bool) {
@@ -278,13 +303,34 @@ func (a *App) onAppOpen(ctx context.Context, files []gio.Filer) {
 			return cmp.Compare(o1.Title, o2.Title)
 		}),
 	}.Show(a, func(options []selectOption) {
+		var wg sync.WaitGroup
 		for _, option := range options {
 			a.notify(locale.Get("Taildrop"), locale.Get("Sending %v file(s) to %v...", len(files), option.Title))
 			for _, file := range files {
-				go a.pushFile(ctx, option.Value.StableID(), file)
+				wg.Go(func() { a.pushFile(ctx, option.Value.StableID(), file) })
 			}
 		}
+		go func() {
+			wg.Wait()
+			gutil.IdleAdd(func() { unrefFiles(files) })
+		}()
 	})
+}
+
+// addAction adds an action to the app, connecting activate if it's
+// not nil, and drops the caller's reference.
+func (a *App) addAction(action *gio.SimpleAction, activate func(param *glib.Variant)) {
+	if activate != nil {
+		gutil.Connect(action, action.ConnectActivate, func(_ gio.SimpleAction, p uintptr) {
+			var param *glib.Variant
+			if p != 0 {
+				param = gutil.Ptr[glib.Variant](p)
+			}
+			activate(param)
+		})
+	}
+	a.app.AddAction(action)
+	action.Unref()
 }
 
 func (a *App) onAppActivate(ctx context.Context) {
@@ -294,11 +340,11 @@ func (a *App) onAppActivate(ctx context.Context) {
 	}
 
 	useExitNodeAction := gio.NewSimpleActionStateful("use_exit_node", nil, glib.NewVariantBoolean(false))
-	useExitNodeAction.ConnectChangeState(func(state *glib.Variant) {
+	gutil.Connect(useExitNodeAction, useExitNodeAction.ConnectChangeState, func(_ gio.SimpleAction, state uintptr) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
-		s := state.Boolean()
+		s := gutil.Ptr[glib.Variant](state).GetBoolean()
 		err := tsutil.SetUseExitNode(ctx, s)
 		if err != nil {
 			slog.Error("failed to set exit node state", "state", s, "err", err)
@@ -308,53 +354,39 @@ func (a *App) onAppActivate(ctx context.Context) {
 		}
 	})
 	useExitNodeAction.SetEnabled(false)
-	a.app.AddAction(useExitNodeAction)
+	a.addAction(useExitNodeAction, nil)
 
 	if a.settings != nil {
-		a.app.AddAction(a.settings.CreateAction("show-offline-peers"))
+		action := a.settings.CreateAction("show-offline-peers")
+		a.app.AddAction(action)
+		gutil.Obj(action).Unref()
 	} else {
 		showOffline := gio.NewSimpleActionStateful("show-offline-peers", nil, glib.NewVariantBoolean(true))
-		showOffline.ConnectChangeState(func(state *glib.Variant) {
-			showOffline.SetState(state)
+		gutil.Connect(showOffline, showOffline.ConnectChangeState, func(action gio.SimpleAction, state uintptr) {
+			v := gutil.Ptr[glib.Variant](state)
+			action.SetState(v)
 			if a.win != nil {
-				a.win.SetShowOffline(state.Boolean())
+				a.win.SetShowOffline(v.GetBoolean())
 			}
 		})
-		a.app.AddAction(showOffline)
+		a.addAction(showOffline, nil)
 	}
 
-	changeControlServerAction := gio.NewSimpleAction("change_control_server", nil)
-	changeControlServerAction.ConnectActivate(func(p *glib.Variant) { a.showChangeControlServer() })
-	a.app.AddAction(changeControlServerAction)
-
-	preferencesAction := gio.NewSimpleAction("preferences", nil)
-	preferencesAction.ConnectActivate(func(p *glib.Variant) { a.showPreferences() })
-	a.app.AddAction(preferencesAction)
-
-	adminDashboardAction := gio.NewSimpleAction("admin_dashboard", nil)
-	adminDashboardAction.ConnectActivate(func(p *glib.Variant) { gtk.NewURILauncher(tsutil.AdminDashboardURL).Launch(ctx, a.window(), nil) })
-	a.app.AddAction(adminDashboardAction)
-
-	aboutAction := gio.NewSimpleAction("about", nil)
-	aboutAction.ConnectActivate(func(p *glib.Variant) { a.showAbout() })
-	a.app.AddAction(aboutAction)
-
-	quitAction := gio.NewSimpleAction("quit", nil)
-	quitAction.ConnectActivate(func(p *glib.Variant) { a.Quit() })
-	a.app.AddAction(quitAction)
+	a.addAction(gio.NewSimpleAction("change_control_server", nil), func(*glib.Variant) { a.showChangeControlServer() })
+	a.addAction(gio.NewSimpleAction("preferences", nil), func(*glib.Variant) { a.showPreferences() })
+	a.addAction(gio.NewSimpleAction("admin_dashboard", nil), func(*glib.Variant) { a.launchURI(tsutil.AdminDashboardURL) })
+	a.addAction(gio.NewSimpleAction("about", nil), func(*glib.Variant) { a.showAbout() })
+	a.addAction(gio.NewSimpleAction("quit", nil), func(*glib.Variant) { a.Quit() })
 	a.app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
 
-	searchPeersAction := gio.NewSimpleAction("search-peers", nil)
-	searchPeersAction.ConnectActivate(func(p *glib.Variant) {
+	a.addAction(gio.NewSimpleAction("search-peers", nil), func(*glib.Variant) {
 		if a.win != nil {
 			a.win.OpenPeerSearch()
 		}
 	})
-	a.app.AddAction(searchPeersAction)
 	a.app.SetAccelsForAction("app.search-peers", []string{"<Ctrl>f"})
 
-	loginAction := gio.NewSimpleAction("login", nil)
-	loginAction.ConnectActivate(func(p *glib.Variant) {
+	a.addAction(gio.NewSimpleAction("login", nil), func(*glib.Variant) {
 		status := <-a.poller.GetIPN()
 		if !status.OperatorIsCurrent() {
 			a.showOperatorDialog()
@@ -382,17 +414,20 @@ func (a *App) onAppActivate(ctx context.Context) {
 				return
 			case status := <-a.poller.NextIPN():
 				if status.BrowseToURL != "" {
-					gtk.NewURILauncher(status.BrowseToURL).Launch(ctx, a.window(), nil)
+					a.launchURI(status.BrowseToURL)
 					return
 				}
 			}
 		}
 	})
-	a.app.AddAction(loginAction)
 
 	a.win = NewMainWindow(a)
-	a.win.MainWindow.ConnectCloseRequest(func() bool {
+	gutil.Connect(a.win.MainWindow, a.win.MainWindow.ConnectCloseRequest, func(gtk.Window) bool {
+		win := a.win
 		a.win = nil
+		// The window is destroyed after this returns; release the
+		// window's Go-side references once the main loop is idle.
+		gutil.IdleAdd(win.Destroy)
 		return false
 	})
 
@@ -401,8 +436,15 @@ func (a *App) onAppActivate(ctx context.Context) {
 
 	go func() {
 		s := <-a.poller.GetIPN()
-		glib.IdleAdd(func() { a.update(s) })
+		gutil.IdleAdd(func() { a.update(s) })
 	}()
+}
+
+// launchURI opens uri with the default handler.
+func (a *App) launchURI(uri string) {
+	l := gtk.NewUriLauncher(uri)
+	l.Launch(a.window(), nil, nil, 0)
+	l.Unref()
 }
 
 func (a *App) initTray(ctx context.Context) {
@@ -413,7 +455,7 @@ func (a *App) initTray(ctx context.Context) {
 
 	a.tray = &tray.Tray{
 		OnShow: func() {
-			glib.IdleAdd(func() {
+			gutil.IdleAdd(func() {
 				if a.app != nil {
 					a.app.Activate()
 				}
@@ -421,7 +463,7 @@ func (a *App) initTray(ctx context.Context) {
 		},
 
 		OnConnToggle: func() {
-			glib.IdleAdd(func() {
+			gutil.IdleAdd(func() {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 
@@ -446,7 +488,7 @@ func (a *App) initTray(ctx context.Context) {
 				s := <-a.poller.GetIPN()
 				toggle := !s.ExitNodeActive()
 				err := tsutil.SetUseExitNode(ctx, toggle)
-				glib.IdleAdd(func() {
+				gutil.IdleAdd(func() {
 					if err != nil {
 						a.notify(locale.Get("Toggle exit node"), err.Error())
 						slog.Error("toggle exit node from tray", "err", err)
@@ -468,8 +510,8 @@ func (a *App) initTray(ctx context.Context) {
 				if !addr.IsValid() {
 					return
 				}
-				glib.IdleAdd(func() {
-					a.clip(glib.NewValue(addr.String()))
+				gutil.IdleAdd(func() {
+					a.clip(addr.String())
 					if a.win != nil {
 						a.notify(locale.Get("Trayscale"), locale.Get("Copied address to clipboard"))
 					}
@@ -521,17 +563,20 @@ func (a *App) Run(ctx context.Context) {
 	a.init(ctx)
 	context.AfterFunc(ctx, a.Quit)
 
-	err := a.app.Register(ctx)
-	if err != nil {
+	c, release := giofs.Cancellable(ctx)
+	_, err := a.app.Register(c)
+	release()
+	if err = gutil.Err(err); err != nil {
 		slog.Error("register application", "err", err)
 		return
 	}
 
 	a.poller = &tsutil.Poller{
 		Interval: a.getInterval(),
-		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		New:      func(s tsutil.Status) { gutil.IdleAdd(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
 
-	a.app.Run(os.Args)
+	a.app.Run(int32(len(os.Args)), os.Args)
+	a.app.Unref()
 }

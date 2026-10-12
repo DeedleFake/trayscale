@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	"deedles.dev/xiter"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 )
 
 // TODO: Move this into a different package and remove the need to keep
@@ -26,6 +26,7 @@ func (m *rowManager[Data]) resize(size int) {
 	if size < len(m.rows) {
 		for _, r := range m.rows[size:] {
 			m.Parent.Remove(r.Widget())
+			r.Widget().Unref()
 		}
 		clear(m.rows[size:])
 		m.rows = m.rows[:size]
@@ -53,30 +54,32 @@ func (m *rowManager[Data]) UpdateFromSeq(data iter.Seq[Data], size int) {
 }
 
 type rowManagerParent interface {
-	Add(gtk.Widgetter)
-	Remove(gtk.Widgetter)
+	Add(*gtk.Widget)
+	Remove(*gtk.Widget)
 }
 
 type rowAdder interface {
-	AddRow(gtk.Widgetter)
-	Remove(gtk.Widgetter)
+	AddRow(*gtk.Widget)
+	Remove(*gtk.Widget)
 }
 
 type rowAdderParent struct {
 	rowAdder
 }
 
-func (r rowAdderParent) Add(w gtk.Widgetter) {
+func (r rowAdderParent) Add(w *gtk.Widget) {
 	r.AddRow(w)
 }
 
+// row is one managed row. The row owns a reference to its widget,
+// which the manager drops when the row is removed.
 type row[Data any] interface {
 	Update(Data)
-	Widget() gtk.Widgetter
+	Widget() *gtk.Widget
 }
 
 type simpleRow[Data any] struct {
-	W gtk.Widgetter
+	W *gtk.Widget
 	U func(Data)
 }
 
@@ -84,6 +87,6 @@ func (row *simpleRow[Data]) Update(data Data) {
 	row.U(data)
 }
 
-func (row *simpleRow[Data]) Widget() gtk.Widgetter {
+func (row *simpleRow[Data]) Widget() *gtk.Widget {
 	return row.W
 }

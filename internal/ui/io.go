@@ -9,16 +9,16 @@ import (
 	"deedles.dev/trayscale/internal/autosave"
 	"deedles.dev/trayscale/internal/giofs"
 	"deedles.dev/trayscale/internal/tsutil"
-	"github.com/diamondburned/gotk4/pkg/core/gioutil"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"codeberg.org/puregotk/puregotk/v4/gio"
+	"deedles.dev/trayscale/internal/gutil"
 	"tailscale.com/tailcfg"
 )
 
-func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file gio.Filer) {
+func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file *gio.FileBase) {
 	a.spin()
 	defer a.stopSpin()
 
-	slog := slog.With("peer", peerID, "path", file.Path())
+	slog := slog.With("peer", peerID, "path", file.GetPath())
 	slog.Info("starting file push")
 
 	r, size, name, err := giofs.Reader(ctx, file)
@@ -37,11 +37,11 @@ func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file gi
 	slog.Info("done pushing file")
 }
 
-func (a *App) saveFile(ctx context.Context, name string, file gio.Filer) error {
+func (a *App) saveFile(ctx context.Context, name string, file *gio.FileBase) error {
 	a.spin()
 	defer a.stopSpin()
 
-	slog := slog.With("path", file.Path(), "filename", name)
+	slog := slog.With("path", file.GetPath(), "filename", name)
 	slog.Info("starting file save")
 
 	r, size, err := tsutil.GetWaitingFile(ctx, name)
@@ -54,13 +54,15 @@ func (a *App) saveFile(ctx context.Context, name string, file gio.Filer) error {
 	// Replace writes to a temporary name and only renames over the
 	// destination when the stream is closed. Leaving it open leaves
 	// hidden .goutputstream-* files and never updates an existing target.
-	s, err := file.Replace(ctx, "", false, gio.FileCreateNone)
-	if err != nil {
+	c, release := giofs.Cancellable(ctx)
+	s, err := file.Replace("", false, gio.GFileCreateNoneValue, c)
+	release()
+	if err = gutil.Err(err); err != nil {
 		slog.Error("create file", "err", err)
 		return err
 	}
 
-	w := gioutil.Writer(ctx, s)
+	w := giofs.NewWriter(ctx, &s.OutputStream)
 	_, copyErr := io.CopyN(w, r, size)
 	closeErr := w.Close()
 	if err := errors.Join(copyErr, closeErr); err != nil {
@@ -83,7 +85,7 @@ func (a *App) autoSaveSettings() (enabled bool, dir string) {
 	if a.settings == nil {
 		return false, ""
 	}
-	return a.settings.Boolean("taildrop-auto-save"), a.settings.String("taildrop-auto-save-dir")
+	return a.settings.GetBoolean("taildrop-auto-save"), a.settings.GetString("taildrop-auto-save-dir")
 }
 
 // clearAutoSaveFailures drops remembered auto-save failures so waiting
@@ -161,7 +163,9 @@ func (a *App) maybeAutoSaveFiles() {
 		dest := autosave.UniquePath(dir, name)
 		go func(name, dest string) {
 			defer a.autoSaving.Delete(name)
-			err := a.saveFile(context.Background(), name, gio.NewFileForPath(dest))
+			f := gio.FileNewForPath(dest)
+			err := a.saveFile(context.Background(), name, f)
+			gutil.IdleAdd(gutil.Obj(f).Unref)
 			if err != nil {
 				a.autoSaveFailed.Store(name, struct{}{})
 			}

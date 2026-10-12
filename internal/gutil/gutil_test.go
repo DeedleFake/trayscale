@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"codeberg.org/puregotk/puregotk/v4/glib"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/gutil"
 )
@@ -19,7 +20,7 @@ func TestFirstIconName(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "test", "status", "present-symbolic.svg"), `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/>`)
 
 	theme := gtk.NewIconTheme()
-	defer theme.Unref()
+	defer unrefIconTheme(theme)
 	theme.SetSearchPath([]string{dir})
 	theme.SetThemeName("test")
 
@@ -49,5 +50,23 @@ func writeFile(t *testing.T, path, data string) {
 	}
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// unrefIconTheme drops the last reference to theme. GTK's icon theme
+// dispose takes a reference to itself through gtk_icon_theme_ref_aquire
+// and then never releases it, because it clears ref->theme before
+// gtk_icon_theme_ref_release looks at it, so the theme resurrects with
+// one reference left. If that happened, drop it so that the theme is
+// finalized and go test -asan doesn't report it.
+func unrefIconTheme(theme *gtk.IconTheme) {
+	finalized := false
+	var notify glib.DestroyNotify = func(uintptr) { finalized = true }
+	theme.SetDataFull("trayscale-test-finalized", 1, &notify)
+	defer glib.UnrefCallback(&notify)
+
+	theme.Unref()
+	if !finalized {
+		theme.Unref()
 	}
 }

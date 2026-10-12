@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/glib"
 	"codeberg.org/puregotk/puregotk/v4/gobject"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/gutil"
@@ -51,7 +52,10 @@ func slotsInUse(t *testing.T, n, m int) (used int) {
 			stack.Remove(mullvad.Widget())
 			mullvad.Destroy()
 		}
-		iterateUntil(t, func() bool { return gutil.FreeCallbackSlots() >= before })
+		// Shared callbacks made on first use stay, so wait for the
+		// main loop to go idle rather than for the count to return.
+		for glib.MainContextDefault().Iteration(false) {
+		}
 	}()
 
 	for i := range n {

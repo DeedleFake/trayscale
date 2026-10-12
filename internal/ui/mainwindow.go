@@ -586,23 +586,32 @@ func removeActionGroup(w *gtk.Widget, prefix string) {
 }
 
 // setStatus starts Tailscale if s is true and stops it otherwise,
-// turning the status switch back if that fails.
+// turning the status switch back if that fails. It doesn't block.
 func (win *MainWindow) setStatus(ctx context.Context, s bool) {
 	app := win.app
+	sw := win.StatusSwitch
+	// Keep the switch alive until the result is back on the main
+	// thread, in case the window is closed in the meantime.
+	sw.Ref()
 
-	// TODO: Handle this, and other switches, asynchrounously instead
-	// of freezing the entire UI.
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+	go func() {
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
 
-	f := app.stopTS
-	if s {
-		f = app.startTS
-	}
+		f := app.stopTS
+		if s {
+			f = app.startTS
+		}
 
-	err := f(ctx)
-	if err != nil {
-		slog.Error("set Tailscale status", "err", err)
-		win.StatusSwitch.SetActive(!s)
-	}
+		err := f(ctx)
+		if err != nil {
+			slog.Error("set Tailscale status", "err", err)
+		}
+		gutil.IdleAdd(func() {
+			if err != nil {
+				sw.SetActive(!s)
+			}
+			sw.Unref()
+		})
+	}()
 }

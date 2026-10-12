@@ -102,23 +102,7 @@ func NewMainWindow(app *App) *MainWindow {
 		if s == win.StatusSwitch.GetState() {
 			return false
 		}
-
-		// TODO: Handle this, and other switches, asynchrounously instead
-		// of freezing the entire UI.
-		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-		defer cancel()
-
-		f := app.stopTS
-		if s {
-			f = app.startTS
-		}
-
-		err := f(ctx)
-		if err != nil {
-			slog.Error("set Tailscale status", "err", err)
-			win.StatusSwitch.SetActive(!s)
-			return true
-		}
+		win.setStatus(context.TODO(), s)
 		return true
 	})
 
@@ -599,4 +583,26 @@ func (win *MainWindow) Toast(msg string) {
 // nil group can't be passed; a wrapper around NULL can.
 func removeActionGroup(w *gtk.Widget, prefix string) {
 	w.InsertActionGroup(prefix, &gio.SimpleActionGroup{})
+}
+
+// setStatus starts Tailscale if s is true and stops it otherwise,
+// turning the status switch back if that fails.
+func (win *MainWindow) setStatus(ctx context.Context, s bool) {
+	app := win.app
+
+	// TODO: Handle this, and other switches, asynchrounously instead
+	// of freezing the entire UI.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	f := app.stopTS
+	if s {
+		f = app.startTS
+	}
+
+	err := f(ctx)
+	if err != nil {
+		slog.Error("set Tailscale status", "err", err)
+		win.StatusSwitch.SetActive(!s)
+	}
 }

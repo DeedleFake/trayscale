@@ -257,9 +257,7 @@ func (win *MainWindow) Destroy() {
 func (win *MainWindow) Update(status tsutil.Status) {
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
-		online := status.Online()
-		win.StatusSwitch.SetState(online)
-		win.StatusSwitch.SetActive(online)
+		win.updateStatusSwitch(status.Online())
 
 		win.updatePeers(status)
 
@@ -271,6 +269,12 @@ func (win *MainWindow) Update(status tsutil.Status) {
 	case *tsutil.ProfileStatus:
 		win.updateProfiles(status)
 	}
+}
+
+// updateStatusSwitch shows online on the status switch.
+func (win *MainWindow) updateStatusSwitch(online bool) {
+	win.StatusSwitch.SetState(online)
+	win.StatusSwitch.SetActive(online)
 }
 
 func (win *MainWindow) SetShowOffline(show bool) {

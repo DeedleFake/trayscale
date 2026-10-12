@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"deedles.dev/trayscale/internal/gutil"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
+	"deedles.dev/trayscale/internal/gutil"
 )
 
 func TestFirstIconName(t *testing.T) {

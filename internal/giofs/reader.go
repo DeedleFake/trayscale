@@ -37,7 +37,7 @@ func Reader(ctx context.Context, file *gio.FileBase) (io.ReadCloser, int64, stri
 		return nil, 0, "", fmt.Errorf("open: %w", err)
 	}
 
-	return NewReader(ctx, &s.InputStream), size, file.GetBasename(), nil
+	return NewReader(ctx, &s.InputStream), size, gutil.FileBasename(file), nil
 }
 
 func dirReader(ctx context.Context, file *gio.FileBase) (io.ReadCloser, int64, string, error) {
@@ -62,9 +62,9 @@ func dirReader(ctx context.Context, file *gio.FileBase) (io.ReadCloser, int64, s
 		root := New(ctx, file)
 		err := w.AddFS(root)
 		if err != nil {
-			slog.Error("write tar file", "source", file.GetPath(), "err", err)
+			slog.Error("write tar file", "source", gutil.FilePath(file), "err", err)
 		}
 	}()
 
-	return r, -1, file.GetBasename() + ".tar.zst", nil
+	return r, -1, gutil.FileBasename(file) + ".tar.zst", nil
 }

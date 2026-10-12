@@ -117,7 +117,7 @@ func (a *App) showPreferences() {
 	a.settings.Bind("taildrop-auto-save", &dialog.TaildropAutoSaveRow.Object, "active", gio.GSettingsBindDefaultValue)
 
 	updateAutoSaveSubtitle := func() {
-		dir := a.settings.GetString("taildrop-auto-save-dir")
+		dir := gutil.SettingsString(a.settings, "taildrop-auto-save-dir")
 		if dir == "" {
 			dialog.TaildropAutoSaveRow.SetSubtitle(locale.Get("No folder selected"))
 			return
@@ -139,7 +139,7 @@ func (a *App) showPreferences() {
 		defer fileDialog.Unref() // The operation keeps it alive.
 		fileDialog.SetModal(true)
 		fileDialog.SetTitle(locale.Get("Select Auto-save Folder"))
-		if dir := a.settings.GetString("taildrop-auto-save-dir"); dir != "" {
+		if dir := gutil.SettingsString(a.settings, "taildrop-auto-save-dir"); dir != "" {
 			initial := gio.FileNewForPath(dir)
 			fileDialog.SetInitialFolder(initial)
 			gutil.Obj(initial).Unref()
@@ -155,7 +155,7 @@ func (a *App) showPreferences() {
 				}
 				return
 			}
-			a.settings.SetString("taildrop-auto-save-dir", folder.GetPath())
+			a.settings.SetString("taildrop-auto-save-dir", gutil.FilePath(folder))
 			gutil.Obj(folder).Unref()
 			updateAutoSaveSubtitle()
 		}), 0)
@@ -171,7 +171,7 @@ func (a *App) showPreferences() {
 		if !dialog.TaildropAutoSaveRow.GetActive() {
 			return
 		}
-		if a.settings.GetString("taildrop-auto-save-dir") != "" {
+		if gutil.SettingsString(a.settings, "taildrop-auto-save-dir") != "" {
 			return
 		}
 		selectFolder(func() {

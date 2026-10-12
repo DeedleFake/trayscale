@@ -18,7 +18,7 @@ func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file *g
 	a.spin()
 	defer a.stopSpin()
 
-	slog := slog.With("peer", peerID, "path", file.GetPath())
+	slog := slog.With("peer", peerID, "path", gutil.FilePath(file))
 	slog.Info("starting file push")
 
 	r, size, name, err := giofs.Reader(ctx, file)
@@ -41,7 +41,7 @@ func (a *App) saveFile(ctx context.Context, name string, file *gio.FileBase) err
 	a.spin()
 	defer a.stopSpin()
 
-	slog := slog.With("path", file.GetPath(), "filename", name)
+	slog := slog.With("path", gutil.FilePath(file), "filename", name)
 	slog.Info("starting file save")
 
 	r, size, err := tsutil.GetWaitingFile(ctx, name)
@@ -85,7 +85,7 @@ func (a *App) autoSaveSettings() (enabled bool, dir string) {
 	if a.settings == nil {
 		return false, ""
 	}
-	return a.settings.GetBoolean("taildrop-auto-save"), a.settings.GetString("taildrop-auto-save-dir")
+	return a.settings.GetBoolean("taildrop-auto-save"), gutil.SettingsString(a.settings, "taildrop-auto-save-dir")
 }
 
 // clearAutoSaveFailures drops remembered auto-save failures so waiting

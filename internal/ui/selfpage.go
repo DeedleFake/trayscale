@@ -274,7 +274,7 @@ func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
 		defer dialog.Unref() // The operation keeps it alive.
 		dialog.SetModal(true)
 		dialog.SetInitialName(file.Name)
-		dialog.Save(&a.win.MainWindow.Window, nil, gutil.Async(func(res *gio.AsyncResultBase) {
+		dialog.Save(&a.win.MainWindow.Window, nil, &gutil.AsyncCallback, gutil.Async(func(res *gio.AsyncResultBase) {
 			f, err := dialog.SaveFinish(res)
 			if err = gutil.Err(err); err != nil || f == nil {
 				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissedValue)) {
@@ -287,7 +287,7 @@ func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
 				a.saveFile(context.TODO(), file.Name, f)
 				gutil.IdleAdd(gutil.Obj(f).Unref)
 			}()
-		}), 0)
+		}))
 	})
 
 	deleteButton := gtk.NewButtonFromIconName("edit-delete-symbolic")

@@ -95,7 +95,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 
 		dialog.SetTitle(locale.Get("Select %v(s) to send to %v", mode, page.peer.Hostinfo().Hostname()))
 
-		open(&a.win.MainWindow.Window, nil, gutil.Async(func(res *gio.AsyncResultBase) {
+		open(&a.win.MainWindow.Window, nil, &gutil.AsyncCallback, gutil.Async(func(res *gio.AsyncResultBase) {
 			files, err := finish(res)
 			if err = gutil.Err(err); err != nil || files == nil {
 				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissedValue)) {
@@ -108,7 +108,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 			for _, obj := range listmodels.Objects(files) {
 				a.goPushFile(page.peer.StableID(), obj)
 			}
-		}), 0)
+		}))
 	})
 
 	page.DropTarget.Ref() // AddController takes a reference; the field keeps its own.

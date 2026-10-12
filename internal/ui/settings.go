@@ -169,7 +169,7 @@ func (a *App) showPreferences() {
 			fileDialog.SetInitialFolder(initial)
 			gutil.Obj(initial).Unref()
 		}
-		fileDialog.SelectFolder(a.window(), nil, gutil.Async(func(res *gio.AsyncResultBase) {
+		fileDialog.SelectFolder(a.window(), nil, &gutil.AsyncCallback, gutil.Async(func(res *gio.AsyncResultBase) {
 			folder, err := fileDialog.SelectFolderFinish(res)
 			if err = gutil.Err(err); err != nil || folder == nil {
 				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissedValue)) {
@@ -183,7 +183,7 @@ func (a *App) showPreferences() {
 			a.settings.SetString("taildrop-auto-save-dir", gutil.FilePath(folder))
 			gutil.Obj(folder).Unref()
 			updateAutoSaveSubtitle()
-		}), 0)
+		}))
 	}
 
 	gutil.Connect(dialog.TaildropAutoSaveFolderButton, dialog.TaildropAutoSaveFolderButton.ConnectClicked, func(gtk.Button) {

@@ -36,12 +36,22 @@ type Poller struct {
 	// Tailscale.
 	New func(Status)
 
+	// If non-nil, Error will be called when starting or stopping
+	// Tailscale fails.
+	Error func(error)
+
 	once sync.Once
+
+	// setRunning starts Tailscale if passed true and stops it
+	// otherwise. If it's nil, Start and Stop are used.
+	setRunning func(context.Context, bool) error
 
 	poll     chan struct{}
 	getIPN   chan *IPNStatus
 	nextIPN  chan *IPNStatus
 	interval chan time.Duration
+	running  chan bool
+	resend   chan struct{}
 }
 
 func (p *Poller) init() {
@@ -50,6 +60,8 @@ func (p *Poller) init() {
 		p.getIPN = make(chan *IPNStatus)
 		p.nextIPN = make(chan *IPNStatus)
 		p.interval = make(chan time.Duration)
+		p.running = make(chan bool)
+		p.resend = make(chan struct{}, 1)
 	})
 }
 
@@ -87,10 +99,41 @@ func (p *Poller) Run(ctx context.Context) {
 		case interval = <-p.interval:
 			n = n.Notify()
 			check.Reset(interval)
+		case up := <-p.running:
+			// Nothing is published while this runs, as publishing an IPN
+			// update waits for p.poll.
+			err := p.run(ctx, up)
+			if err != nil {
+				if p.Error != nil {
+					p.Error(err)
+				}
+				// Nothing changed, so the watcher won't send anything.
+				// Send the current status again so that the UI can undo
+				// whatever it did in anticipation.
+				select {
+				case p.resend <- struct{}{}:
+				default:
+				}
+			}
+			n = n.Notify()
+			check.Reset(interval)
 		case <-check.C:
 			n = n.Notify()
 		}
 	}
+}
+
+func (p *Poller) run(ctx context.Context, up bool) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	if p.setRunning != nil {
+		return p.setRunning(ctx, up)
+	}
+	if up {
+		return Start(ctx)
+	}
+	return Stop(ctx)
 }
 
 func (p *Poller) watchIPN(ctx context.Context) {
@@ -128,6 +171,10 @@ watch:
 				get = p.getIPN
 				p.New(s)
 			case get <- s:
+			case <-p.resend:
+				if s != nil {
+					p.New(s)
+				}
 			}
 		}
 	}()
@@ -256,6 +303,17 @@ func (p *Poller) NextIPN() <-chan *IPNStatus {
 	p.init()
 
 	return p.nextIPN
+}
+
+// SetRunning returns a channel that starts Tailscale when sent true
+// and stops it when sent false. The poller doesn't publish IPN updates
+// while it's starting or stopping, and polls as soon as it's done.
+// Errors go to Error. Sending blocks while a previous request is
+// running, so don't send from the main thread.
+func (p *Poller) SetRunning() chan<- bool {
+	p.init()
+
+	return p.running
 }
 
 // SetInterval returns a channel that modifies the polling interval of

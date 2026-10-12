@@ -150,6 +150,36 @@ def pid_alive(pid: int) -> bool:
     return True
 
 
+def group_members(pgid: int) -> list[int]:
+    members = []
+    for d in Path("/proc").iterdir():
+        if not d.name.isdigit():
+            continue
+        try:
+            stat = (d / "stat").read_text()
+        except OSError:
+            continue
+        # pid (comm) state ppid pgrp ...; comm may contain spaces.
+        fields = stat.rsplit(")", 1)[-1].split()
+        if len(fields) > 2 and fields[2] == str(pgid):
+            members.append(int(d.name))
+    return members
+
+
+def run_group_alive(pgid: int, run: Path) -> bool:
+    """Whether the launch's process group still has processes.
+
+    The group leader (dbus-run-session) can die while the rest of the
+    group survives, for example when the session that ran launch goes
+    away. Checking only the leader then leaves trayscale running. A
+    leaderless group counts only if one of its members runs from this
+    run directory, so a recycled group id is never mistaken for ours.
+    """
+    if pid_alive(pgid):
+        return True
+    return any(str(run) in cmdline_of(pid) for pid in group_members(pgid))
+
+
 def cmdline_of(pid: int) -> str:
     try:
         return Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\x00", b" ").decode("utf-8", "replace").strip()
@@ -291,7 +321,7 @@ def cmd_launch(args: argparse.Namespace) -> int:
             existing = None
         if existing is not None and (existing / "pgid").exists():
             pgid = int(read_text(existing / "pgid"))
-            if pid_alive(pgid):
+            if run_group_alive(pgid, existing):
                 raise SystemExit(
                     f"a verification instance is already running in {existing}\n"
                     "run: control-trayscale cleanup"
@@ -902,7 +932,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     info = {
         "run_dir": str(run),
         "pgid": pgid,
-        "pgid_alive": pid_alive(pgid),
+        "pgid_alive": run_group_alive(pgid, run),
         "cmdline": cmdline_of(pgid),
         "binary": str(binary),
         "binary_exists": binary.exists(),
@@ -941,15 +971,15 @@ def cmd_cleanup(args: argparse.Namespace) -> int:
     pgid_file = run / "pgid"
     if pgid_file.exists():
         pgid = int(read_text(pgid_file))
-        if pid_alive(pgid):
+        if run_group_alive(pgid, run):
             try:
                 os.killpg(pgid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
             deadline = time.time() + 5
-            while time.time() < deadline and pid_alive(pgid):
+            while time.time() < deadline and run_group_alive(pgid, run):
                 time.sleep(0.1)
-            if pid_alive(pgid):
+            if run_group_alive(pgid, run):
                 try:
                     os.killpg(pgid, signal.SIGKILL)
                 except ProcessLookupError:

@@ -66,7 +66,9 @@ type Tray struct {
 	quitItem       *tray.MenuItem
 }
 
-func (t *Tray) Start(status *tsutil.IPNStatus) error {
+// Start registers the tray icon. The menu shows a disconnected state
+// until the first call to Update.
+func (t *Tray) Start() error {
 	if t.item != nil {
 		return nil
 	}
@@ -77,6 +79,7 @@ func (t *Tray) Start(status *tsutil.IPNStatus) error {
 	item, err := tray.New(
 		tray.ItemID("dev.deedles.Trayscale"),
 		tray.ItemTitle("Trayscale"),
+		tray.ItemIconPixmap(&statusIconInactive),
 		tray.ItemHandler(tray.ActivateHandler(func(x, y int) error {
 			t.OnShow()
 			return nil
@@ -92,13 +95,22 @@ func (t *Tray) Start(status *tsutil.IPNStatus) error {
 
 	t.showItem, _ = menu.AddChild(tray.MenuItemLabel(locale.Get("Show")), handler(t.OnShow))
 	menu.AddChild(tray.MenuItemType(tray.Separator))
-	t.connToggleItem, _ = menu.AddChild(handler(t.OnConnToggle))
-	t.exitToggleItem, _ = menu.AddChild(handler(t.OnExitToggle))
-	t.selfNodeItem, _ = menu.AddChild(handler(t.OnSelfNode))
+	t.connToggleItem, _ = menu.AddChild(
+		tray.MenuItemLabel(connToggleText(false)),
+		handler(t.OnConnToggle),
+	)
+	t.exitToggleItem, _ = menu.AddChild(
+		tray.MenuItemLabel(locale.Get("Enable exit node")),
+		tray.MenuItemEnabled(false),
+		handler(t.OnExitToggle),
+	)
+	t.selfNodeItem, _ = menu.AddChild(
+		tray.MenuItemLabel(locale.Get("This machine: %v", locale.Get("Not connected"))),
+		tray.MenuItemEnabled(false),
+		handler(t.OnSelfNode),
+	)
 	menu.AddChild(tray.MenuItemType(tray.Separator))
 	t.quitItem, _ = menu.AddChild(tray.MenuItemLabel(locale.Get("Quit")), handler(t.OnQuit))
-
-	t.update(status)
 
 	return nil
 }

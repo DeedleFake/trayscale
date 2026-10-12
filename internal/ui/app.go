@@ -399,17 +399,15 @@ func (a *App) onAppActivate(ctx context.Context) {
 	<-a.poller.Poll()
 	a.win.MainWindow.Present()
 
-	glib.IdleAdd(func() {
-		a.update(<-a.poller.GetIPN())
-	})
+	go func() {
+		s := <-a.poller.GetIPN()
+		glib.IdleAdd(func() { a.update(s) })
+	}()
 }
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray != nil {
-		err := a.tray.Start(<-a.poller.GetIPN())
-		if err != nil {
-			slog.Error("failed to start tray icon", "err", err)
-		}
+		a.startTray(ctx)
 		return
 	}
 
@@ -441,39 +439,42 @@ func (a *App) initTray(ctx context.Context) {
 		},
 
 		OnExitToggle: func() {
-			glib.IdleAdd(func() {
+			go func() {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 
 				s := <-a.poller.GetIPN()
 				toggle := !s.ExitNodeActive()
 				err := tsutil.SetUseExitNode(ctx, toggle)
-				if err != nil {
-					a.notify(locale.Get("Toggle exit node"), err.Error())
-					slog.Error("toggle exit node from tray", "err", err)
-					return
-				}
+				glib.IdleAdd(func() {
+					if err != nil {
+						a.notify(locale.Get("Toggle exit node"), err.Error())
+						slog.Error("toggle exit node from tray", "err", err)
+						return
+					}
 
-				if toggle {
-					a.notify(locale.Get("Exit node"), locale.Get("Enabled"))
-					return
-				}
-				a.notify(locale.Get("Exit node"), locale.Get("Disabled"))
-			})
+					if toggle {
+						a.notify(locale.Get("Exit node"), locale.Get("Enabled"))
+						return
+					}
+					a.notify(locale.Get("Exit node"), locale.Get("Disabled"))
+				})
+			}()
 		},
 
 		OnSelfNode: func() {
-			glib.IdleAdd(func() {
-				s := <-a.poller.GetIPN()
-				addr := s.SelfAddr()
+			go func() {
+				addr := (<-a.poller.GetIPN()).SelfAddr()
 				if !addr.IsValid() {
 					return
 				}
-				a.clip(glib.NewValue(addr.String()))
-				if a.win != nil {
-					a.notify(locale.Get("Trayscale"), locale.Get("Copied address to clipboard"))
-				}
-			})
+				glib.IdleAdd(func() {
+					a.clip(glib.NewValue(addr.String()))
+					if a.win != nil {
+						a.notify(locale.Get("Trayscale"), locale.Get("Copied address to clipboard"))
+					}
+				})
+			}()
 		},
 
 		OnQuit: func() {
@@ -481,10 +482,27 @@ func (a *App) initTray(ctx context.Context) {
 		},
 	}
 
-	err := a.tray.Start(<-a.poller.GetIPN())
+	a.startTray(ctx)
+}
+
+// startTray shows the tray icon without waiting for a status, which
+// never arrives while tailscaled is down. The menu fills in from the
+// latest status once there is one, and from update after that.
+func (a *App) startTray(ctx context.Context) {
+	t := a.tray
+	err := t.Start()
 	if err != nil {
 		slog.Error("failed to start tray icon", "err", err)
+		return
 	}
+
+	go func() {
+		select {
+		case s := <-a.poller.GetIPN():
+			t.Update(s)
+		case <-ctx.Done():
+		}
+	}()
 }
 
 // Quit exits the app completely, causing Run to return.

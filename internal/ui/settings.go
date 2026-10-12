@@ -75,7 +75,7 @@ func (a *App) runSettings(ctx context.Context) {
 	}
 }
 
-func (a *App) showChangeControlServer() {
+func (a *App) showChangeControlServer(ctx context.Context) {
 	status := <-a.poller.GetIPN()
 
 	Prompt{

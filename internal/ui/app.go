@@ -272,6 +272,25 @@ func (a *App) startTS(ctx context.Context) error {
 	return nil
 }
 
+// toggleConn starts Tailscale if it's offline and stops it otherwise.
+func (a *App) toggleConn(ctx context.Context) {
+	gutil.IdleAdd(func() {
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		f := a.stopTS
+		if !a.online {
+			f = a.startTS
+		}
+
+		err := f(ctx)
+		if err != nil {
+			slog.Error("set Tailscale status from tray", "err", err)
+			return
+		}
+	})
+}
+
 func (a *App) stopTS(ctx context.Context) error {
 	err := tsutil.Stop(ctx)
 	if err != nil {
@@ -380,7 +399,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.addAction(showOffline, nil)
 	}
 
-	a.addAction(gio.NewSimpleAction("change_control_server", nil), func(*glib.Variant) { a.showChangeControlServer() })
+	a.addAction(gio.NewSimpleAction("change_control_server", nil), func(*glib.Variant) { a.showChangeControlServer(ctx) })
 	a.addAction(gio.NewSimpleAction("preferences", nil), func(*glib.Variant) { a.showPreferences() })
 	a.addAction(gio.NewSimpleAction("admin_dashboard", nil), func(*glib.Variant) { a.launchURI(tsutil.AdminDashboardURL) })
 	a.addAction(gio.NewSimpleAction("about", nil), func(*glib.Variant) { a.showAbout() })
@@ -394,40 +413,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 	a.app.SetAccelsForAction("app.search-peers", []string{"<Ctrl>f"})
 
-	a.addAction(gio.NewSimpleAction("login", nil), func(*glib.Variant) {
-		status := <-a.poller.GetIPN()
-		if !status.OperatorIsCurrent() {
-			a.showOperatorDialog()
-			return
-		}
-
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-
-		err := tsutil.StartLogin(ctx)
-		if err != nil {
-			slog.Error("failed to start login", "err", err)
-			if a.win != nil {
-				a.win.Toast(locale.Get("Failed to start login"))
-			}
-			return
-		}
-
-		for {
-			select {
-			case <-ctx.Done():
-				if a.win != nil {
-					a.win.Toast(locale.Get("Failed to start login"))
-				}
-				return
-			case status := <-a.poller.NextIPN():
-				if status.BrowseToURL != "" {
-					a.launchURI(status.BrowseToURL)
-					return
-				}
-			}
-		}
-	})
+	a.addAction(gio.NewSimpleAction("login", nil), func(*glib.Variant) { a.login(ctx) })
 
 	a.win = NewMainWindow(a)
 	gutil.Connect(a.win.MainWindow, a.win.MainWindow.ConnectCloseRequest, func(gtk.Window) bool {
@@ -446,6 +432,42 @@ func (a *App) onAppActivate(ctx context.Context) {
 		s := <-a.poller.GetIPN()
 		gutil.IdleAdd(func() { a.update(s) })
 	}()
+}
+
+// login starts an interactive login and opens the login URL.
+func (a *App) login(ctx context.Context) {
+	status := <-a.poller.GetIPN()
+	if !status.OperatorIsCurrent() {
+		a.showOperatorDialog()
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	err := tsutil.StartLogin(ctx)
+	if err != nil {
+		slog.Error("failed to start login", "err", err)
+		if a.win != nil {
+			a.win.Toast(locale.Get("Failed to start login"))
+		}
+		return
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			if a.win != nil {
+				a.win.Toast(locale.Get("Failed to start login"))
+			}
+			return
+		case status := <-a.poller.NextIPN():
+			if status.BrowseToURL != "" {
+				a.launchURI(status.BrowseToURL)
+				return
+			}
+		}
+	}
 }
 
 // launchURI opens uri with the default handler.
@@ -470,23 +492,7 @@ func (a *App) initTray(ctx context.Context) {
 			})
 		},
 
-		OnConnToggle: func() {
-			gutil.IdleAdd(func() {
-				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-				defer cancel()
-
-				f := a.stopTS
-				if !a.online {
-					f = a.startTS
-				}
-
-				err := f(ctx)
-				if err != nil {
-					slog.Error("set Tailscale status from tray", "err", err)
-					return
-				}
-			})
-		},
+		OnConnToggle: func() { a.toggleConn(ctx) },
 
 		OnExitToggle: func() {
 			go func() {

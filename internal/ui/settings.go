@@ -13,7 +13,6 @@ import (
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn"
 )
@@ -30,7 +29,7 @@ func (a *App) initSettings(ctx context.Context) {
 	a.settings.ConnectChanged(func(key string) {
 		switch key {
 		case "tray-icon":
-			glib.IdleAdd(func() {
+			gutil.RunOnMain(func() {
 				if a.settings.Boolean("tray-icon") {
 					a.initTray(ctx)
 					return
@@ -43,7 +42,7 @@ func (a *App) initSettings(ctx context.Context) {
 			a.poller.SetInterval() <- a.getInterval()
 
 		case "taildrop-auto-save", "taildrop-auto-save-dir":
-			glib.IdleAdd(func() {
+			gutil.RunOnMain(func() {
 				// New enable/dir selection should retry files that failed
 				// against the previous configuration.
 				a.clearAutoSaveFailures()
@@ -51,7 +50,7 @@ func (a *App) initSettings(ctx context.Context) {
 			})
 
 		case "show-offline-peers":
-			glib.IdleAdd(func() {
+			gutil.RunOnMain(func() {
 				if a.win != nil {
 					a.win.SetShowOffline(a.settings.Boolean("show-offline-peers"))
 				}
@@ -64,7 +63,7 @@ func (a *App) initSettings(ctx context.Context) {
 
 func (a *App) runSettings(ctx context.Context) {
 	if (a.settings == nil) || a.settings.Boolean("tray-icon") {
-		glib.IdleAdd(func() {
+		gutil.RunOnMain(func() {
 			a.initTray(ctx)
 		})
 	}

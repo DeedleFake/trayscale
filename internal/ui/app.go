@@ -66,7 +66,7 @@ func (a *App) notify(title, body string) {
 }
 
 func (a *App) spin() {
-	glib.IdleAdd(func() {
+	gutil.RunOnMain(func() {
 		a.spinnum++
 		if a.win != nil {
 			a.win.WorkSpinner.SetVisible(a.spinnum > 0)
@@ -75,7 +75,7 @@ func (a *App) spin() {
 }
 
 func (a *App) stopSpin() {
-	glib.IdleAdd(func() {
+	gutil.RunOnMain(func() {
 		a.spinnum--
 		if a.win != nil {
 			a.win.WorkSpinner.SetVisible(a.spinnum > 0)
@@ -399,7 +399,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	<-a.poller.Poll()
 	a.win.MainWindow.Present()
 
-	glib.IdleAdd(func() {
+	gutil.RunOnMain(func() {
 		a.update(<-a.poller.GetIPN())
 	})
 }
@@ -415,7 +415,7 @@ func (a *App) initTray(ctx context.Context) {
 
 	a.tray = &tray.Tray{
 		OnShow: func() {
-			glib.IdleAdd(func() {
+			gutil.RunOnMain(func() {
 				if a.app != nil {
 					a.app.Activate()
 				}
@@ -423,7 +423,7 @@ func (a *App) initTray(ctx context.Context) {
 		},
 
 		OnConnToggle: func() {
-			glib.IdleAdd(func() {
+			gutil.RunOnMain(func() {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 
@@ -441,7 +441,7 @@ func (a *App) initTray(ctx context.Context) {
 		},
 
 		OnExitToggle: func() {
-			glib.IdleAdd(func() {
+			gutil.RunOnMain(func() {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 
@@ -463,7 +463,7 @@ func (a *App) initTray(ctx context.Context) {
 		},
 
 		OnSelfNode: func() {
-			glib.IdleAdd(func() {
+			gutil.RunOnMain(func() {
 				s := <-a.poller.GetIPN()
 				addr := s.SelfAddr()
 				if !addr.IsValid() {
@@ -511,7 +511,7 @@ func (a *App) Run(ctx context.Context) {
 
 	a.poller = &tsutil.Poller{
 		Interval: a.getInterval(),
-		New:      func(s tsutil.Status) { glib.IdleAdd(func() { a.update(s) }) },
+		New:      func(s tsutil.Status) { gutil.RunOnMain(func() { a.update(s) }) },
 	}
 	go a.poller.Run(ctx)
 

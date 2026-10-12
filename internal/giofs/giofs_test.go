@@ -126,3 +126,27 @@ func TestNoCallbackLeak(t *testing.T) {
 		t.Errorf("free callback slots %d -> %d", before, after)
 	}
 }
+
+// TestCancellableRelease races ctx cancellation against release; run
+// with -race (and ideally G_DEBUG / valgrind) to catch use-after-free.
+func TestCancellableRelease(t *testing.T) {
+	for range 2000 {
+		ctx, cancel := context.WithCancel(context.Background())
+		c, release := giofs.Cancellable(ctx)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			cancel()
+		}()
+		release()
+		<-done
+		_ = c
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	c, release := giofs.Cancellable(ctx)
+	cancel()
+	for !c.IsCancelled() {
+	}
+	release()
+}

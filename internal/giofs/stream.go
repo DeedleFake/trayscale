@@ -14,9 +14,17 @@ import (
 // operations using it are finished.
 func Cancellable(ctx context.Context) (c *gio.Cancellable, release func()) {
 	c = gio.NewCancellable()
-	stop := context.AfterFunc(ctx, c.Cancel)
+	// The AfterFunc goroutine holds its own reference so that release
+	// can't free c while Cancel is still running on it.
+	c.Ref()
+	stop := context.AfterFunc(ctx, func() {
+		defer c.Unref()
+		c.Cancel()
+	})
 	return c, func() {
-		stop()
+		if stop() {
+			c.Unref() // AfterFunc will never run; drop its reference.
+		}
 		c.Unref()
 	}
 }

@@ -67,10 +67,17 @@ func (r *StreamReader) Read(buf []byte) (int, error) {
 	return copy(buf, data), nil
 }
 
+// Close closes and releases the stream. Calling it again does nothing,
+// since net/http closes a request body that is an io.Closer and the
+// caller may close it as well.
 func (r *StreamReader) Close() error {
+	if r.s == nil {
+		return nil
+	}
 	_, err := r.s.Close(r.c)
 	err = gutil.Err(err)
 	r.s.Unref()
+	r.s = nil
 	r.release()
 	return err
 }

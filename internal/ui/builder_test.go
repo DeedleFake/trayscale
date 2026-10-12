@@ -3,8 +3,6 @@ package ui
 import (
 	"testing"
 
-	"codeberg.org/puregotk/puregotk/v4/adw"
-	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/gutil"
 )
 
@@ -12,10 +10,7 @@ import (
 // a type missing from gutil's registry fails here instead of panicking
 // at runtime.
 func TestFillFromBuilder(t *testing.T) {
-	if !gtk.InitCheck() {
-		t.Skip("no display")
-	}
-	adw.Init()
+	requireGTK(t)
 
 	fill := func(t *testing.T, build func()) {
 		t.Helper()

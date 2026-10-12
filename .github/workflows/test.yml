@@ -25,23 +25,6 @@ jobs:
       - name: golangci-lint
         run: go tool golangci-lint run --disable=errcheck
 
-  go-test:
-    name: go test
-    runs-on: ubuntu-26.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ${{ env.dependencies }}
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.go-version }}
-      - name: go test
-        run: go test -v -vet=all ./...
-
   go-test-sanitizers:
     name: go test ${{ matrix.flag }}
     runs-on: ubuntu-26.04
@@ -65,7 +48,7 @@ jobs:
         with:
           go-version: ${{ env.go-version }}
       - name: go test ${{ matrix.flag }}
-        run: xvfb-run -a go test -v ${{ matrix.flag }} ./...
+        run: xvfb-run -a go test -v -vet=all ${{ matrix.flag }} ./...
 
   go-fix:
     name: go fix

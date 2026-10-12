@@ -10,7 +10,9 @@ import (
 // puregotk binds functions that return transfer-full strings as
 // returning a Go string, which copies the C string and never frees
 // it. These bindings return the raw pointer instead so that it can be
-// copied and then freed with [glib.Free].
+// copied and then freed with [glib.Free]. This file can be removed
+// once puregotk frees them itself:
+// https://codeberg.org/puregotk/puregotk/issues/61
 var (
 	xSettingsGetString func(uintptr, string) uintptr
 	xFileGetPath       func(uintptr) uintptr

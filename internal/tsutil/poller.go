@@ -140,12 +140,8 @@ func (p *Poller) watchIPN(ctx context.Context) {
 	set := make(chan *IPNStatus)
 	go p.holdIPN(ctx, set)
 
+	// publish sends s on to holdIPN. Callers wait for p.poll first.
 	publish := func(s *IPNStatus) bool {
-		select {
-		case <-ctx.Done():
-			return false
-		case <-p.poll:
-		}
 		select {
 		case <-ctx.Done():
 			return false
@@ -169,6 +165,11 @@ func (p *Poller) watchIPN(ctx context.Context) {
 			// tailscaled is gone or unreachable, so its last status no
 			// longer applies.
 			down = true
+			select {
+			case <-ctx.Done():
+				return
+			case <-p.poll:
+			}
 			if !publish(&IPNStatus{State: ipn.NoState}) {
 				return
 			}
@@ -216,33 +217,61 @@ func (p *Poller) watchIPNOnce(ctx context.Context, publish func(*IPNStatus) bool
 	}
 	defer watcher.Close()
 
-	var s IPNStatus
-	for {
-		notify, err := watcher.Next()
-		if err != nil {
-			// Any error ends the stream; Next would keep failing.
-			return true, err
-		}
-
-		if notify.ErrMessage != nil {
-			var state ipn.State
-			if notify.State != nil {
-				state = *notify.State
+	// Read notifications even while publishing is held up, such as
+	// while starting or stopping, so that what's published afterwards
+	// is current.
+	updates := make(chan *IPNStatus)
+	errc := make(chan error, 1)
+	go func() {
+		var s IPNStatus
+		for {
+			notify, err := watcher.Next()
+			if err != nil {
+				// Any error ends the stream; Next would keep failing.
+				errc <- err
+				return
 			}
-			slog.Error("watcher got error message", "state", state, "err", notify.ErrMessage)
-		}
 
-		dirty, targetsDirty := s.applyNotify(&notify)
-		if targetsDirty {
-			s.refreshFileTargets(ctx)
-		}
+			if notify.ErrMessage != nil {
+				var state ipn.State
+				if notify.State != nil {
+					state = *notify.State
+				}
+				slog.Error("watcher got error message", "state", state, "err", notify.ErrMessage)
+			}
 
-		// TODO: Handle health warnings.
-		if !dirty {
-			continue
+			dirty, targetsDirty := s.applyNotify(&notify)
+			if targetsDirty {
+				s.refreshFileTargets(ctx)
+			}
+
+			// TODO: Handle health warnings.
+			if !dirty {
+				continue
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case updates <- s.copy():
+			}
 		}
-		if !publish(s.copy()) {
+	}()
+
+	var latest *IPNStatus
+	var poll <-chan struct{}
+	for {
+		select {
+		case <-ctx.Done():
 			return true, ctx.Err()
+		case err := <-errc:
+			return true, err
+		case latest = <-updates:
+			poll = p.poll
+		case <-poll:
+			if !publish(latest) {
+				return true, ctx.Err()
+			}
+			poll = nil
 		}
 	}
 }

@@ -60,7 +60,7 @@ type MainWindow struct {
 	profileModel     *gtk.StringList
 	profileSortModel *gtk.SortListModel
 	updatingProfiles bool
-	activeProfileID ipn.ProfileID
+	activeProfileID  ipn.ProfileID
 }
 
 func NewMainWindow(app *App) *MainWindow {

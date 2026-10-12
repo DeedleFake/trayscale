@@ -42,8 +42,9 @@ type Poller struct {
 
 	once sync.Once
 
-	// setRunning starts Tailscale if passed true and stops it
-	// otherwise. If it's nil, Start and Stop are used.
+	// setRunning is a test seam. Only tests set it, to fake starting
+	// and stopping Tailscale. It's nil in normal use, in which case the
+	// poller calls Start and Stop.
 	setRunning func(context.Context, bool) error
 
 	poll     chan struct{}

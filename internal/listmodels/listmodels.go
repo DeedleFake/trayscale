@@ -4,17 +4,13 @@ import (
 	"iter"
 	"slices"
 
-	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 func Convert[T any](obj *glib.Object) T {
-	if v, ok := obj.Cast().(T); ok {
-		return v
-	}
-	return gioutil.ObjectValue[T](obj)
+	return obj.Cast().(T)
 }
 
 func Objects(list gio.ListModeller) iter.Seq2[uint, *glib.Object] {
@@ -93,38 +89,6 @@ func UpdateStrings(m *gtk.StringList, s iter.Seq[string]) {
 	for i, v := range StringsBackward(m) {
 		if state[v] == unwanted {
 			m.Remove(i)
-			continue
-		}
-		state[v] = inModel
-	}
-
-	for _, v := range want {
-		if state[v] == inModel {
-			continue
-		}
-		state[v] = inModel
-		m.Append(v)
-	}
-}
-
-// Update removes from m the values s does not yield, then appends the ones m lacks.
-// Existing entries keep their order and new ones follow s's order. s is read once,
-// so a single-pass sequence is fine.
-func Update[T comparable](m *gioutil.ListModel[T], s iter.Seq[T]) {
-	m.FreezeNotify()
-	defer m.ThawNotify()
-
-	want := slices.Collect(s)
-
-	state := make(map[T]uint8, len(want))
-	for _, v := range want {
-		state[v] = wanted
-	}
-
-	// Backwards, so a removal never shifts an entry still to be visited.
-	for i, v := range ValuesBackward[T](m) {
-		if state[v] == unwanted {
-			m.Remove(int(i))
 			continue
 		}
 		state[v] = inModel

@@ -15,7 +15,6 @@ import (
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -56,8 +55,8 @@ type PeerPage struct {
 
 	sendFileAction *gio.SimpleAction
 
-	addrModel  *gioutil.ListModel[netip.Addr]
-	routeModel *gioutil.ListModel[netip.Prefix]
+	addrModel  *listmodels.Model[netip.Addr]
+	routeModel *listmodels.Model[netip.Prefix]
 }
 
 func NewPeerPage(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeView) *PeerPage {
@@ -120,10 +119,10 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 		return true
 	})
 
-	page.addrModel = gioutil.NewListModel[netip.Addr]()
-	listmodels.BindListBox(
+	page.addrModel = listmodels.NewModel(netip.Addr.String)
+	page.addrModel.BindListBox(
 		page.IPList,
-		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
+		gtk.NewSortListModel(page.addrModel.ListModel(), &gtk.NewCustomSorter(page.addrModel.Comparer(netip.Addr.Compare)).Sorter),
 		func(addr netip.Addr) gtk.Widgetter {
 			copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
 
@@ -150,10 +149,10 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 	ipListPlaceholder.SetTitle(locale.Get("No addresses."))
 	page.IPList.SetPlaceholder(ipListPlaceholder)
 
-	page.routeModel = gioutil.NewListModel[netip.Prefix]()
-	listmodels.BindListBox(
+	page.routeModel = listmodels.NewModel(netip.Prefix.String)
+	page.routeModel.BindListBox(
 		page.AdvertisedRoutesList,
-		gtk.NewSortListModel(page.routeModel, &prefixSorter.Sorter),
+		gtk.NewSortListModel(page.routeModel.ListModel(), &gtk.NewCustomSorter(page.routeModel.Comparer(netip.Prefix.Compare)).Sorter),
 		func(route netip.Prefix) gtk.Widgetter {
 			removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
 
@@ -291,8 +290,8 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 		}
 	}
 
-	listmodels.Update(page.addrModel, xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr))
-	listmodels.Update(page.routeModel, routes)
+	page.addrModel.Update(xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr))
+	page.routeModel.Update(routes)
 
 	return true
 }

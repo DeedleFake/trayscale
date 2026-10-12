@@ -37,10 +37,6 @@ jobs:
       # Deep enough for fontconfig's recursive rule evaluation to show
       # the pango frame that a suppression matches.
       ASAN_OPTIONS: detect_leaks=1:malloc_context_size=128
-      # Ubuntu's libraries only carry exported symbols, which can't tell
-      # pango's caches from objects we leak, so fetch their debug info.
-      ASAN_SYMBOLIZER_PATH: /usr/bin/llvm-symbolizer
-      DEBUGINFOD_URLS: https://debuginfod.ubuntu.com
       LSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/lsan.supp:print_suppressions=0
     steps:
       - name: Checkout
@@ -48,7 +44,18 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ${{ env.dependencies }} xvfb llvm
+          sudo apt-get install -y ${{ env.dependencies }} xvfb
+      - name: Install Debug Symbols
+        if: matrix.flag == '-asan'
+        # Ubuntu's libraries only carry exported symbols, which can't tell
+        # pango's caches from objects we leak, so the suppressions need
+        # their debug symbols.
+        run: |
+          sudo apt-get install -y ubuntu-dbgsym-keyring
+          echo "deb http://ddebs.ubuntu.com $(lsb_release -cs) main universe" | sudo tee /etc/apt/sources.list.d/ddebs.list
+          echo "deb http://ddebs.ubuntu.com $(lsb_release -cs)-updates main universe" | sudo tee -a /etc/apt/sources.list.d/ddebs.list
+          sudo apt-get update
+          sudo apt-get install -y libpango-1.0-0-dbgsym libpangoft2-1.0-0-dbgsym libpangocairo-1.0-0-dbgsym libfontconfig1-dbgsym
       - name: Setup Go
         uses: actions/setup-go@v5
         with:

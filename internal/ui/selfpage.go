@@ -16,7 +16,6 @@ import (
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -68,9 +67,9 @@ type SelfPage struct {
 	DERPLatencies        *adw.ExpanderRow
 	FilesList            *gtk.ListBox
 
-	addrModel  *gioutil.ListModel[netip.Addr]
-	routeModel *gioutil.ListModel[netip.Prefix]
-	fileModel  *gioutil.ListModel[apitype.WaitingFile]
+	addrModel  *listmodels.Model[netip.Addr]
+	routeModel *listmodels.Model[netip.Prefix]
+	fileModel  *listmodels.Model[apitype.WaitingFile]
 
 	incomingFiles int
 }
@@ -98,10 +97,10 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	})
 	page.actions.AddAction(copyFQDN)
 
-	page.addrModel = gioutil.NewListModel[netip.Addr]()
-	listmodels.BindListBox(
+	page.addrModel = listmodels.NewModel(netip.Addr.String)
+	page.addrModel.BindListBox(
 		page.IPList,
-		gtk.NewSortListModel(page.addrModel, &addrSorter.Sorter),
+		gtk.NewSortListModel(page.addrModel.ListModel(), &gtk.NewCustomSorter(page.addrModel.Comparer(netip.Addr.Compare)).Sorter),
 		func(addr netip.Addr) gtk.Widgetter {
 			copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
 
@@ -128,10 +127,10 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	ipListPlaceholder.SetTitle(locale.Get("No addresses."))
 	page.IPList.SetPlaceholder(ipListPlaceholder)
 
-	page.routeModel = gioutil.NewListModel[netip.Prefix]()
-	listmodels.BindListBox(
+	page.routeModel = listmodels.NewModel(netip.Prefix.String)
+	page.routeModel.BindListBox(
 		page.AdvertisedRoutesList,
-		gtk.NewSortListModel(page.routeModel, &prefixSorter.Sorter),
+		gtk.NewSortListModel(page.routeModel.ListModel(), &gtk.NewCustomSorter(page.routeModel.Comparer(netip.Prefix.Compare)).Sorter),
 		func(route netip.Prefix) gtk.Widgetter {
 			removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
 
@@ -163,10 +162,10 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	advertisedRoutesListPlaceholder.SetTitle(locale.Get("No advertised routes."))
 	page.AdvertisedRoutesList.SetPlaceholder(advertisedRoutesListPlaceholder)
 
-	page.fileModel = gioutil.NewListModel[apitype.WaitingFile]()
-	listmodels.BindListBox(
+	page.fileModel = listmodels.NewModel(waitingFileKey)
+	page.fileModel.BindListBox(
 		page.FilesList,
-		gtk.NewSortListModel(page.fileModel, &waitingFileSorter.Sorter),
+		gtk.NewSortListModel(page.fileModel.ListModel(), &gtk.NewCustomSorter(page.fileModel.Comparer(compareWaitingFiles)).Sorter),
 		func(file apitype.WaitingFile) gtk.Widgetter {
 			saveButton := gtk.NewButtonFromIconName("document-save-symbolic")
 			saveButton.SetMarginTop(12)
@@ -452,14 +451,14 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 		}
 	}
 
-	listmodels.Update(page.addrModel, xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr))
-	listmodels.Update(page.routeModel, routes)
+	page.addrModel.Update(xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr))
+	page.routeModel.Update(routes)
 
 	return true
 }
 
 func (page *SelfPage) UpdateFiles(status *tsutil.FileStatus) bool {
-	listmodels.Update(page.fileModel, slices.Values(status.Files))
+	page.fileModel.Update(slices.Values(status.Files))
 	page.incomingFiles = len(status.Files)
 	page.applyIncomingBadge()
 	return true
@@ -470,4 +469,13 @@ func (page *SelfPage) applyIncomingBadge() {
 		return
 	}
 	page.stackPage.SetBadgeNumber(uint(page.incomingFiles))
+}
+
+func waitingFileKey(f apitype.WaitingFile) string { return f.Name }
+
+func compareWaitingFiles(f1, f2 apitype.WaitingFile) int {
+	return cmp.Or(
+		cmp.Compare(f1.Name, f2.Name),
+		cmp.Compare(f1.Size, f2.Size),
+	)
 }

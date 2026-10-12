@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"os"
+	"runtime"
 	"sync"
 	"testing"
 
@@ -23,4 +25,12 @@ func requireGTK(t *testing.T) {
 	if !initGTK() {
 		t.Skip("no display")
 	}
+}
+
+// TestMain collects garbage after the tests so that stale Go pointers
+// to C objects don't hide leaks from go test -asan's check at exit.
+func TestMain(m *testing.M) {
+	code := m.Run()
+	runtime.GC()
+	os.Exit(code)
 }

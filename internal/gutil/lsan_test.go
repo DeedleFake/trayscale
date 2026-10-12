@@ -5,6 +5,7 @@ package gutil_test
 import (
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -19,6 +20,8 @@ func TestLeakedLayoutReported(t *testing.T) {
 	if os.Getenv("TRAYSCALE_LEAK_LAYOUT") == "1" {
 		gtk.InitCheck()
 		leakLayout()
+		// Collect the Go wrappers that still point at the layout.
+		runtime.GC()
 		return
 	}
 	if !gtk.InitCheck() {
@@ -47,4 +50,6 @@ func leakLayout() {
 	layout := l.CreatePangoLayout("leaked")
 	layout.GetSize(nil, nil)
 	l.Unref()
+	// Leave no pointer to it in the Go heap, which LeakSanitizer scans.
+	layout.Ptr = 0
 }

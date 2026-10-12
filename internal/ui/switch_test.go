@@ -12,8 +12,7 @@ import (
 )
 
 // TestStatusSwitchUpdates checks that status updates with the old
-// state neither stop the switch's toggle animation partway nor move it
-// back while Tailscale is starting.
+// state don't stop the switch's toggle animation partway.
 func TestStatusSwitchUpdates(t *testing.T) {
 	requireGTK(t)
 
@@ -41,12 +40,6 @@ func TestStatusSwitchUpdates(t *testing.T) {
 	iterateFor(300 * time.Millisecond)
 	if !sw.GetActive() {
 		t.Fatal("update stopped the toggle animation")
-	}
-
-	win.updateStatusSwitch(false)
-	iterateFor(100 * time.Millisecond)
-	if !sw.GetActive() {
-		t.Fatal("update turned the switch back off while starting")
 	}
 }
 

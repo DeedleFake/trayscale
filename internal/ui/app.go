@@ -259,33 +259,50 @@ func (a *App) getIPN(ctx context.Context) (*tsutil.IPNStatus, error) {
 	}
 }
 
-func (a *App) startTS(ctx context.Context) error {
-	status, err := a.getIPN(ctx)
-	if err != nil {
-		return err
-	}
-	if status.NeedsAuth() {
-		gutil.IdleAdd(func() {
-			Confirmation{
-				Heading: locale.Get("Login Required"),
-				Body:    locale.Get("Open a browser to authenticate with Tailscale?"),
-				Accept:  locale.Get("_Open Browser"),
-				Reject:  locale.Get("_Cancel"),
-			}.Show(a, func(accept bool) {
-				if accept {
-					a.app.ActivateAction("login", nil)
-				}
+// setRunning asks the poller to start Tailscale if up is true and
+// stop it otherwise, offering to log in instead if starting needs it.
+// It reports whether the request was sent. The result arrives as a
+// status update, and errors as a toast. It blocks, so don't call it
+// from the main thread.
+func (a *App) setRunning(ctx context.Context, up bool) (bool, error) {
+	if up {
+		status, err := a.getIPN(ctx)
+		if err != nil {
+			return false, err
+		}
+		if status.NeedsAuth() {
+			gutil.IdleAdd(func() {
+				Confirmation{
+					Heading: locale.Get("Login Required"),
+					Body:    locale.Get("Open a browser to authenticate with Tailscale?"),
+					Accept:  locale.Get("_Open Browser"),
+					Reject:  locale.Get("_Cancel"),
+				}.Show(a, func(accept bool) {
+					if accept {
+						a.app.ActivateAction("login", nil)
+					}
+				})
 			})
-		})
-		return nil
+			return false, nil
+		}
 	}
 
-	err = tsutil.Start(ctx)
-	if err != nil {
-		return err
+	select {
+	case a.poller.SetRunning() <- up:
+		return true, nil
+	case <-ctx.Done():
+		return false, ctx.Err()
 	}
-	<-a.poller.Poll()
-	return nil
+}
+
+// toast shows msg in the main window, if it's open. It's safe to call
+// from any thread.
+func (a *App) toast(msg string) {
+	gutil.IdleAdd(func() {
+		if a.win != nil {
+			a.win.Toast(msg)
+		}
+	})
 }
 
 // toggleConn starts Tailscale if it's offline and stops it otherwise.
@@ -300,24 +317,13 @@ func (a *App) toggleConn(ctx context.Context) {
 			if err != nil {
 				return err
 			}
-			if status.Online() {
-				return a.stopTS(ctx)
-			}
-			return a.startTS(ctx)
+			_, err = a.setRunning(ctx, !status.Online())
+			return err
 		}()
 		if err != nil {
 			slog.Error("set Tailscale status from tray", "err", err)
 		}
 	}()
-}
-
-func (a *App) stopTS(ctx context.Context) error {
-	err := tsutil.Stop(ctx)
-	if err != nil {
-		return err
-	}
-	<-a.poller.Poll()
-	return nil
 }
 
 func (a *App) onAppOpen(ctx context.Context, files []*gio.FileBase) {
@@ -639,6 +645,10 @@ func (a *App) Run(ctx context.Context) {
 	a.poller = &tsutil.Poller{
 		Interval: a.getInterval(),
 		New:      func(s tsutil.Status) { gutil.IdleAdd(func() { a.update(s) }) },
+		Error: func(err error) {
+			slog.Error("set Tailscale status", "err", err)
+			a.toast(locale.Get("Failed to start or stop Tailscale"))
+		},
 	}
 	go a.poller.Run(ctx)
 

@@ -60,9 +60,6 @@ type MainWindow struct {
 	profileModel     *gtk.StringList
 	profileSortModel *gtk.SortListModel
 	updatingProfiles bool
-	// settingStatus is true while setStatus is starting or stopping
-	// Tailscale, so that updates don't move the switch back meanwhile.
-	settingStatus   bool
 	activeProfileID ipn.ProfileID
 }
 
@@ -274,14 +271,11 @@ func (win *MainWindow) Update(status tsutil.Status) {
 	}
 }
 
-// updateStatusSwitch shows online on the status switch. It leaves the
-// switch alone while it's animating to or waiting on a change, as
-// SetActive stops a running toggle animation even when it doesn't
-// change anything, leaving the switch stuck partway.
+// updateStatusSwitch shows online on the status switch. It only calls
+// SetActive if that changes anything, as SetActive stops a running
+// toggle animation even when it doesn't, leaving the switch stuck
+// partway.
 func (win *MainWindow) updateStatusSwitch(online bool) {
-	if win.settingStatus {
-		return
-	}
 	win.StatusSwitch.SetState(online)
 	if win.StatusSwitch.GetActive() != online {
 		win.StatusSwitch.SetActive(online)
@@ -600,35 +594,29 @@ func removeActionGroup(w *gtk.Widget, prefix string) {
 	w.InsertActionGroup(prefix, &gio.SimpleActionGroup{})
 }
 
-// setStatus starts Tailscale if s is true and stops it otherwise,
-// turning the status switch back if that fails. It doesn't block.
+// setStatus asks the poller to start Tailscale if s is true and stop
+// it otherwise. The status updates that follow set the switch, unless
+// the request couldn't be sent, in which case it's turned back. It
+// doesn't block.
 func (win *MainWindow) setStatus(ctx context.Context, s bool) {
 	app := win.app
 	sw := win.StatusSwitch
 	// Keep the switch alive until the result is back on the main
 	// thread, in case the window is closed in the meantime.
 	sw.Ref()
-	win.settingStatus = true
 
 	go func() {
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
-		f := app.stopTS
-		if s {
-			f = app.startTS
-		}
-
-		err := f(ctx)
+		sent, err := app.setRunning(ctx, s)
 		if err != nil {
 			slog.Error("set Tailscale status", "err", err)
+			app.toast(locale.Get("Failed to start or stop Tailscale"))
 		}
 		gutil.IdleAdd(func() {
-			win.settingStatus = false
-			if err != nil {
+			if !sent {
 				sw.SetActive(!s)
-			} else {
-				sw.SetState(s)
 			}
 			sw.Unref()
 		})

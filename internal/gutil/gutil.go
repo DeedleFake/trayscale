@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"iter"
 	"reflect"
+	"unsafe"
 
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gio"
+	"codeberg.org/puregotk/puregotk/v4/glib"
+	"codeberg.org/puregotk/puregotk/v4/gobject"
+	"codeberg.org/puregotk/puregotk/v4/gobject/types"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/locale"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/core/gerror"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 // FillFromBuilder sets fields in the struct dst using objects looked
@@ -20,6 +23,14 @@ import (
 // tag, the field name is used instead. If an object by that name does
 // not exist in the builder, it is quietly skipped. If it does exist
 // but is the wrong type, this function will panic.
+//
+// Only exported pointer fields to puregotk wrappers are considered.
+// puregotk's casts are unchecked, so a field's type must be registered
+// with [RegisterType] for its GType to be checked; filling an
+// unregistered type panics.
+//
+// Each stored object gets its own reference, so dst stays valid after
+// builder is released. Release them with [UnrefFields].
 //
 // For example,
 //
@@ -33,84 +44,168 @@ import (
 // "Label" and the Button field to get filled with the object named
 // "DoneButton".
 func FillFromBuilder[T any](dst *T, builder *gtk.Builder) {
-	v := reflect.ValueOf(dst).Elem()
-	t := v.Type()
-
-	for i := range t.NumField() {
-		fv := v.Field(i)
-		ft := t.Field(i)
-
-		name := ft.Name
-		if tag, ok := ft.Tag.Lookup("gtk"); ok {
-			if tag == "-" {
-				continue
-			}
-			name = tag
-		}
+	for fv, name := range builderFields(dst) {
+		// puregotk's GetObject returns a new reference, which the field
+		// keeps.
 		obj := builder.GetObject(name)
 		if obj == nil {
 			continue
 		}
 
-		fv.Set(reflect.ValueOf(obj.Cast()))
+		et := fv.Type().Elem()
+		gtype, ok := typeRegistry[et]
+		if !ok {
+			obj.Unref()
+			panic(fmt.Sprintf("gutil.FillFromBuilder: no GType registered for %v (field for %q)", et, name))
+		}
+		if !IsA(obj, gtype()) {
+			obj.Unref()
+			panic(fmt.Sprintf("gutil.FillFromBuilder: %q is a %v, want %v", name, TypeName(obj), et))
+		}
+
+		nv := reflect.New(et)
+		nv.Interface().(gobject.Ptr).SetGoPointer(obj.GoPointer())
+		fv.Set(nv)
 	}
+}
+
+// UnrefFields drops the references [FillFromBuilder] took for dst's
+// fields and clears them.
+func UnrefFields[T any](dst *T) {
+	for fv := range builderFields(dst) {
+		if fv.IsNil() {
+			continue
+		}
+		p := fv.Interface().(gobject.Ptr).GoPointer()
+		if p != 0 {
+			gobject.ObjectNewFromInternalPtr(p).Unref()
+		}
+		fv.SetZero()
+	}
+}
+
+func builderFields[T any](dst *T) iter.Seq2[reflect.Value, string] {
+	return func(yield func(reflect.Value, string) bool) {
+		v := reflect.ValueOf(dst).Elem()
+		t := v.Type()
+		for i := range t.NumField() {
+			ft := t.Field(i)
+			if !ft.IsExported() || ft.Type.Kind() != reflect.Pointer || !ft.Type.Implements(ptrType) {
+				continue
+			}
+			name := ft.Name
+			if tag, ok := ft.Tag.Lookup("gtk"); ok {
+				if tag == "-" {
+					continue
+				}
+				name = tag
+			}
+			if !yield(v.Field(i), name) {
+				return
+			}
+		}
+	}
+}
+
+var ptrType = reflect.TypeFor[gobject.Ptr]()
+
+var typeRegistry = map[reflect.Type]func() types.GType{}
+
+// RegisterType records the GType of the puregotk wrapper T so that
+// [FillFromBuilder] can check and fill fields of type *T.
+func RegisterType[T any](gtype func() types.GType) {
+	typeRegistry[reflect.TypeFor[T]()] = gtype
+}
+
+func init() {
+	RegisterType[gtk.Box](gtk.BoxGLibType)
+	RegisterType[gtk.Button](gtk.ButtonGLibType)
+	RegisterType[gtk.DropDown](gtk.DropDownGLibType)
+	RegisterType[gtk.DropTarget](gtk.DropTargetGLibType)
+	RegisterType[gtk.Image](gtk.ImageGLibType)
+	RegisterType[gtk.Label](gtk.LabelGLibType)
+	RegisterType[gtk.ListBox](gtk.ListBoxGLibType)
+	RegisterType[gtk.MenuButton](gtk.MenuButtonGLibType)
+	RegisterType[gtk.ScrolledWindow](gtk.ScrolledWindowGLibType)
+	RegisterType[gtk.SearchBar](gtk.SearchBarGLibType)
+	RegisterType[gtk.SearchEntry](gtk.SearchEntryGLibType)
+	RegisterType[gtk.Adjustment](gtk.AdjustmentGLibType)
+	RegisterType[gtk.Window](gtk.WindowGLibType)
+	RegisterType[adw.Spinner](adw.SpinnerGLibType)
+	RegisterType[adw.ViewSwitcherSidebar](adw.ViewSwitcherSidebarGLibType)
+	RegisterType[gtk.Switch](gtk.SwitchGLibType)
+	RegisterType[gtk.ToggleButton](gtk.ToggleButtonGLibType)
+	RegisterType[adw.ActionRow](adw.ActionRowGLibType)
+	RegisterType[adw.ApplicationWindow](adw.ApplicationWindowGLibType)
+	RegisterType[adw.ButtonRow](adw.ButtonRowGLibType)
+	RegisterType[adw.ComboRow](adw.ComboRowGLibType)
+	RegisterType[adw.EntryRow](adw.EntryRowGLibType)
+	RegisterType[adw.ExpanderRow](adw.ExpanderRowGLibType)
+	RegisterType[adw.NavigationSplitView](adw.NavigationSplitViewGLibType)
+	RegisterType[adw.PreferencesDialog](adw.PreferencesDialogGLibType)
+	RegisterType[adw.PreferencesGroup](adw.PreferencesGroupGLibType)
+	RegisterType[adw.PreferencesPage](adw.PreferencesPageGLibType)
+	RegisterType[adw.SpinRow](adw.SpinRowGLibType)
+	RegisterType[adw.StatusPage](adw.StatusPageGLibType)
+	RegisterType[adw.SwitchRow](adw.SwitchRowGLibType)
+	RegisterType[adw.ToastOverlay](adw.ToastOverlayGLibType)
+	RegisterType[adw.ViewStack](adw.ViewStackGLibType)
 }
 
 // FillFromUI loads the given xml data in the order that it is passed
 // and fills into with it in the same way that [FillFromBuilder] does.
-// Each xml value should be an entire XML UI definition file. This is
-// mostly a convenience function to make it easier to load widgets
-// from embedded files.
+// Each xml value should be an entire XML UI definition file. Invalid
+// XML is a programming error and panics. The builder is released
+// before returning.
 func FillFromUI[T any](into *T, xml ...string) {
 	builder := gtk.NewBuilder()
+	defer builder.Unref()
+
 	builder.SetTranslationDomain(locale.TranslationDomain)
 	for _, v := range xml {
-		builder.AddFromString(v)
+		if _, err := builder.AddFromString(v, -1); err != nil {
+			panic(err)
+		}
 	}
 
 	FillFromBuilder(into, builder)
 }
 
-// ErrHasCode returns true if and only if err is a [gerror.GError] and
+// ErrHasCode returns true if and only if err is a [glib.Error] and
 // its error code is code.
 func ErrHasCode(err error, code int) bool {
-	gerr, ok := errors.AsType[*gerror.GError](err)
+	gerr, ok := errors.AsType[*glib.Error](err)
 	if !ok {
 		return false
 	}
-	return gerr.ErrorCode() == code
-}
-
-// WidgetParent is any type that has child widgets. Gererally
-// speaking, this is every Gtk widget.
-type WidgetParent interface {
-	FirstChild() gtk.Widgetter
+	return int(gerr.Code) == code
 }
 
 // WidgetChildren returns an iterator that performs a pre-order
 // traversal of the widget tree rooted at w. It does not yield w
-// itself.
-func WidgetChildren(w WidgetParent) iter.Seq[gtk.Widgetter] {
-	return func(yield func(gtk.Widgetter) bool) {
+// itself. The yielded widgets are borrowed from their parents.
+func WidgetChildren(w *gtk.Widget) iter.Seq[*gtk.Widget] {
+	return func(yield func(*gtk.Widget) bool) {
 		widgetChildrenPush(yield, w)
 	}
 }
 
-func widgetChildrenPush(yield func(gtk.Widgetter) bool, w WidgetParent) bool {
-	type siblingNexter interface{ NextSibling() gtk.Widgetter }
-
-	cur := w.FirstChild()
+// widgetChildrenPush holds a reference to the current child and its
+// next sibling while yielding, so yield may remove the child.
+func widgetChildrenPush(yield func(*gtk.Widget) bool, w *gtk.Widget) bool {
+	cur := w.GetFirstChild()
 	for cur != nil {
-		if !yield(cur) {
+		next := cur.GetNextSibling()
+		ok := yield(cur) && widgetChildrenPush(yield, cur)
+		cur.Unref()
+		if !ok {
+			if next != nil {
+				next.Unref()
+			}
 			return false
 		}
-		if !widgetChildrenPush(yield, cur.(WidgetParent)) {
-			return false
-		}
-
-		cur = cur.(siblingNexter).NextSibling()
+		cur = next
 	}
-
 	return true
 }
 
@@ -118,16 +213,16 @@ func widgetChildrenPush(yield func(gtk.Widgetter) bool, w WidgetParent) bool {
 // internally by an adw.ExpanderRow to hold the rows that are shown
 // when it is expanded. This is quite hacky and should be avoided if
 // it can be, but is unfortunately necessary for a couple of things.
+// The result is borrowed from row.
 func ExpanderRowListBox(row *adw.ExpanderRow) *gtk.ListBox {
 	var revealer bool
-	for child := range WidgetChildren(row) {
+	for child := range WidgetChildren(&row.Widget) {
 		if !revealer {
-			_, revealer = Cast[*gtk.Revealer](child, gtk.GTypeRevealer)
+			revealer = IsA(child, gtk.RevealerGLibType())
 			continue
 		}
 
-		box, ok := Cast[*gtk.ListBox](child, gtk.GTypeListBox)
-		if ok {
+		if box, ok := Cast[gtk.ListBox](child, gtk.ListBoxGLibType()); ok {
 			return box
 		}
 	}
@@ -135,79 +230,69 @@ func ExpanderRowListBox(row *adw.ExpanderRow) *gtk.ListBox {
 	panic("ExpanderRow ListBox not found")
 }
 
-// PointerToWidgetter converts a *T that implements gtk.Widgetter to
-// a gtk.Widgetter, returning nil if the *T is nil. This avoids the
-// nil interface problem.
-func PointerToWidgetter[T any, P interface {
-	gtk.Widgetter
-	*T
-}](p P) gtk.Widgetter {
-	if p == nil {
-		return nil
-	}
-	return p
-}
-
-// Cast returns obj as T if obj's runtime GType is gtype or derives
-// from (or, for an interface, implements) it. It returns false for a
-// nil obj or a GType mismatch. It never relies on the bindings guessing
-// the Go wrapper type, so it maps directly onto bindings whose casts
-// are unchecked: check the GType, then convert.
+// Cast returns obj as a *T if obj's runtime GType is gtype or
+// derives from (or, for an interface, implements) it. It returns false
+// for a nil obj or a GType mismatch. No reference is taken: the result
+// shares obj's.
 //
-// gtype must be the GType that T wraps. If the GType matches but obj
-// can't be converted to T, the two disagree, which is a bug, so Cast
-// panics.
-func Cast[T any](obj glib.Objector, gtype glib.Type) (T, bool) {
-	var zero T
-	base := baseObject(obj)
-	if base == nil {
-		return zero, false
+// gtype must be the GType that T wraps.
+func Cast[T any, P interface {
+	*T
+	gobject.Ptr
+}](obj gobject.Ptr, gtype types.GType) (*T, bool) {
+	if !IsA(obj, gtype) {
+		return nil, false
 	}
-	if !base.Type().IsA(gtype) {
-		return zero, false
-	}
-	if v, ok := obj.(T); ok {
-		return v, true
-	}
-	v, ok := base.Cast().(T)
-	if !ok {
-		panic(fmt.Sprintf("gutil.Cast: %v is a %v but its wrapper %T is not %T", base.Type(), gtype, base.Cast(), zero))
-	}
-	return v, true
+	v := P(new(T))
+	v.SetGoPointer(obj.GoPointer())
+	return (*T)(v), true
 }
 
 // MustCast is like [Cast] but panics if obj is not a gtype.
-func MustCast[T any](obj glib.Objector, gtype glib.Type) T {
-	v, ok := Cast[T](obj, gtype)
+func MustCast[T any, P interface {
+	*T
+	gobject.Ptr
+}](obj gobject.Ptr, gtype types.GType) *T {
+	v, ok := Cast[T, P](obj, gtype)
 	if !ok {
-		var zero T
-		panic(fmt.Sprintf("gutil.MustCast: %v is not a %v (%T)", typeName(obj), gtype, zero))
+		panic(fmt.Sprintf("gutil.MustCast: %v is not a %v", TypeName(obj), gobject.TypeName(gtype)))
 	}
 	return v
 }
 
-func typeName(obj glib.Objector) string {
-	base := baseObject(obj)
-	if base == nil {
-		return "nil"
+// IsA reports whether obj is non-nil and its runtime GType is gtype or
+// derives from (or implements) it.
+func IsA(obj gobject.Ptr, gtype types.GType) bool {
+	p := goPointer(obj)
+	if p == 0 {
+		return false
 	}
-	return base.Type().String()
+	return gobject.TypeIsA(instanceType(p), gtype)
 }
 
-// baseObject returns obj's underlying object, or nil if obj is nil,
-// a typed nil pointer, or wraps no instance.
-func baseObject(obj glib.Objector) *glib.Object {
+// TypeName returns the name of obj's runtime GType, or "nil".
+func TypeName(obj gobject.Ptr) string {
+	p := goPointer(obj)
+	if p == 0 {
+		return "nil"
+	}
+	return gobject.TypeName(instanceType(p))
+}
+
+func goPointer(obj gobject.Ptr) uintptr {
 	if obj == nil {
-		return nil
+		return 0
 	}
 	if rv := reflect.ValueOf(obj); rv.Kind() == reflect.Pointer && rv.IsNil() {
-		return nil
+		return 0
 	}
-	base := glib.BaseObject(obj)
-	if base == nil || base.Native() == 0 {
-		return nil
-	}
-	return base
+	return obj.GoPointer()
+}
+
+// instanceType reads G_TYPE_FROM_INSTANCE:
+// GTypeInstance { GTypeClass *g_class }; GTypeClass { GType g_type }.
+func instanceType(p uintptr) types.GType {
+	return ***(***types.GType)(unsafe.Pointer(&p))
 }
 
 // FirstIconName returns the first of names that theme has. If theme
@@ -220,4 +305,82 @@ func FirstIconName(theme *gtk.IconTheme, names ...string) string {
 		}
 	}
 	return names[0]
+}
+
+// OnFinalize runs f once obj is finalized. It uses a weak reference,
+// so it doesn't keep obj alive, and the weak-notify callback frees its
+// own callback slot after running.
+func OnFinalize(obj gobject.Ptr, f func()) {
+	var notify gobject.WeakNotify
+	notify = func(uintptr, uintptr) {
+		f()
+		glib.UnrefCallback(&notify)
+	}
+	gobject.ObjectNewFromInternalPtr(obj.GoPointer()).WeakRef(&notify, 0)
+}
+
+// Connect connects fn to a signal of obj with connect, which is one of
+// puregotk's Connect methods on obj, such as btn.ConnectClicked. The
+// callback slot is freed when obj is finalized. It returns the handler
+// ID.
+func Connect[F any](obj gobject.Ptr, connect func(*F) uint32, fn F) uint32 {
+	p := &fn
+	id := connect(p)
+	OnFinalize(obj, func() { glib.UnrefCallback(p) })
+	return id
+}
+
+// IdleAdd runs f once on the main loop. The callback frees its own
+// slot after running. It is safe to call from any goroutine.
+func IdleAdd(f func()) {
+	var fn glib.SourceFunc
+	fn = func(uintptr) bool {
+		f()
+		glib.UnrefCallback(&fn)
+		return false
+	}
+	glib.IdleAdd(&fn, 0)
+}
+
+// Err fixes up an error returned by puregotk. Functions that return an
+// object hand back their *glib.Error even when it's nil if the object
+// is nil, as in NextFile at the end of an enumeration, giving a non-nil
+// error interface holding a nil pointer. Err turns that into nil.
+func Err(err error) error {
+	if gerr, ok := err.(*glib.Error); ok && gerr == nil {
+		return nil
+	}
+	return err
+}
+
+// ConnectNotify runs f whenever prop changes on obj ("notify::prop").
+// The callback slot is freed when obj is finalized.
+func ConnectNotify(obj gobject.Ptr, prop string, f func()) uint32 {
+	fn := func(uintptr, uintptr, uintptr) { f() }
+	id := gobject.SignalConnect(obj.GoPointer(), "notify::"+prop, glib.NewCallback(&fn))
+	OnFinalize(obj, func() { glib.UnrefCallback(&fn) })
+	return id
+}
+
+// Obj returns obj as a *gobject.Object sharing its reference, for
+// calling GObject methods such as Ref and Unref on interface wrappers.
+func Obj(obj gobject.Ptr) *gobject.Object {
+	return gobject.ObjectNewFromInternalPtr(obj.GoPointer())
+}
+
+// Ptr converts a C pointer received as a uintptr, such as a callback
+// argument, to a *T for puregotk's boxed types like glib.Variant.
+func Ptr[T any](p uintptr) *T {
+	return (*T)(*(*unsafe.Pointer)(unsafe.Pointer(&p)))
+}
+
+// Async returns a GAsyncReadyCallback that runs f with the result and
+// then frees its own callback slot. Use a new one for each operation.
+func Async(f func(res *gio.AsyncResultBase)) *gio.AsyncReadyCallback {
+	var cb gio.AsyncReadyCallback
+	cb = func(_, res, _ uintptr) {
+		f(&gio.AsyncResultBase{Ptr: res})
+		glib.UnrefCallback(&cb)
+	}
+	return &cb
 }

@@ -1,0 +1,14 @@
+# LeakSanitizer suppressions for running an -asan build of the app by
+# hand, on distros whose libraries lack debug symbols:
+#
+#   env LSAN_OPTIONS=suppressions=$PWD/.github/lsan-local.supp ./trayscale
+#
+# Local use only. These suppress whole font libraries, so they can also
+# hide objects we leak through them, such as a pango layout. CI uses
+# the narrower lsan.supp, which needs symbols for those libraries.
+leak:libfontconfig.so
+leak:libpango-1.0.so
+leak:libpangoft2-1.0.so
+leak:libpangocairo-1.0.so
+# GIO's default VFS, created once per process by the GVfs module.
+leak:libgvfsdbus.so

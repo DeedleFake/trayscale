@@ -3,9 +3,9 @@ package ui
 import (
 	_ "embed"
 
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/gutil"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 //go:embed preferences.ui

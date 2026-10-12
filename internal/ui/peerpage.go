@@ -5,19 +5,20 @@ import (
 	_ "embed"
 	"log/slog"
 	"net/netip"
-	"slices"
 	"strconv"
 	"strings"
 
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gio"
+	"codeberg.org/puregotk/puregotk/v4/glib"
+	"codeberg.org/puregotk/puregotk/v4/gobject"
+	"codeberg.org/puregotk/puregotk/v4/gobject/types"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/tsaddr"
 	"tailscale.com/tailcfg"
@@ -72,19 +73,21 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 
 	page.actions = gio.NewSimpleActionGroup()
 
-	copyFQDNAction := gio.NewSimpleAction("copyFQDN", nil)
-	copyFQDNAction.ConnectActivate(func(p *glib.Variant) {
-		a.clip(glib.NewValue(strings.TrimSuffix(page.peer.Name(), ".")))
+	addPageAction(page.actions, gio.NewSimpleAction("copyFQDN", nil), func(*glib.Variant) {
+		a.clip(strings.TrimSuffix(page.peer.Name(), "."))
 		a.win.Toast(locale.Get("Copied FQDN to clipboard"))
 	})
-	page.actions.AddAction(copyFQDNAction)
 
-	page.sendFileAction = gio.NewSimpleAction("sendFile", glib.NewVariantType("s"))
-	page.sendFileAction.ConnectActivate(func(p *glib.Variant) {
+	sType := glib.NewVariantType("s")
+	page.sendFileAction = gio.NewSimpleAction("sendFile", sType)
+	sType.Free()
+	page.sendFileAction.Ref() // page.sendFileAction keeps one.
+	addPageAction(page.actions, page.sendFileAction, func(p *glib.Variant) {
 		dialog := gtk.NewFileDialog()
+		defer dialog.Unref() // The operation keeps it alive.
 		dialog.SetModal(true)
 
-		mode := p.String()
+		mode := p.GetString(nil)
 		open, finish := dialog.OpenMultiple, dialog.OpenMultipleFinish
 		if mode == "dir" {
 			open, finish = dialog.SelectMultipleFolders, dialog.SelectMultipleFoldersFinish
@@ -92,100 +95,57 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 
 		dialog.SetTitle(locale.Get("Select %v(s) to send to %v", mode, page.peer.Hostinfo().Hostname()))
 
-		open(context.TODO(), &a.win.MainWindow.Window, func(res gio.AsyncResulter) {
+		open(&a.win.MainWindow.Window, nil, gutil.Async(func(res *gio.AsyncResultBase) {
 			files, err := finish(res)
-			if err != nil {
-				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissed)) {
+			if err = gutil.Err(err); err != nil || files == nil {
+				if !gutil.ErrHasCode(err, int(gtk.DialogErrorDismissedValue)) {
 					slog.Error("open files", "err", err)
 				}
 				return
 			}
+			defer gutil.Obj(files).Unref()
 
-			for _, file := range listmodels.Values[gio.Filer](files, gio.GTypeFile) {
-				go a.pushFile(context.TODO(), page.peer.StableID(), file)
+			for _, obj := range listmodels.Objects(files) {
+				a.goPushFile(page.peer.StableID(), obj)
 			}
-		})
+		}), 0)
 	})
-	page.actions.AddAction(page.sendFileAction)
 
-	page.Page.AddController(page.DropTarget)
-	page.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
-	page.DropTarget.ConnectDrop(func(val *glib.Value, x, y float64) bool {
-		file, ok := gutil.Cast[gio.Filer](val.Object(), gio.GTypeFile)
-		if !ok {
+	page.DropTarget.Ref() // AddController takes a reference; the field keeps its own.
+	page.Page.AddController(&page.DropTarget.EventController)
+	page.DropTarget.SetGtypes([]types.GType{gio.FileGLibType()}, 1)
+	gutil.Connect(page.DropTarget, page.DropTarget.ConnectDrop, func(_ gtk.DropTarget, val uintptr, x, y float64) bool {
+		obj := gutil.Ptr[gobject.Value](val).GetObject()
+		if obj == nil {
 			return true
 		}
-		go a.pushFile(context.TODO(), page.peer.StableID(), file)
+		defer obj.Unref()
+		if !gutil.IsA(obj, gio.FileGLibType()) {
+			return true
+		}
+		a.goPushFile(page.peer.StableID(), obj)
 		return true
 	})
 
 	page.addrModel = listmodels.NewModel(netip.Addr.String)
-	page.addrModel.BindListBox(
-		page.IPList,
-		gtk.NewSortListModel(page.addrModel.ListModel(), &gtk.NewCustomSorter(page.addrModel.Comparer(netip.Addr.Compare)).Sorter),
-		func(addr netip.Addr) gtk.Widgetter {
-			copyButton := gtk.NewButtonFromIconName("edit-copy-symbolic")
-
-			copyButton.SetMarginTop(12) // Why is this necessary?
-			copyButton.SetMarginBottom(12)
-			copyButton.SetHasFrame(false)
-			copyButton.SetTooltipText(locale.Get("Copy to Clipboard"))
-			copyButton.ConnectClicked(func() {
-				a.clip(glib.NewValue(addr.String()))
-				a.win.Toast(locale.Get("Copied to clipboard"))
-			})
-
-			row := adw.NewActionRow()
-			row.SetObjectProperty("title-selectable", true)
-			row.AddSuffix(copyButton)
-			row.SetActivatableWidget(copyButton)
-			row.SetTitle(addr.String())
-
-			return row
-		},
-	)
-
-	ipListPlaceholder := adw.NewActionRow()
-	ipListPlaceholder.SetTitle(locale.Get("No addresses."))
-	page.IPList.SetPlaceholder(ipListPlaceholder)
+	addrs := page.addrModel.NewSortListModel(netip.Addr.Compare)
+	page.addrModel.BindListBox(page.IPList, addrs, func(addr netip.Addr) *gtk.Widget {
+		return a.copyRow(addr.String())
+	})
+	addrs.Unref() // The list box holds it.
+	setPlaceholder(page.IPList, locale.Get("No addresses."))
 
 	page.routeModel = listmodels.NewModel(netip.Prefix.String)
-	page.routeModel.BindListBox(
-		page.AdvertisedRoutesList,
-		gtk.NewSortListModel(page.routeModel.ListModel(), &gtk.NewCustomSorter(page.routeModel.Comparer(netip.Prefix.Compare)).Sorter),
-		func(route netip.Prefix) gtk.Widgetter {
-			removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
+	routes := page.routeModel.NewSortListModel(netip.Prefix.Compare)
+	page.routeModel.BindListBox(page.AdvertisedRoutesList, routes, func(route netip.Prefix) *gtk.Widget {
+		return routeRow(page.routeModel, route)
+	})
+	routes.Unref()
+	setPlaceholder(page.AdvertisedRoutesList, locale.Get("No advertised routes."))
 
-			removeButton.SetMarginTop(12)
-			removeButton.SetMarginBottom(12)
-			removeButton.SetHasFrame(false)
-			removeButton.SetTooltipText(locale.Get("Remove"))
-			removeButton.ConnectClicked(func() {
-				routes := slices.Collect(xiter.Filter(page.routeModel.All(), func(p netip.Prefix) bool {
-					return p.Compare(route) != 0
-				}))
-				err := tsutil.AdvertiseRoutes(context.TODO(), routes)
-				if err != nil {
-					slog.Error("advertise routes", "err", err)
-					return
-				}
-			})
-
-			row := adw.NewActionRow()
-			row.SetObjectProperty("title-selectable", true)
-			row.AddSuffix(removeButton)
-			row.SetTitle(route.String())
-
-			return row
-		},
-	)
-
-	advertisedRoutesListPlaceholder := adw.NewActionRow()
-	advertisedRoutesListPlaceholder.SetTitle(locale.Get("No advertised routes."))
-	page.AdvertisedRoutesList.SetPlaceholder(advertisedRoutesListPlaceholder)
-
-	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).ConnectStateSet(func(s bool) bool {
-		if s == page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).State() {
+	sw := rowSwitch(page.ExitNodeRow)
+	gutil.Connect(sw, sw.ConnectStateSet, func(_ gtk.Switch, s bool) bool {
+		if s == sw.GetState() {
 			return false
 		}
 
@@ -204,19 +164,27 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 		err := tsutil.ExitNode(context.TODO(), node)
 		if err != nil {
 			slog.Error("set exit node", "err", err)
-			page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(!s)
+			sw.SetActive(!s)
 			return true
 		}
 		return true
 	})
 }
 
-func (page *PeerPage) Widget() gtk.Widgetter {
-	return page.Page
+func (page *PeerPage) Widget() *gtk.Widget {
+	return &page.Page.Widget
 }
 
-func (page *PeerPage) Actions() gio.ActionGrouper {
+func (page *PeerPage) Actions() *gio.SimpleActionGroup {
 	return page.actions
+}
+
+func (page *PeerPage) Destroy() {
+	page.addrModel.Unref()
+	page.routeModel.Unref()
+	page.sendFileAction.Unref()
+	page.actions.Unref()
+	gutil.UnrefFields(page)
 }
 
 func (page *PeerPage) Bind(stackPage *adw.ViewStackPage) {
@@ -229,7 +197,10 @@ func (page *PeerPage) updateIcon() {
 		// Bind runs before the first Update.
 		return
 	}
-	theme := gtk.IconThemeGetForDisplay(page.Page.Display())
+	display := page.Page.GetDisplay()
+	theme := gtk.IconThemeGetForDisplay(display)
+	display.Unref()
+	defer theme.Unref()
 	page.stackPage.SetIconName(gutil.FirstIconName(theme, *page.iconNames...))
 }
 
@@ -269,15 +240,14 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	page.Page.SetDescription(page.peer.Name())
 
 	page.ExitNodeRow.SetVisible(exitNodeOption)
-	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetState(exitNode)
-	page.ExitNodeRow.ActivatableWidget().(*gtk.Switch).SetActive(exitNode)
+	setSwitch(page.ExitNodeRow, exitNode)
 	page.RxBytes.SetText(strconv.FormatInt(enginePeer.RxBytes, 10))
 	page.TxBytes.SetText(strconv.FormatInt(enginePeer.TxBytes, 10))
 	page.Created.SetText(formatTime(page.peer.Created()))
 	page.LastSeen.SetText(formatTime(page.peer.LastSeen().Get()))
 	page.LastSeenRow.SetVisible(!online)
 	page.LastHandshake.SetText(formatTime(enginePeer.LastHandshake))
-	page.Online.SetFromGIcon(boolIcon(online))
+	page.Online.SetFromGicon(boolIcon(online))
 
 	routes := func(yield func(netip.Prefix) bool) {
 		for _, r := range page.peer.PrimaryRoutes().All() {

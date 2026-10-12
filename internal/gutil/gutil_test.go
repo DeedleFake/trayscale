@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/gutil"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 func TestFirstIconName(t *testing.T) {
@@ -18,7 +18,12 @@ func TestFirstIconName(t *testing.T) {
 	}
 	writeFile(t, filepath.Join(dir, "test", "status", "present-symbolic.svg"), `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/>`)
 
+	// Deliberately never released: GTK leaks part of every icon theme
+	// that is freed (gtk_icon_theme_ref_dispose keeps a reference it
+	// never drops, and finalize never destroys icon_cache), which
+	// go test -asan would report. Keeping it reachable avoids that.
 	theme := gtk.NewIconTheme()
+	keepIconTheme = theme
 	theme.SetSearchPath([]string{dir})
 	theme.SetThemeName("test")
 
@@ -50,3 +55,6 @@ func writeFile(t *testing.T, path, data string) {
 		t.Fatal(err)
 	}
 }
+
+// keepIconTheme keeps TestFirstIconName's theme reachable until exit.
+var keepIconTheme *gtk.IconTheme

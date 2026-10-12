@@ -3,10 +3,10 @@ module deedles.dev/trayscale
 go 1.27.2
 
 require (
-	deedles.dev/tray v0.1.11
+	codeberg.org/puregotk/purego v0.0.0-20260224095105-2513c838cb80
+	codeberg.org/puregotk/puregotk v0.0.0-20261003054014-d92056b0aa41
+	deedles.dev/tray v0.1.12
 	deedles.dev/xiter v0.2.1
-	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20260808200908-d4aecaa0ff32
-	github.com/diamondburned/gotk4/pkg v0.4.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	github.com/klauspost/compress v1.20.1
 	github.com/leonelquinteros/gotext v1.7.2

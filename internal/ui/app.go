@@ -553,10 +553,13 @@ func (a *App) startTray(ctx context.Context) {
 	}()
 }
 
-// Quit exits the app completely, causing Run to return.
+// Quit exits the app completely, causing Run to return. It may be
+// called from any goroutine.
 func (a *App) Quit() {
-	a.tray.Close()
-	a.app.Quit()
+	gutil.IdleAdd(func() {
+		a.tray.Close()
+		a.app.Quit()
+	})
 }
 
 // Run runs the app, initializing everything and then entering the
@@ -567,7 +570,13 @@ func (a *App) Run(ctx context.Context) {
 	defer cancel()
 
 	a.init(ctx)
-	context.AfterFunc(ctx, a.Quit)
+	stop := context.AfterFunc(ctx, a.Quit)
+	defer func() {
+		// Stop before freeing the app so that the deferred cancel can't
+		// quit it afterwards.
+		stop()
+		a.app.Unref()
+	}()
 
 	c, release := giofs.Cancellable(ctx)
 	_, err := a.app.Register(c)
@@ -584,5 +593,4 @@ func (a *App) Run(ctx context.Context) {
 	go a.poller.Run(ctx)
 
 	a.app.Run(int32(len(os.Args)), os.Args)
-	a.app.Unref()
 }

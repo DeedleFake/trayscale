@@ -76,8 +76,24 @@ func (a *App) runSettings(ctx context.Context) {
 }
 
 func (a *App) showChangeControlServer(ctx context.Context) {
-	status := <-a.poller.GetIPN()
+	go func() {
+		getCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		status, err := a.getIPN(getCtx)
+		cancel()
+		if err != nil {
+			slog.Error("get control plane server URL", "err", err)
+			gutil.IdleAdd(func() {
+				if a.win != nil {
+					a.win.Toast(locale.Get("Error setting control URL: %v", err))
+				}
+			})
+			return
+		}
+		gutil.IdleAdd(func() { a.promptControlServer(ctx, status.Prefs.ControlURL()) })
+	}()
+}
 
+func (a *App) promptControlServer(ctx context.Context, current string) {
 	Prompt{
 		Heading: locale.Get("Control Server URL"),
 		Purpose: gtk.InputPurposeUrlValue,
@@ -86,23 +102,31 @@ func (a *App) showChangeControlServer(ctx context.Context) {
 			{ID: "default", Label: locale.Get("Use _Default")},
 			{ID: "set", Label: locale.Get("_Set URL"), Appearance: adw.ResponseSuggestedValue, Default: true},
 		},
-	}.Show(a, status.Prefs.ControlURL(), func(response, val string) {
+	}.Show(a, current, func(response, val string) {
 		switch response {
 		case "default":
 			val = ipn.DefaultControlURL
-			fallthrough // Oh my.
 		case "set":
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		default:
+			return
+		}
+
+		go func() {
+			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
 
 			err := tsutil.SetControlURL(ctx, val)
 			if err != nil {
 				slog.Error("update control plane server URL", "err", err, "url", val)
-				a.win.Toast(locale.Get("Error setting control URL: %v", err))
+				gutil.IdleAdd(func() {
+					if a.win != nil {
+						a.win.Toast(locale.Get("Error setting control URL: %v", err))
+					}
+				})
 				return
 			}
 			<-a.poller.Poll()
-		}
+		}()
 	})
 }
 

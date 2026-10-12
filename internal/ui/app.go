@@ -248,23 +248,39 @@ func unrefFiles(files []*gio.FileBase) {
 	}
 }
 
+// getIPN returns the latest status, or ctx's error if there's none
+// before ctx is done, as when tailscaled has been down since launch.
+func (a *App) getIPN(ctx context.Context) (*tsutil.IPNStatus, error) {
+	select {
+	case s := <-a.poller.GetIPN():
+		return s, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
 func (a *App) startTS(ctx context.Context) error {
-	status := <-a.poller.GetIPN()
+	status, err := a.getIPN(ctx)
+	if err != nil {
+		return err
+	}
 	if status.NeedsAuth() {
-		Confirmation{
-			Heading: locale.Get("Login Required"),
-			Body:    locale.Get("Open a browser to authenticate with Tailscale?"),
-			Accept:  locale.Get("_Open Browser"),
-			Reject:  locale.Get("_Cancel"),
-		}.Show(a, func(accept bool) {
-			if accept {
-				a.app.ActivateAction("login", nil)
-			}
+		gutil.IdleAdd(func() {
+			Confirmation{
+				Heading: locale.Get("Login Required"),
+				Body:    locale.Get("Open a browser to authenticate with Tailscale?"),
+				Accept:  locale.Get("_Open Browser"),
+				Reject:  locale.Get("_Cancel"),
+			}.Show(a, func(accept bool) {
+				if accept {
+					a.app.ActivateAction("login", nil)
+				}
+			})
 		})
 		return nil
 	}
 
-	err := tsutil.Start(ctx)
+	err = tsutil.Start(ctx)
 	if err != nil {
 		return err
 	}
@@ -273,22 +289,26 @@ func (a *App) startTS(ctx context.Context) error {
 }
 
 // toggleConn starts Tailscale if it's offline and stops it otherwise.
+// It doesn't block, so it's safe to call from any thread.
 func (a *App) toggleConn(ctx context.Context) {
-	gutil.IdleAdd(func() {
+	go func() {
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
-		f := a.stopTS
-		if !a.online {
-			f = a.startTS
-		}
-
-		err := f(ctx)
+		err := func() error {
+			status, err := a.getIPN(ctx)
+			if err != nil {
+				return err
+			}
+			if status.Online() {
+				return a.stopTS(ctx)
+			}
+			return a.startTS(ctx)
+		}()
 		if err != nil {
 			slog.Error("set Tailscale status from tray", "err", err)
-			return
 		}
-	})
+	}()
 }
 
 func (a *App) stopTS(ctx context.Context) error {
@@ -434,40 +454,52 @@ func (a *App) onAppActivate(ctx context.Context) {
 	}()
 }
 
-// login starts an interactive login and opens the login URL.
+// login starts an interactive login and opens the login URL. It
+// doesn't block, so it's safe to call from any thread.
 func (a *App) login(ctx context.Context) {
-	status := <-a.poller.GetIPN()
-	if !status.OperatorIsCurrent() {
-		a.showOperatorDialog()
-		return
-	}
+	go func() {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	err := tsutil.StartLogin(ctx)
-	if err != nil {
-		slog.Error("failed to start login", "err", err)
-		if a.win != nil {
-			a.win.Toast(locale.Get("Failed to start login"))
+		fail := func() {
+			gutil.IdleAdd(func() {
+				if a.win != nil {
+					a.win.Toast(locale.Get("Failed to start login"))
+				}
+			})
 		}
-		return
-	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			if a.win != nil {
-				a.win.Toast(locale.Get("Failed to start login"))
-			}
+		status, err := a.getIPN(ctx)
+		if err != nil {
+			slog.Error("failed to start login", "err", err)
+			fail()
 			return
-		case status := <-a.poller.NextIPN():
-			if status.BrowseToURL != "" {
-				a.launchURI(status.BrowseToURL)
+		}
+		if !status.OperatorIsCurrent() {
+			gutil.IdleAdd(a.showOperatorDialog)
+			return
+		}
+
+		err = tsutil.StartLogin(ctx)
+		if err != nil {
+			slog.Error("failed to start login", "err", err)
+			fail()
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				fail()
 				return
+			case status := <-a.poller.NextIPN():
+				if status.BrowseToURL != "" {
+					gutil.IdleAdd(func() { a.launchURI(status.BrowseToURL) })
+					return
+				}
 			}
 		}
-	}
+	}()
 }
 
 // launchURI opens uri with the default handler.

@@ -101,7 +101,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 				return
 			}
 
-			for _, file := range listmodels.Values[gio.Filer](files) {
+			for _, file := range listmodels.Values[gio.Filer](files, gio.GTypeFile) {
 				go a.pushFile(context.TODO(), page.peer.StableID(), file)
 			}
 		})
@@ -111,7 +111,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 	page.Page.AddController(page.DropTarget)
 	page.DropTarget.SetGTypes([]glib.Type{gio.GTypeFile})
 	page.DropTarget.ConnectDrop(func(val *glib.Value, x, y float64) bool {
-		file, ok := val.Object().Cast().(gio.Filer)
+		file, ok := gutil.Cast[gio.Filer](val.Object(), gio.GTypeFile)
 		if !ok {
 			return true
 		}

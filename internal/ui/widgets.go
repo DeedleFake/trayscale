@@ -114,7 +114,6 @@ func routeRow(model *listmodels.Model[netip.Prefix], route netip.Prefix) *gtk.Wi
 	return &row.Widget
 }
 
-
 // setSortFunc sets lb's sort function. The callbacks are freed when
 // GTK drops the function (replaced or the list box destroyed).
 func setSortFunc(lb *gtk.ListBox, f func(r1, r2 *gtk.ListBoxRow) int) {

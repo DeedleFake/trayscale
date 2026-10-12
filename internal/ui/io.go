@@ -6,11 +6,11 @@ import (
 	"io"
 	"log/slog"
 
+	"codeberg.org/puregotk/puregotk/v4/gio"
 	"deedles.dev/trayscale/internal/autosave"
 	"deedles.dev/trayscale/internal/giofs"
-	"deedles.dev/trayscale/internal/tsutil"
-	"codeberg.org/puregotk/puregotk/v4/gio"
 	"deedles.dev/trayscale/internal/gutil"
+	"deedles.dev/trayscale/internal/tsutil"
 	"tailscale.com/tailcfg"
 )
 

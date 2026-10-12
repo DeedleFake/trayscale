@@ -4,8 +4,8 @@ import (
 	"iter"
 	"slices"
 
-	"deedles.dev/xiter"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
+	"deedles.dev/xiter"
 )
 
 // TODO: Move this into a different package and remove the need to keep

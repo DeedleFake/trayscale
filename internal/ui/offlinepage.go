@@ -3,11 +3,11 @@ package ui
 import (
 	_ "embed"
 
-	"deedles.dev/trayscale/internal/gutil"
-	"deedles.dev/trayscale/internal/tsutil"
 	"codeberg.org/puregotk/puregotk/v4/adw"
 	"codeberg.org/puregotk/puregotk/v4/gio"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
+	"deedles.dev/trayscale/internal/gutil"
+	"deedles.dev/trayscale/internal/tsutil"
 )
 
 //go:embed offlinepage.ui

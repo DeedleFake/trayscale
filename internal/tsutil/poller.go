@@ -3,7 +3,6 @@ package tsutil
 import (
 	"context"
 	"errors"
-	"io"
 	"log/slog"
 	"maps"
 	"net/netip"
@@ -36,12 +35,23 @@ type Poller struct {
 	// Tailscale.
 	New func(Status)
 
+	// If non-nil, Error will be called when starting or stopping
+	// Tailscale fails.
+	Error func(error)
+
 	once sync.Once
+
+	// setRunning is a test seam. Only tests set it, to fake starting
+	// and stopping Tailscale. It's nil in normal use, in which case the
+	// poller calls Start and Stop.
+	setRunning func(context.Context, bool) error
 
 	poll     chan struct{}
 	getIPN   chan *IPNStatus
 	nextIPN  chan *IPNStatus
 	interval chan time.Duration
+	running  chan bool
+	resend   chan struct{}
 }
 
 func (p *Poller) init() {
@@ -50,6 +60,8 @@ func (p *Poller) init() {
 		p.getIPN = make(chan *IPNStatus)
 		p.nextIPN = make(chan *IPNStatus)
 		p.interval = make(chan time.Duration)
+		p.running = make(chan bool)
+		p.resend = make(chan struct{}, 1)
 	})
 }
 
@@ -87,98 +99,179 @@ func (p *Poller) Run(ctx context.Context) {
 		case interval = <-p.interval:
 			n = n.Notify()
 			check.Reset(interval)
+		case up := <-p.running:
+			// Nothing is published while this runs, as publishing an IPN
+			// update waits for p.poll.
+			err := p.run(ctx, up)
+			if err != nil {
+				if p.Error != nil {
+					p.Error(err)
+				}
+				// Nothing changed, so the watcher won't send anything.
+				// Send the current status again so that the UI can undo
+				// whatever it did in anticipation.
+				select {
+				case p.resend <- struct{}{}:
+				default:
+				}
+			}
+			n = n.Notify()
+			check.Reset(interval)
 		case <-check.C:
 			n = n.Notify()
 		}
 	}
 }
 
+func (p *Poller) run(ctx context.Context, up bool) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	if p.setRunning != nil {
+		return p.setRunning(ctx, up)
+	}
+	if up {
+		return Start(ctx)
+	}
+	return Stop(ctx)
+}
+
 func (p *Poller) watchIPN(ctx context.Context) {
+	set := make(chan *IPNStatus)
+	go p.holdIPN(ctx, set)
+
+	// publish sends s on to holdIPN. Callers wait for p.poll first.
+	publish := func(s *IPNStatus) bool {
+		select {
+		case <-ctx.Done():
+			return false
+		case set <- s:
+		}
+		select {
+		case p.nextIPN <- s:
+		default:
+		}
+		return true
+	}
+
+	down := false
+	for {
+		connected, err := p.watchIPNOnce(ctx, publish)
+		if ctx.Err() != nil {
+			return
+		}
+		slog.Error("IPN bus watcher stopped", "err", err)
+		if connected || !down {
+			// tailscaled is gone or unreachable, so its last status no
+			// longer applies.
+			down = true
+			select {
+			case <-ctx.Done():
+				return
+			case <-p.poll:
+			}
+			if !publish(IPNStatus{State: ipn.NoState}.copy()) {
+				return
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(5 * time.Second):
+		}
+	}
+}
+
+// holdIPN keeps the latest IPN status for GetIPN and resend.
+func (p *Poller) holdIPN(ctx context.Context, set <-chan *IPNStatus) {
+	var get chan *IPNStatus
+	var s *IPNStatus
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case s = <-set:
+			get = p.getIPN
+			p.New(s)
+		case get <- s:
+		case <-p.resend:
+			if s != nil {
+				p.New(s)
+			}
+		}
+	}
+}
+
+// watchIPNOnce follows one IPN bus connection until it fails.
+// connected reports whether the connection was ever made.
+func (p *Poller) watchIPNOnce(ctx context.Context, publish func(*IPNStatus) bool) (connected bool, err error) {
 	const watcherOpts = ipn.NotifyInitialState |
 		ipn.NotifyInitialPrefs |
 		ipn.NotifyWatchEngineUpdates |
 		ipn.NotifyInitialStatus |
 		ipn.NotifyPeerChanges
 
-watch:
-	if ctx.Err() != nil {
-		return
-	}
 	watcher, err := localClient.WatchIPNBus(ctx, watcherOpts)
 	if err != nil {
-		slog.Error("start IPN bus watcher", "err", err)
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(5 * time.Second):
-			goto watch
-		}
+		return false, err
 	}
 	defer watcher.Close()
 
-	set := make(chan *IPNStatus)
+	// Read notifications even while publishing is held up, such as
+	// while starting or stopping, so that what's published afterwards
+	// is current.
+	updates := make(chan *IPNStatus)
+	errc := make(chan error, 1)
 	go func() {
-		var get chan *IPNStatus
-		var s *IPNStatus
+		var s IPNStatus
 		for {
+			notify, err := watcher.Next()
+			if err != nil {
+				// Any error ends the stream; Next would keep failing.
+				errc <- err
+				return
+			}
+
+			if notify.ErrMessage != nil {
+				var state ipn.State
+				if notify.State != nil {
+					state = *notify.State
+				}
+				slog.Error("watcher got error message", "state", state, "err", notify.ErrMessage)
+			}
+
+			dirty, targetsDirty := s.applyNotify(&notify)
+			if targetsDirty {
+				s.refreshFileTargets(ctx)
+			}
+
+			// TODO: Handle health warnings.
+			if !dirty {
+				continue
+			}
 			select {
 			case <-ctx.Done():
 				return
-			case s = <-set:
-				get = p.getIPN
-				p.New(s)
-			case get <- s:
+			case updates <- s.copy():
 			}
 		}
 	}()
 
-	var s IPNStatus
+	var latest *IPNStatus
+	var poll <-chan struct{}
 	for {
-		notify, err := watcher.Next()
-		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
-				goto watch
-			}
-			slog.Error("get next IPN bus notification", "err", err)
-			continue
-		}
-
-		if notify.ErrMessage != nil {
-			var state ipn.State
-			if notify.State != nil {
-				state = *notify.State
-			}
-			slog.Error("watcher got error message", "state", state, "err", notify.ErrMessage)
-		}
-
-		dirty, targetsDirty := s.applyNotify(&notify)
-		if targetsDirty {
-			s.refreshFileTargets(ctx)
-		}
-
-		// TODO: Handle health warnings.
-		if !dirty {
-			continue
-		}
-
 		select {
 		case <-ctx.Done():
-			return
-		case <-p.poll:
-		}
-
-		c := s.copy()
-		select {
-		case <-ctx.Done():
-			return
-		case set <- c:
-		}
-		select {
-		case p.nextIPN <- c:
-		default:
+			return true, ctx.Err()
+		case err := <-errc:
+			return true, err
+		case latest = <-updates:
+			poll = p.poll
+		case <-poll:
+			if !publish(latest) {
+				return true, ctx.Err()
+			}
+			poll = nil
 		}
 	}
 }
@@ -258,6 +351,17 @@ func (p *Poller) NextIPN() <-chan *IPNStatus {
 	return p.nextIPN
 }
 
+// SetRunning returns a channel that starts Tailscale when sent true
+// and stops it when sent false. The poller doesn't publish IPN updates
+// while it's starting or stopping, and polls as soon as it's done.
+// Errors go to Error. Sending blocks while a previous request is
+// running, so don't send from the main thread.
+func (p *Poller) SetRunning() chan<- bool {
+	p.init()
+
+	return p.running
+}
+
 // SetInterval returns a channel that modifies the polling interval of
 // a running poller. This will delay the next poll until the new
 // interval has elapsed.
@@ -283,7 +387,13 @@ type IPNStatus struct {
 
 func (*IPNStatus) status() {}
 
+// copy returns a copy of s to publish. Published statuses always have
+// valid Prefs, empty if tailscaled hasn't sent any, so that readers
+// don't have to check.
 func (s IPNStatus) copy() *IPNStatus {
+	if !s.Prefs.Valid() {
+		s.Prefs = new(ipn.Prefs).View()
+	}
 	s.Peers = maps.Clone(s.Peers)
 	s.FileTargets = maps.Clone(s.FileTargets)
 	return &s

@@ -102,23 +102,7 @@ func NewMainWindow(app *App) *MainWindow {
 		if s == win.StatusSwitch.GetState() {
 			return false
 		}
-
-		// TODO: Handle this, and other switches, asynchrounously instead
-		// of freezing the entire UI.
-		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-		defer cancel()
-
-		f := app.stopTS
-		if s {
-			f = app.startTS
-		}
-
-		err := f(ctx)
-		if err != nil {
-			slog.Error("set Tailscale status", "err", err)
-			win.StatusSwitch.SetActive(!s)
-			return true
-		}
+		win.setStatus(context.TODO(), s)
 		return true
 	})
 
@@ -273,9 +257,7 @@ func (win *MainWindow) Destroy() {
 func (win *MainWindow) Update(status tsutil.Status) {
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
-		online := status.Online()
-		win.StatusSwitch.SetState(online)
-		win.StatusSwitch.SetActive(online)
+		win.updateStatusSwitch(status.Online())
 
 		win.updatePeers(status)
 
@@ -286,6 +268,17 @@ func (win *MainWindow) Update(status tsutil.Status) {
 
 	case *tsutil.ProfileStatus:
 		win.updateProfiles(status)
+	}
+}
+
+// updateStatusSwitch shows online on the status switch. It only calls
+// SetActive if that changes anything, as SetActive stops a running
+// toggle animation even when it doesn't, leaving the switch stuck
+// partway.
+func (win *MainWindow) updateStatusSwitch(online bool) {
+	win.StatusSwitch.SetState(online)
+	if win.StatusSwitch.GetActive() != online {
+		win.StatusSwitch.SetActive(online)
 	}
 }
 
@@ -599,4 +592,33 @@ func (win *MainWindow) Toast(msg string) {
 // nil group can't be passed; a wrapper around NULL can.
 func removeActionGroup(w *gtk.Widget, prefix string) {
 	w.InsertActionGroup(prefix, &gio.SimpleActionGroup{})
+}
+
+// setStatus asks the poller to start Tailscale if s is true and stop
+// it otherwise. The status updates that follow set the switch, unless
+// the request couldn't be sent, in which case it's turned back. It
+// doesn't block.
+func (win *MainWindow) setStatus(ctx context.Context, s bool) {
+	app := win.app
+	sw := win.StatusSwitch
+	// Keep the switch alive until the result is back on the main
+	// thread, in case the window is closed in the meantime.
+	sw.Ref()
+
+	go func() {
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		sent, err := app.setRunning(ctx, s)
+		if err != nil {
+			slog.Error("set Tailscale status", "err", err)
+			app.toast(locale.Get("Failed to start or stop Tailscale"))
+		}
+		gutil.IdleAdd(func() {
+			if !sent {
+				sw.SetActive(!s)
+			}
+			sw.Unref()
+		})
+	}()
 }

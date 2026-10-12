@@ -248,37 +248,82 @@ func unrefFiles(files []*gio.FileBase) {
 	}
 }
 
-func (a *App) startTS(ctx context.Context) error {
-	status := <-a.poller.GetIPN()
-	if status.NeedsAuth() {
-		Confirmation{
-			Heading: locale.Get("Login Required"),
-			Body:    locale.Get("Open a browser to authenticate with Tailscale?"),
-			Accept:  locale.Get("_Open Browser"),
-			Reject:  locale.Get("_Cancel"),
-		}.Show(a, func(accept bool) {
-			if accept {
-				a.app.ActivateAction("login", nil)
-			}
-		})
-		return nil
+// getIPN returns the latest status, or ctx's error if there's none
+// before ctx is done, as when tailscaled has been down since launch.
+func (a *App) getIPN(ctx context.Context) (*tsutil.IPNStatus, error) {
+	select {
+	case s := <-a.poller.GetIPN():
+		return s, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-
-	err := tsutil.Start(ctx)
-	if err != nil {
-		return err
-	}
-	<-a.poller.Poll()
-	return nil
 }
 
-func (a *App) stopTS(ctx context.Context) error {
-	err := tsutil.Stop(ctx)
-	if err != nil {
-		return err
+// setRunning asks the poller to start Tailscale if up is true and
+// stop it otherwise, offering to log in instead if starting needs it.
+// It reports whether the request was sent. The result arrives as a
+// status update, and errors as a toast. It blocks, so don't call it
+// from the main thread.
+func (a *App) setRunning(ctx context.Context, up bool) (bool, error) {
+	if up {
+		status, err := a.getIPN(ctx)
+		if err != nil {
+			return false, err
+		}
+		if status.NeedsAuth() {
+			gutil.IdleAdd(func() {
+				Confirmation{
+					Heading: locale.Get("Login Required"),
+					Body:    locale.Get("Open a browser to authenticate with Tailscale?"),
+					Accept:  locale.Get("_Open Browser"),
+					Reject:  locale.Get("_Cancel"),
+				}.Show(a, func(accept bool) {
+					if accept {
+						a.app.ActivateAction("login", nil)
+					}
+				})
+			})
+			return false, nil
+		}
 	}
-	<-a.poller.Poll()
-	return nil
+
+	select {
+	case a.poller.SetRunning() <- up:
+		return true, nil
+	case <-ctx.Done():
+		return false, ctx.Err()
+	}
+}
+
+// toast shows msg in the main window, if it's open. It's safe to call
+// from any thread.
+func (a *App) toast(msg string) {
+	gutil.IdleAdd(func() {
+		if a.win != nil {
+			a.win.Toast(msg)
+		}
+	})
+}
+
+// toggleConn starts Tailscale if it's offline and stops it otherwise.
+// It doesn't block, so it's safe to call from any thread.
+func (a *App) toggleConn(ctx context.Context) {
+	go func() {
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		err := func() error {
+			status, err := a.getIPN(ctx)
+			if err != nil {
+				return err
+			}
+			_, err = a.setRunning(ctx, !status.Online())
+			return err
+		}()
+		if err != nil {
+			slog.Error("set Tailscale status from tray", "err", err)
+		}
+	}()
 }
 
 func (a *App) onAppOpen(ctx context.Context, files []*gio.FileBase) {
@@ -380,7 +425,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.addAction(showOffline, nil)
 	}
 
-	a.addAction(gio.NewSimpleAction("change_control_server", nil), func(*glib.Variant) { a.showChangeControlServer() })
+	a.addAction(gio.NewSimpleAction("change_control_server", nil), func(*glib.Variant) { a.showChangeControlServer(ctx) })
 	a.addAction(gio.NewSimpleAction("preferences", nil), func(*glib.Variant) { a.showPreferences() })
 	a.addAction(gio.NewSimpleAction("admin_dashboard", nil), func(*glib.Variant) { a.launchURI(tsutil.AdminDashboardURL) })
 	a.addAction(gio.NewSimpleAction("about", nil), func(*glib.Variant) { a.showAbout() })
@@ -394,40 +439,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 	})
 	a.app.SetAccelsForAction("app.search-peers", []string{"<Ctrl>f"})
 
-	a.addAction(gio.NewSimpleAction("login", nil), func(*glib.Variant) {
-		status := <-a.poller.GetIPN()
-		if !status.OperatorIsCurrent() {
-			a.showOperatorDialog()
-			return
-		}
-
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-
-		err := tsutil.StartLogin(ctx)
-		if err != nil {
-			slog.Error("failed to start login", "err", err)
-			if a.win != nil {
-				a.win.Toast(locale.Get("Failed to start login"))
-			}
-			return
-		}
-
-		for {
-			select {
-			case <-ctx.Done():
-				if a.win != nil {
-					a.win.Toast(locale.Get("Failed to start login"))
-				}
-				return
-			case status := <-a.poller.NextIPN():
-				if status.BrowseToURL != "" {
-					a.launchURI(status.BrowseToURL)
-					return
-				}
-			}
-		}
-	})
+	a.addAction(gio.NewSimpleAction("login", nil), func(*glib.Variant) { a.login(ctx) })
 
 	a.win = NewMainWindow(a)
 	gutil.Connect(a.win.MainWindow, a.win.MainWindow.ConnectCloseRequest, func(gtk.Window) bool {
@@ -445,6 +457,54 @@ func (a *App) onAppActivate(ctx context.Context) {
 	go func() {
 		s := <-a.poller.GetIPN()
 		gutil.IdleAdd(func() { a.update(s) })
+	}()
+}
+
+// login starts an interactive login and opens the login URL. It
+// doesn't block, so it's safe to call from any thread.
+func (a *App) login(ctx context.Context) {
+	go func() {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		fail := func() {
+			gutil.IdleAdd(func() {
+				if a.win != nil {
+					a.win.Toast(locale.Get("Failed to start login"))
+				}
+			})
+		}
+
+		status, err := a.getIPN(ctx)
+		if err != nil {
+			slog.Error("failed to start login", "err", err)
+			fail()
+			return
+		}
+		if !status.OperatorIsCurrent() {
+			gutil.IdleAdd(a.showOperatorDialog)
+			return
+		}
+
+		err = tsutil.StartLogin(ctx)
+		if err != nil {
+			slog.Error("failed to start login", "err", err)
+			fail()
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				fail()
+				return
+			case status := <-a.poller.NextIPN():
+				if status.BrowseToURL != "" {
+					gutil.IdleAdd(func() { a.launchURI(status.BrowseToURL) })
+					return
+				}
+			}
+		}
 	}()
 }
 
@@ -470,23 +530,7 @@ func (a *App) initTray(ctx context.Context) {
 			})
 		},
 
-		OnConnToggle: func() {
-			gutil.IdleAdd(func() {
-				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-				defer cancel()
-
-				f := a.stopTS
-				if !a.online {
-					f = a.startTS
-				}
-
-				err := f(ctx)
-				if err != nil {
-					slog.Error("set Tailscale status from tray", "err", err)
-					return
-				}
-			})
-		},
+		OnConnToggle: func() { a.toggleConn(ctx) },
 
 		OnExitToggle: func() {
 			go func() {
@@ -601,6 +645,10 @@ func (a *App) Run(ctx context.Context) {
 	a.poller = &tsutil.Poller{
 		Interval: a.getInterval(),
 		New:      func(s tsutil.Status) { gutil.IdleAdd(func() { a.update(s) }) },
+		Error: func(err error) {
+			slog.Error("set Tailscale status", "err", err)
+			a.toast(locale.Get("Failed to start or stop Tailscale"))
+		},
 	}
 	go a.poller.Run(ctx)
 

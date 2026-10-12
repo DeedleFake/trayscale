@@ -10,7 +10,3 @@ leak:libfontconfig.so
 leak:libpango-1.0.so
 leak:libpangoft2-1.0.so
 
-# GtkIconTheme's finalize clears icon_cache but never destroys the hash
-# table that gtk_icon_theme_init creates. Only reached by tests that
-# create and free their own icon theme.
-leak:gtk_icon_theme_init

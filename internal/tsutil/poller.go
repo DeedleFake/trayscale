@@ -170,7 +170,7 @@ func (p *Poller) watchIPN(ctx context.Context) {
 				return
 			case <-p.poll:
 			}
-			if !publish(&IPNStatus{State: ipn.NoState}) {
+			if !publish(IPNStatus{State: ipn.NoState}.copy()) {
 				return
 			}
 		}
@@ -387,7 +387,13 @@ type IPNStatus struct {
 
 func (*IPNStatus) status() {}
 
+// copy returns a copy of s to publish. Published statuses always have
+// valid Prefs, empty if tailscaled hasn't sent any, so that readers
+// don't have to check.
 func (s IPNStatus) copy() *IPNStatus {
+	if !s.Prefs.Valid() {
+		s.Prefs = new(ipn.Prefs).View()
+	}
 	s.Peers = maps.Clone(s.Peers)
 	s.FileTargets = maps.Clone(s.FileTargets)
 	return &s

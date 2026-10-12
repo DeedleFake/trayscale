@@ -141,3 +141,38 @@ func listenLocalAPI(t *testing.T) net.Listener {
 	}
 	return l
 }
+
+// TestPollerDownStatusIsUsable checks that the status published when
+// tailscaled stops can be read like any other, as the UI does.
+func TestPollerDownStatusIsUsable(t *testing.T) {
+	l := listenLocalAPI(t)
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "down", http.StatusServiceUnavailable)
+	})}
+	go srv.Serve(l)
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	statuses := make(chan *IPNStatus, 16)
+	p := &Poller{Interval: time.Hour, New: func(s Status) {
+		if s, ok := s.(*IPNStatus); ok {
+			statuses <- s
+		}
+	}}
+	go p.Run(ctx)
+
+	s := <-statuses
+	if s.Online() {
+		t.Fatal("down status is online")
+	}
+	// What App.update, the self page, and the settings read.
+	s.ExitNodeActive()
+	s.ExitNode()
+	s.OperatorIsCurrent()
+	s.NeedsAuth()
+	s.SelfAddr()
+	s.Prefs.ControlURL()
+	s.Prefs.AdvertisesExitNode()
+	s.Prefs.AdvertiseRoutes()
+}

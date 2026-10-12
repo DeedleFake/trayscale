@@ -306,9 +306,6 @@ func FirstIconName(theme *gtk.IconTheme, names ...string) string {
 	return names[0]
 }
 
-
-
-
 // Err fixes up an error returned by puregotk. Functions that return an
 // object hand back their *glib.Error even when it's nil if the object
 // is nil, as in NextFile at the end of an enumeration, giving a non-nil
@@ -319,7 +316,6 @@ func Err(err error) error {
 	}
 	return err
 }
-
 
 // Obj returns obj as a *gobject.Object sharing its reference, for
 // calling GObject methods such as Ref and Unref on interface wrappers.
@@ -332,4 +328,3 @@ func Obj(obj gobject.Ptr) *gobject.Object {
 func Ptr[T any](p uintptr) *T {
 	return (*T)(*(*unsafe.Pointer)(unsafe.Pointer(&p)))
 }
-

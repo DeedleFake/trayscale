@@ -5,7 +5,6 @@ import (
 	"slices"
 
 	"codeberg.org/puregotk/puregotk/v4/gio"
-	"codeberg.org/puregotk/puregotk/v4/glib"
 	"codeberg.org/puregotk/puregotk/v4/gobject"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/gutil"
@@ -103,15 +102,9 @@ func (m *Model[T]) Update(s iter.Seq[T]) {
 // NewSorter returns a GtkCustomSorter over m's items, owned by the
 // caller. Its callbacks are freed when the sorter is destroyed.
 func (m *Model[T]) NewSorter(f func(T, T) int) *gtk.CustomSorter {
-	var compare glib.CompareDataFunc = func(a, b, _ uintptr) int32 {
-		return int32(f(m.valueAt(a), m.valueAt(b)))
-	}
-	var destroy glib.DestroyNotify
-	destroy = func(uintptr) {
-		glib.UnrefCallback(&compare)
-		glib.UnrefCallback(&destroy)
-	}
-	return gtk.NewCustomSorter(&compare, 0, &destroy)
+	return gutil.NewCustomSorter(func(a, b uintptr) int {
+		return f(m.valueAt(a), m.valueAt(b))
+	})
 }
 
 func (m *Model[T]) valueAt(p uintptr) T {
@@ -133,17 +126,16 @@ func (m *Model[T]) NewSortListModel(f func(T, T) int) *gtk.SortListModel {
 // the list box takes over. The callbacks are freed when lb is unbound
 // or destroyed.
 func (m *Model[T]) BindListBox(lb *gtk.ListBox, list gio.ListModel, f func(T) *gtk.Widget) {
-	var create gtk.ListBoxCreateWidgetFunc = func(item, _ uintptr) uintptr {
+	create := func(item uintptr) uintptr {
 		w := f(m.valueAt(item))
 		// puregotk's constructors sink the floating reference. Hand
 		// ours back as floating, which the list box then sinks.
 		w.ForceFloating()
 		return w.GoPointer()
 	}
-	var destroy glib.DestroyNotify
-	destroy = func(uintptr) {
-		glib.UnrefCallback(&create)
-		glib.UnrefCallback(&destroy)
-	}
-	lb.BindModel(list, &create, 0, &destroy)
+	lb.BindModel(list, &listBoxCreate, gutil.Hold(create), &gutil.FreeData)
+}
+
+var listBoxCreate gtk.ListBoxCreateWidgetFunc = func(item, id uintptr) uintptr {
+	return gutil.Held[func(uintptr) uintptr](id)(item)
 }

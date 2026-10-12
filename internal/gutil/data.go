@@ -5,6 +5,7 @@ import (
 
 	"codeberg.org/puregotk/puregotk/v4/gio"
 	"codeberg.org/puregotk/puregotk/v4/glib"
+	"codeberg.org/puregotk/puregotk/v4/gtk"
 )
 
 // Callbacks that GLib calls with a user-data pointer share one callback
@@ -70,4 +71,14 @@ var AsyncCallback gio.AsyncReadyCallback = func(_, res, id uintptr) {
 // result. Use a new one for each operation.
 func Async(f func(res *gio.AsyncResultBase)) uintptr {
 	return Hold(f)
+}
+
+var compare glib.CompareDataFunc = func(a, b, id uintptr) int32 {
+	return int32(Held[func(a, b uintptr) int](id)(a, b))
+}
+
+// NewCustomSorter returns a new sorter, owned by the caller, that
+// compares items with f. f is released when the sorter is destroyed.
+func NewCustomSorter(f func(a, b uintptr) int) *gtk.CustomSorter {
+	return gtk.NewCustomSorter(&compare, Hold(f), &FreeData)
 }

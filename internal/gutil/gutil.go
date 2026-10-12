@@ -307,28 +307,7 @@ func FirstIconName(theme *gtk.IconTheme, names ...string) string {
 	return names[0]
 }
 
-// OnFinalize runs f once obj is finalized. It uses a weak reference,
-// so it doesn't keep obj alive, and the weak-notify callback frees its
-// own callback slot after running.
-func OnFinalize(obj gobject.Ptr, f func()) {
-	var notify gobject.WeakNotify
-	notify = func(uintptr, uintptr) {
-		f()
-		glib.UnrefCallback(&notify)
-	}
-	gobject.ObjectNewFromInternalPtr(obj.GoPointer()).WeakRef(&notify, 0)
-}
 
-// Connect connects fn to a signal of obj with connect, which is one of
-// puregotk's Connect methods on obj, such as btn.ConnectClicked. The
-// callback slot is freed when obj is finalized. It returns the handler
-// ID.
-func Connect[F any](obj gobject.Ptr, connect func(*F) uint32, fn F) uint32 {
-	p := &fn
-	id := connect(p)
-	OnFinalize(obj, func() { glib.UnrefCallback(p) })
-	return id
-}
 
 // IdleAdd runs f once on the main loop. The callback frees its own
 // slot after running. It is safe to call from any goroutine.
@@ -353,14 +332,6 @@ func Err(err error) error {
 	return err
 }
 
-// ConnectNotify runs f whenever prop changes on obj ("notify::prop").
-// The callback slot is freed when obj is finalized.
-func ConnectNotify(obj gobject.Ptr, prop string, f func()) uint32 {
-	fn := func(uintptr, uintptr, uintptr) { f() }
-	id := gobject.SignalConnect(obj.GoPointer(), "notify::"+prop, glib.NewCallback(&fn))
-	OnFinalize(obj, func() { glib.UnrefCallback(&fn) })
-	return id
-}
 
 // Obj returns obj as a *gobject.Object sharing its reference, for
 // calling GObject methods such as Ref and Unref on interface wrappers.

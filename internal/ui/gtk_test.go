@@ -11,6 +11,9 @@ import (
 )
 
 var initGTK = sync.OnceValue(func() bool {
+	// GL contexts fail under Xvfb in CI, which crashes on the first
+	// window that's shown.
+	os.Setenv("GSK_RENDERER", "cairo")
 	if !gtk.InitCheck() {
 		return false
 	}

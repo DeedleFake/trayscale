@@ -7,33 +7,47 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/diamondburned/gotk4/pkg/core/gioutil"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"codeberg.org/puregotk/puregotk/v4/gio"
+	"deedles.dev/trayscale/internal/gutil"
 	"github.com/klauspost/compress/zstd"
 )
 
-func Reader(ctx context.Context, file gio.Filer) (io.ReadCloser, int64, string, error) {
-	if file.QueryFileType(ctx, 0) == gio.FileTypeDirectory {
+// Reader opens file for reading. A directory is streamed as a
+// zstd-compressed tar archive. file is borrowed; the returned reader
+// doesn't keep it.
+func Reader(ctx context.Context, file *gio.FileBase) (io.ReadCloser, int64, string, error) {
+	c, release := Cancellable(ctx)
+	defer release()
+
+	if file.QueryFileType(0, c) == gio.GFileTypeDirectoryValue {
 		return dirReader(ctx, file)
 	}
 
-	info, err := file.QueryInfo(ctx, gio.FILE_ATTRIBUTE_STANDARD_SIZE, 0)
+	info, err := file.QueryInfo(gio.FILE_ATTRIBUTE_STANDARD_SIZE, 0, c)
+	err = gutil.Err(err)
 	if err != nil {
 		return nil, 0, "", fmt.Errorf("query file size: %w", err)
 	}
+	size := info.GetSize()
+	info.Unref()
 
-	s, err := file.Read(ctx)
+	s, err := file.Read(c)
+	err = gutil.Err(err)
 	if err != nil {
 		return nil, 0, "", fmt.Errorf("open: %w", err)
 	}
 
-	return gioutil.Reader(ctx, s), info.Size(), file.Basename(), nil
+	return NewReader(ctx, &s.InputStream), size, file.GetBasename(), nil
 }
 
-func dirReader(ctx context.Context, file gio.Filer) (io.ReadCloser, int64, string, error) {
+func dirReader(ctx context.Context, file *gio.FileBase) (io.ReadCloser, int64, string, error) {
 	r, w := io.Pipe()
 
+	// The goroutine outlives this call, so it needs its own reference.
+	ref(file)
 	go func() {
+		defer unref(file)
+
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
@@ -48,9 +62,9 @@ func dirReader(ctx context.Context, file gio.Filer) (io.ReadCloser, int64, strin
 		root := New(ctx, file)
 		err := w.AddFS(root)
 		if err != nil {
-			slog.Error("write tar file", "source", file.Path(), "err", err)
+			slog.Error("write tar file", "source", file.GetPath(), "err", err)
 		}
 	}()
 
-	return r, -1, file.Basename() + ".tar.zst", nil
+	return r, -1, file.GetBasename() + ".tar.zst", nil
 }

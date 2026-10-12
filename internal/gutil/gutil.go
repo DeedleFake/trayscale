@@ -330,3 +330,14 @@ func IdleAdd(f func()) {
 	}
 	glib.IdleAdd(&fn, 0)
 }
+
+// Err fixes up an error returned by puregotk. Functions that return an
+// object hand back their *glib.Error even when it's nil if the object
+// is nil, as in NextFile at the end of an enumeration, giving a non-nil
+// error interface holding a nil pointer. Err turns that into nil.
+func Err(err error) error {
+	if gerr, ok := err.(*glib.Error); ok && gerr == nil {
+		return nil
+	}
+	return err
+}

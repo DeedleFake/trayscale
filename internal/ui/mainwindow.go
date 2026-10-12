@@ -60,7 +60,10 @@ type MainWindow struct {
 	profileModel     *gtk.StringList
 	profileSortModel *gtk.SortListModel
 	updatingProfiles bool
-	activeProfileID  ipn.ProfileID
+	// settingStatus is true while setStatus is starting or stopping
+	// Tailscale, so that updates don't move the switch back meanwhile.
+	settingStatus   bool
+	activeProfileID ipn.ProfileID
 }
 
 func NewMainWindow(app *App) *MainWindow {
@@ -271,10 +274,18 @@ func (win *MainWindow) Update(status tsutil.Status) {
 	}
 }
 
-// updateStatusSwitch shows online on the status switch.
+// updateStatusSwitch shows online on the status switch. It leaves the
+// switch alone while it's animating to or waiting on a change, as
+// SetActive stops a running toggle animation even when it doesn't
+// change anything, leaving the switch stuck partway.
 func (win *MainWindow) updateStatusSwitch(online bool) {
+	if win.settingStatus {
+		return
+	}
 	win.StatusSwitch.SetState(online)
-	win.StatusSwitch.SetActive(online)
+	if win.StatusSwitch.GetActive() != online {
+		win.StatusSwitch.SetActive(online)
+	}
 }
 
 func (win *MainWindow) SetShowOffline(show bool) {
@@ -597,6 +608,7 @@ func (win *MainWindow) setStatus(ctx context.Context, s bool) {
 	// Keep the switch alive until the result is back on the main
 	// thread, in case the window is closed in the meantime.
 	sw.Ref()
+	win.settingStatus = true
 
 	go func() {
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -612,8 +624,11 @@ func (win *MainWindow) setStatus(ctx context.Context, s bool) {
 			slog.Error("set Tailscale status", "err", err)
 		}
 		gutil.IdleAdd(func() {
+			win.settingStatus = false
 			if err != nil {
 				sw.SetActive(!s)
+			} else {
+				sw.SetState(s)
 			}
 			sw.Unref()
 		})

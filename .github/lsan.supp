@@ -1,12 +1,11 @@
 # LeakSanitizer suppressions for go test -asan.
 #
 # Only library-internal caches that are intentionally kept until
-# process exit belong here. Never suppress a frame from our own code or
-# from the puregotk/purego bindings.
+# process exit belong here, matched by the function that fills them.
+# Never suppress a whole library, which would also hide objects we
+# leak through it (TestLeakedLayoutReported checks this), or a frame
+# from our own code or the puregotk/purego bindings.
 
-# Fontconfig's parsed configuration and font sets, cached by pango.
-leak:libfontconfig.so
-# Pango's font map and layout caches.
-leak:libpango-1.0.so
-leak:libpangoft2-1.0.so
-
+# Fontconfig's configuration, loaded once and kept until exit.
+leak:FcInit*
+leak:FcConfigEnsure

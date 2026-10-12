@@ -24,3 +24,16 @@ func TestFileStrings(t *testing.T) {
 		t.Errorf("FilePath(non-local) = %q, want empty", got)
 	}
 }
+
+// TestFileStringsNoLeak repeats the calls enough that go test -asan
+// reports a leak if the returned strings aren't freed. LeakSanitizer
+// can miss the last few because stale copies of the pointers stay in
+// Go memory.
+func TestFileStringsNoLeak(t *testing.T) {
+	file := gio.FileNewForPath("/tmp/file.txt")
+	defer gutil.Obj(file).Unref()
+	for range 1000 {
+		gutil.FilePath(file)
+		gutil.FileBasename(file)
+	}
+}

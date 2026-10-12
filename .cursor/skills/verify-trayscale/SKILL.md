@@ -132,7 +132,20 @@ $CTRL screenshot --path .cursor/skills/verify-trayscale/artifacts/<feature>/afte
 
 GNOME Shell on this kind of session returns `AccessDenied` for `org.gnome.Shell.Screenshot`. `--allow-fail` writes `after.png.skipped.txt` and continues. An AT-SPI snapshot is enough when the screenshot is denied.
 
-Mocks: none. The window talks to the real `tailscaled`. If Tailscale is down, the offline page (`Not Connected`) is the correct UI. Do not fake IPN status.
+Mocks: none. The window talks to the real `tailscaled`. Do not fake IPN status.
+
+- `tailscaled` running but not connected (stopped, starting, or logged out): the offline page (`Not Connected`) is the correct UI.
+- `tailscaled` not running at all: on builds without #322, with the tray icon enabled (the default), the GTK main loop blocks waiting for a first status. The window draws once, then `actions` and `action` time out and AT-SPI finds no Trayscale application, so `doctor` reports `atspi_error` and `window` is missing. That is the app bug #322 fixes, not a harness failure. With #322 the window stays responsive and shows `Not Connected`.
+
+### Real peers without a tailnet
+
+`scripts/tsharness` runs a real `tailscaled` (userspace networking) against Tailscale's in-process test control server (`tailscale.com/tstest/integration/testcontrol`) with a local DERP/STUN, and registers four peers: `alpha` (online), `bravo-exit` (online, offers an exit node), `charlie` (offline), `delta-router` (online, advertises `192.168.50.0/24`). It sets the operator to `$USER`. This is a real daemon and real IPN bus traffic, not faked app state.
+
+```bash
+.cursor/skills/verify-trayscale/scripts/tsharness/run.sh   # prints READY, runs until interrupted
+```
+
+It serves the LocalAPI on `/run/tailscale/tailscaled.sock`, Trayscale's default socket, so it only fits a machine or container with no system `tailscaled` (create `/run/tailscale` writable by you first). Do not use it next to a real `tailscaled`. Its `go.mod` pins `tailscale.com` separately from the app's; `run.sh` builds `tailscale`/`tailscaled` at the app's version.
 
 ## Cleanup
 
@@ -140,10 +153,12 @@ Mocks: none. The window talks to the real `tailscaled`. If Tailscale is down, th
 $CTRL cleanup
 ```
 
-This signals only the process group recorded at launch (the `dbus-run-session` pgid). It never `pkill trayscale`. Confirm the user's instance, if any, is still alive after cleanup.
+This signals only the process group recorded at launch (the `dbus-run-session` pgid). It never `pkill trayscale`. If the group leader has already died (for example, the shell or session that ran `launch` went away) but the rest of the group is alive, `cleanup` still signals the group, as long as one of its members runs from the recorded run directory. `doctor` reports `pgid_alive` the same way. Confirm the user's instance, if any, is still alive after cleanup.
 
 `--keep-run` leaves the run directory for log inspection. Artifacts stay either way.
 
 ## Helpers
 
 `scripts/control-trayscale` is executable. Commands: `launch`, `doctor`, `cleanup`, `actions`, `action`, `snapshot`, `screenshot`, `find`, `click`, `select`, `fill`, `press`, `wait`.
+
+`scripts/tsharness/` is the testcontrol harness described under Evidence. It is its own Go module so it does not touch the app's `go.mod`; Go skips dot-directories, so CI does not build it.

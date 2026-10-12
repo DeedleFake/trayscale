@@ -45,6 +45,8 @@ import (
 // "DoneButton".
 func FillFromBuilder[T any](dst *T, builder *gtk.Builder) {
 	for fv, name := range builderFields(dst) {
+		// puregotk's GetObject returns a new reference, which the field
+		// keeps.
 		obj := builder.GetObject(name)
 		if obj == nil {
 			continue
@@ -53,13 +55,14 @@ func FillFromBuilder[T any](dst *T, builder *gtk.Builder) {
 		et := fv.Type().Elem()
 		gtype, ok := typeRegistry[et]
 		if !ok {
+			obj.Unref()
 			panic(fmt.Sprintf("gutil.FillFromBuilder: no GType registered for %v (field for %q)", et, name))
 		}
 		if !IsA(obj, gtype()) {
+			obj.Unref()
 			panic(fmt.Sprintf("gutil.FillFromBuilder: %q is a %v, want %v", name, TypeName(obj), et))
 		}
 
-		obj.Ref()
 		nv := reflect.New(et)
 		nv.Interface().(gobject.Ptr).SetGoPointer(obj.GoPointer())
 		fv.Set(nv)
@@ -187,14 +190,20 @@ func WidgetChildren(w *gtk.Widget) iter.Seq[*gtk.Widget] {
 	}
 }
 
+// widgetChildrenPush yields borrowed children: puregotk's getters
+// return new references, which are dropped right away since w's
+// hierarchy keeps the children alive.
 func widgetChildrenPush(yield func(*gtk.Widget) bool, w *gtk.Widget) bool {
-	for cur := w.GetFirstChild(); cur != nil; cur = cur.GetNextSibling() {
+	cur := w.GetFirstChild()
+	for cur != nil {
+		cur.Unref()
 		if !yield(cur) {
 			return false
 		}
 		if !widgetChildrenPush(yield, cur) {
 			return false
 		}
+		cur = cur.GetNextSibling()
 	}
 	return true
 }

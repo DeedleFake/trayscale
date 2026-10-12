@@ -111,10 +111,15 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 		}), 0)
 	})
 
+	page.DropTarget.Ref() // AddController takes a reference; the field keeps its own.
 	page.Page.AddController(&page.DropTarget.EventController)
 	page.DropTarget.SetGtypes([]types.GType{gio.FileGLibType()}, 1)
 	gutil.Connect(page.DropTarget, page.DropTarget.ConnectDrop, func(_ gtk.DropTarget, val uintptr, x, y float64) bool {
 		obj := gutil.Ptr[gobject.Value](val).GetObject()
+		if obj == nil {
+			return true
+		}
+		defer obj.Unref()
 		if !gutil.IsA(obj, gio.FileGLibType()) {
 			return true
 		}
@@ -192,7 +197,10 @@ func (page *PeerPage) updateIcon() {
 		// Bind runs before the first Update.
 		return
 	}
-	theme := gtk.IconThemeGetForDisplay(page.Page.GetDisplay())
+	display := page.Page.GetDisplay()
+	theme := gtk.IconThemeGetForDisplay(display)
+	display.Unref()
+	defer theme.Unref()
 	page.stackPage.SetIconName(gutil.FirstIconName(theme, *page.iconNames...))
 }
 

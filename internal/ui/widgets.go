@@ -35,7 +35,9 @@ func addPageAction(group *gio.SimpleActionGroup, action *gio.SimpleAction, activ
 
 // rowSwitch returns the GtkSwitch of a switch row, borrowed from it.
 func rowSwitch(row *adw.SwitchRow) *gtk.Switch {
-	return gutil.MustCast[gtk.Switch](row.GetActivatableWidget(), gtk.SwitchGLibType())
+	w := row.GetActivatableWidget()
+	w.Unref() // The row keeps it alive.
+	return gutil.MustCast[gtk.Switch](w, gtk.SwitchGLibType())
 }
 
 // setSwitch sets both the state and the active property of a switch
@@ -81,6 +83,7 @@ func (a *App) copyRow(text string) *gtk.Widget {
 func (a *App) goPushFile(peer tailcfg.StableNodeID, obj gobject.Ptr) {
 	file := &gio.FileBase{Ptr: obj.GoPointer()}
 	gutil.Obj(file).Ref()
+	// Released by the goroutine.
 	go func() {
 		a.pushFile(context.TODO(), peer, file)
 		gutil.IdleAdd(gutil.Obj(file).Unref)

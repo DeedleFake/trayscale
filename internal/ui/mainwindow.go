@@ -51,6 +51,7 @@ type MainWindow struct {
 	PageMenuButton   *gtk.MenuButton
 
 	pages       map[string]Page
+	stackPages  map[string]*adw.ViewStackPage // Each holds a reference.
 	showOffline bool
 	peerQuery   string
 	ipn         *tsutil.IPNStatus
@@ -66,6 +67,7 @@ func NewMainWindow(app *App) *MainWindow {
 	win := MainWindow{
 		app:         app,
 		pages:       make(map[string]Page),
+		stackPages:  make(map[string]*adw.ViewStackPage),
 		showOffline: true,
 	}
 	if app.settings != nil {
@@ -125,7 +127,12 @@ func NewMainWindow(app *App) *MainWindow {
 			return
 		}
 
-		obj, ok := gutil.Cast[gtk.StringObject](win.ProfileDropDown.GetSelectedItem(), gtk.StringObjectGLibType())
+		sel := win.ProfileDropDown.GetSelectedItem()
+		if sel == nil {
+			return
+		}
+		defer sel.Unref()
+		obj, ok := gutil.Cast[gtk.StringObject](sel, gtk.StringObjectGLibType())
 		if !ok {
 			return
 		}
@@ -197,6 +204,7 @@ func (win *MainWindow) OpenPeerSearch() {
 func (win *MainWindow) addPage(name string, page Page) {
 	win.pages[name] = page
 	vp := win.PeersStack.AddNamed(page.Widget(), name)
+	win.stackPages[name] = vp
 	page.Bind(vp)
 }
 
@@ -230,6 +238,10 @@ func (win *MainWindow) removePage(name string, page Page) {
 
 	delete(win.pages, name)
 	win.PeersStack.Remove(page.Widget())
+	if vp := win.stackPages[name]; vp != nil {
+		vp.Unref()
+		delete(win.stackPages, name)
+	}
 	page.Destroy()
 
 	if !reselect {
@@ -249,6 +261,10 @@ func (win *MainWindow) Destroy() {
 		page.Destroy()
 	}
 	clear(win.pages)
+	for _, vp := range win.stackPages {
+		vp.Unref()
+	}
+	clear(win.stackPages)
 	win.profileModel.Unref()
 	win.profileSortModel.Unref()
 	gutil.UnrefFields(win)

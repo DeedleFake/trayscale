@@ -175,6 +175,7 @@ func (d Select[T]) Show(a *App, res func([]SelectOption[T])) {
 		var selected []SelectOption[T]
 		if row := options.GetSelectedRow(); row != nil {
 			selected = append(selected, d.Options[row.GetIndex()])
+			row.Unref()
 		}
 		res(selected)
 	})

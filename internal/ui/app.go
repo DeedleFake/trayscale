@@ -52,7 +52,11 @@ type App struct {
 }
 
 func (a *App) clip(text string) {
-	gdk.DisplayGetDefault().GetClipboard().SetText(text)
+	display := gdk.DisplayGetDefault()
+	defer display.Unref()
+	clipboard := display.GetClipboard()
+	defer clipboard.Unref()
+	clipboard.SetText(text)
 }
 
 func (a *App) notify(title, body string) {
@@ -176,10 +180,12 @@ func (a *App) init(ctx context.Context) {
 
 	css := gtk.NewCssProvider()
 	css.LoadFromString(appCSS)
-	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, uint32(gtk.STYLE_PROVIDER_PRIORITY_APPLICATION))
+	display := gdk.DisplayGetDefault()
+	gtk.StyleContextAddProviderForDisplay(display, css, uint32(gtk.STYLE_PROVIDER_PRIORITY_APPLICATION))
 	css.Unref()
 
-	theme := gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault())
+	theme := gtk.IconThemeGetForDisplay(display) // Kept for the app's lifetime.
+	display.Unref()
 	gutil.Connect(theme, theme.ConnectChanged, func(gtk.IconTheme) {
 		if a.win == nil {
 			return

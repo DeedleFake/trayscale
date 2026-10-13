@@ -291,7 +291,7 @@ func (t *Tray) syncAccounts(ps *tsutil.ProfileStatus) {
 		return
 	}
 	for _, p := range profiles {
-		label := accountMenuLabel(ProfileTitle(p))
+		label := accountMenuLabel(profileName(p))
 		if t.profileNames[p.ID] == label {
 			continue
 		}
@@ -326,7 +326,7 @@ func (t *Tray) rebuildAccountMenu(profiles []ipn.LoginProfile, active ipn.Profil
 	var activeID ipn.ProfileID
 	for _, p := range profiles {
 		id := p.ID
-		label := accountMenuLabel(ProfileTitle(p))
+		label := accountMenuLabel(profileName(p))
 		state := tray.Off
 		if id == active {
 			state = tray.On

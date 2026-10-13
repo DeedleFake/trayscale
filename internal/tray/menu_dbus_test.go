@@ -358,22 +358,32 @@ func menuSignalsDuring(t *testing.T, addr string, fn func()) (layoutUpdated, pro
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	logPath := filepath.Join(t.TempDir(), "monitor.log")
+	logFile, err := os.Create(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	cmd := exec.CommandContext(ctx, "dbus-monitor", "--session")
 	cmd.Env = append(os.Environ(), "DBUS_SESSION_BUS_ADDRESS="+addr)
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("dbus-monitor: %v", err)
 	}
 	waitFor(t, 2*time.Second, func() bool {
-		return bytes.Contains(buf.Bytes(), []byte("NameAcquired"))
+		b, err := os.ReadFile(logPath)
+		return err == nil && bytes.Contains(b, []byte("NameAcquired"))
 	})
 	fn()
 	time.Sleep(200 * time.Millisecond)
 	cancel()
 	_ = cmd.Wait()
-	text := buf.String()
+	_ = logFile.Close()
+	b, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(b)
 	if layoutUpdated, propsUpdated = strings.Count(text, "member=LayoutUpdated"), strings.Count(text, "member=ItemsPropertiesUpdated"); layoutUpdated != 0 || propsUpdated != 0 {
 		t.Logf("dbus-monitor:\n%s", text)
 	}

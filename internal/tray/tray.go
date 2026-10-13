@@ -70,6 +70,7 @@ type Tray struct {
 	accountIDs     []ipn.ProfileID
 	profileItems   map[ipn.ProfileID]*tray.MenuItem
 	profileNames   map[ipn.ProfileID]string
+	activeID       ipn.ProfileID
 	quitItem       *tray.MenuItem
 }
 
@@ -146,6 +147,7 @@ func (t *Tray) Close() error {
 	t.accountIDs = nil
 	t.profileItems = nil
 	t.profileNames = nil
+	t.activeID = ""
 	return err
 }
 
@@ -285,11 +287,15 @@ func (t *Tray) syncAccounts(ps *tsutil.ProfileStatus) {
 	for i, it := range menu.items {
 		ids[i] = it.id
 	}
-	if t.accountItem == nil || !slices.Equal(t.accountIDs, ids) {
+	if t.accountItem == nil || !sameProfileIDs(t.accountIDs, ids) {
 		t.rebuildAccountMenu(menu, ids)
 		return
 	}
 	for _, it := range menu.items {
+		if t.profileNames[it.id] == it.label {
+			continue
+		}
+		t.profileItems[it.id].SetProps(tray.MenuItemLabel(it.label))
 		t.profileNames[it.id] = it.label
 	}
 }
@@ -302,6 +308,7 @@ func (t *Tray) clearAccountMenu() {
 	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem)
 	t.profileNames = make(map[ipn.ProfileID]string)
 	t.accountIDs = nil
+	t.activeID = ""
 }
 
 func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
@@ -316,11 +323,13 @@ func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
 
 	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem, len(menu.items))
 	t.profileNames = make(map[ipn.ProfileID]string, len(menu.items))
+	var active ipn.ProfileID
 	for _, it := range menu.items {
 		id := it.id
 		state := tray.Off
 		if it.active {
 			state = tray.On
+			active = id
 		}
 		child, _ := t.accountItem.AddChild(
 			tray.MenuItemLabel(it.label),
@@ -339,6 +348,24 @@ func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
 		t.accountItem.MoveBefore(t.quitSep)
 	}
 	t.accountIDs = ids
+	t.activeID = active
+}
+
+func sameProfileIDs(a, b []ipn.ProfileID) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	seen := make(map[ipn.ProfileID]int, len(a))
+	for _, id := range a {
+		seen[id]++
+	}
+	for _, id := range b {
+		if seen[id] == 0 {
+			return false
+		}
+		seen[id]--
+	}
+	return true
 }
 
 func (t *Tray) SetActiveProfile(id ipn.ProfileID) {
@@ -349,15 +376,12 @@ func (t *Tray) SetActiveProfile(id ipn.ProfileID) {
 	t.m.Lock()
 	defer t.m.Unlock()
 
-	for pid, item := range t.profileItems {
-		state := tray.Off
-		if pid == id {
-			state = tray.On
-		}
-		item.SetProps(
-			tray.MenuItemLabel(t.profileNames[pid]),
-			tray.MenuItemToggleType(tray.Radio),
-			tray.MenuItemToggleState(state),
-		)
+	if t.profileItems[id] == nil || id == t.activeID {
+		return
 	}
+	if old := t.profileItems[t.activeID]; old != nil {
+		old.SetProps(tray.MenuItemToggleState(tray.Off))
+	}
+	t.profileItems[id].SetProps(tray.MenuItemToggleState(tray.On))
+	t.activeID = id
 }

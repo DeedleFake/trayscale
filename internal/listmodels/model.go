@@ -19,14 +19,14 @@ import (
 // the same entry.
 //
 // The Model owns its GtkStringList; call Unref when done with it.
-type Model[T any] struct {
+type Model[T comparable] struct {
 	list   *gtk.StringList
 	key    func(T) string
 	values map[string]T
 }
 
 // NewModel returns an empty Model that identifies values by key.
-func NewModel[T any](key func(T) string) *Model[T] {
+func NewModel[T comparable](key func(T) string) *Model[T] {
 	return &Model[T]{
 		list:   gtk.NewStringList(nil),
 		key:    key,
@@ -71,8 +71,10 @@ func (m *Model[T]) Append(v T) {
 }
 
 // Update removes the entries s does not yield, then appends the ones m
-// lacks. Existing entries keep their order and new ones follow s's
-// order. s is read once, so a single-pass sequence is fine.
+// lacks. An existing key whose value changed is spliced back into the
+// same position, which emits items-changed and rebuilds that row.
+// Existing entries keep their order and new ones follow s's order.
+// s is read once, so a single-pass sequence is fine.
 func (m *Model[T]) Update(s iter.Seq[T]) {
 	m.list.FreezeNotify()
 	defer m.list.ThawNotify()
@@ -91,7 +93,11 @@ func (m *Model[T]) Update(s iter.Seq[T]) {
 			delete(m.values, k)
 			continue
 		}
-		m.values[k] = v // Same key, possibly newer data.
+		if m.values[k] == v {
+			continue
+		}
+		m.values[k] = v
+		m.list.Splice(i, 1, []string{k})
 	}
 
 	for _, v := range want {

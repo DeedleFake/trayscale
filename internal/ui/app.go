@@ -171,9 +171,10 @@ func (a *App) update(status tsutil.Status) {
 		}
 
 	case *tsutil.ProfileStatus:
-		if a.tray != nil && a.activeProfile != status.Profile.ID {
-			a.activeProfile = status.Profile.ID
-			go a.tray.SetActiveProfile(status.Profile.ID)
+		a.activeProfile = status.Profile.ID
+		if a.tray != nil {
+			a.tray.SetProfiles(status)
+			a.tray.SetActiveProfile(status.Profile.ID)
 		}
 
 		if a.win != nil {
@@ -579,18 +580,22 @@ func (a *App) initTray(ctx context.Context) {
 		},
 
 		OnProfileSwitch: func(id ipn.ProfileID) {
-			go func() {
+			gutil.IdleAdd(func() {
+				if a.tray == nil || id == a.activeProfile {
+					return
+				}
+
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 
 				err := tsutil.SwitchProfile(ctx, id)
 				if err != nil {
 					slog.Error("switch profile from tray", "err", err)
+					a.notify(locale.Get("Switch account"), err.Error())
 					return
 				}
-
-				a.tray.SetActiveProfile(id)
-			}()
+				<-a.poller.Poll()
+			})
 		},
 
 		OnQuit: func() {
@@ -600,7 +605,10 @@ func (a *App) initTray(ctx context.Context) {
 
 	var ps *tsutil.ProfileStatus
 	profile, profiles, err := tsutil.GetProfileStatus(ctx)
-	if err == nil {
+	if err != nil {
+		slog.Error("get profile status", "err", err)
+	} else {
+		a.activeProfile = profile.ID
 		ps = &tsutil.ProfileStatus{Profile: profile, Profiles: profiles}
 	}
 

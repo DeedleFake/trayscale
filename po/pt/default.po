@@ -267,6 +267,9 @@ msgstr "Mostrar peers _offline"
 msgid "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
 msgstr "Algumas funcionalidades podem não funcionar como esperado. Para resolver, execute o seguinte comando em um terminal:"
 
+msgid "Switch account"
+msgstr "Trocar de conta"
+
 msgid "Taildrop"
 msgstr "Taildrop"
 

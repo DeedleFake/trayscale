@@ -267,6 +267,9 @@ msgstr "オフラインのピアを表示(_O)"
 msgid "Some functionality may not work as expected. To resolve, run the following command in a terminal:"
 msgstr "一部の機能が正常に動作しない可能性があります。解決するには、ターミナルで次のコマンドを実行してください:"
 
+msgid "Switch account"
+msgstr "アカウントを切り替え"
+
 msgid "Taildrop"
 msgstr "Taildrop"
 

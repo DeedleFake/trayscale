@@ -1,20 +1,30 @@
 package tray
 
 import (
+	"strings"
+
 	"deedles.dev/trayscale/internal/metadata"
 	"tailscale.com/ipn"
 )
 
-// ProfileTitle is the name shown for a login profile.
 func ProfileTitle(profile ipn.LoginProfile) string {
 	if metadata.Private {
 		return "profile@example.com"
 	}
-	return profile.Name
+	name := profile.Name
+	tailnet := ""
+	if profile.NetworkProfile.DomainName != "" {
+		tailnet = profile.NetworkProfile.DisplayNameOrDefault()
+	}
+	if tailnet == "" || strings.EqualFold(name, tailnet) {
+		return name
+	}
+	return name + " (" + tailnet + ")"
 }
 
+// accountMenuLabel escapes GTK mnemonic markers in a profile title.
 func accountMenuLabel(title string) string {
-	return title
+	return strings.ReplaceAll(title, "_", "__")
 }
 
 type accountMenu struct {
@@ -34,13 +44,9 @@ func planAccountMenu(profiles []ipn.LoginProfile, active ipn.ProfileID) accountM
 	}
 	items := make([]accountItem, len(profiles))
 	for i, profile := range profiles {
-		label := "  " + profile.Name
-		if profile.ID == active {
-			label = "● " + profile.Name
-		}
 		items[i] = accountItem{
 			id:     profile.ID,
-			label:  label,
+			label:  accountMenuLabel(ProfileTitle(profile)),
 			active: profile.ID == active,
 		}
 	}

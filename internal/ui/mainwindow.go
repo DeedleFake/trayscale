@@ -18,8 +18,8 @@ import (
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/locale"
-	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/peersearch"
+	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
@@ -123,8 +123,7 @@ func NewMainWindow(app *App) *MainWindow {
 
 		item := obj.GetString()
 		index := slices.IndexFunc(win.profiles, func(p ipn.LoginProfile) bool {
-			// TODO: Find a reasonable way to do this by profile ID instead.
-			return p.Name == item
+			return tray.ProfileTitle(p) == item
 		})
 		if index < 0 {
 			slog.Error("selected unknown profile", "name", item)
@@ -563,18 +562,14 @@ func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {
 
 	listmodels.UpdateStrings(win.profileModel, func(yield func(string) bool) {
 		for _, profile := range status.Profiles {
-			name := profile.Name
-			if metadata.Private {
-				name = "profile@example.com"
-			}
-			if !yield(name) {
+			if !yield(tray.ProfileTitle(profile)) {
 				return
 			}
 		}
 	})
 
 	profileIndex, ok := listmodels.Index[gtk.StringObject](win.profileSortModel, gtk.StringObjectGLibType(), func(obj *gtk.StringObject) bool {
-		return obj.GetString() == status.Profile.Name
+		return obj.GetString() == tray.ProfileTitle(status.Profile)
 	})
 	if ok {
 		win.ProfileDropDown.SetSelected(profileIndex)

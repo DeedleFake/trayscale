@@ -11,7 +11,6 @@ import (
 
 	"deedles.dev/tray"
 	"deedles.dev/trayscale/internal/locale"
-	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/tsutil"
 	"tailscale.com/ipn"
 )
@@ -66,6 +65,9 @@ type Tray struct {
 	connToggleItem *tray.MenuItem
 	exitToggleItem *tray.MenuItem
 	selfNodeItem   *tray.MenuItem
+	accountItem    *tray.MenuItem
+	accountSep     *tray.MenuItem
+	accountIDs     []ipn.ProfileID
 	profileItems   map[ipn.ProfileID]*tray.MenuItem
 	profileNames   map[ipn.ProfileID]string
 	quitItem       *tray.MenuItem
@@ -100,30 +102,6 @@ func (t *Tray) Start(profiles *tsutil.ProfileStatus) error {
 
 	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem)
 	t.profileNames = make(map[ipn.ProfileID]string)
-	if profiles != nil && len(profiles.Profiles) > 1 {
-		submenu, _ := menu.AddChild(tray.MenuItemLabel(locale.Get("Switch account")))
-		for _, profile := range profiles.Profiles {
-			id := profile.ID
-			name := profileName(profile)
-			t.profileNames[id] = name
-
-			label := "  " + name
-			if id == profiles.Profile.ID {
-				label = "● " + name
-			}
-
-			child, _ := submenu.AddChild(
-				tray.MenuItemLabel(label),
-				handler(func() {
-					if t.OnProfileSwitch != nil {
-						t.OnProfileSwitch(id)
-					}
-				}),
-			)
-			t.profileItems[id] = child
-		}
-		menu.AddChild(tray.MenuItemType(tray.Separator))
-	}
 
 	t.showItem, _ = menu.AddChild(tray.MenuItemLabel(locale.Get("Show")), handler(t.OnShow))
 	menu.AddChild(tray.MenuItemType(tray.Separator))
@@ -143,6 +121,7 @@ func (t *Tray) Start(profiles *tsutil.ProfileStatus) error {
 	)
 	menu.AddChild(tray.MenuItemType(tray.Separator))
 	t.quitItem, _ = menu.AddChild(tray.MenuItemLabel(locale.Get("Quit")), handler(t.OnQuit))
+	t.syncAccounts(profiles)
 
 	return nil
 }
@@ -162,6 +141,9 @@ func (t *Tray) Close() error {
 	err := t.item.Close()
 	t.item = nil
 	t.prev = nil
+	t.accountItem = nil
+	t.accountSep = nil
+	t.accountIDs = nil
 	t.profileItems = nil
 	t.profileNames = nil
 	return err
@@ -272,7 +254,97 @@ func exitToggleText(status *tsutil.IPNStatus) string {
 	return locale.Get("Enable exit node")
 }
 
-// SetActiveProfile updates the profile indicator labels.
+func (t *Tray) SetProfiles(ps *tsutil.ProfileStatus) {
+	if t == nil {
+		return
+	}
+
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	if t.item == nil {
+		return
+	}
+	t.syncAccounts(ps)
+}
+
+func (t *Tray) syncAccounts(ps *tsutil.ProfileStatus) {
+	var profiles []ipn.LoginProfile
+	var active ipn.ProfileID
+	if ps != nil {
+		profiles = ps.Profiles
+		active = ps.Profile.ID
+	}
+	menu := planAccountMenu(profiles, active)
+	if !menu.show {
+		t.clearAccountMenu()
+		return
+	}
+
+	ids := make([]ipn.ProfileID, len(menu.items))
+	for i, it := range menu.items {
+		ids[i] = it.id
+	}
+	if t.accountItem == nil || !slices.Equal(t.accountIDs, ids) {
+		t.rebuildAccountMenu(menu, ids)
+		return
+	}
+	for _, it := range menu.items {
+		t.profileNames[it.id] = it.label
+	}
+}
+
+func (t *Tray) clearAccountMenu() {
+	if t.accountItem != nil {
+		t.accountItem.Remove()
+		t.accountItem = nil
+	}
+	if t.accountSep != nil {
+		t.accountSep.Remove()
+		t.accountSep = nil
+	}
+	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem)
+	t.profileNames = make(map[ipn.ProfileID]string)
+	t.accountIDs = nil
+}
+
+func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
+	if t.accountItem == nil {
+		root := t.item.Menu()
+		t.accountItem, _ = root.AddChild(tray.MenuItemLabel(locale.Get("Switch account")))
+		t.accountItem.MoveBefore(t.showItem)
+		t.accountSep, _ = root.AddChild(tray.MenuItemType(tray.Separator))
+		t.accountSep.MoveBefore(t.showItem)
+	} else {
+		for _, item := range t.profileItems {
+			item.Remove()
+		}
+	}
+
+	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem, len(menu.items))
+	t.profileNames = make(map[ipn.ProfileID]string, len(menu.items))
+	for _, it := range menu.items {
+		id := it.id
+		state := tray.Off
+		if it.active {
+			state = tray.On
+		}
+		child, _ := t.accountItem.AddChild(
+			tray.MenuItemLabel(it.label),
+			tray.MenuItemToggleType(tray.Radio),
+			tray.MenuItemToggleState(state),
+			handler(func() {
+				if t.OnProfileSwitch != nil {
+					t.OnProfileSwitch(id)
+				}
+			}),
+		)
+		t.profileItems[id] = child
+		t.profileNames[id] = it.label
+	}
+	t.accountIDs = ids
+}
+
 func (t *Tray) SetActiveProfile(id ipn.ProfileID) {
 	if t == nil {
 		return
@@ -282,18 +354,14 @@ func (t *Tray) SetActiveProfile(id ipn.ProfileID) {
 	defer t.m.Unlock()
 
 	for pid, item := range t.profileItems {
-		name := t.profileNames[pid]
-		label := "  " + name
+		state := tray.Off
 		if pid == id {
-			label = "● " + name
+			state = tray.On
 		}
-		item.SetProps(tray.MenuItemLabel(label))
+		item.SetProps(
+			tray.MenuItemLabel(t.profileNames[pid]),
+			tray.MenuItemToggleType(tray.Radio),
+			tray.MenuItemToggleState(state),
+		)
 	}
-}
-
-func profileName(profile ipn.LoginProfile) string {
-	if metadata.Private {
-		return "profile@example.com"
-	}
-	return profile.Name
 }

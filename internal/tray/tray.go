@@ -65,8 +65,8 @@ type Tray struct {
 	connToggleItem *tray.MenuItem
 	exitToggleItem *tray.MenuItem
 	selfNodeItem   *tray.MenuItem
+	quitSep        *tray.MenuItem
 	accountItem    *tray.MenuItem
-	accountSep     *tray.MenuItem
 	accountIDs     []ipn.ProfileID
 	profileItems   map[ipn.ProfileID]*tray.MenuItem
 	profileNames   map[ipn.ProfileID]string
@@ -103,10 +103,6 @@ func (t *Tray) Start(profiles *tsutil.ProfileStatus) error {
 	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem)
 	t.profileNames = make(map[ipn.ProfileID]string)
 
-	// The account submenu is created before any sibling. Children added
-	// to a submenu that already had siblings did not show up.
-	t.syncAccounts(profiles)
-
 	t.showItem, _ = menu.AddChild(tray.MenuItemLabel(locale.Get("Show")), handler(t.OnShow))
 	menu.AddChild(tray.MenuItemType(tray.Separator))
 	t.connToggleItem, _ = menu.AddChild(
@@ -123,8 +119,9 @@ func (t *Tray) Start(profiles *tsutil.ProfileStatus) error {
 		tray.MenuItemEnabled(false),
 		handler(t.OnSelfNode),
 	)
-	menu.AddChild(tray.MenuItemType(tray.Separator))
+	t.quitSep, _ = menu.AddChild(tray.MenuItemType(tray.Separator))
 	t.quitItem, _ = menu.AddChild(tray.MenuItemLabel(locale.Get("Quit")), handler(t.OnQuit))
+	t.syncAccounts(profiles)
 
 	return nil
 }
@@ -145,7 +142,7 @@ func (t *Tray) Close() error {
 	t.item = nil
 	t.prev = nil
 	t.accountItem = nil
-	t.accountSep = nil
+	t.quitSep = nil
 	t.accountIDs = nil
 	t.profileItems = nil
 	t.profileNames = nil
@@ -302,10 +299,6 @@ func (t *Tray) clearAccountMenu() {
 		t.accountItem.Remove()
 		t.accountItem = nil
 	}
-	if t.accountSep != nil {
-		t.accountSep.Remove()
-		t.accountSep = nil
-	}
 	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem)
 	t.profileNames = make(map[ipn.ProfileID]string)
 	t.accountIDs = nil
@@ -315,11 +308,6 @@ func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
 	if t.accountItem == nil {
 		root := t.item.Menu()
 		t.accountItem, _ = root.AddChild(tray.MenuItemLabel(locale.Get("Switch account")))
-		t.accountSep, _ = root.AddChild(tray.MenuItemType(tray.Separator))
-		if t.showItem != nil {
-			t.accountItem.MoveBefore(t.showItem)
-			t.accountSep.MoveBefore(t.showItem)
-		}
 	} else {
 		for _, item := range t.profileItems {
 			item.Remove()
@@ -346,6 +334,9 @@ func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
 		)
 		t.profileItems[id] = child
 		t.profileNames[id] = it.label
+	}
+	if t.quitSep != nil {
+		t.accountItem.MoveBefore(t.quitSep)
 	}
 	t.accountIDs = ids
 }

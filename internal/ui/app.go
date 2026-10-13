@@ -26,6 +26,7 @@ import (
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
+	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
 )
 
@@ -38,10 +39,11 @@ type App struct {
 	poller *tsutil.Poller
 	online bool
 
-	app      *adw.Application
-	win      *MainWindow
-	settings *gio.Settings
-	tray     *tray.Tray
+	app           *adw.Application
+	win           *MainWindow
+	settings      *gio.Settings
+	tray          *tray.Tray
+	activeProfile ipn.ProfileID
 	// trayDone stops the goroutine started by startTray.
 	trayDone context.CancelFunc
 
@@ -172,6 +174,12 @@ func (a *App) update(status tsutil.Status) {
 		}
 
 	case *tsutil.ProfileStatus:
+		a.activeProfile = status.Profile.ID
+		if a.tray != nil {
+			a.tray.SetProfiles(status)
+			a.tray.SetActiveProfile(status.Profile.ID)
+		}
+
 		if a.win != nil {
 			a.win.Update(status)
 		}
@@ -524,7 +532,7 @@ func (a *App) launchURI(uri string) {
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray != nil {
-		a.startTray(ctx)
+		a.startTray(ctx, nil)
 		return
 	}
 
@@ -578,21 +586,49 @@ func (a *App) initTray(ctx context.Context) {
 			}()
 		},
 
+		OnProfileSwitch: func(id ipn.ProfileID) {
+			gutil.IdleAdd(func() {
+				if a.tray == nil || id == a.activeProfile {
+					return
+				}
+
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+
+				err := tsutil.SwitchProfile(ctx, id)
+				if err != nil {
+					slog.Error("switch profile from tray", "err", err)
+					a.notify(locale.Get("Switch account"), err.Error())
+					return
+				}
+				<-a.poller.Poll()
+			})
+		},
+
 		OnQuit: func() {
 			a.Quit()
 		},
 	}
 
-	a.startTray(ctx)
+	var ps *tsutil.ProfileStatus
+	profile, profiles, err := tsutil.GetProfileStatus(ctx)
+	if err != nil {
+		slog.Error("get profile status", "err", err)
+	} else {
+		a.activeProfile = profile.ID
+		ps = &tsutil.ProfileStatus{Profile: profile, Profiles: profiles}
+	}
+
+	a.startTray(ctx, ps)
 }
 
 // startTray shows the tray icon without waiting for a status, which
 // never arrives while tailscaled is down. The menu fills in from the
 // latest status once there is one, and from update after that.
-func (a *App) startTray(ctx context.Context) {
+func (a *App) startTray(ctx context.Context, profiles *tsutil.ProfileStatus) {
 	a.stopTray()
 	t := a.tray
-	err := t.Start()
+	err := t.Start(profiles)
 	if err != nil {
 		slog.Error("failed to start tray icon", "err", err)
 		return

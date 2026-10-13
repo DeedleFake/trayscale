@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	codeberg.org/puregotk/purego v0.0.0-20260224095105-2513c838cb80
 	codeberg.org/puregotk/puregotk v0.0.0-20261003054014-d92056b0aa41
-	deedles.dev/tray v0.1.13
+	deedles.dev/tray v0.1.14
 	deedles.dev/xiter v0.2.1
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	github.com/klauspost/compress v1.20.1

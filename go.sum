@@ -14,8 +14,8 @@ codeberg.org/puregotk/purego v0.0.0-20260224095105-2513c838cb80 h1:y5ZxMLLOjl4xc
 codeberg.org/puregotk/purego v0.0.0-20260224095105-2513c838cb80/go.mod h1:hVVM4ddvYRlc3IcK3CXJPlMwd/vaLj7gdDBZ6oPgT8w=
 codeberg.org/puregotk/puregotk v0.0.0-20261003054014-d92056b0aa41 h1:IC30NjXeeBj+VLQ9fYa/G4yr63KPA9yuhOXoFmCMYpI=
 codeberg.org/puregotk/puregotk v0.0.0-20261003054014-d92056b0aa41/go.mod h1:SOzlGinx8V9Axu1reSh4uafhrtItio44+9r2b+1fUnQ=
-deedles.dev/tray v0.1.13 h1:bgaHkBwcfha+NwVvAyDVVJDhu3Mfvm2T/Oc1Bhy2UdI=
-deedles.dev/tray v0.1.13/go.mod h1:A4RqMRUWoMjlI2GEuvOpjX9uPiZtqFnsmaV0gDzZFgo=
+deedles.dev/tray v0.1.14 h1:p8QdugsEmnnpvKqFQLCO96WlUm9KKWa0JUu4UYUhVes=
+deedles.dev/tray v0.1.14/go.mod h1:A4RqMRUWoMjlI2GEuvOpjX9uPiZtqFnsmaV0gDzZFgo=
 deedles.dev/xiter v0.2.1 h1:yyyfo1sDwARp5lyMvILBJpEI28sIFN0TNYagAdBUa+s=
 deedles.dev/xiter v0.2.1/go.mod h1:59997UHUsKAy/8bHUClTfeXdyuLZ6z/+yF++vIpxfx8=
 dev.gaijin.team/go/exhaustruct/v4 v4.0.0 h1:873r7aNneqoBB3IaFIzhvt2RFYTuHgmMjoKfwODoI1Y=

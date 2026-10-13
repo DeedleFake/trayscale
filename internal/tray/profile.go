@@ -22,7 +22,7 @@ func ProfileTitle(profile ipn.LoginProfile) string {
 	return name + " (" + tailnet + ")"
 }
 
-// accountMenuLabel escapes GTK mnemonic markers in a profile title.
+// accountMenuLabel escapes dbusmenu mnemonic markers in a profile title.
 func accountMenuLabel(title string) string {
 	return strings.ReplaceAll(title, "_", "__")
 }

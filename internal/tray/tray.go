@@ -277,26 +277,26 @@ func (t *Tray) syncAccounts(ps *tsutil.ProfileStatus) {
 		profiles = ps.Profiles
 		active = ps.Profile.ID
 	}
-	menu := planAccountMenu(profiles, active)
-	if !menu.show {
+	if len(profiles) <= 1 {
 		t.clearAccountMenu()
 		return
 	}
 
-	ids := make([]ipn.ProfileID, len(menu.items))
-	for i, it := range menu.items {
-		ids[i] = it.id
+	ids := make([]ipn.ProfileID, len(profiles))
+	for i, p := range profiles {
+		ids[i] = p.ID
 	}
 	if t.accountItem == nil || !slices.Equal(t.accountIDs, ids) {
-		t.rebuildAccountMenu(menu, ids)
+		t.rebuildAccountMenu(profiles, active, ids)
 		return
 	}
-	for _, it := range menu.items {
-		if t.profileNames[it.id] == it.label {
+	for _, p := range profiles {
+		label := accountMenuLabel(ProfileTitle(p))
+		if t.profileNames[p.ID] == label {
 			continue
 		}
-		t.profileItems[it.id].SetProps(tray.MenuItemLabel(it.label))
-		t.profileNames[it.id] = it.label
+		t.profileItems[p.ID].SetProps(tray.MenuItemLabel(label))
+		t.profileNames[p.ID] = label
 	}
 }
 
@@ -311,7 +311,7 @@ func (t *Tray) clearAccountMenu() {
 	t.activeID = ""
 }
 
-func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
+func (t *Tray) rebuildAccountMenu(profiles []ipn.LoginProfile, active ipn.ProfileID, ids []ipn.ProfileID) {
 	if t.accountItem == nil {
 		root := t.item.Menu()
 		t.accountItem, _ = root.AddChild(tray.MenuItemLabel(locale.Get("Switch account")))
@@ -321,18 +321,19 @@ func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
 		}
 	}
 
-	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem, len(menu.items))
-	t.profileNames = make(map[ipn.ProfileID]string, len(menu.items))
-	var active ipn.ProfileID
-	for _, it := range menu.items {
-		id := it.id
+	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem, len(profiles))
+	t.profileNames = make(map[ipn.ProfileID]string, len(profiles))
+	var activeID ipn.ProfileID
+	for _, p := range profiles {
+		id := p.ID
+		label := accountMenuLabel(ProfileTitle(p))
 		state := tray.Off
-		if it.active {
+		if id == active {
 			state = tray.On
-			active = id
+			activeID = id
 		}
 		child, _ := t.accountItem.AddChild(
-			tray.MenuItemLabel(it.label),
+			tray.MenuItemLabel(label),
 			tray.MenuItemToggleType(tray.Radio),
 			tray.MenuItemToggleState(state),
 			handler(func() {
@@ -342,13 +343,13 @@ func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
 			}),
 		)
 		t.profileItems[id] = child
-		t.profileNames[id] = it.label
+		t.profileNames[id] = label
 	}
 	if t.quitSep != nil {
 		t.accountItem.MoveBefore(t.quitSep)
 	}
 	t.accountIDs = ids
-	t.activeID = active
+	t.activeID = activeID
 }
 
 func (t *Tray) SetActiveProfile(id ipn.ProfileID) {

@@ -187,6 +187,13 @@ func (win *MainWindow) OpenPeerSearch() {
 
 func (win *MainWindow) addPage(name string, page Page) {
 	win.pages[name] = page
+	// AddNamed is transfer-none and puregotk ref-sinks the page, so the
+	// map owns one reference. restack removes the child, then calls
+	// addPage again. Drop the previous page. A page that is filtered
+	// out of the stack stays in the map: Update still writes to it.
+	if old := win.stackPages[name]; old != nil {
+		old.Unref()
+	}
 	vp := win.PeersStack.AddNamed(page.Widget(), name)
 	win.stackPages[name] = vp
 	page.Bind(vp)

@@ -117,30 +117,22 @@ func routeRow(model *listmodels.Model[netip.Prefix], route netip.Prefix) *gtk.Wi
 	return &row.Widget
 }
 
-// setSortFunc sets lb's sort function. The callbacks are freed when
-// GTK drops the function (replaced or the list box destroyed).
-func setSortFunc(lb *gtk.ListBox, f func(r1, r2 *gtk.ListBoxRow) int) {
-	var sort gtk.ListBoxSortFunc = func(r1, r2, _ uintptr) int32 {
-		return int32(f(gtk.ListBoxRowNewFromInternalPtr(r1), gtk.ListBoxRowNewFromInternalPtr(r2)))
-	}
-	var destroy glib.DestroyNotify
-	destroy = func(uintptr) {
-		glib.UnrefCallback(&sort)
-		glib.UnrefCallback(&destroy)
-	}
-	lb.SetSortFunc(&sort, 0, &destroy)
+var listBoxSort gtk.ListBoxSortFunc = func(r1, r2, id uintptr) int32 {
+	f := gutil.Held[func(r1, r2 *gtk.ListBoxRow) int](id)
+	return int32(f(gtk.ListBoxRowNewFromInternalPtr(r1), gtk.ListBoxRowNewFromInternalPtr(r2)))
 }
 
-// setFilterFunc sets lb's filter function, freeing the callbacks like
+// setSortFunc sets lb's sort function. It's released when GTK drops it.
+func setSortFunc(lb *gtk.ListBox, f func(r1, r2 *gtk.ListBoxRow) int) {
+	lb.SetSortFunc(&listBoxSort, gutil.Hold(f), &gutil.FreeData)
+}
+
+var listBoxFilter gtk.ListBoxFilterFunc = func(row, id uintptr) bool {
+	return gutil.Held[func(*gtk.ListBoxRow) bool](id)(gtk.ListBoxRowNewFromInternalPtr(row))
+}
+
+// setFilterFunc sets lb's filter function, releasing it like
 // setSortFunc.
 func setFilterFunc(lb *gtk.ListBox, f func(row *gtk.ListBoxRow) bool) {
-	var filter gtk.ListBoxFilterFunc = func(row, _ uintptr) bool {
-		return f(gtk.ListBoxRowNewFromInternalPtr(row))
-	}
-	var destroy glib.DestroyNotify
-	destroy = func(uintptr) {
-		glib.UnrefCallback(&filter)
-		glib.UnrefCallback(&destroy)
-	}
-	lb.SetFilterFunc(&filter, 0, &destroy)
+	lb.SetFilterFunc(&listBoxFilter, gutil.Hold(f), &gutil.FreeData)
 }

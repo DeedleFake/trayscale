@@ -8,7 +8,6 @@ import (
 	"unsafe"
 
 	"codeberg.org/puregotk/puregotk/v4/adw"
-	"codeberg.org/puregotk/puregotk/v4/gio"
 	"codeberg.org/puregotk/puregotk/v4/glib"
 	"codeberg.org/puregotk/puregotk/v4/gobject"
 	"codeberg.org/puregotk/puregotk/v4/gobject/types"
@@ -307,41 +306,6 @@ func FirstIconName(theme *gtk.IconTheme, names ...string) string {
 	return names[0]
 }
 
-// OnFinalize runs f once obj is finalized. It uses a weak reference,
-// so it doesn't keep obj alive, and the weak-notify callback frees its
-// own callback slot after running.
-func OnFinalize(obj gobject.Ptr, f func()) {
-	var notify gobject.WeakNotify
-	notify = func(uintptr, uintptr) {
-		f()
-		glib.UnrefCallback(&notify)
-	}
-	gobject.ObjectNewFromInternalPtr(obj.GoPointer()).WeakRef(&notify, 0)
-}
-
-// Connect connects fn to a signal of obj with connect, which is one of
-// puregotk's Connect methods on obj, such as btn.ConnectClicked. The
-// callback slot is freed when obj is finalized. It returns the handler
-// ID.
-func Connect[F any](obj gobject.Ptr, connect func(*F) uint32, fn F) uint32 {
-	p := &fn
-	id := connect(p)
-	OnFinalize(obj, func() { glib.UnrefCallback(p) })
-	return id
-}
-
-// IdleAdd runs f once on the main loop. The callback frees its own
-// slot after running. It is safe to call from any goroutine.
-func IdleAdd(f func()) {
-	var fn glib.SourceFunc
-	fn = func(uintptr) bool {
-		f()
-		glib.UnrefCallback(&fn)
-		return false
-	}
-	glib.IdleAdd(&fn, 0)
-}
-
 // Err fixes up an error returned by puregotk. Functions that return an
 // object hand back their *glib.Error even when it's nil if the object
 // is nil, as in NextFile at the end of an enumeration, giving a non-nil
@@ -351,15 +315,6 @@ func Err(err error) error {
 		return nil
 	}
 	return err
-}
-
-// ConnectNotify runs f whenever prop changes on obj ("notify::prop").
-// The callback slot is freed when obj is finalized.
-func ConnectNotify(obj gobject.Ptr, prop string, f func()) uint32 {
-	fn := func(uintptr, uintptr, uintptr) { f() }
-	id := gobject.SignalConnect(obj.GoPointer(), "notify::"+prop, glib.NewCallback(&fn))
-	OnFinalize(obj, func() { glib.UnrefCallback(&fn) })
-	return id
 }
 
 // Obj returns obj as a *gobject.Object sharing its reference, for
@@ -372,15 +327,4 @@ func Obj(obj gobject.Ptr) *gobject.Object {
 // argument, to a *T for puregotk's boxed types like glib.Variant.
 func Ptr[T any](p uintptr) *T {
 	return (*T)(*(*unsafe.Pointer)(unsafe.Pointer(&p)))
-}
-
-// Async returns a GAsyncReadyCallback that runs f with the result and
-// then frees its own callback slot. Use a new one for each operation.
-func Async(f func(res *gio.AsyncResultBase)) *gio.AsyncReadyCallback {
-	var cb gio.AsyncReadyCallback
-	cb = func(_, res, _ uintptr) {
-		f(&gio.AsyncResultBase{Ptr: res})
-		glib.UnrefCallback(&cb)
-	}
-	return &cb
 }

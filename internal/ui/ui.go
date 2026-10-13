@@ -6,8 +6,8 @@ import (
 
 	"codeberg.org/puregotk/puregotk/v4/adw"
 	"codeberg.org/puregotk/puregotk/v4/gio"
-	"codeberg.org/puregotk/puregotk/v4/glib"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
+	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/tsutil"
 	"tailscale.com/types/opt"
 )
@@ -16,18 +16,12 @@ import (
 // GtkStringObjects by their strings. Its callbacks are freed when the
 // sorter is destroyed.
 func newStringSorter() *gtk.CustomSorter {
-	var compare glib.CompareDataFunc = func(a, b, _ uintptr) int32 {
-		return int32(cmp.Compare(
+	return gutil.NewCustomSorter(func(a, b uintptr) int {
+		return cmp.Compare(
 			gtk.StringObjectNewFromInternalPtr(a).GetString(),
 			gtk.StringObjectNewFromInternalPtr(b).GetString(),
-		))
-	}
-	var destroy glib.DestroyNotify
-	destroy = func(uintptr) {
-		glib.UnrefCallback(&compare)
-		glib.UnrefCallback(&destroy)
-	}
-	return gtk.NewCustomSorter(&compare, 0, &destroy)
+		)
+	})
 }
 
 // These live for the whole process.

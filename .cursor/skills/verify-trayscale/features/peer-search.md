@@ -24,9 +24,9 @@ Preconditions:
 - No dialog is open, so the search entry is the only `entry` in the tree.
 
 - **Button entry.** Choose Search peers. Run `control-trayscale click --role toggle --name "Search peers" --exact`. Output names `toggle button 'Search peers'`.
-- **Entry present.** Run `control-trayscale find --role entry`. Output is `entry ''`.
+- **Entry present.** Wait for the entry. Run `control-trayscale wait --role entry --timeout 10`. Output is `entry ''`. A `find` immediately after the click can miss the entry.
 - **Match.** Type a token from a visible sidebar peer label. Run `control-trayscale fill --role entry --value "<token>"`, wait a second, then snapshot. The sidebar list keeps that peer's label, drops peers that do not match, and the tree no longer contains `label 'This machine'`.
-- **Empty.** Type a token that no peer has. Run `control-trayscale fill --role entry --value "zzzxnotapeer"`. Then run `control-trayscale find --name "No matching peers" --exact`. Output is `grouping 'No matching peers'`.
+- **Empty.** Type a token that no peer has. Run `control-trayscale fill --role entry --value "zzzxnotapeer"`. Then run `control-trayscale find --name "No matching peers" --exact`. Output is `grouping 'No matching peers'`. The snapshot has no peer `panel`.
 - **Close.** Choose Search peers again. Run `control-trayscale click --role toggle --name "Search peers" --exact`. The next snapshot has `label 'This machine'` and the other section titles again, and `control-trayscale find --role entry` fails.
 - **Shortcut entry.** Open search through the same action as Ctrl+F. Run `control-trayscale action search-peers`. Exit is 0, and `control-trayscale find --role entry` prints `entry ''`.
 - **Proof.** Snapshot `.cursor/skills/verify-trayscale/artifacts/peer-search/<step>.tree.txt` after each step. Each file contains `frame 'Trayscale'` and `toggle button 'Search peers'`.
@@ -40,3 +40,4 @@ Preconditions:
 - `click` on a peer `label` defaults away from `clipboard.copy`. `select --name` highlights a row but does not change the content page.
 - Self and Mullvad pages are omitted from search results. A query that only matches this machine shows `No matching peers`.
 - A search that matches peers also changes the content page to the first match when the current page is not a match. Snapshot the content page before you assume it is still this machine.
+- Search still lists offline peers when Show Offline Peers is off. Hiding the Offline section does not hide those peers from a query.

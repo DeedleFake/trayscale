@@ -164,6 +164,7 @@ func main() {
 			{Host: "alpha", Online: true},
 			{Host: "bravo-exit", Online: true, ExitNode: true},
 			{Host: "charlie", Online: false},
+			{Host: "echo-down", Online: false, ExitNode: true},
 			{Host: "delta-router", Online: true, Routes: []netip.Prefix{netip.MustParsePrefix("192.168.50.0/24")}},
 		},
 	}

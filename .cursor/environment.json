@@ -4,5 +4,5 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "install": "go mod download\ngo tool golangci-lint version"
+  "install": "go mod download && go tool golangci-lint version"
 }

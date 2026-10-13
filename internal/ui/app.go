@@ -178,8 +178,6 @@ func (a *App) update(status tsutil.Status) {
 	}
 }
 
-// addHideWindowOption registers --hide-window. The option takes no
-// argument, so the arg description is NULL rather than "".
 func addHideWindowOption(app interface{ GoPointer() uintptr }) {
 	gutil.ApplicationAddMainOption(app, "hide-window", 0, glib.GOptionFlagNoneValue, glib.GOptionArgNoneValue, locale.Get("Hide window on initial start"))
 }

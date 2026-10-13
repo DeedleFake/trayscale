@@ -14,9 +14,10 @@ import (
 // once puregotk frees them itself:
 // https://codeberg.org/puregotk/puregotk/issues/61
 var (
-	xSettingsGetString func(uintptr, string) uintptr
-	xFileGetPath       func(uintptr) uintptr
-	xFileGetBasename   func(uintptr) uintptr
+	xSettingsGetString        func(uintptr, string) uintptr
+	xFileGetPath              func(uintptr) uintptr
+	xFileGetBasename          func(uintptr) uintptr
+	xApplicationAddMainOption func(uintptr, string, byte, glib.OptionFlags, glib.OptionArg, string, uintptr)
 )
 
 func init() {
@@ -32,6 +33,7 @@ func init() {
 	core.PuregoSafeRegister(&xSettingsGetString, libs, "g_settings_get_string")
 	core.PuregoSafeRegister(&xFileGetPath, libs, "g_file_get_path")
 	core.PuregoSafeRegister(&xFileGetBasename, libs, "g_file_get_basename")
+	core.PuregoSafeRegister(&xApplicationAddMainOption, libs, "g_application_add_main_option")
 }
 
 // TakeString copies the transfer-full C string p into a Go string and
@@ -60,4 +62,12 @@ func FilePath(file interface{ GoPointer() uintptr }) string {
 // returned string.
 func FileBasename(file interface{ GoPointer() uintptr }) string {
 	return TakeString(xFileGetBasename(file.GoPointer()))
+}
+
+// ApplicationAddMainOption registers one option with a NULL
+// arg_description. puregotk's AddMainOption takes a Go string, so ""
+// arrives as a non-NULL empty C string. GLib then gettext's it, and
+// gettext("") is the catalog header.
+func ApplicationAddMainOption(app interface{ GoPointer() uintptr }, longName string, shortName byte, flags glib.OptionFlags, arg glib.OptionArg, description string) {
+	xApplicationAddMainOption(app.GoPointer(), longName, shortName, flags, arg, description, 0)
 }

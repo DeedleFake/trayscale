@@ -103,6 +103,10 @@ func (t *Tray) Start(profiles *tsutil.ProfileStatus) error {
 	t.profileItems = make(map[ipn.ProfileID]*tray.MenuItem)
 	t.profileNames = make(map[ipn.ProfileID]string)
 
+	// The account submenu is created before any sibling. Children added
+	// to a submenu that already had siblings did not show up.
+	t.syncAccounts(profiles)
+
 	t.showItem, _ = menu.AddChild(tray.MenuItemLabel(locale.Get("Show")), handler(t.OnShow))
 	menu.AddChild(tray.MenuItemType(tray.Separator))
 	t.connToggleItem, _ = menu.AddChild(
@@ -121,7 +125,6 @@ func (t *Tray) Start(profiles *tsutil.ProfileStatus) error {
 	)
 	menu.AddChild(tray.MenuItemType(tray.Separator))
 	t.quitItem, _ = menu.AddChild(tray.MenuItemLabel(locale.Get("Quit")), handler(t.OnQuit))
-	t.syncAccounts(profiles)
 
 	return nil
 }
@@ -312,9 +315,11 @@ func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
 	if t.accountItem == nil {
 		root := t.item.Menu()
 		t.accountItem, _ = root.AddChild(tray.MenuItemLabel(locale.Get("Switch account")))
-		t.accountItem.MoveBefore(t.showItem)
 		t.accountSep, _ = root.AddChild(tray.MenuItemType(tray.Separator))
-		t.accountSep.MoveBefore(t.showItem)
+		if t.showItem != nil {
+			t.accountItem.MoveBefore(t.showItem)
+			t.accountSep.MoveBefore(t.showItem)
+		}
 	} else {
 		for _, item := range t.profileItems {
 			item.Remove()

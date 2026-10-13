@@ -93,8 +93,6 @@ func TestUpdateRefreshesValues(t *testing.T) {
 	}
 }
 
-// TestUpdateRefreshesBoundRow checks that a row built from a value is
-// rebuilt when a later update keeps the key and changes the value.
 func TestUpdateRefreshesBoundRow(t *testing.T) {
 	if !gtk.InitCheck() {
 		t.Skip("no display")

@@ -71,10 +71,8 @@ func (m *Model[T]) Append(v T) {
 }
 
 // Update removes the entries s does not yield, then appends the ones m
-// lacks. An existing key whose value changed is spliced back into the
-// same position, which emits items-changed and rebuilds that row.
-// Existing entries keep their order and new ones follow s's order.
-// s is read once, so a single-pass sequence is fine.
+// lacks. Existing entries keep their order and new ones follow s's
+// order. s is read once, so a single-pass sequence is fine.
 func (m *Model[T]) Update(s iter.Seq[T]) {
 	m.list.FreezeNotify()
 	defer m.list.ThawNotify()

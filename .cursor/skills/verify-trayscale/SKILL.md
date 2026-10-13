@@ -139,7 +139,7 @@ Mocks: none. The window talks to the real `tailscaled`. Do not fake IPN status.
 
 ### Real peers without a tailnet
 
-`scripts/tsharness` runs a real `tailscaled` (userspace networking) against Tailscale's in-process test control server (`tailscale.com/tstest/integration/testcontrol`) with a local DERP/STUN, and registers four peers: `alpha` (online), `bravo-exit` (online, offers an exit node), `charlie` (offline), `delta-router` (online, advertises `192.168.50.0/24`). It sets the operator to `$USER`. This is a real daemon and real IPN bus traffic, not faked app state.
+`scripts/tsharness` runs a real `tailscaled` (userspace networking) against Tailscale's in-process test control server (`tailscale.com/tstest/integration/testcontrol`) with a local DERP/STUN, and registers five peers: `alpha` (online), `bravo-exit` (online, offers an exit node), `charlie` (offline), `delta-router` (online, advertises `192.168.50.0/24`), and `echo-down` (offline, offers an exit node). It sets the operator to `$USER`. This is a real daemon and real IPN bus traffic, not faked app state.
 
 ```bash
 .cursor/skills/verify-trayscale/scripts/tsharness/run.sh   # prints READY, runs until interrupted

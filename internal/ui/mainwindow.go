@@ -187,6 +187,9 @@ func (win *MainWindow) OpenPeerSearch() {
 
 func (win *MainWindow) addPage(name string, page Page) {
 	win.pages[name] = page
+	if old := win.stackPages[name]; old != nil {
+		old.Unref()
+	}
 	vp := win.PeersStack.AddNamed(page.Widget(), name)
 	win.stackPages[name] = vp
 	page.Bind(vp)

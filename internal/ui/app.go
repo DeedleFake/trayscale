@@ -121,10 +121,13 @@ func (a *App) update(status tsutil.Status) {
 			a.notify(locale.Get("Tailscale Status"), body) // TODO: Notify on startup if not connected?
 		}
 
-		useExitNodeAction, ok := gutil.Cast[gio.SimpleAction](a.app.LookupAction("use_exit_node"), gio.SimpleActionGLibType())
-		if ok {
-			useExitNodeAction.SetEnabled(online)
-			useExitNodeAction.SetState(glib.NewVariantBoolean(status.ExitNodeActive()))
+		// LookupAction ref-sinks a transfer-none result. Drop that ref.
+		if action := a.app.LookupAction("use_exit_node"); action != nil {
+			defer gutil.Obj(action).Unref()
+			if useExitNodeAction, ok := gutil.Cast[gio.SimpleAction](action, gio.SimpleActionGLibType()); ok {
+				useExitNodeAction.SetEnabled(online)
+				useExitNodeAction.SetState(glib.NewVariantBoolean(status.ExitNodeActive()))
+			}
 		}
 
 		if online && !a.operatorCheck {
@@ -175,6 +178,10 @@ func (a *App) update(status tsutil.Status) {
 	}
 }
 
+func addHideWindowOption(app interface{ GoPointer() uintptr }) {
+	gutil.ApplicationAddMainOption(app, "hide-window", 0, glib.GOptionFlagNoneValue, glib.GOptionArgNoneValue, locale.Get("Hide window on initial start"))
+}
+
 func (a *App) init(ctx context.Context) {
 	gtk.Init()
 
@@ -200,7 +207,7 @@ func (a *App) init(ctx context.Context) {
 	})
 
 	var hideWindow bool
-	a.app.AddMainOption("hide-window", 0, glib.GOptionFlagNoneValue, glib.GOptionArgNoneValue, locale.Get("Hide window on initial start"), "")
+	addHideWindowOption(a.app)
 	gutil.Connect(a.app, a.app.ConnectHandleLocalOptions, func(_ gio.Application, options uintptr) int32 {
 		if gutil.Ptr[glib.VariantDict](options).Contains("hide-window") {
 			hideWindow = true

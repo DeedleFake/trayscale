@@ -93,6 +93,42 @@ func TestUpdateRefreshesValues(t *testing.T) {
 	}
 }
 
+func TestUpdateRefreshesBoundRow(t *testing.T) {
+	if !gtk.InitCheck() {
+		t.Skip("no display")
+	}
+	type file struct {
+		name string
+		size string
+	}
+	m := listmodels.NewModel(func(f file) string { return f.name })
+	defer m.Unref()
+	lb := gtk.NewListBox()
+	defer lb.Unref()
+	m.BindListBox(lb, m.ListModel(), func(f file) *gtk.Widget {
+		label := gtk.NewLabel(f.size)
+		return &label.Widget
+	})
+
+	m.Update(slices.Values([]file{{name: "notes.txt", size: "1.00B"}}))
+	m.Update(slices.Values([]file{{name: "notes.txt", size: "5.00MB"}}))
+
+	row := lb.GetRowAtIndex(0)
+	if row == nil {
+		t.Fatal("no row")
+	}
+	defer row.Unref()
+	child := row.GetChild()
+	if child == nil {
+		t.Fatal("row has no child")
+	}
+	defer child.Unref()
+	label := gutil.MustCast[gtk.Label](child, gtk.LabelGLibType())
+	if got := label.GetLabel(); got != "5.00MB" {
+		t.Fatalf("row label = %q, want %q", got, "5.00MB")
+	}
+}
+
 // TestComparer sorts through a GtkSortListModel, the way the pages use it.
 func TestComparer(t *testing.T) {
 	m := listmodels.NewModel(strconv.Itoa)

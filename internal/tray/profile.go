@@ -14,7 +14,7 @@ func profileName(profile ipn.LoginProfile) string {
 	return profile.Name
 }
 
-// accountMenuLabel escapes dbusmenu mnemonic markers in a profile title.
-func accountMenuLabel(title string) string {
-	return strings.ReplaceAll(title, "_", "__")
+// escapeMnemonics escapes underscores in s so that dbusmenu doesn't treat them as mnemonic markers.
+func escapeMnemonics(s string) string {
+	return strings.ReplaceAll(s, "_", "__")
 }

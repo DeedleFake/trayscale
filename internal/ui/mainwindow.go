@@ -18,8 +18,8 @@ import (
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/locale"
+	"deedles.dev/trayscale/internal/metadata"
 	"deedles.dev/trayscale/internal/peersearch"
-	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
@@ -123,7 +123,8 @@ func NewMainWindow(app *App) *MainWindow {
 
 		item := obj.GetString()
 		index := slices.IndexFunc(win.profiles, func(p ipn.LoginProfile) bool {
-			return tray.ProfileTitle(p) == item
+			// TODO: Find a reasonable way to do this by profile ID instead.
+			return p.Name == item
 		})
 		if index < 0 {
 			slog.Error("selected unknown profile", "name", item)
@@ -186,6 +187,9 @@ func (win *MainWindow) OpenPeerSearch() {
 
 func (win *MainWindow) addPage(name string, page Page) {
 	win.pages[name] = page
+	if old := win.stackPages[name]; old != nil {
+		old.Unref()
+	}
 	vp := win.PeersStack.AddNamed(page.Widget(), name)
 	win.stackPages[name] = vp
 	page.Bind(vp)
@@ -562,14 +566,18 @@ func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {
 
 	listmodels.UpdateStrings(win.profileModel, func(yield func(string) bool) {
 		for _, profile := range status.Profiles {
-			if !yield(tray.ProfileTitle(profile)) {
+			name := profile.Name
+			if metadata.Private {
+				name = "profile@example.com"
+			}
+			if !yield(name) {
 				return
 			}
 		}
 	})
 
 	profileIndex, ok := listmodels.Index[gtk.StringObject](win.profileSortModel, gtk.StringObjectGLibType(), func(obj *gtk.StringObject) bool {
-		return obj.GetString() == tray.ProfileTitle(status.Profile)
+		return obj.GetString() == status.Profile.Name
 	})
 	if ok {
 		win.ProfileDropDown.SetSelected(profileIndex)

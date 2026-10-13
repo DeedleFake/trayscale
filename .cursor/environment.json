@@ -1,0 +1,8 @@
+{
+  "name": "Trayscale",
+  "user": "ubuntu",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "install": "go mod download\ngo tool golangci-lint version"
+}

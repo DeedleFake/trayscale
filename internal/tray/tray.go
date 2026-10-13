@@ -287,7 +287,7 @@ func (t *Tray) syncAccounts(ps *tsutil.ProfileStatus) {
 	for i, it := range menu.items {
 		ids[i] = it.id
 	}
-	if t.accountItem == nil || !sameProfileIDs(t.accountIDs, ids) {
+	if t.accountItem == nil || !slices.Equal(t.accountIDs, ids) {
 		t.rebuildAccountMenu(menu, ids)
 		return
 	}
@@ -349,23 +349,6 @@ func (t *Tray) rebuildAccountMenu(menu accountMenu, ids []ipn.ProfileID) {
 	}
 	t.accountIDs = ids
 	t.activeID = active
-}
-
-func sameProfileIDs(a, b []ipn.ProfileID) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	seen := make(map[ipn.ProfileID]int, len(a))
-	for _, id := range a {
-		seen[id]++
-	}
-	for _, id := range b {
-		if seen[id] == 0 {
-			return false
-		}
-		seen[id]--
-	}
-	return true
 }
 
 func (t *Tray) SetActiveProfile(id ipn.ProfileID) {

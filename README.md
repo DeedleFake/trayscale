@@ -3,7 +3,7 @@ Trayscale
 
 [![Go Report Card](https://goreportcard.com/badge/deedles.dev/trayscale)](https://goreportcard.com/report/deedles.dev/trayscale)
 
-Trayscale is an unofficial GUI interface for the Tailscale daemon particularly for use on Linux, as no official Linux GUI client exists. It provides a basic system tray icon and a fairly comprehensive UI with support for many of Tailscale's features.
+Trayscale is an unofficial GUI interface for the Tailscale daemon, particularly for use on Linux, that provides many features that the official Linux client does not.
 
 _Disclaimer: This project is in a beta state. There may still be undiscovered bugs or compatibility issues. Use at your own risk._
 

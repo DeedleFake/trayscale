@@ -8,7 +8,7 @@ Each peer in the sidebar has its own page. It shows the peer's hostname and Magi
 - `peer-identity` shows the hostname as the title and the MagicDNS name below it.
 - `peer-ips` lists each address under `Tailscale IPs` with a copy button.
 - `peer-misc` shows `Online`, `Created at`, `Last handshake`, `Bytes received`, and `Bytes sent` under `Misc.`, plus `Last seen` for an offline peer and `Use as exit node` for a peer that offers an exit node.
-- `peer-routes` shows one row per advertised prefix. The row title is the prefix, and the row has a `Remove` button. The group shows `No advertised routes.` when the peer advertises none. An exit node's default route is not a row.
+- `peer-routes` shows one row per advertised prefix. The row title is the prefix, and the row has no Remove button. The group shows `No advertised routes.` when the peer advertises none. An exit node's default route is not a row.
 
 ## How to get to it (user POV)
 
@@ -27,7 +27,7 @@ Preconditions:
 - **Identity.** Snapshot `.cursor/skills/verify-trayscale/artifacts/peer-page/<peer>.tree.txt`. The tree has a `panel` named after the peer's sidebar label, and under it the hostname label and the MagicDNS label (the full name with a trailing dot).
 - **IPs.** That snapshot contains `grouping 'Tailscale IPs'` and a `list item` per address, each with a `button` of the same name.
 - **Misc.** It contains `grouping 'Misc.'` with list items `Online`, `Created at`, `Last handshake`, `Bytes received`, and `Bytes sent`. For an offline peer it also has `Last seen`. For an exit-node peer it has `switch 'Use as exit node'`. Do not toggle it.
-- **Routes.** It contains `grouping 'Advertised Routes'`. A peer with no subnet routes has `No advertised routes.` A subnet router has a `list item` titled with the prefix and a `button 'Remove'` on that row. Do not click `Remove`.
+- **Routes.** It contains `grouping 'Advertised Routes'`. A peer with no subnet routes has `No advertised routes.` A subnet router has a `list item` titled with the prefix and no `button 'Remove'` on that row.
 - **Proof.** Keep one snapshot per peer kind. Each must include `frame 'Trayscale'`, the peer's `panel`, `grouping 'Tailscale IPs'`, and `grouping 'Misc.'`. Close search afterwards with `control-trayscale click --role toggle --name "Search peers" --exact`.
 
 ## Gotchas
@@ -37,4 +37,3 @@ Preconditions:
 - `Created at`, `Last handshake`, and the byte counts depend on the live peer and can be empty or `0`.
 - The page menu (Copy FQDN, Send file, Send directory) sits behind an unnamed header button. Sending opens a file chooser; leave it out of a routine proof.
 - `Use as exit node` changes the live Tailscale state. Never toggle it in a routine proof.
-- `Remove` on a peer's advertised route writes this machine's advertised routes. Never click it in a routine proof.

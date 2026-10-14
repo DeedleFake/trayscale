@@ -138,7 +138,8 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 	page.routeModel = listmodels.NewModel(netip.Prefix.String)
 	routes := page.routeModel.NewSortListModel(netip.Prefix.Compare)
 	page.routeModel.BindListBox(page.AdvertisedRoutesList, routes, func(route netip.Prefix) *gtk.Widget {
-		return routeRow(page.routeModel, route)
+		row := routeActionRow(route)
+		return &row.Widget
 	})
 	routes.Unref()
 	setPlaceholder(page.AdvertisedRoutesList, locale.Get("No advertised routes."))

@@ -107,7 +107,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	page.routeModel = listmodels.NewModel(netip.Prefix.String)
 	routes := page.routeModel.NewSortListModel(netip.Prefix.Compare)
 	page.routeModel.BindListBox(page.AdvertisedRoutesList, routes, func(route netip.Prefix) *gtk.Widget {
-		return routeRow(page.routeModel, route)
+		return page.routeRow(route)
 	})
 	routes.Unref()
 	setPlaceholder(page.AdvertisedRoutesList, locale.Get("No advertised routes."))
@@ -259,6 +259,29 @@ func (page *SelfPage) connectSwitch(row *adw.SwitchRow, what string, set func(bo
 		}
 		return true
 	})
+}
+
+func (page *SelfPage) routeRow(route netip.Prefix) *gtk.Widget {
+	removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
+	removeButton.SetMarginTop(12)
+	removeButton.SetMarginBottom(12)
+	removeButton.SetHasFrame(false)
+	removeButton.SetTooltipText(locale.Get("Remove"))
+	gutil.Connect(removeButton, removeButton.ConnectClicked, func(gtk.Button) {
+		routes := slices.Collect(xiter.Filter(page.routeModel.All(), func(p netip.Prefix) bool {
+			return p.Compare(route) != 0
+		}))
+		err := tsutil.AdvertiseRoutes(context.TODO(), routes)
+		if err != nil {
+			slog.Error("advertise routes", "err", err)
+			return
+		}
+	})
+
+	row := routeActionRow(route)
+	row.AddSuffix(&removeButton.Widget)
+	removeButton.Unref()
+	return &row.Widget
 }
 
 func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {

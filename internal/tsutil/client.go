@@ -75,6 +75,7 @@ func ExitNode(ctx context.Context, peer tailcfg.StableNodeID) error {
 	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
 		Prefs:         prefs,
 		ExitNodeIDSet: true,
+		ExitNodeIPSet: true,
 	})
 	if err != nil {
 		return fmt.Errorf("edit prefs: %w", err)
@@ -85,8 +86,8 @@ func ExitNode(ctx context.Context, peer tailcfg.StableNodeID) error {
 
 func SetUseExitNode(ctx context.Context, use bool) error {
 	useErr := localClient.SetUseExitNode(ctx, use)
-	if useErr == nil {
-		return nil
+	if useErr == nil || !use {
+		return useErr
 	}
 
 	suggested, suggestErr := localClient.SuggestExitNode(ctx)

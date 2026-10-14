@@ -239,8 +239,6 @@ func (a *App) init(ctx context.Context) {
 		}
 		a.onAppActivate(ctx)
 	})
-
-	a.initSettings(ctx)
 }
 
 // fileArray copies a C array of n GFile pointers, as passed to
@@ -684,6 +682,14 @@ func (a *App) Run(ctx context.Context) {
 		slog.Error("register application", "err", err)
 		return
 	}
+
+	if a.app.GetIsRemote() {
+		// Forward this invocation without starting another poller or tray.
+		a.app.Run(int32(len(os.Args)), os.Args)
+		return
+	}
+
+	a.initSettings(ctx)
 
 	a.poller = &tsutil.Poller{
 		Interval: a.getInterval(),

@@ -2,9 +2,7 @@ package ui
 
 import (
 	"context"
-	"log/slog"
 	"net/netip"
-	"slices"
 
 	"codeberg.org/puregotk/puregotk/v4/adw"
 	"codeberg.org/puregotk/puregotk/v4/gio"
@@ -12,10 +10,7 @@ import (
 	"codeberg.org/puregotk/puregotk/v4/gobject"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
 	"deedles.dev/trayscale/internal/gutil"
-	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/locale"
-	"deedles.dev/trayscale/internal/tsutil"
-	"deedles.dev/xiter"
 	"tailscale.com/tailcfg"
 )
 
@@ -90,31 +85,11 @@ func (a *App) goPushFile(peer tailcfg.StableNodeID, obj gobject.Ptr) {
 	}()
 }
 
-// routeRow returns a new row for an advertised route with a button that
-// stops advertising it. The caller owns the row.
-func routeRow(model *listmodels.Model[netip.Prefix], route netip.Prefix) *gtk.Widget {
-	removeButton := gtk.NewButtonFromIconName("list-remove-symbolic")
-	removeButton.SetMarginTop(12)
-	removeButton.SetMarginBottom(12)
-	removeButton.SetHasFrame(false)
-	removeButton.SetTooltipText(locale.Get("Remove"))
-	gutil.Connect(removeButton, removeButton.ConnectClicked, func(gtk.Button) {
-		routes := slices.Collect(xiter.Filter(model.All(), func(p netip.Prefix) bool {
-			return p.Compare(route) != 0
-		}))
-		err := tsutil.AdvertiseRoutes(context.TODO(), routes)
-		if err != nil {
-			slog.Error("advertise routes", "err", err)
-			return
-		}
-	})
-
+func routeActionRow(route netip.Prefix) *adw.ActionRow {
 	row := adw.NewActionRow()
 	row.SetTitleSelectable(true)
-	row.AddSuffix(&removeButton.Widget)
-	removeButton.Unref()
 	row.SetTitle(route.String())
-	return &row.Widget
+	return row
 }
 
 var listBoxSort gtk.ListBoxSortFunc = func(r1, r2, id uintptr) int32 {

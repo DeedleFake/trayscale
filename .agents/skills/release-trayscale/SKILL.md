@@ -5,7 +5,7 @@ description: Prepare a Trayscale release PR that updates the AppStream metainfo 
 
 # Release Trayscale
 
-Prepare a release on a branch and open a PR. The user reviews the PR; do not preview the skill output or the release notes in chat first. Do not tag, push tags, or create a GitHub Release (the user tags in the GitHub release UI).
+Prepare a release on a branch and open a PR for review. Do not tag, push tags, or create a GitHub Release (the user tags in the GitHub release UI).
 
 ## In scope
 
@@ -41,7 +41,7 @@ Insert a new block at the top of `<releases>` (newest first), matching existing 
 Rules:
 
 - Ask the user for the version if they did not give one. Keep the `v` prefix (e.g. `v0.21.0`).
-- Use today's date in America/New_York as `YYYY-MM-DD` unless the user gives another date.
+- Use today's date as `YYYY-MM-DD` unless the user gives another date.
 - If an entry for that version already exists, update its `<description>` and/or `date` instead of duplicating it.
 - Build the `<li>` list from user-facing changes since the previous release version (git log / merged PRs). Prefer concrete UI and behavior notes over commit subjects. Skip pure chore/meta noise unless it matters to users (e.g. a required Tailscale version bump).
 - Keep older `<release>` entries intact.
@@ -58,7 +58,6 @@ When regenerating: run the `regenerate-pgo` skill as written, then commit as `cm
 
 ## PR
 
-- Branch from current `master` (worktree under `/workspace` is fine).
+- Branch from current `master`.
 - Include the metainfo commit; include the PGO commit only when you regenerated.
-- Open the PR against `master`, assign `DeedleFake`, and send the link. End the PR body with `Created by Coder.`
-- Never merge. Never comment on the PR after creating it.
+- Open the PR against `master` and send the link.

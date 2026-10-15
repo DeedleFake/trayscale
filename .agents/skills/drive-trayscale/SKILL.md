@@ -32,10 +32,25 @@ Against a real `tailscaled`, never do these unless the calling skill explicitly 
 - click the unnamed header `switch` (connect/disconnect)
 - toggle `Advertise exit node`, `Allow LAN access`, `Accept routes`, `Accept DNS`, or `Use as exit node`
 - advertise or remove routes, or switch profiles
-- activate `peer.sendFile`, open a file chooser, or drop files on a peer page
+- activate `peer.sendFile` (`Send file...`, `Send directory...`), open a file chooser, or drop files on a peer page. Allowed only when `check-fake-tailnet` says `FAKE` and the target is tsharness's `receiver`
 - click About `Website`, `Report an Issue`, or `about.save-debug-info`
 
 If a step's AT-SPI handle is missing, skip the step. Do not substitute a forbidden action.
+
+## Real or fake tailnet
+
+Before any step that changes Tailscale state or sends anything (exit node, up/down, `tailscale set`, file or directory sends), run:
+
+```bash
+.agents/skills/drive-trayscale/scripts/check-fake-tailnet
+```
+
+It asks the daemon on `/run/tailscale/tailscaled.sock` (override with `SOCKET=`) for its control URL and tailnet:
+
+- `FAKE: control http://127.0.0.1:<port>, tailnet tail-test.ts.net`, exit 0: this is tsharness. Steps a calling skill allows against tsharness may run.
+- `REAL: ...` or `UNKNOWN: ...`, exit 1: this is, or might be, the user's tailnet. **Stop** and tell the user what it printed. Continue only if the user explicitly said in this conversation to run against their real tailnet.
+
+`doctor` reports the same line as `tailnet`. `action` refuses `use_exit_node`, `login`, `change_control_server`, and `admin_dashboard` unless it says `FAKE`, even with `--i-mean-it`; `--real-tailnet` overrides that and needs the same explicit permission. `quit` is exempt because it only stops the isolated instance.
 
 ## Launch
 
@@ -102,6 +117,9 @@ AT-SPI handles:
 | `Trayscale`, `DeedleFake` | `label` | Inside the About dialog |
 | `Preferences` | `dialog` | After `action preferences` |
 | `General`, `Taildrop` | `grouping` | Inside Preferences |
+| (empty) | `toggle button` | Page menu button in the content header: `click --role "toggle button" --name "" --exact --index 1` (index 0 is the main menu). Insensitive when no peer page is visible |
+| (empty) | `menu item` | Page menu items, in order: index 0 `Copy FQDN`, 1 `Send file...`, 2 `Send directory...`. Need `snapshot --max-depth 60` to see |
+| `Select dir(s) to send to <host>` / `Select file(s) ...` | `dialog` | File chooser from the send items. `press --key /` opens its location field (`text ''`); `fill --role text --name "" --exact --value <path>`; then `click --role button --name Open` (file) or `Select` (directory) |
 
 ```bash
 $CTRL snapshot                      # tree to stdout; --path FILE to save
@@ -117,7 +135,9 @@ $CTRL screenshot --path FILE --allow-fail
 
 The search entry has no accessible name; address it as `--role entry` without `--name` while no dialog is open. `fill` replaces its text and the sidebar filters as if typed.
 
-`press` synthesizes AT-SPI key events, which often do nothing on GNOME Wayland. Prefer actions.
+`press` synthesizes AT-SPI key events, which often do nothing on GNOME Wayland but work on X11 (including Xvfb). Prefer actions.
+
+Without a GNOME session (for example Xvfb plus a private `dbus-daemon --session` as the caller's bus), everything above works except `screenshot`, which needs GNOME Shell; use `--allow-fail`. The app needs a libadwaita new enough for `AdwViewSwitcherSidebar` (Debian trixie's 1.7 fails at startup with `Invalid object type 'AdwViewSwitcherSidebar'`).
 
 ## Fake peers (tsharness)
 
@@ -127,11 +147,11 @@ The search entry has no accessible name; address it as `--role entry` without `-
 .agents/skills/drive-trayscale/scripts/tsharness/run.sh   # prints READY, runs until interrupted
 ```
 
-Flags: `-extra N` adds `peer-NN` peers (every third offline); `-mullvad N` adds Mullvad exit nodes in a few cities and grants this machine the `mullvad` capability, so the `Mullvad Exit Nodes` page appears; `-churn 1s` flips one peer's online state (and toggles an extra route on routers) per tick. Use `/tmp/tsharness/tailscale` for CLI changes against the fake node.
+Flags: `-extra N` adds `peer-NN` peers (every third offline); `-mullvad N` adds Mullvad exit nodes in a few cities and grants this machine the `mullvad` capability, so the `Mullvad Exit Nodes` page appears; `-churn 20s` flips one peer's online state (and toggles an extra route on routers) per tick; `-receiver` also starts a second real `tailscaled`, hostname `receiver`, and grants both nodes Taildrop, so sends from Trayscale to `receiver` complete and land in `/tmp/tsharness/receiver/state/files/*/` (a directory arrives as `<name>.tar.zst`). Clear that directory before a run that checks it. Use `/tmp/tsharness/tailscale` for CLI changes against the fake node.
 
 It serves the LocalAPI on `/run/tailscale/tailscaled.sock`, Trayscale's default socket, so use it only where no system `tailscaled` runs (create `/run/tailscale` writable by you first). Its `go.mod` pins `tailscale.com` separately from the app's; `run.sh` builds `tailscale`/`tailscaled` at the app's version into `$DIR` (default `/tmp/tsharness`). Go skips dot-directories, so CI does not build it.
 
-Against tsharness the forbidden actions only touch the fake node, so a calling skill may allow them.
+Against tsharness the forbidden actions only touch the fake node, so a calling skill may allow them, including sending files to `receiver`. Confirm with `check-fake-tailnet` first.
 
 ## Cleanup
 

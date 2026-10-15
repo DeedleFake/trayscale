@@ -31,6 +31,7 @@ APP_TITLE = "Trayscale"
 # /usr/lib on Arch, /usr/libexec on Fedora, /usr/lib/at-spi2-core on Debian.
 ATSPI_DIRS = ("/usr/lib", "/usr/libexec", "/usr/lib/at-spi2-core", "/usr/lib64")
 SCHEMA_XML = "dev.deedles.Trayscale.gschema.xml"
+CHECK_FAKE = Path(__file__).resolve().parent / "check-fake-tailnet"
 
 # Actions that change Tailscale or open a browser. Doctor still lists
 # them; recipes must not call them unless the feature file says so.
@@ -842,6 +843,14 @@ def cmd_action(args: argparse.Namespace) -> int:
             f"action {name!r} changes Tailscale, opens a browser, or quits the app\n"
             "pass --i-mean-it only when a feature file requires this action"
         )
+    if name in MUTATING_ACTIONS and name != "quit" and not args.real_tailnet:
+        verdict = tailnet_verdict()
+        if not verdict.startswith("FAKE"):
+            raise SystemExit(
+                f"refusing {name!r}: {verdict}\n"
+                "this would change a real tailnet; pass --real-tailnet only if the user "
+                "explicitly allowed it in this conversation"
+            )
     extra = [name, "[]", "{}"]
     proc = action_call("org.gtk.Actions.Activate", extra)
     if proc.returncode != 0:
@@ -932,6 +941,12 @@ def cmd_screenshot(args: argparse.Namespace) -> int:
     return 0
 
 
+def tailnet_verdict() -> str:
+    """FAKE/REAL/UNKNOWN line from check-fake-tailnet for the default socket."""
+    proc = subprocess.run([str(CHECK_FAKE)], capture_output=True, text=True, timeout=30)
+    return (proc.stdout.strip() or proc.stderr.strip() or "UNKNOWN: no output").splitlines()[-1]
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     run = run_dir()
     pgid = int(read_text(run / "pgid"))
@@ -948,6 +963,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         "bus_name_owned": name_has_owner(bus, APP_ID),
         "gsettings_backend": "memory",
         "private_mode": True,
+        "tailnet": tailnet_verdict(),
     }
     apply_app_bus(run)
     try:
@@ -1036,6 +1052,12 @@ def main() -> int:
         "--i-mean-it",
         action="store_true",
         help="required for actions that change Tailscale, open a browser, or quit",
+    )
+    p_action.add_argument(
+        "--real-tailnet",
+        action="store_true",
+        help="allow a Tailscale-changing action when check-fake-tailnet does not say FAKE "
+        "(only with the user's explicit permission)",
     )
     p_action.set_defaults(func=cmd_action)
 

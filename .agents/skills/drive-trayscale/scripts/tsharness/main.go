@@ -50,7 +50,10 @@ type Harness struct {
 	Peers      []Peer
 	Churn      time.Duration // if nonzero, flip peer state this often
 	Mullvad    bool          // grant this machine the mullvad capability
+	Receiver   bool          // run a second real node, "receiver", that accepts Taildrop
 }
+
+const capFileSharing = tailcfg.NodeCapability(tailcfg.CapabilityFileSharing)
 
 func (h *Harness) Run(ctx context.Context) error {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -114,8 +117,15 @@ func (h *Harness) Run(ctx context.Context) error {
 	for _, n := range ctrl.AllNodes() {
 		selfUser, selfKey = n.User, n.Key
 	}
+	selfCaps := tailcfg.NodeCapMap{}
 	if h.Mullvad {
-		ctrl.SetNodeCapMap(selfKey, tailcfg.NodeCapMap{"mullvad": nil})
+		selfCaps["mullvad"] = nil
+	}
+	if h.Receiver {
+		selfCaps[capFileSharing] = nil
+	}
+	if len(selfCaps) > 0 {
+		ctrl.SetNodeCapMap(selfKey, selfCaps)
 	}
 	var peerKeys []key.NodePublic
 	for i, p := range h.Peers {
@@ -155,6 +165,13 @@ func (h *Harness) Run(ctx context.Context) error {
 			peerKeys = append(peerKeys, n.Key)
 		}
 	}
+	if h.Receiver {
+		stop, err := h.startReceiver(ctx, ctrl, url)
+		if err != nil {
+			return err
+		}
+		defer stop()
+	}
 	if u := os.Getenv("USER"); u != "" {
 		// Avoid Trayscale's "not Tailscale operator" dialog.
 		if err := cli("set", "--operator="+u); err != nil {
@@ -171,6 +188,52 @@ func (h *Harness) Run(ctx context.Context) error {
 	<-ctx.Done()
 	_ = cli("down")
 	return nil
+}
+
+// startReceiver runs a second real tailscaled, hostname "receiver",
+// on the same test control, so Taildrop sends from this machine reach
+// a real peerapi. Received files land under Dir/receiver/state.
+func (h *Harness) startReceiver(ctx context.Context, ctrl *testcontrol.Server, url string) (func(), error) {
+	dir := filepath.Join(h.Dir, "receiver")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	sock := filepath.Join(dir, "tailscaled.sock")
+	logf, err := os.Create(filepath.Join(dir, "tailscaled.log"))
+	if err != nil {
+		return nil, err
+	}
+	before := map[tailcfg.NodeID]bool{}
+	for _, n := range ctrl.AllNodes() {
+		before[n.ID] = true
+	}
+	d := exec.CommandContext(ctx, h.Tailscaled,
+		"--tun=userspace-networking",
+		"--statedir="+filepath.Join(dir, "state"),
+		"--socket="+sock,
+		"--port=0")
+	d.Stdout, d.Stderr = logf, logf
+	if err := d.Start(); err != nil {
+		logf.Close()
+		return nil, err
+	}
+	stop := func() { d.Process.Kill(); logf.Close() }
+	time.Sleep(2 * time.Second)
+	go exec.CommandContext(ctx, h.Tailscale, "--socket="+sock, "up", "--login-server="+url, "--hostname=receiver").Run()
+	for i := 0; ; i++ {
+		for _, n := range ctrl.AllNodes() {
+			if !before[n.ID] {
+				ctrl.SetNodeCapMap(n.Key, tailcfg.NodeCapMap{capFileSharing: nil})
+				log.Printf("receiver registered; files land in %s", filepath.Join(dir, "state"))
+				return stop, nil
+			}
+		}
+		if i > 60 {
+			stop()
+			return nil, fmt.Errorf("receiver never registered")
+		}
+		time.Sleep(time.Second)
+	}
 }
 
 // churn flips one peer's online state and route set per tick, so the
@@ -209,6 +272,7 @@ func main() {
 	sock := flag.String("socket", "/run/tailscale/tailscaled.sock", "LocalAPI socket")
 	extra := flag.Int("extra", 0, "additional peers to register (every third offline)")
 	churnEvery := flag.Duration("churn", 0, "flip one peer's state this often (0 disables)")
+	receiver := flag.Bool("receiver", false, "run a second real node, receiver, that accepts Taildrop from this machine")
 	mullvad := flag.Int("mullvad", 0, "Mullvad exit nodes to register (also grants the mullvad capability)")
 	flag.Parse()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -224,8 +288,9 @@ func main() {
 			{Host: "echo-down", Online: false, ExitNode: true},
 			{Host: "delta-router", Online: true, Routes: []netip.Prefix{netip.MustParsePrefix("192.168.50.0/24")}},
 		},
-		Churn:   *churnEvery,
-		Mullvad: *mullvad > 0,
+		Churn:    *churnEvery,
+		Mullvad:  *mullvad > 0,
+		Receiver: *receiver,
 	}
 	for i := range *extra {
 		h.Peers = append(h.Peers, Peer{Host: fmt.Sprintf("peer-%02d", i), Online: i%3 != 0})

@@ -1,0 +1,65 @@
+---
+name: release-trayscale
+description: Prepare a Trayscale release PR that updates the AppStream metainfo releases entry and regenerates PGO when code changes warrant it. Use when cutting a release, adding a version to metainfo, or the user asks to prepare a release.
+---
+
+# Release Trayscale
+
+Prepare a release on a branch and open a PR for review. Do not tag, push tags, or create a GitHub Release (the user tags in the GitHub release UI).
+
+## In scope
+
+1. Create or update the top `<release>` in `dev.deedles.Trayscale.metainfo.xml`.
+2. If code changes since the previous release warrant it, regenerate `cmd/trayscale/default.pgo` by following the `regenerate-pgo` skill (do not reinvent its drive steps).
+
+## Out of scope
+
+Do **not** do any of these as part of this skill:
+
+- Git tags or GitHub Releases
+- Vendor tarball (`go mod vendor`, `bsdtar`, zstd)
+- Dependency updates (`go get`, `go.mod` bumps)
+- Flathub packaging or bots
+
+## Metainfo entry
+
+File: `dev.deedles.Trayscale.metainfo.xml` (repo root). The About dialog reads the newest `<release>` from this file for release notes.
+
+Insert a new block at the top of `<releases>` (newest first), matching existing style (tabs, `v`-prefixed version, ISO date):
+
+```xml
+		<release version="v0.21.0" date="2026-10-15">
+			<description>
+				<ul>
+					<li>User-facing change in plain English.</li>
+					<li>Another change.</li>
+				</ul>
+			</description>
+		</release>
+```
+
+Rules:
+
+- Read the top `<release>` entry and note its version string.
+- Check whether a git tag exists for that version (e.g. `git tag -l` / `git rev-parse` on the tag).
+  - If **no** tag exists, that version is unreleased: update that top entry's `<description>` and/or `date` instead of creating a new one.
+  - If a tag **does** exist (the latest entry is already released), ask the user what the new version should be before doing anything. It might be a patch or a minor bump; do not guess or default the version. Keep the `v` prefix (e.g. `v0.21.0`).
+- Use today's date as `YYYY-MM-DD` unless the user gives another date.
+- Build the `<li>` list from user-facing changes since the previous tagged release. Discover them with a concrete range: `git log <previous-tag>..HEAD` (for example `git log v0.20.0..HEAD --oneline`). If `gh` is available, also list merged PRs since that tag (for example `gh pr list --state merged --base master --search "merged:>YYYY-MM-DD"` using the previous tag's date, or equivalent). Prefer concrete UI and behavior notes over commit subjects, matching existing metainfo style (short imperative sentences: "Add …", "Fix …", "Support …"). Include features added since the last tagged version. Treat internal changes as lower priority: fold them into a single "Bug fixes and performance improvements." (or similar) rather than listing each one; only call out a major cleanup separately even when it is not directly user-facing (as older entries sometimes do with "Internal cleanup."). Skip pure chore/meta noise unless it matters to users (e.g. a required Tailscale version bump). If a technical-writing skill is available in your skill list, use it when drafting the notes so they stay clear and consistent.
+- Keep older `<release>` entries intact.
+
+Commit the metainfo change alone as `meta: add vX.Y.Z to metainfo` (or `meta: update vX.Y.Z metainfo` if editing).
+
+## When to regenerate PGO
+
+Follow `regenerate-pgo` (and thus `drive-trayscale`) when, since the previous release, there were meaningful changes under paths that affect the hot profile: `internal/ui/`, `internal/tray/`, `internal/tsutil/`, `cmd/trayscale/`, or other code that runs on the poller / peer-update / tray path.
+
+Skip PGO when the release is metainfo-only, docs/skills only, or otherwise does not change those paths. If unsure, ask once; default to regenerating when UI, tray, or poller code changed.
+
+When regenerating: run the `regenerate-pgo` skill as written, then commit as `cmd/trayscale: regenerate default.pgo`. Do not invent alternate harness flags or drive sequences in this skill.
+
+## PR
+
+- Branch from current `master`.
+- Include the metainfo commit; include the PGO commit only when you regenerated.
+- Open the PR against `master` and send the link.

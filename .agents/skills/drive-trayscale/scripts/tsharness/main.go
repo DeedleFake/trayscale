@@ -20,11 +20,14 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"tailscale.com/tailcfg"
 	"tailscale.com/tstest/integration"
 	"tailscale.com/tstest/integration/testcontrol"
+	"tailscale.com/types/key"
 	"testing"
 )
 
@@ -34,6 +37,7 @@ type Peer struct {
 	ExitNode bool
 	Online   bool
 	Routes   []netip.Prefix
+	Location *tailcfg.Location // set for Mullvad exit nodes
 }
 
 // Harness is the reusable fixture.
@@ -44,6 +48,8 @@ type Harness struct {
 	Tailscale  string // path to tailscale CLI binary
 	Hostname   string // this machine's hostname
 	Peers      []Peer
+	Churn      time.Duration // if nonzero, flip peer state this often
+	Mullvad    bool          // grant this machine the mullvad capability
 }
 
 func (h *Harness) Run(ctx context.Context) error {
@@ -104,10 +110,15 @@ func (h *Harness) Run(ctx context.Context) error {
 	time.Sleep(3 * time.Second)
 
 	var selfUser tailcfg.UserID
+	var selfKey key.NodePublic
 	for _, n := range ctrl.AllNodes() {
-		selfUser = n.User
+		selfUser, selfKey = n.User, n.Key
 	}
-	for _, p := range h.Peers {
+	if h.Mullvad {
+		ctrl.SetNodeCapMap(selfKey, tailcfg.NodeCapMap{"mullvad": nil})
+	}
+	var peerKeys []key.NodePublic
+	for i, p := range h.Peers {
 		before := map[tailcfg.NodeID]bool{}
 		for _, n := range ctrl.AllNodes() {
 			before[n.ID] = true
@@ -119,7 +130,15 @@ func (h *Harness) Run(ctx context.Context) error {
 			}
 			n.User = selfUser // same user, so peers are not sharee nodes
 			n.Name = p.Host + ".tail-test.ts.net."
-			n.Hostinfo = (&tailcfg.Hostinfo{Hostname: p.Host, OS: "linux"}).View()
+			n.Hostinfo = (&tailcfg.Hostinfo{Hostname: p.Host, OS: "linux", Location: p.Location}).View()
+			// testcontrol picks random non-CGNAT addresses, which the CLI
+			// and Trayscale do not treat as Tailscale IPs.
+			addr := netip.PrefixFrom(netip.AddrFrom4([4]byte{100, 64, byte(1 + i/250), byte(2 + i%250)}), 32)
+			n.Addresses = []netip.Prefix{addr}
+			n.AllowedIPs = []netip.Prefix{addr}
+			if p.Location != nil {
+				n.Tags = []string{"tag:mullvad-exit-node"}
+			}
 			online := p.Online
 			n.Online = &online
 			if !online {
@@ -133,6 +152,7 @@ func (h *Harness) Run(ctx context.Context) error {
 			n.AllowedIPs = append(n.AllowedIPs, p.Routes...)
 			n.PrimaryRoutes = append(n.PrimaryRoutes, p.Routes...)
 			ctrl.UpdateNode(n)
+			peerKeys = append(peerKeys, n.Key)
 		}
 	}
 	if u := os.Getenv("USER"); u != "" {
@@ -145,14 +165,51 @@ func (h *Harness) Run(ctx context.Context) error {
 		return err
 	}
 	fmt.Println("READY", url)
+	if h.Churn > 0 {
+		go churn(ctx, ctrl, peerKeys, h.Churn)
+	}
 	<-ctx.Done()
 	_ = cli("down")
 	return nil
 }
 
+// churn flips one peer's online state and route set per tick, so the
+// client sees a steady stream of PeersChanged updates.
+func churn(ctx context.Context, ctrl *testcontrol.Server, keys []key.NodePublic, every time.Duration) {
+	extra := netip.MustParsePrefix("10.99.0.0/24")
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for i := 0; ; i++ {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		n := ctrl.Node(keys[i%len(keys)])
+		if n == nil {
+			continue
+		}
+		online := n.Online == nil || !*n.Online
+		n.Online = &online
+		now := time.Now()
+		n.LastSeen = &now
+		if i := slices.Index(n.AllowedIPs, extra); i >= 0 {
+			n.AllowedIPs = slices.Delete(n.AllowedIPs, i, i+1)
+			n.PrimaryRoutes = slices.DeleteFunc(n.PrimaryRoutes, func(p netip.Prefix) bool { return p == extra })
+		} else if len(n.PrimaryRoutes) > 0 {
+			n.AllowedIPs = append(n.AllowedIPs, extra)
+			n.PrimaryRoutes = append(n.PrimaryRoutes, extra)
+		}
+		ctrl.UpdateNode(n)
+	}
+}
+
 func main() {
 	dir := flag.String("dir", "/tmp/tsharness", "state dir")
 	sock := flag.String("socket", "/run/tailscale/tailscaled.sock", "LocalAPI socket")
+	extra := flag.Int("extra", 0, "additional peers to register (every third offline)")
+	churnEvery := flag.Duration("churn", 0, "flip one peer's state this often (0 disables)")
+	mullvad := flag.Int("mullvad", 0, "Mullvad exit nodes to register (also grants the mullvad capability)")
 	flag.Parse()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -167,6 +224,24 @@ func main() {
 			{Host: "echo-down", Online: false, ExitNode: true},
 			{Host: "delta-router", Online: true, Routes: []netip.Prefix{netip.MustParsePrefix("192.168.50.0/24")}},
 		},
+		Churn:   *churnEvery,
+		Mullvad: *mullvad > 0,
+	}
+	for i := range *extra {
+		h.Peers = append(h.Peers, Peer{Host: fmt.Sprintf("peer-%02d", i), Online: i%3 != 0})
+	}
+	cities := []tailcfg.Location{
+		{Country: "Germany", CountryCode: "DE", City: "Berlin", CityCode: "ber"},
+		{Country: "Germany", CountryCode: "DE", City: "Frankfurt", CityCode: "fra"},
+		{Country: "Sweden", CountryCode: "SE", City: "Stockholm", CityCode: "sto"},
+		{Country: "USA", CountryCode: "US", City: "New York, NY", CityCode: "nyc"},
+		{Country: "USA", CountryCode: "US", City: "Dallas, TX", CityCode: "dal"},
+		{Country: "Japan", CountryCode: "JP", City: "Tokyo", CityCode: "tyo"},
+	}
+	for i := range *mullvad {
+		loc := cities[i%len(cities)]
+		loc.Priority = i
+		h.Peers = append(h.Peers, Peer{Host: fmt.Sprintf("%s-%s-wg-%03d", strings.ToLower(loc.CountryCode), loc.CityCode, i), Online: true, ExitNode: true, Location: &loc})
 	}
 	if err := h.Run(ctx); err != nil {
 		log.Fatal(err)

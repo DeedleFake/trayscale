@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive an isolated Trayscale window for verification.
+"""Drive an isolated Trayscale window.
 
 Public commands: launch, doctor, cleanup, action, actions, snapshot,
 screenshot, find, click, select, fill, press, wait. `_inner` is launch-only.
@@ -65,16 +65,12 @@ def skill_dir() -> Path:
 
 
 def repo_dir() -> Path:
-    # .cursor/skills/verify-trayscale -> repo root
+    # .agents/skills/drive-trayscale -> repo root
     return skill_dir().parents[2]
 
 
 def runs_dir() -> Path:
     return skill_dir() / "runs"
-
-
-def artifacts_dir() -> Path:
-    return skill_dir() / "artifacts"
 
 
 def current_pointer() -> Path:
@@ -303,6 +299,18 @@ def cmd_inner() -> int:
         write_text(run / "inner-error", "org.a11y.atspi.Registry did not appear")
         return 1
 
+    if os.environ.get("TRAYSCALE_VERIFY_TRAY") == "1":
+        host = subprocess.Popen(
+            [sys.executable, str(Path(__file__).resolve().parent / "sni-host")],
+            stdout=log,
+            stderr=log,
+            start_new_session=False,
+        )
+        write_text(run / "sni-host.pid", str(host.pid))
+        if not wait_name(bus, "org.kde.StatusNotifierWatcher", 15):
+            write_text(run / "inner-error", "org.kde.StatusNotifierWatcher did not appear")
+            return 1
+
     os.environ["GTK_A11Y"] = "atspi"
     os.environ["NO_AT_BRIDGE"] = "0"
     os.environ["GTK_USE_PORTAL"] = "0"
@@ -312,7 +320,6 @@ def cmd_inner() -> int:
 
 def cmd_launch(args: argparse.Namespace) -> int:
     runs_dir().mkdir(parents=True, exist_ok=True)
-    artifacts_dir().mkdir(parents=True, exist_ok=True)
 
     if current_pointer().exists():
         try:
@@ -365,6 +372,7 @@ def cmd_launch(args: argparse.Namespace) -> int:
     env["XDG_CACHE_HOME"] = str(xdg / "cache")
     env["XDG_STATE_HOME"] = str(xdg / "state")
     env["TRAYSCALE_PRIVATE"] = "1"
+    env["TRAYSCALE_VERIFY_TRAY"] = "1" if args.tray else "0"
     env["GTK_A11Y"] = "atspi"
     env["NO_AT_BRIDGE"] = "0"
     env["GTK_USE_PORTAL"] = "0"
@@ -992,7 +1000,6 @@ def cmd_cleanup(args: argparse.Namespace) -> int:
     if ptr.exists():
         ptr.unlink()
     print(f"kept {run}" if args.keep_run else f"cleaned {run}")
-    print(f"artifacts kept under {artifacts_dir()}")
     return 0
 
 
@@ -1009,12 +1016,13 @@ def main() -> int:
 
     p_launch = sub.add_parser("launch", help="build and start an isolated Trayscale")
     p_launch.add_argument("--timeout", type=float, default=180)
+    p_launch.add_argument("--tray", action="store_true", help="run a StatusNotifier watcher/host on the isolated bus")
     p_launch.set_defaults(func=cmd_launch)
 
     p_doctor = sub.add_parser("doctor", help="read-only health check of the current isolated instance")
     p_doctor.set_defaults(func=cmd_doctor)
 
-    p_cleanup = sub.add_parser("cleanup", help="stop the isolated instance; keep artifacts")
+    p_cleanup = sub.add_parser("cleanup", help="stop the isolated instance")
     p_cleanup.add_argument("--force", action="store_true")
     p_cleanup.add_argument("--keep-run", action="store_true", help="leave the run directory on disk")
     p_cleanup.set_defaults(func=cmd_cleanup)

@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""Minimal StatusNotifierWatcher and host for the isolated session bus.
+
+Accepts item registrations and, like a panel, re-reads the item's
+properties and menu layout whenever the item signals a change.
+"""
+import sys
+
+from gi.repository import Gio, GLib
+
+WATCHER = "org.kde.StatusNotifierWatcher"
+ITEM = "org.kde.StatusNotifierItem"
+MENU = "com.canonical.dbusmenu"
+XML = f"""<node><interface name="{WATCHER}">
+<method name="RegisterStatusNotifierItem"><arg type="s" direction="in"/></method>
+<method name="RegisterStatusNotifierHost"><arg type="s" direction="in"/></method>
+<property name="RegisteredStatusNotifierItems" type="as" access="read"/>
+<property name="IsStatusNotifierHostRegistered" type="b" access="read"/>
+<property name="ProtocolVersion" type="i" access="read"/>
+<signal name="StatusNotifierItemRegistered"><arg type="s"/></signal>
+</interface></node>"""
+
+bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+items = []
+
+
+def call(name, path, iface, method, args, sig):
+    try:
+        return bus.call_sync(name, path, iface, method, GLib.Variant(sig, args) if sig else None,
+                             None, Gio.DBusCallFlags.NONE, 5000, None)
+    except GLib.Error as e:
+        print(f"{method}: {e.message}", file=sys.stderr)
+
+
+def refresh_item(name):
+    r = call(name, "/StatusNotifierItem", "org.freedesktop.DBus.Properties", "GetAll", (ITEM,), "(s)")
+    return r and r.unpack()[0].get("Menu")
+
+
+def refresh_menu(name, path):
+    call(name, path, MENU, "AboutToShow", (0,), "(i)")
+    call(name, path, MENU, "GetLayout", (0, -1, []), "(iias)")
+
+
+def track(name):
+    menu = refresh_item(name) or "/MenuBar"
+    bus.signal_subscribe(name, ITEM, None, "/StatusNotifierItem", None, Gio.DBusSignalFlags.NONE,
+                         lambda *a: refresh_item(name))
+    bus.signal_subscribe(name, MENU, None, menu, None, Gio.DBusSignalFlags.NONE,
+                         lambda *a: refresh_menu(name, menu))
+    refresh_menu(name, menu)
+
+
+def method(conn, sender, path, iface, name, params, inv):
+    if name == "RegisterStatusNotifierItem":
+        arg = params.unpack()[0]
+        svc = sender if arg.startswith("/") else arg
+        items.append(svc)
+        inv.return_value(None)
+        conn.emit_signal(None, path, iface, "StatusNotifierItemRegistered", GLib.Variant("(s)", (svc,)))
+        GLib.idle_add(lambda: track(svc) and False)
+    else:
+        inv.return_value(None)
+
+
+def prop(conn, sender, path, iface, name):
+    return {
+        "RegisteredStatusNotifierItems": GLib.Variant("as", items),
+        "IsStatusNotifierHostRegistered": GLib.Variant("b", True),
+        "ProtocolVersion": GLib.Variant("i", 0),
+    }[name]
+
+
+info = Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0]
+bus.register_object("/StatusNotifierWatcher", info, method, prop, None)
+Gio.bus_own_name_on_connection(bus, WATCHER, Gio.BusNameOwnerFlags.NONE, None, None)
+GLib.MainLoop().run()

@@ -24,7 +24,7 @@ Preconditions:
 - `select` cannot open a peer page: it highlights the row but the content page stays put. Open the page through search instead.
 
 - **Open.** Start search and type a distinctive part of the peer's name. Run `control-trayscale action search-peers`, then `control-trayscale fill --role entry --value "<token>"`. When the visible page is not a match, the first match becomes the visible page.
-- **Identity.** Snapshot `.cursor/skills/verify-trayscale/artifacts/peer-page/<peer>.tree.txt`. The tree has a `panel` named after the peer's sidebar label, and under it the hostname label and the MagicDNS label (the full name with a trailing dot).
+- **Identity.** Snapshot `.agents/skills/verify-trayscale/artifacts/peer-page/<peer>.tree.txt`. The tree has a `panel` named after the peer's sidebar label, and under it the hostname label and the MagicDNS label (the full name with a trailing dot).
 - **IPs.** That snapshot contains `grouping 'Tailscale IPs'` and a `list item` per address, each with a `button` of the same name.
 - **Misc.** It contains `grouping 'Misc.'` with list items `Online`, `Created at`, `Last handshake`, `Bytes received`, and `Bytes sent`. For an offline peer it also has `Last seen`. For an exit-node peer it has `switch 'Use as exit node'`. Do not toggle it.
 - **Routes.** It contains `grouping 'Advertised Routes'`. A peer with no subnet routes has `No advertised routes.` A subnet router has a `list item` titled with the prefix and no `button 'Remove'` on that row.

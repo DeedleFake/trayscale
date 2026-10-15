@@ -29,7 +29,7 @@ Preconditions:
 - **Empty.** Type a token that no peer has. Run `control-trayscale fill --role entry --value "zzzxnotapeer"`. Then run `control-trayscale find --name "No matching peers" --exact`. Output is `grouping 'No matching peers'`. The snapshot has no peer `panel`.
 - **Close.** Choose Search peers again. Run `control-trayscale click --role toggle --name "Search peers" --exact`. The next snapshot has `label 'This machine'` and the other section titles again, and `control-trayscale find --role entry` fails.
 - **Shortcut entry.** Open search through the same action as Ctrl+F. Run `control-trayscale action search-peers`. Exit is 0, and `control-trayscale find --role entry` prints `entry ''`.
-- **Proof.** Snapshot `.cursor/skills/verify-trayscale/artifacts/peer-search/<step>.tree.txt` after each step. Each file contains `frame 'Trayscale'` and `toggle button 'Search peers'`.
+- **Proof.** Snapshot `.agents/skills/verify-trayscale/artifacts/peer-search/<step>.tree.txt` after each step. Each file contains `frame 'Trayscale'` and `toggle button 'Search peers'`.
 
 ## Gotchas
 

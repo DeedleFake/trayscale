@@ -23,12 +23,12 @@ Preconditions:
 
 - **Menu action.** Open About. Run `control-trayscale action about`. Exit is 0.
 - **Dialog.** Wait for the dialog. Run `control-trayscale wait --role dialog --name About --exact --timeout 10`. Output is `dialog 'About'`.
-- **Identity.** Capture the tree. Run `control-trayscale snapshot --path .cursor/skills/verify-trayscale/artifacts/about/open.tree.txt`. Under `dialog 'About'` the tree contains `label 'Trayscale'` and `label 'DeedleFake'`.
+- **Identity.** Capture the tree. Run `control-trayscale snapshot --path .agents/skills/verify-trayscale/artifacts/about/open.tree.txt`. Under `dialog 'About'` the tree contains `label 'Trayscale'` and `label 'DeedleFake'`.
 - **Version.** That snapshot contains a `button` or `label` whose name starts with `v` inside the About dialog.
 - **Links.** That snapshot contains `What’s New`, `Website`, `Report an Issue`, and `Legal`.
 - **Proof.** Keep `open.tree.txt`. It must contain `frame 'Trayscale'`, `dialog 'About'`, `label 'Trayscale'`, and `label 'DeedleFake'`.
 
-Optional: `control-trayscale screenshot --path .cursor/skills/verify-trayscale/artifacts/about/open.png --allow-fail`.
+Optional: `control-trayscale screenshot --path .agents/skills/verify-trayscale/artifacts/about/open.png --allow-fail`.
 
 ## Gotchas
 

@@ -26,6 +26,17 @@
               <object class="AdwPreferencesGroup" id="OptionsGroup">
                 <property name="title" translatable="yes">Options</property>
                 <child>
+                  <object class="AdwSwitchRow" id="AutomaticExitNodeRow">
+                    <property name="subtitle" translatable="yes">Let Tailscale choose the exit node. Turning this off keeps the current node.</property>
+                    <property name="title" translatable="yes">Automatic exit node</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="CurrentExitNodeRow">
+                    <property name="title" translatable="yes">Current exit node</property>
+                  </object>
+                </child>
+                <child>
                   <object class="AdwSwitchRow" id="AdvertiseExitNodeRow">
                     <property name="subtitle" translatable="yes">Allow this machine to be used as an exit node</property>
                     <property name="title" translatable="yes">Advertise exit node</property>

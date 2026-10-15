@@ -7,6 +7,7 @@ This machine is the self peer page. It shows the hostname, Tailscale IPs with co
 - `self-identity` shows the hostname and MagicDNS name on the page.
 - `self-ips` lists each Tailscale address under `Tailscale IPs`.
 - `self-options` shows `Advertise exit node`, `Allow LAN access`, `Accept routes`, and `Accept DNS`.
+- `self-exit-node` shows `Automatic exit node` and `Current exit node`. See [Automatic exit node](./automatic-exit-node.md) for testing the switch.
 - `self-files` shows `No incoming files.` when none are waiting.
 - `self-routes` shows `No advertised routes.` when none are advertised.
 - `self-netcheck` shows `Last run` with `Never` until a check runs.
@@ -27,6 +28,7 @@ Preconditions:
 - **Identity.** Run `control-trayscale snapshot --path .agents/skills/verify-trayscale/artifacts/this-machine/page.tree.txt`. The `panel` named after this machine's sidebar label has a hostname label and a MagicDNS label. On Tailscale's coordination server the MagicDNS label ends in `.ts.net.`; other control servers can use another name.
 - **IPs.** That snapshot contains `grouping 'Tailscale IPs'` and at least one `list item` that is not `No addresses.`. Each address has a `button` with the same name as the address.
 - **Options.** The snapshot contains `switch 'Advertise exit node'`, `switch 'Allow LAN access'`, `switch 'Accept routes'`, and `switch 'Accept DNS'`. Do not toggle them.
+- **Exit node.** The snapshot contains `switch 'Automatic exit node'` and `Current exit node` with the selected node or `None`. Keep this path read-only; mode changes use the separate recipe above.
 - **Empty files and routes.** The snapshot contains `No incoming files.` and `No advertised routes.` unless the live node actually has files or routes.
 - **Netcheck.** The snapshot contains `grouping 'Network Check'`, `label 'Last run'`, and `label 'Never'` if no check has run in this session.
 - **Proof.** Keep `page.tree.txt`. It must include `frame 'Trayscale'`, `grouping 'Tailscale IPs'`, and the four option switches.

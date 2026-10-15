@@ -59,9 +59,10 @@ func ExitNode(ctx context.Context, peer tailcfg.StableNodeID) error {
 		var prefs ipn.Prefs
 		prefs.ClearExitNode()
 		_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-			Prefs:         prefs,
-			ExitNodeIDSet: true,
-			ExitNodeIPSet: true,
+			Prefs:           prefs,
+			ExitNodeIDSet:   true,
+			ExitNodeIPSet:   true,
+			AutoExitNodeSet: true,
 		})
 		if err != nil {
 			return fmt.Errorf("edit prefs: %w", err)
@@ -73,14 +74,32 @@ func ExitNode(ctx context.Context, peer tailcfg.StableNodeID) error {
 		ExitNodeID: peer,
 	}
 	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-		Prefs:         prefs,
-		ExitNodeIDSet: true,
-		ExitNodeIPSet: true,
+		Prefs:           prefs,
+		ExitNodeIDSet:   true,
+		ExitNodeIPSet:   true,
+		AutoExitNodeSet: true,
 	})
 	if err != nil {
 		return fmt.Errorf("edit prefs: %w", err)
 	}
 
+	return nil
+}
+
+// SetAutomaticExitNode lets tailscaled track its recommended exit node.
+// Disabling it keeps the current exit node selected, if there is one.
+func SetAutomaticExitNode(ctx context.Context, enable bool) error {
+	edit := ipn.MaskedPrefs{AutoExitNodeSet: true}
+	if enable {
+		edit.AutoExitNode = ipn.AnyExitNode
+	}
+	prefs, err := localClient.EditPrefs(ctx, &edit)
+	if err != nil {
+		return fmt.Errorf("set automatic exit node: %w", err)
+	}
+	if prefs == nil || prefs.AutoExitNode != edit.AutoExitNode {
+		return errors.New("tailscaled did not apply automatic exit-node selection")
+	}
 	return nil
 }
 

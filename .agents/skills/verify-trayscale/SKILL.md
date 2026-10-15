@@ -24,6 +24,7 @@ Required for a UI proof:
 1. Drive the user path (window, menu action, or listed control), not an internal setter.
 2. Capture the tree **before** the action and **after** it when the action changes state.
 3. The after-tree must identify Trayscale (`frame 'Trayscale'` or `application 'trayscale'`) and the feature's end state.
+4. When the action has a side effect outside the window (a sent file, a changed pref), check it too: for sends, `inner.log` and the files under `/tmp/tsharness/receiver/state/files/`; for prefs, `/tmp/tsharness/tailscale debug prefs`.
 
 ```bash
 $CTRL snapshot --path .agents/skills/verify-trayscale/artifacts/<feature>/after.tree.txt

@@ -46,5 +46,5 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [About](./about.md) covers the About dialog from the app menu action.
 - [Preferences](./preferences.md) covers the Preferences dialog and its General and Taildrop groups.
 - [Peer search](./peer-search.md) covers opening search from the toolbar button and from Ctrl+F, filtering, the empty result, and closing search.
-- [Peer page](./peer-page.md) covers a peer's page: hostname, Tailscale IPs, the Misc. group, and advertised routes.
+- [Peer page](./peer-page.md) covers a peer's page: hostname, Tailscale IPs, the Misc. group, advertised routes, and sending files and directories (tsharness only).
 - [Tray account](./tray-account.md) covers the tray Switch account submenu. Isolated launch cannot show it.

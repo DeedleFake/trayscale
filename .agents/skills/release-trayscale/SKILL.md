@@ -40,9 +40,11 @@ Insert a new block at the top of `<releases>` (newest first), matching existing 
 
 Rules:
 
-- Ask the user for the version if they did not give one. Keep the `v` prefix (e.g. `v0.21.0`).
+- Read the top `<release>` entry and note its version string.
+- Check whether a git tag exists for that version (e.g. `git tag -l` / `git rev-parse` on the tag).
+  - If **no** tag exists, that version is unreleased: update that top entry's `<description>` and/or `date` instead of creating a new one.
+  - If a tag **does** exist (the latest entry is already released), ask the user what the new version should be before doing anything. It might be a patch or a minor bump; do not guess or default the version. Keep the `v` prefix (e.g. `v0.21.0`).
 - Use today's date as `YYYY-MM-DD` unless the user gives another date.
-- If an entry for that version already exists, update its `<description>` and/or `date` instead of duplicating it.
 - Build the `<li>` list from user-facing changes since the previous release version (git log / merged PRs). Prefer concrete UI and behavior notes over commit subjects. Skip pure chore/meta noise unless it matters to users (e.g. a required Tailscale version bump).
 - Keep older `<release>` entries intact.
 

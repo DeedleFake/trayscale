@@ -226,6 +226,29 @@ func (page *MullvadPage) applySearch() {
 	page.LocationList.InvalidateSort()
 }
 
+// Reveal expands the location containing the given exit node and
+// scrolls it into view.
+func (page *MullvadPage) Reveal(id tailcfg.StableNodeID) {
+	node := page.exitNodes[id]
+	if node == nil {
+		return
+	}
+	if page.searching() {
+		page.SearchEntry.SetText("")
+		page.setQuery("")
+	}
+	if loc := page.locations[node.country]; loc != nil {
+		loc.SetExpanded(true)
+	}
+	// The row can't take focus, which is what scrolls it into view,
+	// until the newly visible page and expander have been mapped.
+	gutil.IdleAdd(func() {
+		if page.exitNodes[id] == node {
+			node.row.GrabFocus()
+		}
+	})
+}
+
 func (page *MullvadPage) setNodeTitle(node *mullvadExitNodeRow, searching bool) {
 	loc := node.peer.Hostinfo().Location()
 	if searching {

@@ -31,6 +31,19 @@
                 <property name="title" translatable="yes">Polling Interval</property>
               </object>
             </child>
+            <child>
+              <object class="AdwComboRow" id="ExitNodeSelectionRow">
+                <property name="model">
+                  <object class="GtkStringList">
+                    <items>
+                      <item translatable="yes">Previous exit node</item>
+                      <item translatable="yes">Recommended exit node</item>
+                    </items>
+                  </object>
+                </property>
+                <property name="title" translatable="yes">Exit Node</property>
+              </object>
+            </child>
           </object>
         </child>
         <child>

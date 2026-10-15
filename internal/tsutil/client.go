@@ -86,39 +86,116 @@ func ExitNode(ctx context.Context, peer tailcfg.StableNodeID) error {
 	return nil
 }
 
-// SetAutomaticExitNode lets tailscaled track its recommended exit node.
-// Disabling it keeps the current exit node selected, if there is one.
-func SetAutomaticExitNode(ctx context.Context, enable bool) error {
-	edit := ipn.MaskedPrefs{AutoExitNodeSet: true}
-	if enable {
-		edit.AutoExitNode = ipn.AnyExitNode
+// ExitNodeSelection is how an exit node is chosen when exit node use
+// is turned on.
+type ExitNodeSelection int
+
+const (
+	// SelectPreviousExitNode reuses the most recently used exit node.
+	SelectPreviousExitNode ExitNodeSelection = iota
+
+	// SelectRecommendedExitNode lets the daemon pick and keep
+	// tracking the recommended exit node.
+	SelectRecommendedExitNode
+)
+
+// ParseExitNodeSelection parses a setting value as written by
+// [ExitNodeSelection.String]. Unknown values select the previous exit
+// node.
+func ParseExitNodeSelection(str string) ExitNodeSelection {
+	if str == "recommended" {
+		return SelectRecommendedExitNode
 	}
-	prefs, err := localClient.EditPrefs(ctx, &edit)
+	return SelectPreviousExitNode
+}
+
+func (sel ExitNodeSelection) String() string {
+	if sel == SelectRecommendedExitNode {
+		return "recommended"
+	}
+	return "previous"
+}
+
+// SetUseExitNode turns exit node use on or off. When turning it on,
+// sel determines which exit node is used.
+func SetUseExitNode(ctx context.Context, use bool, sel ExitNodeSelection) error {
+	if use && sel == SelectRecommendedExitNode {
+		err := useAutoExitNode(ctx)
+		if err == nil {
+			return nil
+		}
+		slog.Error("use automatic exit node", "err", err)
+		return errors.Join(err, useSuggestedExitNode(ctx))
+	}
+
+	useErr := localClient.SetUseExitNode(ctx, use)
+	if !use {
+		return useErr
+	}
+	if useErr != nil {
+		suggestErr := useSuggestedExitNode(ctx)
+		if suggestErr == nil {
+			return nil
+		}
+		return errors.Join(useErr, suggestErr)
+	}
+
+	return keepPreviousExitNode(ctx)
+}
+
+func useAutoExitNode(ctx context.Context) error {
+	_, err := localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		AutoExitNode:    ipn.AnyExitNode,
+		AutoExitNodeSet: true,
+	})
 	if err != nil {
-		return fmt.Errorf("set automatic exit node: %w", err)
-	}
-	if prefs == nil || prefs.AutoExitNode != edit.AutoExitNode {
-		return errors.New("tailscaled did not apply automatic exit-node selection")
+		return fmt.Errorf("edit prefs: %w", err)
 	}
 	return nil
 }
 
-func SetUseExitNode(ctx context.Context, use bool) error {
-	useErr := localClient.SetUseExitNode(ctx, use)
-	if useErr == nil || !use {
-		return useErr
+func useSuggestedExitNode(ctx context.Context) error {
+	suggested, err := localClient.SuggestExitNode(ctx)
+	if err != nil {
+		return fmt.Errorf("suggest exit node: %w", err)
+	}
+	slog.Info("got suggested exit node", "id", suggested.ID, "name", suggested.Name, "location", suggested.Location)
+	return ExitNode(ctx, suggested.ID)
+}
+
+// keepPreviousExitNode pins the exit node that the daemon just
+// restored. Turning exit node use off while automatic selection was on
+// makes the daemon remember that, so turning it back on would resume
+// automatic selection instead of using the previous node.
+func keepPreviousExitNode(ctx context.Context) error {
+	prefs, err := Prefs(ctx)
+	if err != nil {
+		return fmt.Errorf("get prefs: %w", err)
+	}
+	if !prefs.AutoExitNode.IsSet() {
+		return nil
 	}
 
-	suggested, suggestErr := localClient.SuggestExitNode(ctx)
-	if suggestErr == nil {
-		slog.Info("got suggested exit node", "id", suggested.ID, "name", suggested.Name, "location", suggested.Location)
-		suggestErr = ExitNode(ctx, suggested.ID)
-		if suggestErr == nil {
-			return nil
+	id := prefs.ExitNodeID
+	// The daemon uses this placeholder until it has picked a node.
+	if id == "" || id == "auto:any" {
+		suggested, err := localClient.SuggestExitNode(ctx)
+		if err != nil {
+			return fmt.Errorf("suggest exit node: %w", err)
 		}
+		id = suggested.ID
 	}
 
-	return errors.Join(useErr, suggestErr)
+	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		ExitNodeID:      id,
+		AutoExitNodeSet: true,
+		ExitNodeIDSet:   true,
+		ExitNodeIPSet:   true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+	return nil
 }
 
 // AdvertiseExitNode enables and disables exit node advertisement for

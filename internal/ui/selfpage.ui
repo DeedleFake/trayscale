@@ -26,14 +26,15 @@
               <object class="AdwPreferencesGroup" id="OptionsGroup">
                 <property name="title" translatable="yes">Options</property>
                 <child>
-                  <object class="AdwSwitchRow" id="AutomaticExitNodeRow">
-                    <property name="subtitle" translatable="yes">Let Tailscale choose the exit node. Turning this off keeps the current node.</property>
-                    <property name="title" translatable="yes">Automatic exit node</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="CurrentExitNodeRow">
-                    <property name="title" translatable="yes">Current exit node</property>
+                  <object class="AdwActionRow" id="ExitNodeRow">
+                    <property name="subtitle" translatable="yes">None</property>
+                    <property name="title" translatable="yes">Exit node</property>
+                    <child type="suffix">
+                      <object class="GtkImage" id="ExitNodeIcon">
+                        <property name="icon-name">go-next-symbolic</property>
+                        <property name="visible">False</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <child>

@@ -22,13 +22,13 @@ The main window is titled Trayscale. When Tailscale is connected it shows a side
 Preconditions:
 
 - `control-trayscale doctor` reports `frame 'Trayscale'` and `gsettings_backend` equal to `memory`.
-- For `sidebar-sections`, `offline-toggle`, and `profile-private`, `tailscaled` is running and the node is connected. Each section title needs at least one peer in it: `Exit Nodes` needs a peer that offers an exit node (or Mullvad), `Online` an online peer, and `Offline` an offline non-exit peer. The offline-exit check needs a peer that is both offline and an exit node. `scripts/tsharness` provides `echo-down` for that.
+- For `sidebar-sections`, `offline-toggle`, and `profile-private`, `tailscaled` is running and the node is connected. Each section title needs at least one peer in it: `Exit Nodes` needs a peer that offers an exit node (or Mullvad), `Online` an online peer, and `Offline` an offline non-exit peer. The offline-exit check needs a peer that is both offline and an exit node. `drive-trayscale`'s tsharness provides `echo-down` for that.
 - For `offline-chrome`, Tailscale is not connected. Do not toggle the header switch to force that state.
 
 - **Window.** The frame exists after launch. Run `control-trayscale find --role window --name Trayscale --exact`. Output is `frame 'Trayscale'`.
-- **Connected sidebar.** Capture the tree. Run `control-trayscale snapshot --path .cursor/skills/verify-trayscale/artifacts/main-window/connected.tree.txt`. The file contains `label 'This machine'`, plus `label 'Exit Nodes'`, `label 'Online'`, and `label 'Offline'` for each section that has peers.
+- **Connected sidebar.** Capture the tree. Run `control-trayscale snapshot --path .agents/skills/verify-trayscale/artifacts/main-window/connected.tree.txt`. The file contains `label 'This machine'`, plus `label 'Exit Nodes'`, `label 'Online'`, and `label 'Offline'` for each section that has peers.
 - **Private profile.** In that same snapshot, `combo box 'profile@example.com'` is present.
-- **Offline toggle.** Hide offline peers. Run `control-trayscale action show-offline-peers`, then snapshot `.cursor/skills/verify-trayscale/artifacts/main-window/offline-hidden.tree.txt`. It has no `label 'Offline'` and no non-exit offline peer labels. An offline exit node stays under `Exit Nodes`. Run the action again. The next snapshot has `label 'Offline'` back.
+- **Offline toggle.** Hide offline peers. Run `control-trayscale action show-offline-peers`, then snapshot `.agents/skills/verify-trayscale/artifacts/main-window/offline-hidden.tree.txt`. It has no `label 'Offline'` and no non-exit offline peer labels. An offline exit node stays under `Exit Nodes`. Run the action again. The next snapshot has `label 'Offline'` back.
 - **Offline chrome.** Only when Tailscale is already down. The snapshot contains `label 'Not Connected'` and `label 'Tailscale is not connected'` and does not contain `label 'This machine'`. When Tailscale is logged out, it also contains `grouping 'Login Required'`, `label 'Tailscale must be authenticated before it can connect.'`, and `button 'Open Browser to Login'`. Do not click that button. The profile combo then shows `(None)`.
 - **Proof.** Keep the snapshot. The frame name `Trayscale` and the section labels (or `Not Connected`) are the end state.
 

@@ -22,7 +22,7 @@ Preconditions:
 
 - **Menu action.** Open Preferences. Run `control-trayscale action preferences`. Exit is 0.
 - **Dialog.** Wait for the dialog. Run `control-trayscale wait --role dialog --name Preferences --exact --timeout 10`. Output is `dialog 'Preferences'`.
-- **Groups.** Capture the tree. Run `control-trayscale snapshot --path .cursor/skills/verify-trayscale/artifacts/preferences/open.tree.txt`. Under `dialog 'Preferences'` the tree contains `grouping 'General'` and `grouping 'Taildrop'`.
+- **Groups.** Capture the tree. Run `control-trayscale snapshot --path .agents/skills/verify-trayscale/artifacts/preferences/open.tree.txt`. Under `dialog 'Preferences'` the tree contains `grouping 'General'` and `grouping 'Taildrop'`.
 - **Proof.** Keep `open.tree.txt`. It must contain `frame 'Trayscale'`, `dialog 'Preferences'`, `grouping 'General'`, and `grouping 'Taildrop'`.
 
 ## Gotchas

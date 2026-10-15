@@ -1,0 +1,18 @@
+#!/bin/sh
+# Exits 0 and prints FAKE only when the tailscaled on SOCKET is the
+# tsharness node: its control URL is a loopback testcontrol and its
+# tailnet is tsharness's tail-test.ts.net. Anything else prints REAL
+# (or UNKNOWN) and exits 1.
+SOCKET=${SOCKET:-/run/tailscale/tailscaled.sock}
+TS=${TS:-/tmp/tsharness/tailscale}
+[ -x "$TS" ] || { echo "UNKNOWN: $TS missing; start tsharness first"; exit 1; }
+prefs=$("$TS" --socket="$SOCKET" debug prefs 2>/dev/null) || { echo "UNKNOWN: no tailscaled answering on $SOCKET"; exit 1; }
+status=$("$TS" --socket="$SOCKET" status --json 2>/dev/null) || { echo "UNKNOWN: status failed on $SOCKET"; exit 1; }
+url=$(printf '%s' "$prefs" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("ControlURL",""))')
+suffix=$(printf '%s' "$status" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("CurrentTailnet") or {}).get("MagicDNSSuffix",""))')
+case $url in
+http://127.0.0.1:*) ;;
+*) echo "REAL: control URL is '$url', not a loopback testcontrol"; exit 1 ;;
+esac
+[ "$suffix" = tail-test.ts.net ] || { echo "REAL: tailnet suffix is '$suffix', not tail-test.ts.net"; exit 1; }
+echo "FAKE: control $url, tailnet $suffix"

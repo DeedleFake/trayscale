@@ -4,11 +4,11 @@ This directory is the maintained source for verifying the user-facing behavior o
 
 ## Baseline preconditions
 
-- Launch with `.cursor/skills/verify-trayscale/scripts/control-trayscale launch` from the repo root.
+- Launch with `.agents/skills/drive-trayscale/scripts/control-trayscale launch` from the repo root.
 - Run `control-trayscale doctor` and require `frame 'Trayscale'`, `bus_name_owned` true, and `gsettings_backend` equal to `memory`.
 - Never drive a Trayscale that this run did not start. The user may already have `trayscale --hide-window` on the session bus.
 - `tailscaled` is shared. Stay on read-only paths unless a feature file names a mutating action.
-- Put proof under `.cursor/skills/verify-trayscale/artifacts/<feature>/`.
+- Put proof under `.agents/skills/verify-trayscale/artifacts/<feature>/`.
 
 When Tailscale is connected, the sidebar shows `This machine`, `Exit Nodes`, `Online`, and `Offline`. A section title appears only when that section has peers, and offline peers also depend on `show-offline-peers` (default on). When it is not connected, the content page is `Not Connected` and those sections are absent. Feature files say which of those states they need.
 
@@ -46,5 +46,5 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [About](./about.md) covers the About dialog from the app menu action.
 - [Preferences](./preferences.md) covers the Preferences dialog and its General and Taildrop groups.
 - [Peer search](./peer-search.md) covers opening search from the toolbar button and from Ctrl+F, filtering, the empty result, and closing search.
-- [Peer page](./peer-page.md) covers a peer's page: hostname, Tailscale IPs, the Misc. group, and advertised routes.
+- [Peer page](./peer-page.md) covers a peer's page: hostname, Tailscale IPs, the Misc. group, advertised routes, and sending files and directories (tsharness only).
 - [Tray account](./tray-account.md) covers the tray Switch account submenu. Isolated launch cannot show it.

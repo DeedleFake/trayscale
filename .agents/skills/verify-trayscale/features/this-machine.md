@@ -24,7 +24,7 @@ Preconditions:
 - Tailscale is connected. If the snapshot has `Not Connected` instead of `grouping 'Tailscale IPs'`, stop and report `verified-unreachable` with that tree.
 
 - **Open self page.** After launch the self page is already visible. Capture it before any search moves the content page to a peer. `select` cannot bring it back: it highlights the row without changing the page. If a search moved it, close search after a search that matched nothing, or run `cleanup` and `launch` again.
-- **Identity.** Run `control-trayscale snapshot --path .cursor/skills/verify-trayscale/artifacts/this-machine/page.tree.txt`. The `panel` named after this machine's sidebar label has a hostname label and a MagicDNS label. On Tailscale's coordination server the MagicDNS label ends in `.ts.net.`; other control servers can use another name.
+- **Identity.** Run `control-trayscale snapshot --path .agents/skills/verify-trayscale/artifacts/this-machine/page.tree.txt`. The `panel` named after this machine's sidebar label has a hostname label and a MagicDNS label. On Tailscale's coordination server the MagicDNS label ends in `.ts.net.`; other control servers can use another name.
 - **IPs.** That snapshot contains `grouping 'Tailscale IPs'` and at least one `list item` that is not `No addresses.`. Each address has a `button` with the same name as the address.
 - **Options.** The snapshot contains `switch 'Advertise exit node'`, `switch 'Allow LAN access'`, `switch 'Accept routes'`, and `switch 'Accept DNS'`. Do not toggle them.
 - **Empty files and routes.** The snapshot contains `No incoming files.` and `No advertised routes.` unless the live node actually has files or routes.

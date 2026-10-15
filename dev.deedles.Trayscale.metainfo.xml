@@ -55,6 +55,20 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.21.0" date="2026-10-15">
+			<description>
+				<ul>
+					<li>Add a profile switching submenu to the tray menu.</li>
+					<li>Keep advertised routes when toggling the exit node.</li>
+					<li>Fix toggling the exit node sometimes switching to a different node than the one chosen.</li>
+					<li>Fix the Remove button on a peer's advertised routes replacing this machine's advertised routes. Peers no longer show it.</li>
+					<li>Fix the window freezing while waiting on tailscaled.</li>
+					<li>Fix launching Trayscale again while it is already running briefly starting a second tray icon and connection to tailscaled.</li>
+					<li>Switch GTK bindings from gotk4 to puregotk.</li>
+					<li>Bug fixes and performance improvements.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.20.0" date="2026-10-11">
 			<description>
 				<ul>

@@ -14,8 +14,8 @@ import (
 	"codeberg.org/puregotk/puregotk/v4/gio"
 	"codeberg.org/puregotk/puregotk/v4/glib"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
+	"deedles.dev/trayscale/internal/gobj"
 	"deedles.dev/trayscale/internal/gutil"
-	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
@@ -69,13 +69,13 @@ type SelfPage struct {
 	DERPLatencies        *adw.ExpanderRow
 	FilesList            *gtk.ListBox
 
-	addrModel  *listmodels.Model[netip.Addr]
-	routeModel *listmodels.Model[netip.Prefix]
-	fileModel  *listmodels.Model[apitype.WaitingFile]
+	addrModel  *gobj.List[netip.Addr]
+	routeModel *gobj.List[netip.Prefix]
+	fileModel  *gobj.List[apitype.WaitingFile]
 
 	incomingFiles int
 	exitNode      tailcfg.NodeView
-	latencyRows   rowManager[xiter.Pair[string, time.Duration]]
+	latencyRows   []*adw.ActionRow
 }
 
 func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
@@ -99,28 +99,18 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 		a.win.Toast(locale.Get("Copied FQDN to clipboard"))
 	})
 
-	page.addrModel = listmodels.NewModel(netip.Addr.String)
-	addrs := page.addrModel.NewSortListModel(netip.Addr.Compare)
-	page.addrModel.BindListBox(page.IPList, addrs, func(addr netip.Addr) *gtk.Widget {
+	page.addrModel = gobj.NewList(netip.Addr.Compare)
+	gobj.BindListBox(page.IPList, page.addrModel, func(addr netip.Addr) *gtk.Widget {
 		return a.copyRow(addr.String())
 	})
-	addrs.Unref() // The list box holds it.
 	setPlaceholder(page.IPList, locale.Get("No addresses."))
 
-	page.routeModel = listmodels.NewModel(netip.Prefix.String)
-	routes := page.routeModel.NewSortListModel(netip.Prefix.Compare)
-	page.routeModel.BindListBox(page.AdvertisedRoutesList, routes, func(route netip.Prefix) *gtk.Widget {
-		return page.routeRow(route)
-	})
-	routes.Unref()
+	page.routeModel = gobj.NewList(netip.Prefix.Compare)
+	gobj.BindListBox(page.AdvertisedRoutesList, page.routeModel, page.routeRow)
 	setPlaceholder(page.AdvertisedRoutesList, locale.Get("No advertised routes."))
 
-	page.fileModel = listmodels.NewModel(waitingFileKey)
-	files := page.fileModel.NewSortListModel(compareWaitingFiles)
-	page.fileModel.BindListBox(page.FilesList, files, func(file apitype.WaitingFile) *gtk.Widget {
-		return page.fileRow(file)
-	})
-	files.Unref()
+	page.fileModel = gobj.NewList(func(f1, f2 apitype.WaitingFile) int { return cmp.Compare(f1.Name, f2.Name) })
+	gobj.BindListBox(page.FilesList, page.fileModel, page.fileRow)
 	setPlaceholder(page.FilesList, locale.Get("No incoming files."))
 
 	gutil.Connect(page.ExitNodeRow, page.ExitNodeRow.ConnectActivated, func(adw.ActionRow) {
@@ -184,26 +174,6 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	})
 
 	type latencyEntry = xiter.Pair[string, time.Duration]
-	page.latencyRows = rowManager[latencyEntry]{
-		Parent: rowAdderParent{page.DERPLatencies},
-		New: func(lat latencyEntry) row[latencyEntry] {
-			label := gtk.NewLabel(lat.V2.String())
-
-			row := adw.NewActionRow()
-			row.SetTitle(lat.V1)
-			row.AddSuffix(&label.Widget)
-			label.Unref() // The row holds it; the closure below borrows it.
-
-			return &simpleRow[latencyEntry]{
-				W: &row.Widget,
-				U: func(lat latencyEntry) {
-					label.SetText(lat.V2.String())
-					row.SetTitle(lat.V1)
-				},
-			}
-		},
-	}
-
 	gutil.Connect(page.NetCheckButton, page.NetCheckButton.ConnectClicked, func(gtk.Button) {
 		r, dm, err := tsutil.NetCheck(context.TODO(), true)
 		if err != nil {
@@ -245,7 +215,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 			}
 		}
 		sortedLats := slices.SortedFunc(namedLats, func(p1, p2 latencyEntry) int { return cmp.Compare(p1.V2, p2.V2) })
-		page.latencyRows.Update(sortedLats)
+		page.setLatencies(sortedLats)
 	})
 }
 
@@ -362,7 +332,7 @@ func (page *SelfPage) Actions() *gio.SimpleActionGroup {
 }
 
 func (page *SelfPage) Destroy() {
-	page.latencyRows.Update(nil)
+	page.setLatencies(nil)
 	page.addrModel.Unref()
 	page.routeModel.Unref()
 	page.fileModel.Unref()
@@ -419,14 +389,14 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 		}
 	}
 
-	page.addrModel.Update(xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr))
-	page.routeModel.Update(routes)
+	page.addrModel.Set(slices.Collect(xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr)))
+	page.routeModel.Set(slices.Collect(routes))
 
 	return true
 }
 
 func (page *SelfPage) UpdateFiles(status *tsutil.FileStatus) bool {
-	page.fileModel.Update(slices.Values(status.Files))
+	page.fileModel.Set(status.Files)
 	page.incomingFiles = len(status.Files)
 	page.applyIncomingBadge()
 	return true
@@ -439,13 +409,23 @@ func (page *SelfPage) applyIncomingBadge() {
 	page.stackPage.SetBadgeNumber(uint32(page.incomingFiles))
 }
 
-func waitingFileKey(f apitype.WaitingFile) string { return f.Name }
-
-func compareWaitingFiles(f1, f2 apitype.WaitingFile) int {
-	return cmp.Or(
-		cmp.Compare(f1.Name, f2.Name),
-		cmp.Compare(f1.Size, f2.Size),
-	)
+// setLatencies replaces the DERP latency rows. A netcheck only runs on
+// request, so rebuilding them is cheaper than tracking which changed.
+func (page *SelfPage) setLatencies(lats []xiter.Pair[string, time.Duration]) {
+	for _, row := range page.latencyRows {
+		page.DERPLatencies.Remove(&row.Widget)
+		row.Unref()
+	}
+	page.latencyRows = page.latencyRows[:0]
+	for _, lat := range lats {
+		label := gtk.NewLabel(lat.V2.String())
+		row := adw.NewActionRow()
+		row.SetTitle(lat.V1)
+		row.AddSuffix(&label.Widget)
+		label.Unref()
+		page.DERPLatencies.AddRow(&row.Widget)
+		page.latencyRows = append(page.latencyRows, row)
+	}
 }
 
 func (page *SelfPage) updateExitNodeRow(status *tsutil.IPNStatus) {

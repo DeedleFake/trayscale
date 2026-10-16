@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 	"codeberg.org/puregotk/puregotk/v4/gobject"
 	"codeberg.org/puregotk/puregotk/v4/gobject/types"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
+	"deedles.dev/trayscale/internal/gobj"
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/locale"
@@ -56,8 +58,8 @@ type PeerPage struct {
 
 	sendFileAction *gio.SimpleAction
 
-	addrModel  *listmodels.Model[netip.Addr]
-	routeModel *listmodels.Model[netip.Prefix]
+	addrModel  *gobj.List[netip.Addr]
+	routeModel *gobj.List[netip.Prefix]
 }
 
 func NewPeerPage(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeView) *PeerPage {
@@ -127,21 +129,17 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 		return true
 	})
 
-	page.addrModel = listmodels.NewModel(netip.Addr.String)
-	addrs := page.addrModel.NewSortListModel(netip.Addr.Compare)
-	page.addrModel.BindListBox(page.IPList, addrs, func(addr netip.Addr) *gtk.Widget {
+	page.addrModel = gobj.NewList(netip.Addr.Compare)
+	gobj.BindListBox(page.IPList, page.addrModel, func(addr netip.Addr) *gtk.Widget {
 		return a.copyRow(addr.String())
 	})
-	addrs.Unref() // The list box holds it.
 	setPlaceholder(page.IPList, locale.Get("No addresses."))
 
-	page.routeModel = listmodels.NewModel(netip.Prefix.String)
-	routes := page.routeModel.NewSortListModel(netip.Prefix.Compare)
-	page.routeModel.BindListBox(page.AdvertisedRoutesList, routes, func(route netip.Prefix) *gtk.Widget {
+	page.routeModel = gobj.NewList(netip.Prefix.Compare)
+	gobj.BindListBox(page.AdvertisedRoutesList, page.routeModel, func(route netip.Prefix) *gtk.Widget {
 		row := routeActionRow(route)
 		return &row.Widget
 	})
-	routes.Unref()
 	setPlaceholder(page.AdvertisedRoutesList, locale.Get("No advertised routes."))
 
 	sw := rowSwitch(page.ExitNodeRow)
@@ -261,8 +259,8 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 		}
 	}
 
-	page.addrModel.Update(xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr))
-	page.routeModel.Update(routes)
+	page.addrModel.Set(slices.Collect(xiter.Map(xiter.V2(page.peer.Addresses().All()), netip.Prefix.Addr)))
+	page.routeModel.Set(slices.Collect(routes))
 
 	return true
 }

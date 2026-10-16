@@ -167,7 +167,7 @@ func pinAutoExitNode(ctx context.Context) error {
 	}
 
 	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
-		Prefs:           ipn.Prefs{ExitNodeID: id},
+		ExitNodeID:      id,
 		AutoExitNodeSet: true,
 		ExitNodeIDSet:   true,
 		ExitNodeIPSet:   true,

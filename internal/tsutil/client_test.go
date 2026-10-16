@@ -21,9 +21,12 @@ func TestSetUseExitNodeFallback(t *testing.T) {
 		wantRequests []string
 	}{
 		{
-			name:         "failed disable preserves the error",
-			wantError:    true,
-			wantRequests: []string{"POST /localapi/v0/set-use-exit-node-enabled?enabled=false"},
+			name:      "failed disable preserves the error",
+			wantError: true,
+			wantRequests: []string{
+				"GET /localapi/v0/prefs",
+				"POST /localapi/v0/set-use-exit-node-enabled?enabled=false",
+			},
 		},
 		{
 			name: "failed enable still selects a suggested exit node",
@@ -112,8 +115,10 @@ func TestExitNodeClearsStaleIP(t *testing.T) {
 type fakeExitNodeDaemon struct {
 	mu    sync.Mutex
 	prefs ipn.Prefs
-	// restore is applied when exit node use is turned on.
+	// restore is applied when exit node use is turned on. If it is
+	// zero, prior is restored the way the daemon does it.
 	restore ipn.Prefs
+	prior   tailcfg.StableNodeID
 }
 
 func (d *fakeExitNodeDaemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -122,9 +127,24 @@ func (d *fakeExitNodeDaemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch r.URL.Path {
 	case "/localapi/v0/set-use-exit-node-enabled":
-		if r.URL.Query().Get("enabled") == "true" {
+		if r.URL.Query().Get("enabled") != "true" {
+			d.prior = d.prefs.ExitNodeID
+			if d.prefs.AutoExitNode.IsSet() {
+				d.prior = tailcfg.StableNodeID(ipn.AutoExitNodePrefix + d.prefs.AutoExitNode)
+			}
+			d.prefs.ExitNodeID = ""
+			d.prefs.AutoExitNode = ""
+			return
+		}
+		if d.restore.ExitNodeID != "" {
 			d.prefs.ExitNodeID = d.restore.ExitNodeID
 			d.prefs.AutoExitNode = d.restore.AutoExitNode
+			return
+		}
+		d.prefs.ExitNodeID = d.prior
+		if expr, ok := ipn.ParseAutoExitNodeString(d.prior); ok {
+			d.prefs.AutoExitNode = expr
+			d.prefs.ExitNodeID = "auto:any"
 		}
 	case "/localapi/v0/suggest-exit-node":
 		json.NewEncoder(w).Encode(apitype.ExitNodeSuggestionResponse{ID: "suggested"})
@@ -195,6 +215,21 @@ func TestSetUseExitNodeSelection(t *testing.T) {
 			require.Equal(t, test.wantAuto, d.prefs.AutoExitNode)
 		})
 	}
+}
+
+func TestSetUseExitNodePreviousAfterAutomatic(t *testing.T) {
+	d := &fakeExitNodeDaemon{prefs: ipn.Prefs{ExitNodeID: "resolved", AutoExitNode: ipn.AnyExitNode}}
+	srv := &http.Server{Handler: d}
+	l := listenLocalAPI(t)
+	go srv.Serve(l)
+	defer srv.Close()
+
+	require.NoError(t, SetUseExitNode(t.Context(), false, SelectPreviousExitNode))
+	require.NoError(t, SetUseExitNode(t.Context(), true, SelectPreviousExitNode))
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	require.Equal(t, tailcfg.StableNodeID("resolved"), d.prefs.ExitNodeID)
+	require.False(t, d.prefs.AutoExitNode.IsSet())
 }
 
 func TestParseExitNodeSelection(t *testing.T) {

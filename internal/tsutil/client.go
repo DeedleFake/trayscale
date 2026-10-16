@@ -128,10 +128,14 @@ func SetUseExitNode(ctx context.Context, use bool, sel ExitNodeSelection) error 
 		return errors.Join(err, useSuggestedExitNode(ctx))
 	}
 
-	useErr := localClient.SetUseExitNode(ctx, use)
 	if !use {
-		return useErr
+		if err := pinAutoExitNode(ctx); err != nil {
+			slog.Error("pin automatic exit node before disabling", "err", err)
+		}
+		return localClient.SetUseExitNode(ctx, false)
 	}
+
+	useErr := localClient.SetUseExitNode(ctx, true)
 	if useErr != nil {
 		suggestErr := useSuggestedExitNode(ctx)
 		if suggestErr == nil {
@@ -141,6 +145,37 @@ func SetUseExitNode(ctx context.Context, use bool, sel ExitNodeSelection) error 
 	}
 
 	return keepPreviousExitNode(ctx)
+}
+
+// pinAutoExitNode replaces automatic exit node selection with the node
+// that it currently resolves to. The daemon remembers automatic mode,
+// rather than the node, as the prior exit node when exit node use is
+// turned off, so without this, turning it back on with
+// [SelectPreviousExitNode] can't get the node that was in use back.
+func pinAutoExitNode(ctx context.Context) error {
+	prefs, err := Prefs(ctx)
+	if err != nil {
+		return fmt.Errorf("get prefs: %w", err)
+	}
+	id := prefs.ExitNodeID
+	if !prefs.AutoExitNode.IsSet() || id == "" {
+		return nil
+	}
+	if _, ok := ipn.ParseAutoExitNodeString(id); ok {
+		// Not resolved yet, so there's no node to remember.
+		return nil
+	}
+
+	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{
+		Prefs:           ipn.Prefs{ExitNodeID: id},
+		AutoExitNodeSet: true,
+		ExitNodeIDSet:   true,
+		ExitNodeIPSet:   true,
+	})
+	if err != nil {
+		return fmt.Errorf("edit prefs: %w", err)
+	}
+	return nil
 }
 
 func useAutoExitNode(ctx context.Context) error {

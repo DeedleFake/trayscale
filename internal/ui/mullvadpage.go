@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"cmp"
 	"context"
 	_ "embed"
@@ -226,6 +228,10 @@ func (page *MullvadPage) applySearch() {
 	page.LocationList.InvalidateSort()
 }
 
+// expanderRevealDelay is long enough for an AdwExpanderRow's reveal
+// animation to finish.
+const expanderRevealDelay = 300 * time.Millisecond
+
 // Reveal expands the location containing the given exit node and
 // scrolls it into view.
 func (page *MullvadPage) Reveal(id tailcfg.StableNodeID) {
@@ -237,16 +243,22 @@ func (page *MullvadPage) Reveal(id tailcfg.StableNodeID) {
 		page.SearchEntry.SetText("")
 		page.setQuery("")
 	}
-	if loc := page.locations[node.country]; loc != nil {
-		loc.SetExpanded(true)
-	}
-	// The row can't take focus, which is what scrolls it into view,
-	// until the newly visible page and expander have been mapped.
-	gutil.IdleAdd(func() {
+	focus := func() {
 		if page.exitNodes[id] == node {
 			node.row.GrabFocus()
 		}
-	})
+	}
+	if loc := page.locations[node.country]; loc != nil && !node.flat && !loc.GetExpanded() {
+		loc.SetExpanded(true)
+		// Focusing the row is what scrolls it into view, but while
+		// the expander's reveal animation runs, the row has no real
+		// size yet, so focusing it then only scrolls to the expander.
+		gutil.TimeoutAdd(expanderRevealDelay, focus)
+		return
+	}
+	// The row can't take focus until the newly visible page has been
+	// mapped.
+	gutil.IdleAdd(focus)
 }
 
 func (page *MullvadPage) setNodeTitle(node *mullvadExitNodeRow, searching bool) {

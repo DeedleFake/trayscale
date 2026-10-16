@@ -28,7 +28,7 @@ Preconditions:
 - **Identity.** Run `control-trayscale snapshot --path .agents/skills/verify-trayscale/artifacts/this-machine/page.tree.txt`. The `panel` named after this machine's sidebar label has a hostname label and a MagicDNS label. On Tailscale's coordination server the MagicDNS label ends in `.ts.net.`; other control servers can use another name.
 - **IPs.** That snapshot contains `grouping 'Tailscale IPs'` and at least one `list item` that is not `No addresses.`. Each address has a `button` with the same name as the address.
 - **Options.** The snapshot contains `switch 'Advertise exit node'`, `switch 'Allow LAN access'`, `switch 'Accept routes'`, and `switch 'Accept DNS'`. Do not toggle them.
-- **Exit node.** The snapshot contains an `Exit node` row whose subtitle is `None` or the node in use. Do not activate it here; [Exit node](./exit-node.md) covers that.
+- **Exit node.** The snapshot contains `list item 'Exit node'` whose second label is `None` or the node in use. Do not activate it here; [Exit node](./exit-node.md) covers that.
 - **Empty files and routes.** The snapshot contains `No incoming files.` and `No advertised routes.` unless the live node actually has files or routes.
 - **Netcheck.** The snapshot contains `grouping 'Network Check'`, `label 'Last run'`, and `label 'Never'` if no check has run in this session.
 - **Proof.** Keep `page.tree.txt`. It must include `frame 'Trayscale'`, `grouping 'Tailscale IPs'`, and the four option switches.

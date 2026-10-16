@@ -110,6 +110,7 @@ AT-SPI handles:
 | `No matching peers` | `grouping` | Sidebar placeholder when a search matches nothing |
 | `This machine`, `Exit Nodes`, `Online`, `Offline` | `label` | Sidebar section titles when connected |
 | `Tailscale IPs`, `Options`, `Files`, `Advertised Routes`, `Network Check` | `grouping` | This-machine page |
+| `Exit node` | `list item` | First row in the self page `Options`. Its second `label` is the subtitle: `None`, the peer name, the Mullvad location (for example `🇸🇪 Stockholm, Sweden`), or an IP. When the node has a page the row also has an `image ''` child (the arrow). It exposes no AT-SPI action in either state, so `click` cannot activate it; use a pointer click |
 | `Advertise exit node` and the other option rows | `switch` | Read only |
 | `Tailscale IPs`, `Misc.`, `Advertised Routes` | `grouping` | Peer page |
 | `Use as exit node` | `switch` | Peer page of an exit node. Read only |
@@ -117,6 +118,7 @@ AT-SPI handles:
 | `Trayscale`, `DeedleFake` | `label` | Inside the About dialog |
 | `Preferences` | `dialog` | After `action preferences` |
 | `General`, `Taildrop` | `grouping` | Inside Preferences |
+| `Exit Node` | `combo box` | Inside `General`. The current choice is a `label` (`Previous exit node` or `Recommended exit node`) inside its `list item ''`. It exposes no AT-SPI action, so `click` cannot open it |
 | (empty) | `toggle button` | Page menu button in the content header: `click --role "toggle button" --name "" --exact --index 1` (index 0 is the main menu). Insensitive when no peer page is visible |
 | (empty) | `menu item` | Page menu items, in order: index 0 `Copy FQDN`, 1 `Send file...`, 2 `Send directory...`. Need `snapshot --max-depth 60` to see |
 | `Select dir(s) to send to <host>` / `Select file(s) ...` | `dialog` | File chooser from the send items. `press --key /` opens its location field (`text ''`); `fill --role text --name "" --exact --value <path>`; then `click --role button --name Open` (file) or `Select` (directory) |

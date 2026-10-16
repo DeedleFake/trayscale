@@ -1,199 +1,203 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!-- Created with Cambalache 1.0 -->
-<interface>
+<interface domain="trayscale">
   <!-- interface-name selfpage.ui -->
   <requires lib="gtk" version="4.18"/>
   <requires lib="libadwaita" version="1.6"/>
-  <object class="AdwStatusPage" id="Page">
-    <child>
-      <object class="AdwClamp">
+  <template class="TrayscaleSelfPage" parent="AdwBin">
+    <property name="child">
+      <object class="AdwStatusPage" id="Page">
         <child>
-          <object class="GtkBox">
-            <property name="orientation">vertical</property>
-            <property name="spacing">12</property>
+          <object class="AdwClamp">
             <child>
-              <object class="AdwPreferencesGroup" id="IPGroup">
-                <property name="title" translatable="yes">Tailscale IPs</property>
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="spacing">12</property>
                 <child>
-                  <object class="GtkListBox" id="IPList">
-                    <property name="css-classes">boxed-list</property>
-                    <property name="selection-mode">none</property>
+                  <object class="AdwPreferencesGroup" id="IPGroup">
+                    <property name="title" translatable="yes">Tailscale IPs</property>
+                    <child>
+                      <object class="GtkListBox" id="IPList">
+                        <property name="css-classes">boxed-list</property>
+                        <property name="selection-mode">none</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwPreferencesGroup" id="OptionsGroup">
-                <property name="title" translatable="yes">Options</property>
                 <child>
-                  <object class="AdwActionRow" id="ExitNodeRow">
-                    <property name="subtitle" translatable="yes">None</property>
-                    <property name="title" translatable="yes">Exit node</property>
-                    <child type="suffix">
-                      <object class="GtkImage" id="ExitNodeIcon">
-                        <property name="icon-name">go-next-symbolic</property>
+                  <object class="AdwPreferencesGroup" id="OptionsGroup">
+                    <property name="title" translatable="yes">Options</property>
+                    <child>
+                      <object class="AdwActionRow" id="ExitNodeRow">
+                        <property name="subtitle" translatable="yes">None</property>
+                        <property name="title" translatable="yes">Exit node</property>
+                        <child type="suffix">
+                          <object class="GtkImage" id="ExitNodeIcon">
+                            <property name="icon-name">go-next-symbolic</property>
+                            <property name="visible">False</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwSwitchRow" id="AdvertiseExitNodeRow">
+                        <property name="subtitle" translatable="yes">Allow this machine to be used as an exit node</property>
+                        <property name="title" translatable="yes">Advertise exit node</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwSwitchRow" id="AllowLANAccessRow">
+                        <property name="subtitle" translatable="yes">Bypass Tailscale routing for local network access</property>
+                        <property name="title" translatable="yes">Allow LAN access</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwSwitchRow" id="AcceptRoutesRow">
+                        <property name="subtitle" translatable="yes">Use exported routes from other machines</property>
+                        <property name="title" translatable="yes">Accept routes</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwSwitchRow" id="AcceptDNSRow">
+                        <property name="subtitle" translatable="yes">Use Tailscale DNS configuration</property>
+                        <property name="title" translatable="yes">Accept DNS</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwPreferencesGroup" id="FilesGroup">
+                    <property name="title" translatable="yes">Files</property>
+                    <child>
+                      <object class="GtkListBox" id="FilesList">
+                        <property name="css-classes">boxed-list</property>
+                        <property name="selection-mode">none</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
+                    <property name="header-suffix">
+                      <object class="GtkButton" id="AdvertiseRouteButton">
+                        <property name="has-frame">False</property>
+                        <property name="icon-name">list-add-symbolic</property>
+                      </object>
+                    </property>
+                    <property name="title" translatable="yes">Advertised Routes</property>
+                    <child>
+                      <object class="GtkListBox" id="AdvertisedRoutesList">
+                        <property name="css-classes">boxed-list</property>
+                        <property name="selection-mode">none</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwPreferencesGroup" id="NetCheckGroup">
+                    <property name="header-suffix">
+                      <object class="GtkButton" id="NetCheckButton">
+                        <property name="has-frame">False</property>
+                        <property name="icon-name">view-refresh-symbolic</property>
+                      </object>
+                    </property>
+                    <property name="title" translatable="yes">Network Check</property>
+                    <child>
+                      <object class="AdwActionRow" id="LastNetCheckRow">
+                        <property name="title" translatable="yes">Last run</property>
+                        <child>
+                          <object class="GtkLabel" id="LastNetCheck">
+                            <property name="label" translatable="yes">Never</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="UDPRow">
+                        <property name="title" translatable="yes">UDP</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="UDP"/>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="IPv4Row">
+                        <property name="title" translatable="yes">IPv4</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="IPv4Icon"/>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="IPv4Addr"/>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="IPv6Row">
+                        <property name="title" translatable="yes">IPv6</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="IPv6Icon"/>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="IPv6Addr"/>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="UPnPRow">
+                        <property name="title" translatable="yes">UPnP</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="UPnP"/>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="PMPRow">
+                        <property name="title" translatable="yes">NAT port mapping protocol</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="PMP"/>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="PCPRow">
+                        <property name="title" translatable="yes">Port control protocol</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="PCP"/>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="PreferredDERPRow">
+                        <property name="title" translatable="yes">Preferred DERP</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkLabel" id="PreferredDERP">
+                            <property name="label" translatable="yes">Never</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwExpanderRow" id="DERPLatencies">
+                        <property name="title" translatable="yes">DERP Latencies</property>
                         <property name="visible">False</property>
                       </object>
                     </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwSwitchRow" id="AdvertiseExitNodeRow">
-                    <property name="subtitle" translatable="yes">Allow this machine to be used as an exit node</property>
-                    <property name="title" translatable="yes">Advertise exit node</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwSwitchRow" id="AllowLANAccessRow">
-                    <property name="subtitle" translatable="yes">Bypass Tailscale routing for local network access</property>
-                    <property name="title" translatable="yes">Allow LAN access</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwSwitchRow" id="AcceptRoutesRow">
-                    <property name="subtitle" translatable="yes">Use exported routes from other machines</property>
-                    <property name="title" translatable="yes">Accept routes</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwSwitchRow" id="AcceptDNSRow">
-                    <property name="subtitle" translatable="yes">Use Tailscale DNS configuration</property>
-                    <property name="title" translatable="yes">Accept DNS</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwPreferencesGroup" id="FilesGroup">
-                <property name="title" translatable="yes">Files</property>
-                <child>
-                  <object class="GtkListBox" id="FilesList">
-                    <property name="css-classes">boxed-list</property>
-                    <property name="selection-mode">none</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwPreferencesGroup" id="AdvertisedRoutesGroup">
-                <property name="header-suffix">
-                  <object class="GtkButton" id="AdvertiseRouteButton">
-                    <property name="has-frame">False</property>
-                    <property name="icon-name">list-add-symbolic</property>
-                  </object>
-                </property>
-                <property name="title" translatable="yes">Advertised Routes</property>
-                <child>
-                  <object class="GtkListBox" id="AdvertisedRoutesList">
-                    <property name="css-classes">boxed-list</property>
-                    <property name="selection-mode">none</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwPreferencesGroup" id="NetCheckGroup">
-                <property name="header-suffix">
-                  <object class="GtkButton" id="NetCheckButton">
-                    <property name="has-frame">False</property>
-                    <property name="icon-name">view-refresh-symbolic</property>
-                  </object>
-                </property>
-                <property name="title" translatable="yes">Network Check</property>
-                <child>
-                  <object class="AdwActionRow" id="LastNetCheckRow">
-                    <property name="title" translatable="yes">Last run</property>
                     <child>
-                      <object class="GtkLabel" id="LastNetCheck">
-                        <property name="label" translatable="yes">Never</property>
+                      <object class="AdwActionRow" id="CaptivePortalRow">
+                        <property name="activatable-widget">CaptivePortal</property>
+                        <property name="title" translatable="yes">Captive portal detected</property>
+                        <property name="visible">False</property>
+                        <child>
+                          <object class="GtkImage" id="CaptivePortal"/>
+                        </child>
                       </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="UDPRow">
-                    <property name="title" translatable="yes">UDP</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkImage" id="UDP"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="IPv4Row">
-                    <property name="title" translatable="yes">IPv4</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkImage" id="IPv4Icon"/>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="IPv4Addr"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="IPv6Row">
-                    <property name="title" translatable="yes">IPv6</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkImage" id="IPv6Icon"/>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="IPv6Addr"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="UPnPRow">
-                    <property name="title" translatable="yes">UPnP</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkImage" id="UPnP"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="PMPRow">
-                    <property name="title" translatable="yes">NAT port mapping protocol</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkImage" id="PMP"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="PCPRow">
-                    <property name="title" translatable="yes">Port control protocol</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkImage" id="PCP"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="PreferredDERPRow">
-                    <property name="title" translatable="yes">Preferred DERP</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkLabel" id="PreferredDERP">
-                        <property name="label" translatable="yes">Never</property>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwExpanderRow" id="DERPLatencies">
-                    <property name="title" translatable="yes">DERP Latencies</property>
-                    <property name="visible">False</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwActionRow" id="CaptivePortalRow">
-                    <property name="activatable-widget">CaptivePortal</property>
-                    <property name="title" translatable="yes">Captive portal detected</property>
-                    <property name="visible">False</property>
-                    <child>
-                      <object class="GtkImage" id="CaptivePortal"/>
                     </child>
                   </object>
                 </child>
@@ -202,6 +206,6 @@
           </object>
         </child>
       </object>
-    </child>
-  </object>
+    </property>
+  </template>
 </interface>

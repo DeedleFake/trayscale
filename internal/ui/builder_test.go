@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"deedles.dev/trayscale/internal/gutil"
+	"deedles.dev/trayscale/internal/tsutil"
 	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
 )
@@ -38,8 +39,8 @@ func TestFillFromBuilder(t *testing.T) {
 		fill(t, func() { NewPeerPage(&App{}, status, peer).Destroy() })
 	})
 	t.Run("SelfPage", func(t *testing.T) {
-		var page SelfPage
-		fill(t, func() { gutil.FillFromUI(&page, selfPageXML); gutil.UnrefFields(&page) })
+		status := &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()}
+		fill(t, func() { NewSelfPage(&App{}, status).Destroy() })
 	})
 	t.Run("MullvadPage", func(t *testing.T) {
 		var page MullvadPage

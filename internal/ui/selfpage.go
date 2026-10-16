@@ -27,7 +27,15 @@ import (
 //go:embed selfpage.ui
 var selfPageXML string
 
+var selfPageClass = gobj.Widget[SelfPage](gobj.WidgetSpec{
+	Name:     "TrayscaleSelfPage",
+	Parent:   adw.BinGLibType,
+	Template: selfPageXML,
+})
+
 type SelfPage struct {
+	gobj.Base
+
 	app       *App
 	stackPage *adw.ViewStackPage
 	peer      tailcfg.NodeView
@@ -79,10 +87,9 @@ type SelfPage struct {
 }
 
 func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
-	var page SelfPage
-	gutil.FillFromUI(&page, selfPageXML)
+	page := selfPageClass.New()
 	page.init(a, status)
-	return &page
+	return page
 }
 
 func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
@@ -323,21 +330,20 @@ func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
 	return &row.Widget
 }
 
-func (page *SelfPage) Widget() *gtk.Widget {
-	return &page.Page.Widget
-}
-
 func (page *SelfPage) Actions() *gio.SimpleActionGroup {
 	return page.actions
 }
 
 func (page *SelfPage) Destroy() {
+	page.Widget().Unref()
+}
+
+func (page *SelfPage) Dispose() {
 	page.setLatencies(nil)
 	page.addrModel.Unref()
 	page.routeModel.Unref()
 	page.fileModel.Unref()
 	page.actions.Unref()
-	gutil.UnrefFields(page)
 }
 
 func (page *SelfPage) Bind(stackPage *adw.ViewStackPage) {

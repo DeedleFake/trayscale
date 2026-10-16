@@ -2,6 +2,7 @@ package gobj
 
 import (
 	"cmp"
+	"net/netip"
 	"slices"
 	"strconv"
 	"testing"
@@ -98,5 +99,27 @@ func TestListFreesItems(t *testing.T) {
 	l.Unref()
 	if got := liveItems() - base; got != 0 {
 		t.Errorf("%d items live after dropping the list", got)
+	}
+}
+
+// BenchmarkListSet measures the update the UI performs on every status
+// change, with the list already holding every value.
+func BenchmarkListSet(b *testing.B) {
+	initGTK()
+	for _, n := range []int{100, 1000, 5478} {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			l := NewList(netip.Prefix.Compare)
+			defer l.Unref()
+			prefixes := make([]netip.Prefix, 0, n)
+			for i := range n {
+				addr := netip.AddrFrom4([4]byte{10, byte(i >> 16), byte(i >> 8), byte(i)})
+				prefixes = append(prefixes, netip.PrefixFrom(addr, 32))
+			}
+			l.Set(prefixes)
+
+			for b.Loop() {
+				l.Set(prefixes)
+			}
+		})
 	}
 }

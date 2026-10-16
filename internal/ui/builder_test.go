@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"deedles.dev/trayscale/internal/gutil"
+	"tailscale.com/ipn"
+	"tailscale.com/tailcfg"
 )
 
 // TestFillFromBuilder builds every .ui file into its Go struct so that
@@ -30,8 +32,10 @@ func TestFillFromBuilder(t *testing.T) {
 		fill(t, func() { offlinePageClass.New().Destroy() })
 	})
 	t.Run("PeerPage", func(t *testing.T) {
-		var page PeerPage
-		fill(t, func() { gutil.FillFromUI(&page, peerPageXML); gutil.UnrefFields(&page) })
+		peer := layoutPeer(t, "peer", "peer", true, false, false)
+		status := layoutStatus([]tailcfg.NodeView{peer})
+		status.Prefs = ipn.NewPrefs().View()
+		fill(t, func() { NewPeerPage(&App{}, status, peer).Destroy() })
 	})
 	t.Run("SelfPage", func(t *testing.T) {
 		var page SelfPage

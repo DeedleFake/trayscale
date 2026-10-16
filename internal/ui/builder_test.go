@@ -27,8 +27,7 @@ func TestFillFromBuilder(t *testing.T) {
 		fill(t, func() { gutil.FillFromUI(&win, menuXML, mainWindowXML); gutil.UnrefFields(&win) })
 	})
 	t.Run("OfflinePage", func(t *testing.T) {
-		var page OfflinePage
-		fill(t, func() { gutil.FillFromUI(&page, offlinePageXML); gutil.UnrefFields(&page) })
+		fill(t, func() { offlinePageClass.New().Destroy() })
 	})
 	t.Run("PeerPage", func(t *testing.T) {
 		var page PeerPage

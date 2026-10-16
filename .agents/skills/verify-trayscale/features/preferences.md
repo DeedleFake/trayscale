@@ -1,11 +1,11 @@
 # Preferences
 
-Preferences is a dialog with a General group (tray icon and polling interval) and a Taildrop group (auto-save received files).
+Preferences is a dialog with a General group (tray icon, polling interval, and exit node selection) and a Taildrop group (auto-save received files).
 
 ## Sub-features
 
 - `prefs-open` opens the Preferences dialog from the app menu action.
-- `prefs-general` shows a `General` group.
+- `prefs-general` shows a `General` group, including the `Exit Node` combo row. See [Exit node](./exit-node.md) for what it does.
 - `prefs-taildrop` shows a `Taildrop` group.
 
 ## How to get to it (user POV)

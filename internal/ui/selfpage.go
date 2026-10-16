@@ -36,6 +36,8 @@ type SelfPage struct {
 	Page                 *adw.StatusPage
 	IPList               *gtk.ListBox
 	OptionsGroup         *adw.PreferencesGroup
+	ExitNodeRow          *adw.ActionRow
+	ExitNodeIcon         *gtk.Image
 	AdvertiseExitNodeRow *adw.SwitchRow
 	AllowLANAccessRow    *adw.SwitchRow
 	AcceptRoutesRow      *adw.SwitchRow
@@ -72,6 +74,7 @@ type SelfPage struct {
 	fileModel  *listmodels.Model[apitype.WaitingFile]
 
 	incomingFiles int
+	exitNode      tailcfg.NodeView
 	latencyRows   rowManager[xiter.Pair[string, time.Duration]]
 }
 
@@ -119,6 +122,10 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	})
 	files.Unref()
 	setPlaceholder(page.FilesList, locale.Get("No incoming files."))
+
+	gutil.Connect(page.ExitNodeRow, page.ExitNodeRow.ConnectActivated, func(adw.ActionRow) {
+		page.showExitNode()
+	})
 
 	page.connectSwitch(page.AdvertiseExitNodeRow, "advertise exit node", func(s bool) error {
 		if s {
@@ -396,6 +403,7 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 	page.Page.SetTitle(page.peer.Hostinfo().Hostname())
 	page.Page.SetDescription(page.peer.Name())
 
+	page.updateExitNodeRow(status)
 	setSwitch(page.AdvertiseExitNodeRow, status.Prefs.AdvertisesExitNode())
 	setSwitch(page.AllowLANAccessRow, status.Prefs.ExitNodeAllowLANAccess())
 	setSwitch(page.AcceptRoutesRow, status.Prefs.RouteAll())
@@ -438,4 +446,34 @@ func compareWaitingFiles(f1, f2 apitype.WaitingFile) int {
 		cmp.Compare(f1.Name, f2.Name),
 		cmp.Compare(f1.Size, f2.Size),
 	)
+}
+
+func (page *SelfPage) updateExitNodeRow(status *tsutil.IPNStatus) {
+	page.exitNode = status.ExitNode()
+	switch {
+	case page.exitNode.Valid() && tsutil.IsMullvad(page.exitNode):
+		page.ExitNodeRow.SetSubtitle(mullvadLongLocationName(page.exitNode.Hostinfo().Location()))
+	case page.exitNode.Valid():
+		page.ExitNodeRow.SetSubtitle(peerName(page.exitNode))
+	case status.Prefs.ExitNodeIP().IsValid():
+		page.ExitNodeRow.SetSubtitle(status.Prefs.ExitNodeIP().String())
+	default:
+		page.ExitNodeRow.SetSubtitle(locale.Get("None"))
+	}
+
+	// Sharee nodes have no page to go to.
+	activatable := page.exitNode.Valid() && !tsutil.IsShareeNode(page.exitNode)
+	page.ExitNodeRow.SetActivatable(activatable)
+	page.ExitNodeIcon.SetVisible(activatable)
+}
+
+func (page *SelfPage) showExitNode() {
+	if !page.exitNode.Valid() || page.app.win == nil {
+		return
+	}
+	if tsutil.IsMullvad(page.exitNode) {
+		page.app.win.ShowMullvadNode(page.exitNode.StableID())
+		return
+	}
+	page.app.win.ShowPage(string(page.exitNode.StableID()))
 }

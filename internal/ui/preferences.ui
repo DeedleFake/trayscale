@@ -41,6 +41,7 @@
                     </items>
                   </object>
                 </property>
+                <property name="subtitle" translatable="yes">How an exit node is chosen when turning it on from the menu</property>
                 <property name="title" translatable="yes">Exit Node</property>
               </object>
             </child>

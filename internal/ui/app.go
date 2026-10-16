@@ -458,9 +458,9 @@ func (a *App) onAppActivate(ctx context.Context) {
 	gutil.Connect(a.win.MainWindow, a.win.MainWindow.ConnectCloseRequest, func(gtk.Window) bool {
 		win := a.win
 		a.win = nil
-		// The window is destroyed after this returns; release the
-		// window's Go-side references once the main loop is idle.
-		gutil.IdleAdd(win.Destroy)
+		// The window is destroyed after this returns; drop ours once
+		// the main loop is idle.
+		gutil.IdleAdd(win.Widget().Unref)
 		return false
 	})
 

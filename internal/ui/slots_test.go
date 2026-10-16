@@ -46,11 +46,11 @@ func slotsInUse(t *testing.T, n, m int) (used int) {
 		}
 		for _, p := range peers {
 			stack.Remove(p.Widget())
-			p.Destroy()
+			p.Widget().Unref()
 		}
 		if mullvad != nil {
 			stack.Remove(mullvad.Widget())
-			mullvad.Destroy()
+			mullvad.Widget().Unref()
 		}
 		// Shared callbacks made on first use stay, so wait for the
 		// main loop to go idle rather than for the count to return.
@@ -146,7 +146,7 @@ func BenchmarkMullvadPage(b *testing.B) {
 		}
 		page.applySearch()
 		stack.Remove(page.Widget())
-		page.Destroy()
+		page.Widget().Unref()
 	}
 }
 

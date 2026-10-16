@@ -59,7 +59,7 @@ func TestPeerPageLeaks(t *testing.T) {
 		}
 		stack.Remove(page.Widget())
 		vp.Unref()
-		page.Destroy()
+		page.Widget().Unref()
 	}
 
 	const warmup, n, objs = 5, 200, 6
@@ -102,7 +102,7 @@ func TestSelfPageLeaks(t *testing.T) {
 		}
 		stack.Remove(page.Widget())
 		vp.Unref()
-		page.Destroy()
+		page.Widget().Unref()
 	}
 
 	const warmup, n, objs = 5, 200, 5
@@ -171,7 +171,7 @@ func TestMullvadPageLeaks(t *testing.T) {
 
 		stack.Remove(page.Widget())
 		vp.Unref()
-		page.Destroy()
+		page.Widget().Unref()
 	}
 
 	const warmup, n = 5, 100

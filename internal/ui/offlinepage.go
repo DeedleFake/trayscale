@@ -34,10 +34,6 @@ func (page *OfflinePage) Bind(stackPage *adw.ViewStackPage) {
 	stackPage.SetIconName(page.Page.GetIconName())
 }
 
-func (page *OfflinePage) Destroy() {
-	page.Widget().Unref()
-}
-
 func (page *OfflinePage) Update(status tsutil.Status) bool {
 	if status, ok := status.(*tsutil.IPNStatus); ok {
 		page.NeedsAuthGroup.SetVisible(status.NeedsAuth())

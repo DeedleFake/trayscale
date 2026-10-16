@@ -15,6 +15,7 @@ import (
 	"codeberg.org/puregotk/puregotk/v4/gio"
 	"codeberg.org/puregotk/puregotk/v4/glib"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
+	"deedles.dev/trayscale/internal/gobj"
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/listmodels"
 	"deedles.dev/trayscale/internal/locale"
@@ -33,10 +34,20 @@ var (
 	menuXML string
 )
 
+// The main window's template carries menu.ui's menus, which its menu
+// buttons refer to by id.
+var mainWindowClass = gobj.Widget[MainWindow](gobj.WidgetSpec{
+	Name:     "TrayscaleMainWindow",
+	Parent:   adw.ApplicationWindowGLibType,
+	Template: strings.Replace(mainWindowXML, "</interface>", menuXML[strings.Index(menuXML, "<menu "):strings.LastIndex(menuXML, "</interface>")]+"</interface>", 1),
+})
+
 type MainWindow struct {
+	gobj.Base
+
 	app *App
 
-	MainWindow       *adw.ApplicationWindow
+	MainWindow       *adw.ApplicationWindow `gtk:"-"`
 	ToastOverlay     *adw.ToastOverlay
 	SplitView        *adw.NavigationSplitView
 	StatusSwitch     *gtk.Switch
@@ -64,16 +75,15 @@ type MainWindow struct {
 }
 
 func NewMainWindow(app *App) *MainWindow {
-	win := MainWindow{
-		app:         app,
-		pages:       make(map[string]Page),
-		stackPages:  make(map[string]*adw.ViewStackPage),
-		showOffline: true,
-	}
+	win := mainWindowClass.New()
+	win.MainWindow = adw.ApplicationWindowNewFromInternalPtr(win.GoPointer())
+	win.app = app
+	win.pages = make(map[string]Page)
+	win.stackPages = make(map[string]*adw.ViewStackPage)
+	win.showOffline = true
 	if app.settings != nil {
 		win.showOffline = app.settings.GetBoolean("show-offline-peers")
 	}
-	gutil.FillFromUI(&win, menuXML, mainWindowXML)
 
 	win.MainWindow.SetApplication(&app.app.Application)
 
@@ -155,7 +165,7 @@ func NewMainWindow(app *App) *MainWindow {
 
 	win.initPeerSearch()
 
-	return &win
+	return win
 }
 
 func (win *MainWindow) initPeerSearch() {
@@ -229,7 +239,7 @@ func (win *MainWindow) removePage(name string, page Page) {
 		vp.Unref()
 		delete(win.stackPages, name)
 	}
-	page.Destroy()
+	page.Widget().Unref()
 
 	if !reselect {
 		return
@@ -241,11 +251,11 @@ func (win *MainWindow) removePage(name string, page Page) {
 	win.PeersStack.SetVisibleChildName(remaining[0].name)
 }
 
-// Destroy releases the window's pages and Go-side references after the
-// window has been closed.
-func (win *MainWindow) Destroy() {
+// Dispose releases the window's pages and Go-side references when the
+// window is destroyed.
+func (win *MainWindow) Dispose() {
 	for _, page := range win.pages {
-		page.Destroy()
+		page.Widget().Unref()
 	}
 	clear(win.pages)
 	for _, vp := range win.stackPages {
@@ -254,7 +264,6 @@ func (win *MainWindow) Destroy() {
 	clear(win.stackPages)
 	win.profileModel.Unref()
 	win.profileSortModel.Unref()
-	gutil.UnrefFields(win)
 }
 
 func (win *MainWindow) Update(status tsutil.Status) {

@@ -89,7 +89,7 @@ func TestSelfPageExitNodeRow(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			page := NewSelfPage(&App{}, &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()})
-			defer page.Destroy()
+			defer page.Widget().Unref()
 
 			page.updateExitNodeRow(test.status)
 			require.Equal(t, test.wantSubtitle, page.ExitNodeRow.GetSubtitle())

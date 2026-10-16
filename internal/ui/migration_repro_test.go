@@ -72,7 +72,6 @@ func (p *stackStub) Widget() *gtk.Widget             { return p.w }
 func (p *stackStub) Actions() *gio.SimpleActionGroup { return nil }
 func (p *stackStub) Bind(vp *adw.ViewStackPage)      { p.page = vp }
 func (p *stackStub) Update(tsutil.Status) bool       { p.page.SetTitle("still-bound"); return true }
-func (p *stackStub) Destroy()                        { p.w.Unref() }
 
 func TestRestackReleasesReplacedStackPage(t *testing.T) {
 	requireGTK(t)
@@ -107,7 +106,7 @@ func TestRestackReleasesReplacedStackPage(t *testing.T) {
 		t.Fatalf("replaced stack page finalized %d times, want 1", replaced)
 	}
 
-	win.Destroy()
+	win.Dispose()
 	if kept != 1 {
 		t.Fatalf("filtered stack page finalized %d times after Destroy, want 1", kept)
 	}

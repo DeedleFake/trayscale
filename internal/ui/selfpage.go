@@ -334,10 +334,6 @@ func (page *SelfPage) Actions() *gio.SimpleActionGroup {
 	return page.actions
 }
 
-func (page *SelfPage) Destroy() {
-	page.Widget().Unref()
-}
-
 func (page *SelfPage) Dispose() {
 	page.setLatencies(nil)
 	page.addrModel.Unref()

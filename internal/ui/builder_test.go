@@ -4,6 +4,9 @@ import (
 	"testing"
 
 	"deedles.dev/trayscale/internal/gutil"
+	"deedles.dev/trayscale/internal/tsutil"
+	"tailscale.com/ipn"
+	"tailscale.com/tailcfg"
 )
 
 // TestFillFromBuilder builds every .ui file into its Go struct so that
@@ -27,20 +30,21 @@ func TestFillFromBuilder(t *testing.T) {
 		fill(t, func() { gutil.FillFromUI(&win, menuXML, mainWindowXML); gutil.UnrefFields(&win) })
 	})
 	t.Run("OfflinePage", func(t *testing.T) {
-		var page OfflinePage
-		fill(t, func() { gutil.FillFromUI(&page, offlinePageXML); gutil.UnrefFields(&page) })
+		fill(t, func() { offlinePageClass.New().Destroy() })
 	})
 	t.Run("PeerPage", func(t *testing.T) {
-		var page PeerPage
-		fill(t, func() { gutil.FillFromUI(&page, peerPageXML); gutil.UnrefFields(&page) })
+		peer := layoutPeer(t, "peer", "peer", true, false, false)
+		status := layoutStatus([]tailcfg.NodeView{peer})
+		status.Prefs = ipn.NewPrefs().View()
+		fill(t, func() { NewPeerPage(&App{}, status, peer).Destroy() })
 	})
 	t.Run("SelfPage", func(t *testing.T) {
-		var page SelfPage
-		fill(t, func() { gutil.FillFromUI(&page, selfPageXML); gutil.UnrefFields(&page) })
+		status := &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()}
+		fill(t, func() { NewSelfPage(&App{}, status).Destroy() })
 	})
 	t.Run("MullvadPage", func(t *testing.T) {
-		var page MullvadPage
-		fill(t, func() { gutil.FillFromUI(&page, mullvadPageXML); gutil.UnrefFields(&page) })
+		status := &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()}
+		fill(t, func() { NewMullvadPage(&App{}, status).Destroy() })
 	})
 	t.Run("PreferencesDialog", func(t *testing.T) {
 		var dialog PreferencesDialog

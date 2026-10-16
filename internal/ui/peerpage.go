@@ -29,7 +29,15 @@ import (
 //go:embed peerpage.ui
 var peerPageXML string
 
+var peerPageClass = gobj.Widget[PeerPage](gobj.WidgetSpec{
+	Name:     "TrayscalePeerPage",
+	Parent:   adw.BinGLibType,
+	Template: peerPageXML,
+})
+
 type PeerPage struct {
+	gobj.Base
+
 	app       *App
 	stackPage *adw.ViewStackPage
 	peer      tailcfg.NodeView
@@ -63,10 +71,9 @@ type PeerPage struct {
 }
 
 func NewPeerPage(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeView) *PeerPage {
-	var page PeerPage
-	gutil.FillFromUI(&page, peerPageXML)
+	page := peerPageClass.New()
 	page.init(a, status, peer)
-	return &page
+	return page
 }
 
 func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeView) {
@@ -113,7 +120,7 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 		}))
 	})
 
-	page.DropTarget.Ref() // AddController takes a reference; the field keeps its own.
+	page.DropTarget.Ref() // AddController takes over a reference; the template keeps its own.
 	page.Page.AddController(&page.DropTarget.EventController)
 	page.DropTarget.SetGtypes([]types.GType{gio.FileGLibType()}, 1)
 	gutil.Connect(page.DropTarget, page.DropTarget.ConnectDrop, func(_ gtk.DropTarget, val uintptr, x, y float64) bool {
@@ -170,20 +177,19 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 	})
 }
 
-func (page *PeerPage) Widget() *gtk.Widget {
-	return &page.Page.Widget
-}
-
 func (page *PeerPage) Actions() *gio.SimpleActionGroup {
 	return page.actions
 }
 
 func (page *PeerPage) Destroy() {
+	page.Widget().Unref()
+}
+
+func (page *PeerPage) Dispose() {
 	page.addrModel.Unref()
 	page.routeModel.Unref()
 	page.sendFileAction.Unref()
 	page.actions.Unref()
-	gutil.UnrefFields(page)
 }
 
 func (page *PeerPage) Bind(stackPage *adw.ViewStackPage) {

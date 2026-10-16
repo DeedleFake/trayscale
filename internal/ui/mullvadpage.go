@@ -111,10 +111,6 @@ func (page *MullvadPage) Actions() *gio.SimpleActionGroup {
 	return nil
 }
 
-func (page *MullvadPage) Destroy() {
-	page.Widget().Unref()
-}
-
 func (page *MullvadPage) Dispose() {
 	for _, node := range page.exitNodes {
 		node.row.Unref()

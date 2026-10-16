@@ -204,12 +204,8 @@ func (a *App) showPreferences() {
 		})
 	})
 
-	// The presented dialog keeps itself alive; drop the fields'
-	// references once it's closed.
-	gutil.Connect(dialog.PreferencesDialog, dialog.PreferencesDialog.ConnectClosed, func(adw.Dialog) {
-		gutil.IdleAdd(func() { gutil.UnrefFields(dialog) })
-	})
 	dialog.PreferencesDialog.Present(a.parent())
+	dialog.Widget().Unref() // Presented dialogs keep themselves alive.
 }
 
 // showAbout shows the app's about dialog.

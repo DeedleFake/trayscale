@@ -56,7 +56,8 @@ func optBoolIcon(v opt.Bool) *gio.ThemedIcon {
 // Page represents the UI for a single page of the app. This usually
 // corresponds to information about a specific peer in the tailnet.
 type Page interface {
-	// Widget returns the page's widget, borrowed from the page.
+	// Widget returns the page's widget, borrowed from the page. Whoever
+	// holds the page owns one reference to it.
 	Widget() *gtk.Widget
 	// Actions returns the page's action group, borrowed from the page,
 	// or nil.
@@ -68,8 +69,4 @@ type Page interface {
 	// in the constructor, not here.
 	Bind(*adw.ViewStackPage)
 	Update(tsutil.Status) bool
-
-	// Destroy releases the page's references. It is called once, after
-	// the page's widget has been removed from the stack.
-	Destroy()
 }

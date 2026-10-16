@@ -16,6 +16,7 @@ import (
 	"codeberg.org/puregotk/puregotk/v4/adw"
 	"codeberg.org/puregotk/puregotk/v4/gio"
 	"codeberg.org/puregotk/puregotk/v4/gtk"
+	"deedles.dev/trayscale/internal/gobj"
 	"deedles.dev/trayscale/internal/gutil"
 	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/peersearch"
@@ -27,7 +28,15 @@ import (
 //go:embed mullvadpage.ui
 var mullvadPageXML string
 
+var mullvadPageClass = gobj.Widget[MullvadPage](gobj.WidgetSpec{
+	Name:     "TrayscaleMullvadPage",
+	Parent:   adw.BinGLibType,
+	Template: mullvadPageXML,
+})
+
 type MullvadPage struct {
+	gobj.Base
+
 	app       *App
 	stackPage *adw.ViewStackPage
 
@@ -42,12 +51,10 @@ type MullvadPage struct {
 }
 
 func NewMullvadPage(a *App, status *tsutil.IPNStatus) *MullvadPage {
-	page := MullvadPage{
-		app:       a,
-		locations: make(map[string]*adw.ExpanderRow),
-		exitNodes: make(map[tailcfg.StableNodeID]*mullvadExitNodeRow),
-	}
-	gutil.FillFromUI(&page, mullvadPageXML)
+	page := mullvadPageClass.New()
+	page.app = a
+	page.locations = make(map[string]*adw.ExpanderRow)
+	page.exitNodes = make(map[tailcfg.StableNodeID]*mullvadExitNodeRow)
 
 	setSortFunc(page.LocationList, page.compareListRows)
 	setFilterFunc(page.LocationList, page.listRowVisible)
@@ -56,7 +63,7 @@ func NewMullvadPage(a *App, status *tsutil.IPNStatus) *MullvadPage {
 		page.setQuery(page.SearchEntry.GetText())
 	})
 
-	return &page
+	return page
 }
 
 func (page *MullvadPage) setQuery(q string) {
@@ -102,15 +109,15 @@ func (page *MullvadPage) expanderTitle(row *gtk.ListBoxRow) string {
 	return row.GetName()
 }
 
-func (page *MullvadPage) Widget() *gtk.Widget {
-	return &page.Page.Widget
-}
-
 func (page *MullvadPage) Actions() *gio.SimpleActionGroup {
 	return nil
 }
 
 func (page *MullvadPage) Destroy() {
+	page.Widget().Unref()
+}
+
+func (page *MullvadPage) Dispose() {
 	for _, node := range page.exitNodes {
 		node.row.Unref()
 	}
@@ -119,7 +126,6 @@ func (page *MullvadPage) Destroy() {
 		loc.Unref()
 	}
 	clear(page.locations)
-	gutil.UnrefFields(page)
 }
 
 func (page *MullvadPage) Bind(stackPage *adw.ViewStackPage) {

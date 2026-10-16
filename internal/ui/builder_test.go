@@ -43,8 +43,8 @@ func TestFillFromBuilder(t *testing.T) {
 		fill(t, func() { NewSelfPage(&App{}, status).Destroy() })
 	})
 	t.Run("MullvadPage", func(t *testing.T) {
-		var page MullvadPage
-		fill(t, func() { gutil.FillFromUI(&page, mullvadPageXML); gutil.UnrefFields(&page) })
+		status := &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()}
+		fill(t, func() { NewMullvadPage(&App{}, status).Destroy() })
 	})
 	t.Run("PreferencesDialog", func(t *testing.T) {
 		var dialog PreferencesDialog

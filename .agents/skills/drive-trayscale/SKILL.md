@@ -110,7 +110,7 @@ AT-SPI handles:
 | `No matching peers` | `grouping` | Sidebar placeholder when a search matches nothing |
 | `This machine`, `Exit Nodes`, `Online`, `Offline` | `label` | Sidebar section titles when connected |
 | `Tailscale IPs`, `Options`, `Files`, `Advertised Routes`, `Network Check` | `grouping` | This-machine page |
-| `Exit node` | `list item` | First row in the self page `Options`. Its second `label` is the subtitle: `None`, the peer name, the Mullvad location (for example `🇸🇪 Stockholm, Sweden`), or an IP. When the node has a page the row also has an `image ''` child (the arrow). It exposes no AT-SPI action in either state, so `click` cannot activate it; use a pointer click |
+| `Exit node` | `list item` | First row in the self page `Options`. Its second `label` is the subtitle: `None`, the peer name, the Mullvad location (for example `🇸🇪 Stockholm, Sweden`), an IP, or `Waiting for an exit node` while automatic selection has no node yet. When the node has a page the row also has an `image ''` child (the arrow). It exposes no AT-SPI action in either state, so `click` cannot activate it; use a pointer click |
 | `Advertise exit node` and the other option rows | `switch` | Read only |
 | `Tailscale IPs`, `Misc.`, `Advertised Routes` | `grouping` | Peer page |
 | `Use as exit node` | `switch` | Peer page of an exit node. Read only |

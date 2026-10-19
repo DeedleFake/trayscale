@@ -52,6 +52,7 @@ type Harness struct {
 	Mullvad          bool          // grant this machine the mullvad capability
 	Receiver         bool          // run a second real node, "receiver", that accepts Taildrop
 	SuggestExitNodes bool          // allow fake exit nodes to be recommended automatically
+	RemoveExitAfter  time.Duration // if nonzero, remove bravo-exit from this machine's netmap after this long
 }
 
 const capFileSharing = tailcfg.NodeCapability(tailcfg.CapabilityFileSharing)
@@ -129,6 +130,7 @@ func (h *Harness) Run(ctx context.Context) error {
 		ctrl.SetNodeCapMap(selfKey, selfCaps)
 	}
 	var peerKeys []key.NodePublic
+	var removeID tailcfg.NodeID
 	for i, p := range h.Peers {
 		before := map[tailcfg.NodeID]bool{}
 		for _, n := range ctrl.AllNodes() {
@@ -170,6 +172,9 @@ func (h *Harness) Run(ctx context.Context) error {
 				ctrl.SetNodeCapMap(n.Key, tailcfg.NodeCapMap{tailcfg.NodeAttrSuggestExitNode: nil})
 			}
 			peerKeys = append(peerKeys, n.Key)
+			if p.Host == "bravo-exit" {
+				removeID = n.ID
+			}
 		}
 	}
 	if h.Receiver {
@@ -191,6 +196,14 @@ func (h *Harness) Run(ctx context.Context) error {
 	fmt.Println("READY", url)
 	if h.Churn > 0 {
 		go churn(ctx, ctrl, peerKeys, h.Churn)
+	}
+	if h.RemoveExitAfter > 0 {
+		time.AfterFunc(h.RemoveExitAfter, func() {
+			// Real control sends a delta like this when a node is deleted.
+			// testcontrol then stops sending this node full netmaps.
+			ok := ctrl.AddRawMapResponse(selfKey, &tailcfg.MapResponse{PeersRemoved: []tailcfg.NodeID{removeID}})
+			log.Printf("removed bravo-exit from netmap: %v", ok)
+		})
 	}
 	<-ctx.Done()
 	_ = cli("down")
@@ -282,6 +295,7 @@ func main() {
 	receiver := flag.Bool("receiver", false, "run a second real node, receiver, that accepts Taildrop from this machine")
 	mullvad := flag.Int("mullvad", 0, "Mullvad exit nodes to register (also grants the mullvad capability)")
 	suggestExitNodes := flag.Bool("suggest-exit-nodes", false, "allow fake exit nodes to be recommended automatically")
+	removeExitAfter := flag.Duration("remove-exit-after", 0, "remove bravo-exit from this machine's netmap this long after READY (0 disables)")
 	flag.Parse()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -300,6 +314,7 @@ func main() {
 		Mullvad:          *mullvad > 0,
 		Receiver:         *receiver,
 		SuggestExitNodes: *suggestExitNodes,
+		RemoveExitAfter:  *removeExitAfter,
 	}
 	for i := range *extra {
 		h.Peers = append(h.Peers, Peer{Host: fmt.Sprintf("peer-%02d", i), Online: i%3 != 0})

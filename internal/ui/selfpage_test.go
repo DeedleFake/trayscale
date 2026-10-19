@@ -59,6 +59,17 @@ func TestSelfPageExitNodeRow(t *testing.T) {
 			wantSubtitle: "100.64.0.9",
 		},
 		{
+			name:         "automatic selection without a node yet",
+			status:       status(ipn.Prefs{AutoExitNode: ipn.AnyExitNode, ExitNodeID: "auto:any"}, gateway),
+			wantSubtitle: "Waiting for an exit node",
+		},
+		{
+			name:            "automatic selection resolved",
+			status:          status(ipn.Prefs{AutoExitNode: ipn.AnyExitNode, ExitNodeID: "gateway"}, gateway),
+			wantSubtitle:    peerName(gateway),
+			wantActivatable: true,
+		},
+		{
 			name:            "Mullvad",
 			status:          status(ipn.Prefs{ExitNodeID: "mullvad"}, mullvad),
 			wantSubtitle:    mullvadLongLocationName(loc.View()),

@@ -459,6 +459,8 @@ func (page *SelfPage) updateExitNodeRow(status *tsutil.IPNStatus) {
 		page.ExitNodeRow.SetSubtitle(status.Prefs.ExitNodeIP().String())
 	case status.Prefs.AutoExitNode().IsSet():
 		page.ExitNodeRow.SetSubtitle(locale.Get("Waiting for an exit node"))
+	case status.Prefs.ExitNodeID() != "":
+		page.ExitNodeRow.SetSubtitle(locale.Get("Unavailable"))
 	default:
 		page.ExitNodeRow.SetSubtitle(locale.Get("None"))
 	}

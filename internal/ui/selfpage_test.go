@@ -59,8 +59,18 @@ func TestSelfPageExitNodeRow(t *testing.T) {
 			wantSubtitle: "100.64.0.9",
 		},
 		{
+			name:         "peer not in netmap",
+			status:       status(ipn.Prefs{ExitNodeID: "removed"}, gateway),
+			wantSubtitle: "Unavailable",
+		},
+		{
 			name:         "automatic selection without a node yet",
 			status:       status(ipn.Prefs{AutoExitNode: ipn.AnyExitNode, ExitNodeID: "auto:any"}, gateway),
+			wantSubtitle: "Waiting for an exit node",
+		},
+		{
+			name:         "automatic selection after its node left the netmap",
+			status:       status(ipn.Prefs{AutoExitNode: ipn.AnyExitNode, ExitNodeID: "removed"}, gateway),
 			wantSubtitle: "Waiting for an exit node",
 		},
 		{

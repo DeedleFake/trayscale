@@ -1,6 +1,6 @@
 ---
 name: verify-trayscale
-description: Prove a Trayscale UI change by driving the GTK 4 / Libadwaita window the way a user does and capturing AT-SPI evidence. Use when proving a Trayscale UI change, checking the main window, About, Preferences, peer search, the this-machine page, or a peer page.
+description: Prove a Trayscale UI change by driving the GTK 4 / Libadwaita window the way a user does and capturing AT-SPI evidence. Use when proving a Trayscale UI change, including a refactor of widget trees, `.ui` templates, or GObject subclasses that should look the same, or when checking the main window, About, Preferences, peer search, the this-machine page, or a peer page.
 ---
 
 # Verify Trayscale

@@ -42,15 +42,16 @@ type Peer struct {
 
 // Harness is the reusable fixture.
 type Harness struct {
-	Dir        string // state, logs, binaries
-	Socket     string // tailscaled LocalAPI socket
-	Tailscaled string // path to tailscaled binary
-	Tailscale  string // path to tailscale CLI binary
-	Hostname   string // this machine's hostname
-	Peers      []Peer
-	Churn      time.Duration // if nonzero, flip peer state this often
-	Mullvad    bool          // grant this machine the mullvad capability
-	Receiver   bool          // run a second real node, "receiver", that accepts Taildrop
+	Dir              string // state, logs, binaries
+	Socket           string // tailscaled LocalAPI socket
+	Tailscaled       string // path to tailscaled binary
+	Tailscale        string // path to tailscale CLI binary
+	Hostname         string // this machine's hostname
+	Peers            []Peer
+	Churn            time.Duration // if nonzero, flip peer state this often
+	Mullvad          bool          // grant this machine the mullvad capability
+	Receiver         bool          // run a second real node, "receiver", that accepts Taildrop
+	SuggestExitNodes bool          // allow fake exit nodes to be recommended automatically
 }
 
 const capFileSharing = tailcfg.NodeCapability(tailcfg.CapabilityFileSharing)
@@ -158,10 +159,16 @@ func (h *Harness) Run(ctx context.Context) error {
 			n.Created = time.Now().Add(-30 * 24 * time.Hour)
 			if p.ExitNode {
 				n.AllowedIPs = append(n.AllowedIPs, netip.MustParsePrefix("0.0.0.0/0"), netip.MustParsePrefix("::/0"))
+				if h.SuggestExitNodes && p.Location == nil {
+					n.HomeDERP = 1 // The harness's local DERP region.
+				}
 			}
 			n.AllowedIPs = append(n.AllowedIPs, p.Routes...)
 			n.PrimaryRoutes = append(n.PrimaryRoutes, p.Routes...)
 			ctrl.UpdateNode(n)
+			if p.ExitNode && h.SuggestExitNodes {
+				ctrl.SetNodeCapMap(n.Key, tailcfg.NodeCapMap{tailcfg.NodeAttrSuggestExitNode: nil})
+			}
 			peerKeys = append(peerKeys, n.Key)
 		}
 	}
@@ -274,6 +281,7 @@ func main() {
 	churnEvery := flag.Duration("churn", 0, "flip one peer's state this often (0 disables)")
 	receiver := flag.Bool("receiver", false, "run a second real node, receiver, that accepts Taildrop from this machine")
 	mullvad := flag.Int("mullvad", 0, "Mullvad exit nodes to register (also grants the mullvad capability)")
+	suggestExitNodes := flag.Bool("suggest-exit-nodes", false, "allow fake exit nodes to be recommended automatically")
 	flag.Parse()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -288,9 +296,10 @@ func main() {
 			{Host: "echo-down", Online: false, ExitNode: true},
 			{Host: "delta-router", Online: true, Routes: []netip.Prefix{netip.MustParsePrefix("192.168.50.0/24")}},
 		},
-		Churn:    *churnEvery,
-		Mullvad:  *mullvad > 0,
-		Receiver: *receiver,
+		Churn:            *churnEvery,
+		Mullvad:          *mullvad > 0,
+		Receiver:         *receiver,
+		SuggestExitNodes: *suggestExitNodes,
 	}
 	for i := range *extra {
 		h.Peers = append(h.Peers, Peer{Host: fmt.Sprintf("peer-%02d", i), Online: i%3 != 0})

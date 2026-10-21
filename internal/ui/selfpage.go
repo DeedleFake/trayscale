@@ -37,6 +37,8 @@ type SelfPage struct {
 	IPList               *gtk.ListBox
 	OptionsGroup         *adw.PreferencesGroup
 	AdvertiseExitNodeRow *adw.SwitchRow
+	AutomaticExitNodeRow *adw.SwitchRow
+	CurrentExitNodeRow   *adw.ActionRow
 	AllowLANAccessRow    *adw.SwitchRow
 	AcceptRoutesRow      *adw.SwitchRow
 	AcceptDNSRow         *adw.SwitchRow
@@ -71,8 +73,11 @@ type SelfPage struct {
 	routeModel *listmodels.Model[netip.Prefix]
 	fileModel  *listmodels.Model[apitype.WaitingFile]
 
-	incomingFiles int
-	latencyRows   rowManager[xiter.Pair[string, time.Duration]]
+	incomingFiles      int
+	latencyRows        rowManager[xiter.Pair[string, time.Duration]]
+	automaticCancel    context.CancelFunc
+	automaticExitNode  bool
+	advertisesExitNode bool
 }
 
 func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
@@ -138,6 +143,16 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	})
 	page.connectSwitch(page.AcceptDNSRow, "accept DNS", func(s bool) error {
 		return tsutil.AcceptDNS(context.TODO(), s)
+	})
+	sw := rowSwitch(page.AutomaticExitNodeRow)
+	gutil.Connect(sw, sw.ConnectStateSet, func(_ gtk.Switch, enabled bool) bool {
+		if enabled == sw.GetState() {
+			return false
+		}
+		if page.automaticCancel == nil {
+			page.changeAutomaticExitNode(enabled)
+		}
+		return true
 	})
 
 	gutil.Connect(page.AdvertiseRouteButton, page.AdvertiseRouteButton.ConnectClicked, func(gtk.Button) {
@@ -240,6 +255,29 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 		sortedLats := slices.SortedFunc(namedLats, func(p1, p2 latencyEntry) int { return cmp.Compare(p1.V2, p2.V2) })
 		page.latencyRows.Update(sortedLats)
 	})
+}
+
+func (page *SelfPage) changeAutomaticExitNode(enabled bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	page.automaticCancel = cancel
+	page.AutomaticExitNodeRow.SetSensitive(false)
+	go func() {
+		defer cancel()
+		err := tsutil.SetAutomaticExitNode(ctx, enabled)
+		gutil.IdleAdd(func() {
+			// Destroy releases the widgets and cancels any pending request.
+			if page.Page == nil {
+				return
+			}
+			page.automaticCancel = nil
+			if err != nil {
+				slog.Error("set automatic exit node", "err", err)
+				page.app.toast(locale.Get("Failed to change automatic exit-node selection"))
+			}
+			setSwitch(page.AutomaticExitNodeRow, page.automaticExitNode)
+			page.AutomaticExitNodeRow.SetSensitive(!page.advertisesExitNode)
+		})
+	}()
 }
 
 // connectSwitch connects a switch row to set, which applies a new
@@ -355,6 +393,9 @@ func (page *SelfPage) Actions() *gio.SimpleActionGroup {
 }
 
 func (page *SelfPage) Destroy() {
+	if page.automaticCancel != nil {
+		page.automaticCancel()
+	}
 	page.latencyRows.Update(nil)
 	page.addrModel.Unref()
 	page.routeModel.Unref()
@@ -397,6 +438,7 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 	page.Page.SetDescription(page.peer.Name())
 
 	setSwitch(page.AdvertiseExitNodeRow, status.Prefs.AdvertisesExitNode())
+	page.updateExitNode(status)
 	setSwitch(page.AllowLANAccessRow, status.Prefs.ExitNodeAllowLANAccess())
 	setSwitch(page.AcceptRoutesRow, status.Prefs.RouteAll())
 	setSwitch(page.AcceptDNSRow, status.Prefs.CorpDNS())
@@ -415,6 +457,38 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 	page.routeModel.Update(routes)
 
 	return true
+}
+
+func (page *SelfPage) updateExitNode(status *tsutil.IPNStatus) {
+	page.automaticExitNode = status.Prefs.AutoExitNode().IsSet()
+	page.advertisesExitNode = status.Prefs.AdvertisesExitNode()
+	if page.automaticCancel == nil {
+		sw := rowSwitch(page.AutomaticExitNodeRow)
+		sw.SetState(page.automaticExitNode)
+		// Setting Active even to its current value cancels an in-flight
+		// toggle animation before it can start the request.
+		if sw.GetActive() != page.automaticExitNode {
+			sw.SetActive(page.automaticExitNode)
+		}
+	}
+	page.AutomaticExitNodeRow.SetSensitive(page.automaticCancel == nil && !page.advertisesExitNode)
+	page.CurrentExitNodeRow.SetSubtitle(currentExitNodeName(status))
+}
+
+func currentExitNodeName(status *tsutil.IPNStatus) string {
+	if peer := status.ExitNode(); peer.Valid() {
+		return peerName(peer)
+	}
+	if addr := status.Prefs.ExitNodeIP(); addr.IsValid() {
+		return addr.String()
+	}
+	if status.Prefs.AutoExitNode().IsSet() {
+		return locale.Get("Waiting for an exit node")
+	}
+	if status.Prefs.ExitNodeID() != "" {
+		return locale.Get("Unavailable")
+	}
+	return locale.Get("None")
 }
 
 func (page *SelfPage) UpdateFiles(status *tsutil.FileStatus) bool {

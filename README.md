@@ -14,6 +14,8 @@ Tailscale Config
 
 Trayscale interfaces with the Tailscale daemon, `tailscaled`, to perform many of its operations. In order for this to work, the daemon must have been configured with the current user as the "operator". To do this, run `sudo tailscale set --operator=$USER` from the command-line at least once manually.
 
+On this machine's page, **Automatic exit node** lets Tailscale track its [recommended exit node](https://tailscale.com/docs/features/exit-nodes/auto-exit-nodes), including while Trayscale is closed. Turning Automatic off keeps the current node selected; choosing another node manually also stops automatic selection. Use the existing **Use Exit Node** toggle to stop routing through an exit node entirely.
+
 Installation
 ------------
 

@@ -110,6 +110,7 @@ AT-SPI handles:
 | `No matching peers` | `grouping` | Sidebar placeholder when a search matches nothing |
 | `This machine`, `Exit Nodes`, `Online`, `Offline` | `label` | Sidebar section titles when connected |
 | `Tailscale IPs`, `Options`, `Files`, `Advertised Routes`, `Network Check` | `grouping` | This-machine page |
+| `Exit node` | `list item` | First row in the self page `Options`. Its second `label` is the subtitle: `None`, the peer name, the Mullvad location (for example `🇸🇪 Stockholm, Sweden`), an IP, `Waiting for an exit node` while automatic selection has no node yet, or `Unavailable` when a manually chosen node is no longer in the netmap. When the node has a page the row also has an `image ''` child (the arrow). It exposes no AT-SPI action in either state, so `click` cannot activate it; use a pointer click |
 | `Advertise exit node` and the other option rows | `switch` | Read only |
 | `Tailscale IPs`, `Misc.`, `Advertised Routes` | `grouping` | Peer page |
 | `Use as exit node` | `switch` | Peer page of an exit node. Read only |
@@ -117,6 +118,7 @@ AT-SPI handles:
 | `Trayscale`, `DeedleFake` | `label` | Inside the About dialog |
 | `Preferences` | `dialog` | After `action preferences` |
 | `General`, `Taildrop` | `grouping` | Inside Preferences |
+| `Exit Node` | `combo box` | Inside `General`. The current choice is a `label` (`Previous exit node` or `Recommended exit node`) inside its `list item ''`. It exposes no AT-SPI action, so `click` cannot open it |
 | (empty) | `toggle button` | Page menu button in the content header: `click --role "toggle button" --name "" --exact --index 1` (index 0 is the main menu). Insensitive when no peer page is visible |
 | (empty) | `menu item` | Page menu items, in order: index 0 `Copy FQDN`, 1 `Send file...`, 2 `Send directory...`. Need `snapshot --max-depth 60` to see |
 | `Select dir(s) to send to <host>` / `Select file(s) ...` | `dialog` | File chooser from the send items. `press --key /` opens its location field (`text ''`); `fill --role text --name "" --exact --value <path>`; then `click --role button --name Open` (file) or `Select` (directory) |
@@ -162,7 +164,7 @@ export LD_LIBRARY_PATH=$LIB PUREGOTK_ADW_PATH=$LIB/libadwaita-1.so.0 PUREGOTK_GT
 .agents/skills/drive-trayscale/scripts/tsharness/run.sh   # prints READY, runs until interrupted
 ```
 
-Flags: `-extra N` adds `peer-NN` peers (every third offline); `-mullvad N` adds Mullvad exit nodes in a few cities and grants this machine the `mullvad` capability, so the `Mullvad Exit Nodes` page appears; `-churn 20s` flips one peer's online state (and toggles an extra route on routers) per tick; `-receiver` also starts a second real `tailscaled`, hostname `receiver`, and grants both nodes Taildrop, so sends from Trayscale to `receiver` complete and land in `/tmp/tsharness/receiver/state/files/*/` (a directory arrives as `<name>.tar.zst`). Clear that directory before a run that checks it. Use `/tmp/tsharness/tailscale` for CLI changes against the fake node.
+Flags: `-extra N` adds `peer-NN` peers (every third offline); `-mullvad N` adds Mullvad exit nodes in a few cities and grants this machine the `mullvad` capability, so the `Mullvad Exit Nodes` page appears; `-suggest-exit-nodes` makes exit nodes eligible for recommendation, so the `Recommended exit node` preference can resolve a node; `-remove-exit-after 60s` removes `bravo-exit` from this machine's netmap that long after `READY`, as control does when a node is deleted, and testcontrol sends this machine no further netmaps; `-churn 20s` flips one peer's online state (and toggles an extra route on routers) per tick; `-receiver` also starts a second real `tailscaled`, hostname `receiver`, and grants both nodes Taildrop, so sends from Trayscale to `receiver` complete and land in `/tmp/tsharness/receiver/state/files/*/` (a directory arrives as `<name>.tar.zst`). Clear that directory before a run that checks it. Use `/tmp/tsharness/tailscale` for CLI changes against the fake node.
 
 It serves the LocalAPI on `/run/tailscale/tailscaled.sock`, Trayscale's default socket, so use it only where no system `tailscaled` runs (create `/run/tailscale` writable by you first). Its `go.mod` pins `tailscale.com` separately from the app's; `run.sh` builds `tailscale`/`tailscaled` at the app's version into `$DIR` (default `/tmp/tsharness`). Go skips dot-directories, so CI does not build it.
 

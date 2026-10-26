@@ -404,13 +404,12 @@ func GetWaitingFile(ctx context.Context, name string) (io.ReadCloser, int64, err
 	return localClient.GetWaitingFile(ctx, name)
 }
 
-func DeleteWaitingFile(ctx context.Context, name string) error {
+func deleteWaitingFile(ctx context.Context, name string) error {
 	return localClient.DeleteWaitingFile(ctx, name)
 }
 
-// WaitingFiles polls for any pending incoming files. It returns
-// quickly if there are no files currently pending.
-func WaitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
+// waitingFiles returns the files waiting to be saved.
+func waitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
 	return localClient.AwaitWaitingFiles(ctx, 0)
 }
 
@@ -418,11 +417,11 @@ func FileTargets(ctx context.Context) ([]apitype.FileTarget, error) {
 	return localClient.FileTargets(ctx)
 }
 
-func GetProfileStatus(ctx context.Context) (ipn.LoginProfile, []ipn.LoginProfile, error) {
+func getProfileStatus(ctx context.Context) (ipn.LoginProfile, []ipn.LoginProfile, error) {
 	return localClient.ProfileStatus(ctx)
 }
 
-func SwitchProfile(ctx context.Context, id ipn.ProfileID) error {
+func switchProfile(ctx context.Context, id ipn.ProfileID) error {
 	return localClient.SwitchProfile(ctx, id)
 }
 

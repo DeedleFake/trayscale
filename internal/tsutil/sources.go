@@ -42,7 +42,7 @@ func (f *Files) init() {
 func (f *Files) Run(ctx context.Context) error {
 	f.init()
 	return fetchLoop(ctx, f.Bus, filesTriggers, f.refresh, "get waiting files", func(ctx context.Context) error {
-		files, err := WaitingFiles(ctx)
+		files, err := waitingFiles(ctx)
 		if err != nil && !errors.Is(err, taildrop.ErrNoTaildrop) {
 			return err
 		}
@@ -61,7 +61,7 @@ func (f *Files) Refresh() {
 // if deleting failed, as that most likely means the list was stale.
 func (f *Files) Delete(ctx context.Context, name string) error {
 	defer f.Refresh()
-	return DeleteWaitingFile(ctx, name)
+	return deleteWaitingFile(ctx, name)
 }
 
 // Profiles keeps the current login profile and the list of profiles.
@@ -95,7 +95,7 @@ func (p *Profiles) init() {
 func (p *Profiles) Run(ctx context.Context) error {
 	p.init()
 	return fetchLoop(ctx, p.Bus, profilesTriggers, p.refresh, "get profile status", func(ctx context.Context) error {
-		profile, profiles, err := GetProfileStatus(ctx)
+		profile, profiles, err := getProfileStatus(ctx)
 		if err != nil {
 			return err
 		}
@@ -115,7 +115,7 @@ func (p *Profiles) Refresh() {
 // the list was stale.
 func (p *Profiles) Switch(ctx context.Context, id ipn.ProfileID) error {
 	defer p.Refresh()
-	return SwitchProfile(ctx, id)
+	return switchProfile(ctx, id)
 }
 
 func kick(c chan<- struct{}) {

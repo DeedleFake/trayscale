@@ -7,43 +7,45 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"tailscale.com/ipn"
 )
 
-// TestPollerSetRunning checks that the poller doesn't poll while it's
-// starting Tailscale, reports the error, and polls again right after.
-func TestPollerSetRunning(t *testing.T) {
+// TestBusSetRunning checks that the bus doesn't publish while it's
+// starting Tailscale, returns the error, and publishes the last status
+// again afterward so that the UI can undo what it did.
+func TestBusSetRunning(t *testing.T) {
+	d := startFakeDaemon(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	errTest := errors.New("test")
 	started := make(chan bool)
 	release := make(chan struct{})
-	errs := make(chan error, 1)
-	p := &Poller{
-		Interval: time.Hour,
-		New:      func(Status) {},
-		Error:    func(err error) { errs <- err },
+	statuses := make(chan *IPNStatus, 16)
+	b := &Bus{
+		New: func(s *IPNStatus) { statuses <- s },
 		setRunning: func(ctx context.Context, up bool) error {
 			started <- up
 			<-release
 			return errTest
 		},
 	}
-	go p.Run(ctx)
+	go b.Run(ctx)
 
-	p.SetRunning() <- true
+	stopped := ipn.Stopped
+	d.notes <- ipn.Notify{State: &stopped}
+	waitState(t, statuses, ipn.Stopped)
+
+	errc := make(chan error, 1)
+	go func() { errc <- b.SetRunning(ctx, true) }()
 	require.True(t, <-started)
 	select {
-	case <-p.Poll():
-		t.Fatal("polled while starting")
+	case s := <-statuses:
+		t.Fatalf("published %v while starting", s.State)
 	case <-time.After(100 * time.Millisecond):
 	}
 
 	close(release)
-	require.ErrorIs(t, <-errs, errTest)
-	select {
-	case <-p.Poll():
-	case <-time.After(time.Second):
-		t.Fatal("didn't poll after starting")
-	}
+	require.ErrorIs(t, <-errc, errTest)
+	waitState(t, statuses, ipn.Stopped)
 }

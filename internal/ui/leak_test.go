@@ -50,7 +50,7 @@ func TestPeerPageLeaks(t *testing.T) {
 		peer := peerAt(i)
 		page := NewPeerPage(&App{}, status(peer), peer)
 		track(&finalized, page.Page, page.actions, page.sendFileAction, page.DropTarget,
-			page.addrModel.ListModel(), page.routeModel.ListModel())
+			page.addrModel.Model(), page.routeModel.Model())
 		vp := stack.AddNamed(page.Widget(), "peer")
 		page.Bind(vp)
 		for j := range 10 {
@@ -94,7 +94,7 @@ func TestSelfPageLeaks(t *testing.T) {
 	cycle := func(i int) {
 		page := NewSelfPage(&App{}, &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()})
 		track(&finalized, page.Page, page.actions,
-			page.addrModel.ListModel(), page.routeModel.ListModel(), page.fileModel.ListModel())
+			page.addrModel.Model(), page.routeModel.Model(), page.fileModel.Model())
 		vp := stack.AddNamed(page.Widget(), "self")
 		page.Bind(vp)
 		for j := range 10 {

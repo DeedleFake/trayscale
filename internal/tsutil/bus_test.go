@@ -19,6 +19,8 @@ func TestWatchStateApply(t *testing.T) {
 	}
 	engine := &ipn.EngineStatus{}
 	selfA := testSelfNode(10, "self-a", 100)
+	renamed := testSelfNode(selfA.ID, selfA.StableID, selfA.User)
+	renamed.Name = "renamed.tailnet.ts.net."
 	inProgress := incoming(ipn.PartialFile{Name: "a"})
 	done := incoming(ipn.PartialFile{Name: "a", Done: true})
 
@@ -48,6 +50,9 @@ func TestWatchStateApply(t *testing.T) {
 		{name: "self identity", before: []ipn.Notify{{SelfChange: selfA}}, notify: ipn.Notify{SelfChange: testSelfNode(11, "self-b", 200)}, want: changeIPN | changeTargets | changeIdentity},
 		{name: "initial status", notify: ipn.Notify{InitialStatus: testStatus(testPeerStatus("n1", 1, true, time.Time{}))}, want: changeIPN | changeTargets},
 		{name: "new peer", notify: ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode("n1", 1, true)}}, want: changeIPN | changeTargets},
+		{name: "peer removed", before: []ipn.Notify{{PeersChanged: []*tailcfg.Node{testPeerNode("n1", 1, true)}}}, notify: ipn.Notify{PeersRemoved: []tailcfg.NodeID{1}}, want: changeIPN | changeTargets},
+		{name: "unknown peer removed", before: []ipn.Notify{{PeersChanged: []*tailcfg.Node{testPeerNode("n1", 1, true)}}}, notify: ipn.Notify{PeersRemoved: []tailcfg.NodeID{99}}, want: changeIPN},
+		{name: "same self renamed", before: []ipn.Notify{{SelfChange: selfA}}, notify: ipn.Notify{SelfChange: renamed}, want: changeIPN},
 		{name: "peer update", before: []ipn.Notify{{PeersChanged: []*tailcfg.Node{testPeerNode("n1", 1, false)}}}, notify: ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode("n1", 1, true)}}, want: changeIPN},
 		{name: "browse URL", notify: ipn.Notify{BrowseToURL: new("https://example.com")}, want: changeIPN},
 	} {

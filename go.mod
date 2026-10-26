@@ -281,7 +281,7 @@ require (
 	golang.zx2c4.com/wireguard/windows v1.1.1 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gvisor.dev/gvisor v0.0.0-20261010064756-cd110d9dec04 // indirect
+	gvisor.dev/gvisor v0.0.0-20261026101154-90a2f3f7b8d1 // indirect
 	honnef.co/go/tools v0.8.2 // indirect
 	k8s.io/client-go v0.37.1 // indirect
 	mvdan.cc/gofumpt v0.12.0 // indirect

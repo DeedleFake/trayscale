@@ -789,8 +789,8 @@ gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15/go.mod h1:Co6ibVJAznAaIkqp8
 gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-gvisor.dev/gvisor v0.0.0-20261010064756-cd110d9dec04 h1:iVC12KE9T4FE4+ygenM2M0GGtZ5RLIGrXmY9T5UPdZk=
-gvisor.dev/gvisor v0.0.0-20261010064756-cd110d9dec04/go.mod h1:LOvux1Z/goEJudXUp4E7WwCxxJeeMf5kVoprLEZvOHo=
+gvisor.dev/gvisor v0.0.0-20261026101154-90a2f3f7b8d1 h1:pciH9UIF5sveka1OHsGPloDwI6gopj0xiQJIm47Dn78=
+gvisor.dev/gvisor v0.0.0-20261026101154-90a2f3f7b8d1/go.mod h1:Ml6ZH/vUKATC2FmyegP0ISP5Bu3U+DXEXJHB6MlH1dY=
 honnef.co/go/tools v0.8.2 h1:+jPbCzuYxYrcoOvCecYUFDj+XJQRmzIhJmlbpps21Zk=
 honnef.co/go/tools v0.8.2/go.mod h1:xG1Q4n+mg3bKZrO6RWFA9jFlkqplflmDRHGeuexiLDs=
 howett.net/plist v1.0.0 h1:7CrbWYbPPO/PyNy38b2EB/+gYbjCe2DXBxgtOOZbSQM=

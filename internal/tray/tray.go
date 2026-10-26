@@ -57,6 +57,10 @@ type Tray struct {
 	OnProfileSwitch func(ipn.ProfileID)
 	OnQuit          func()
 
+	// OnAccountsOpen, if non-nil, is called when the account submenu
+	// opens, on hosts that report that.
+	OnAccountsOpen func()
+
 	m    sync.Mutex
 	item *tray.Item
 	prev map[unique.Handle[string]][]any
@@ -314,7 +318,15 @@ func (t *Tray) clearAccountMenu() {
 func (t *Tray) rebuildAccountMenu(profiles []ipn.LoginProfile, active ipn.ProfileID, ids []ipn.ProfileID) {
 	if t.accountItem == nil {
 		root := t.item.Menu()
-		t.accountItem, _ = root.AddChild(tray.MenuItemLabel(locale.Get("Switch account")))
+		t.accountItem, _ = root.AddChild(
+			tray.MenuItemLabel(locale.Get("Switch account")),
+			tray.MenuItemHandler(func(id tray.MenuEventID, _ any, _ uint32) error {
+				if id == tray.Opened && t.OnAccountsOpen != nil {
+					t.OnAccountsOpen()
+				}
+				return nil
+			}),
+		)
 	} else {
 		for _, item := range t.profileItems {
 			item.Remove()

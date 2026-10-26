@@ -330,7 +330,7 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 	win.ipn = status
 	if !status.Online() {
 		if _, ok := win.pages["offline"]; !ok {
-			win.addPage("offline", NewOfflinePage(win.app))
+			win.addPage("offline", offlinePageClass.New())
 		}
 		win.updatePages(status)
 		return

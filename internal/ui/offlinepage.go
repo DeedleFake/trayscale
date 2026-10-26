@@ -5,29 +5,24 @@ import (
 
 	"codeberg.org/puregotk/puregotk/v4/adw"
 	"codeberg.org/puregotk/puregotk/v4/gio"
-	"codeberg.org/puregotk/puregotk/v4/gtk"
-	"deedles.dev/trayscale/internal/gutil"
+	"deedles.dev/trayscale/internal/gobj"
 	"deedles.dev/trayscale/internal/tsutil"
 )
 
 //go:embed offlinepage.ui
 var offlinePageXML string
 
+var offlinePageClass = gobj.Widget[OfflinePage](gobj.WidgetSpec{
+	Name:     "TrayscaleOfflinePage",
+	Parent:   adw.BinGLibType,
+	Template: offlinePageXML,
+})
+
 type OfflinePage struct {
-	app *App
+	gobj.Base
 
 	Page           *adw.StatusPage
 	NeedsAuthGroup *adw.PreferencesGroup
-}
-
-func NewOfflinePage(app *App) *OfflinePage {
-	page := OfflinePage{app: app}
-	gutil.FillFromUI(&page, offlinePageXML)
-	return &page
-}
-
-func (page *OfflinePage) Widget() *gtk.Widget {
-	return &page.Page.Widget
 }
 
 func (page *OfflinePage) Actions() *gio.SimpleActionGroup {
@@ -40,7 +35,7 @@ func (page *OfflinePage) Bind(stackPage *adw.ViewStackPage) {
 }
 
 func (page *OfflinePage) Destroy() {
-	gutil.UnrefFields(page)
+	page.Widget().Unref()
 }
 
 func (page *OfflinePage) Update(status tsutil.Status) bool {

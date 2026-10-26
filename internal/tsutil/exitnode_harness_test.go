@@ -2,8 +2,6 @@ package tsutil
 
 import (
 	"context"
-	"net"
-	"net/http"
 	"os"
 	"testing"
 
@@ -22,15 +20,11 @@ func useHarness(t *testing.T, env string) {
 	if sock == "" {
 		t.Skip(env + " not set")
 	}
-	oldSocket, oldTransport := localClient.Socket, localClient.Transport
-	t.Cleanup(func() { localClient.Socket, localClient.Transport = oldSocket, oldTransport })
-	localClient.Socket, localClient.UseSocketOnly = sock, true
-	localClient.Transport = &http.Transport{
-		DisableKeepAlives: true,
-		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return new(net.Dialer).DialContext(ctx, "unix", sock)
-		},
-	}
+	// localClient keeps the transport that TestMain set, which dials
+	// fakeSocket.
+	old := fakeSocket
+	t.Cleanup(func() { fakeSocket = old })
+	fakeSocket = sock
 
 	// Start with no exit node, nothing remembered, and nothing advertised.
 	err := AdvertiseExitNode(t.Context(), false)

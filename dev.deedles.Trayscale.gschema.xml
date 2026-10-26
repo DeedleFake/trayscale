@@ -19,14 +19,6 @@
 				offline.
 			</description>
 		</key>
-		<key name="polling-interval" type="d">
-			<default>5</default>
-			<summary>Interval at which to poll the Tailscale daemon</summary>
-			<description>
-				An interval, in seconds, at which to poll the Tailscale daemon
-				for status changes and other things.
-			</description>
-		</key>
 		<key name="taildrop-auto-save" type="b">
 			<default>false</default>
 			<summary>Automatically save incoming Taildrop files</summary>

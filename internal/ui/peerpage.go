@@ -182,10 +182,6 @@ func (page *PeerPage) Actions() *gio.SimpleActionGroup {
 	return page.actions
 }
 
-func (page *PeerPage) Destroy() {
-	page.Widget().Unref()
-}
-
 func (page *PeerPage) Dispose() {
 	page.addrModel.Unref()
 	page.routeModel.Unref()

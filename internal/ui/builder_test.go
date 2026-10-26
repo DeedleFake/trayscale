@@ -3,19 +3,20 @@ package ui
 import (
 	"testing"
 
-	"deedles.dev/trayscale/internal/gutil"
+	"codeberg.org/puregotk/puregotk/v4/adw"
+	"codeberg.org/puregotk/puregotk/v4/gio"
 	"deedles.dev/trayscale/internal/tsutil"
 	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
 )
 
-// TestFillFromBuilder builds every .ui file into its Go struct so that
-// a type missing from gutil's registry fails here instead of panicking
-// at runtime.
-func TestFillFromBuilder(t *testing.T) {
+// TestTemplates builds every template class through its constructor,
+// so a template child whose type doesn't match its field fails here
+// instead of panicking at runtime.
+func TestTemplates(t *testing.T) {
 	requireGTK(t)
 
-	fill := func(t *testing.T, build func()) {
+	build := func(t *testing.T, build func()) {
 		t.Helper()
 		defer func() {
 			if r := recover(); r != nil {
@@ -25,29 +26,33 @@ func TestFillFromBuilder(t *testing.T) {
 		build()
 	}
 
+	running := &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()}
+
 	t.Run("MainWindow", func(t *testing.T) {
-		var win MainWindow
-		fill(t, func() { gutil.FillFromUI(&win, menuXML, mainWindowXML); gutil.UnrefFields(&win) })
+		app := &App{app: adw.NewApplication("dev.deedles.Trayscale.test.templates", gio.GApplicationNonUniqueValue)}
+		defer app.app.Unref()
+		build(t, func() {
+			win := NewMainWindow(app)
+			win.MainWindow.Destroy()
+			win.Widget().Unref()
+		})
 	})
 	t.Run("OfflinePage", func(t *testing.T) {
-		fill(t, func() { offlinePageClass.New().Destroy() })
+		build(t, func() { offlinePageClass.New().Widget().Unref() })
 	})
 	t.Run("PeerPage", func(t *testing.T) {
 		peer := layoutPeer(t, "peer", "peer", true, false, false)
 		status := layoutStatus([]tailcfg.NodeView{peer})
 		status.Prefs = ipn.NewPrefs().View()
-		fill(t, func() { NewPeerPage(&App{}, status, peer).Destroy() })
+		build(t, func() { NewPeerPage(&App{}, status, peer).Widget().Unref() })
 	})
 	t.Run("SelfPage", func(t *testing.T) {
-		status := &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()}
-		fill(t, func() { NewSelfPage(&App{}, status).Destroy() })
+		build(t, func() { NewSelfPage(&App{}, running).Widget().Unref() })
 	})
 	t.Run("MullvadPage", func(t *testing.T) {
-		status := &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()}
-		fill(t, func() { NewMullvadPage(&App{}, status).Destroy() })
+		build(t, func() { NewMullvadPage(&App{}, running).Widget().Unref() })
 	})
 	t.Run("PreferencesDialog", func(t *testing.T) {
-		var dialog PreferencesDialog
-		fill(t, func() { gutil.FillFromUI(&dialog, preferencesXML); gutil.UnrefFields(&dialog) })
+		build(t, func() { NewPreferencesDialog().Widget().Unref() })
 	})
 }

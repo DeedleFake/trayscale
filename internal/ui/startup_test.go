@@ -51,8 +51,8 @@ func TestSecondaryInstance(t *testing.T) {
 		os.Args = []string{"trayscale"}
 		a := new(App)
 		a.Run(t.Context())
-		if a.poller != nil || a.settings != nil || a.tray != nil {
-			t.Fatalf("secondary initialized primary-only services: poller=%t settings=%t tray=%t", a.poller != nil, a.settings != nil, a.tray != nil)
+		if a.bus != nil || a.settings != nil || a.tray != nil {
+			t.Fatalf("secondary initialized primary-only services: bus=%t settings=%t tray=%t", a.bus != nil, a.settings != nil, a.tray != nil)
 		}
 		return
 	}

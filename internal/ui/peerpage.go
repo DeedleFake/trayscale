@@ -21,7 +21,6 @@ import (
 	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/tsutil"
 	"deedles.dev/xiter"
-	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/tsaddr"
 	"tailscale.com/tailcfg"
 )
@@ -207,10 +206,16 @@ func (page *PeerPage) updateIcon() {
 }
 
 func (page *PeerPage) Update(s tsutil.Status) bool {
-	status, ok := s.(*tsutil.IPNStatus)
-	if !ok {
-		return true
+	switch s := s.(type) {
+	case *tsutil.IPNStatus:
+		return page.updateIPN(s)
+	case *tsutil.EngineStatus:
+		page.updateEngine(s)
 	}
+	return true
+}
+
+func (page *PeerPage) updateIPN(status *tsutil.IPNStatus) bool {
 	if !status.Online() {
 		return false
 	}
@@ -226,11 +231,6 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	exitNodeOption := peerIsExitNodeOption(page.peer)
 	exitNode := page.peer.Equal(status.ExitNode())
 
-	var enginePeer ipnstate.PeerStatusLite
-	if status.Engine != nil {
-		enginePeer = status.Engine.LivePeers[page.peer.Key()]
-	}
-
 	page.stackPage.SetTitle(peerName(page.peer))
 	if iconNames := peerIconNames(online, exitNodeOption, exitNode); iconNames != page.iconNames {
 		page.iconNames = iconNames
@@ -243,12 +243,9 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 
 	page.ExitNodeRow.SetVisible(exitNodeOption)
 	setSwitch(page.ExitNodeRow, exitNode)
-	page.RxBytes.SetText(strconv.FormatInt(enginePeer.RxBytes, 10))
-	page.TxBytes.SetText(strconv.FormatInt(enginePeer.TxBytes, 10))
 	page.Created.SetText(formatTime(page.peer.Created()))
 	page.LastSeen.SetText(formatTime(page.peer.LastSeen().Get()))
 	page.LastSeenRow.SetVisible(!online)
-	page.LastHandshake.SetText(formatTime(enginePeer.LastHandshake))
 	page.Online.SetFromGicon(boolIcon(online))
 
 	routes := func(yield func(netip.Prefix) bool) {
@@ -266,6 +263,13 @@ func (page *PeerPage) Update(s tsutil.Status) bool {
 	page.routeModel.Set(slices.Collect(routes))
 
 	return true
+}
+
+func (page *PeerPage) updateEngine(status *tsutil.EngineStatus) {
+	peer := status.LivePeers[page.peer.Key()]
+	page.RxBytes.SetText(strconv.FormatInt(peer.RxBytes, 10))
+	page.TxBytes.SetText(strconv.FormatInt(peer.TxBytes, 10))
+	page.LastHandshake.SetText(formatTime(peer.LastHandshake))
 }
 
 func peerName(peer tailcfg.NodeView) string {

@@ -395,11 +395,12 @@ func (page *MullvadPage) getExitNodeRow(peer tailcfg.NodeView) *mullvadExitNodeR
 			}
 		}
 
-		var node tailcfg.StableNodeID
+		var err error
 		if s {
-			node = peer.StableID()
+			err = tsutil.ExitNode(context.TODO(), peer.StableID())
+		} else {
+			err = tsutil.DisableExitNode(context.TODO())
 		}
-		err := tsutil.ExitNode(context.TODO(), node)
 		if err != nil {
 			slog.Error("set exit node", "err", err)
 			sw.SetActive(!s)

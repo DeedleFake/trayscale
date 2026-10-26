@@ -158,11 +158,12 @@ func (page *PeerPage) init(a *App, status *tsutil.IPNStatus, peer tailcfg.NodeVi
 			}
 		}
 
-		var node tailcfg.StableNodeID
+		var err error
 		if s {
-			node = page.peer.StableID()
+			err = tsutil.ExitNode(context.TODO(), page.peer.StableID())
+		} else {
+			err = tsutil.DisableExitNode(context.TODO())
 		}
-		err := tsutil.ExitNode(context.TODO(), node)
 		if err != nil {
 			slog.Error("set exit node", "err", err)
 			sw.SetActive(!s)

@@ -53,7 +53,9 @@ func Stop(ctx context.Context) error {
 }
 
 // ExitNode uses the specified peer as an exit node, or unsets
-// an existing exit node if peer is an empty string.
+// an existing exit node if peer is an empty string. Unsetting it this
+// way also makes Tailscale forget the previous exit node, so use
+// [DisableExitNode] to turn exit node use off instead.
 func ExitNode(ctx context.Context, peer tailcfg.StableNodeID) error {
 	if peer == "" {
 		var prefs ipn.Prefs
@@ -129,10 +131,7 @@ func SetUseExitNode(ctx context.Context, use bool, sel ExitNodeSelection) error 
 	}
 
 	if !use {
-		if err := pinAutoExitNode(ctx); err != nil {
-			slog.Error("pin automatic exit node before disabling", "err", err)
-		}
-		return localClient.SetUseExitNode(ctx, false)
+		return DisableExitNode(ctx)
 	}
 
 	useErr := localClient.SetUseExitNode(ctx, true)
@@ -145,6 +144,16 @@ func SetUseExitNode(ctx context.Context, use bool, sel ExitNodeSelection) error 
 	}
 
 	return keepPreviousExitNode(ctx)
+}
+
+// DisableExitNode turns exit node use off. Tailscale remembers the
+// exit node that was in use, so [SelectPreviousExitNode] can get it
+// back.
+func DisableExitNode(ctx context.Context) error {
+	if err := pinAutoExitNode(ctx); err != nil {
+		slog.Error("pin automatic exit node before disabling", "err", err)
+	}
+	return localClient.SetUseExitNode(ctx, false)
 }
 
 // pinAutoExitNode replaces automatic exit node selection with the node

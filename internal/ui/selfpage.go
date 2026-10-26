@@ -129,7 +129,7 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 
 	page.connectSwitch(page.AdvertiseExitNodeRow, "advertise exit node", func(s bool) error {
 		if s {
-			err := tsutil.ExitNode(context.TODO(), "")
+			err := tsutil.DisableExitNode(context.TODO())
 			if err != nil {
 				slog.Error("disable existing exit node", "err", err)
 				// Continue anyways.

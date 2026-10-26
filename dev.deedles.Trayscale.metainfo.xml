@@ -16,6 +16,9 @@
 		<p>
 			Trayscale interfaces with the Tailscale daemon, <code>tailscaled</code>, to perform many of its operations. In order for this to work, the daemon must have been configured with the current user as the &quot;operator&quot;. To do this, run <code>sudo tailscale set --operator=$USER</code> from the command-line at least once manually.
 		</p>
+		<p>
+			On distributions with older packages, such as Linux Mint 22 and Ubuntu 24.04, the Flatpak's tray icon might appear for a moment and then disappear. A bug in <code>xdg-dbus-proxy</code> before version 0.1.6 causes this. Flatpak uses <code>xdg-dbus-proxy</code> to filter the D-Bus messages that apps send. To see your version, run <code>xdg-dbus-proxy --version</code>. If you can, update <code>xdg-dbus-proxy</code> to 0.1.6 or later. If no update is available, run <code>flatpak override --user --socket=session-bus dev.deedles.Trayscale</code> and restart Trayscale. This gives Trayscale unfiltered access to the session bus, which weakens its sandbox.
+		</p>
 	</description>
 
 	<metadata_license>MIT</metadata_license>

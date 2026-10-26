@@ -12,8 +12,8 @@ import (
 
 // TestActionsDontBlockMainLoop checks that actions which talk to
 // tailscaled leave the main loop running while it's unreachable. The
-// poller is never run, so it never has a status, as when tailscaled
-// has been down since launch.
+// bus is never run, so it never has a status, as when tailscaled has
+// been down since launch.
 func TestActionsDontBlockMainLoop(t *testing.T) {
 	requireGTK(t)
 
@@ -46,7 +46,7 @@ func TestActionsDontBlockMainLoop(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
-			a := &App{poller: new(tsutil.Poller)}
+			a := &App{bus: new(tsutil.Bus)}
 			check := tt.run(a, ctx)
 
 			// A blocked main loop can't be interrupted from Go, so fail

@@ -39,7 +39,6 @@ func (a *App) initSettings(ctx context.Context) {
 					a.initTray(ctx)
 					return
 				}
-				a.stopTray()
 				a.tray.Close()
 				a.tray = nil
 			})
@@ -120,9 +119,7 @@ func (a *App) promptControlServer(ctx context.Context, current string) {
 						a.win.Toast(locale.Get("Error setting control URL: %v", err))
 					}
 				})
-				return
 			}
-			<-a.poller.Poll()
 		}()
 	})
 }

@@ -95,8 +95,8 @@ func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
 func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	page.app = a
 	page.peer, _ = status.Self()
-	if a.files != nil {
-		page.incomingFiles = len(*a.files)
+	if a.waiting != nil {
+		page.incomingFiles = len(*a.waiting)
 	}
 
 	page.actions = gio.NewSimpleActionGroup()
@@ -310,12 +310,10 @@ func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
 			Reject:  locale.Get("_Cancel"),
 		}.Show(a, func(accept bool) {
 			if accept {
-				err := tsutil.DeleteWaitingFile(context.TODO(), file.Name)
+				err := a.files.Delete(context.TODO(), file.Name)
 				if err != nil {
 					slog.Error("delete file", "err", err)
-					return
 				}
-				<-a.poller.Poll()
 			}
 		})
 	})

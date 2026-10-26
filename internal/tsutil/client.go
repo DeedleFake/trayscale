@@ -189,13 +189,29 @@ func useAutoExitNode(ctx context.Context) error {
 	return nil
 }
 
-func useSuggestedExitNode(ctx context.Context) error {
+// errNoRecommendedExitNode is returned when Tailscale has no exit node
+// to recommend. Tailscale reports that as a suggestion with no ID, not
+// as an error.
+var errNoRecommendedExitNode = errors.New("no exit node to recommend")
+
+func suggestExitNode(ctx context.Context) (tailcfg.StableNodeID, error) {
 	suggested, err := localClient.SuggestExitNode(ctx)
 	if err != nil {
-		return fmt.Errorf("suggest exit node: %w", err)
+		return "", fmt.Errorf("suggest exit node: %w", err)
+	}
+	if suggested.ID == "" {
+		return "", errNoRecommendedExitNode
 	}
 	slog.Info("got suggested exit node", "id", suggested.ID, "name", suggested.Name, "location", suggested.Location)
-	return ExitNode(ctx, suggested.ID)
+	return suggested.ID, nil
+}
+
+func useSuggestedExitNode(ctx context.Context) error {
+	id, err := suggestExitNode(ctx)
+	if err != nil {
+		return err
+	}
+	return ExitNode(ctx, id)
 }
 
 // keepPreviousExitNode pins the exit node that the daemon just
@@ -214,11 +230,12 @@ func keepPreviousExitNode(ctx context.Context) error {
 	id := prefs.ExitNodeID
 	// The daemon uses this placeholder until it has picked a node.
 	if id == "" || id == "auto:any" {
-		suggested, err := localClient.SuggestExitNode(ctx)
+		id, err = suggestExitNode(ctx)
 		if err != nil {
-			return fmt.Errorf("suggest exit node: %w", err)
+			// Turn it back off rather than leave automatic selection on
+			// with no node. Tailscale remembers automatic mode again.
+			return errors.Join(err, localClient.SetUseExitNode(ctx, false))
 		}
-		id = suggested.ID
 	}
 
 	_, err = localClient.EditPrefs(ctx, &ipn.MaskedPrefs{

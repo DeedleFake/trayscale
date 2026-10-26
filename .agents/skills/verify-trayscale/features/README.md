@@ -43,6 +43,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 - [Main window](./main-window.md) covers the window title, sidebar sections, the Show Offline Peers toggle, and connected vs not-connected chrome.
 - [This machine](./this-machine.md) covers the self page: hostname, Tailscale IPs, options, files, routes, and network check.
+- [Exit node](./exit-node.md) covers the Exit Node preference, turning exit node use on from the menu, and the self page row that opens the node in use.
 - [About](./about.md) covers the About dialog from the app menu action.
 - [Preferences](./preferences.md) covers the Preferences dialog and its General and Taildrop groups.
 - [Peer search](./peer-search.md) covers opening search from the toolbar button and from Ctrl+F, filtering, the empty result, and closing search.

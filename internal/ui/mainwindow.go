@@ -533,6 +533,30 @@ func (win *MainWindow) restack(order []string) {
 	win.restoreVisible(visible)
 }
 
+// ShowPage makes the named page visible, closing the peer search if it
+// hides the page. It returns false if there is no such page.
+func (win *MainWindow) ShowPage(name string) bool {
+	if win.pages[name] == nil {
+		return false
+	}
+	if !slices.Contains(win.stackPageNames(), name) {
+		win.PeerSearchBar.SetSearchMode(false)
+	}
+	win.PeersStack.SetVisibleChildName(name)
+	return win.PeersStack.GetVisibleChildName() == name
+}
+
+// ShowMullvadNode shows the Mullvad page with the given exit node
+// revealed.
+func (win *MainWindow) ShowMullvadNode(id tailcfg.StableNodeID) bool {
+	page, ok := win.pages["mullvad"].(*MullvadPage)
+	if !ok || !win.ShowPage("mullvad") {
+		return false
+	}
+	page.Reveal(id)
+	return true
+}
+
 func (win *MainWindow) restoreVisible(name string) {
 	for _, vp := range win.viewStackPages() {
 		if vp.name == name {

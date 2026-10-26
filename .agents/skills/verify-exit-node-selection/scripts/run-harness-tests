@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Runs internal/tsutil's TestHarness tests against two real tailscaled
+# daemons from the drive-trayscale skill's tsharness: one that can recommend
+# an exit node and one that can't. Extra arguments go to go test.
+set -euo pipefail
+
+ROOT=$(git rev-parse --show-toplevel)
+DIR=${DIR:-${TMPDIR:-/tmp}/trayscale-exit-node-harness}
+TSH="$ROOT/.agents/skills/drive-trayscale/scripts/tsharness"
+
+V=$(cd "$ROOT" && go list -m -f '{{.Version}}' tailscale.com)
+mkdir -p "$DIR/bin-$V"
+BIN="$DIR/bin-$V"
+[[ -x $BIN/tailscaled ]] || GOBIN=$BIN go install "tailscale.com/cmd/tailscaled@$V"
+[[ -x $BIN/tailscale ]] || GOBIN=$BIN go install "tailscale.com/cmd/tailscale@$V"
+(cd "$TSH" && go build -o "$BIN/tsharness" .)
+
+pids=()
+cleanup() {
+  [[ ${#pids[@]} -gt 0 ]] && kill -INT "${pids[@]}" 2>/dev/null
+  wait
+}
+trap cleanup EXIT
+
+start() {
+  local name=$1; shift
+  rm -rf "${DIR:?}/$name" && mkdir -p "$DIR/$name"
+  cp "$BIN/tailscale" "$BIN/tailscaled" "$DIR/$name/"
+  "$BIN/tsharness" -dir "$DIR/$name" -socket "$DIR/$name/ts.sock" "$@" >"$DIR/$name.log" 2>&1 &
+  pids+=($!)
+}
+start suggest -suggest-exit-nodes -mullvad 1
+start nosuggest -mullvad 1
+
+for name in suggest nosuggest; do
+  for _ in $(seq 120); do
+    grep -q '^READY' "$DIR/$name.log" && break
+    sleep 1
+  done
+  grep -q '^READY' "$DIR/$name.log" || { echo "tsharness $name never became ready:" >&2; tail -n 20 "$DIR/$name.log" >&2; exit 2; }
+done
+
+cd "$ROOT"
+TSHARNESS_SOCKET="$DIR/suggest/ts.sock" TSHARNESS_NOSUGGEST_SOCKET="$DIR/nosuggest/ts.sock" \
+  go test -count=1 -run TestHarness "$@" ./internal/tsutil

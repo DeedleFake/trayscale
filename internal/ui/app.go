@@ -411,7 +411,7 @@ func (a *App) onAppActivate(ctx context.Context) {
 		defer cancel()
 
 		s := gutil.Ptr[glib.Variant](state).GetBoolean()
-		err := tsutil.SetUseExitNode(ctx, s)
+		err := tsutil.SetUseExitNode(ctx, s, a.exitNodeSelection())
 		if err != nil {
 			slog.Error("failed to set exit node state", "state", s, "err", err)
 			if a.win != nil {
@@ -546,13 +546,14 @@ func (a *App) initTray(ctx context.Context) {
 		OnConnToggle: func() { a.toggleConn(ctx) },
 
 		OnExitToggle: func() {
+			sel := a.exitNodeSelection()
 			go func() {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 
 				s := <-a.poller.GetIPN()
 				toggle := !s.ExitNodeActive()
-				err := tsutil.SetUseExitNode(ctx, toggle)
+				err := tsutil.SetUseExitNode(ctx, toggle, sel)
 				gutil.IdleAdd(func() {
 					if err != nil {
 						a.notify(locale.Get("Toggle exit node"), err.Error())

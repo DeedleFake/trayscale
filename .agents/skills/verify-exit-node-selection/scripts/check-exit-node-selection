@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# Model-checks .agents/skills/verify-exit-node-selection/model/ExitNodeSelection.tla
+# with TLC. The model's guard constants are read from the code, so removing a
+# guard in the code turns its constant FALSE and the check shows what breaks.
+set -euo pipefail
+
+TLA_VERSION=1.8.0
+TLA_SHA256=d15655eeaff4b3f7b3d65c46b838bc0f35d131b2ef4b1e473689b62c98d4726f
+
+# The tailscale.com version whose daemon behavior the model describes.
+MODELED_TAILSCALE=v1.104.1
+
+# Properties the current code is known to break, as PROPERTY:BOUND. The
+# property must hold with the BOUND constant FALSE and is expected to fail
+# with it TRUE. Remove an entry once the code is fixed and the check passes it.
+KNOWN_FINDINGS=(PreviousIsLastUsed:OffWhileWaiting)
+
+PROPERTIES=(SelectionTakesEffect PreviousIsLastUsed TurningOnTurnsOn FailedTurnOnLeavesItOff)
+
+ONLY=
+if [[ ${1:-} == --only ]]; then
+  ONLY=${2:?usage: check-exit-node-selection [--only PROPERTY]}
+fi
+
+ROOT=$(git rev-parse --show-toplevel)
+SKILL_DIR="$ROOT/.agents/skills/verify-exit-node-selection"
+OUT="$SKILL_DIR/out"
+WORKERS=${TLC_WORKERS:-auto}
+
+die() { echo "error: $*" >&2; exit 2; }
+
+command -v java >/dev/null || die "java not found. Install a JDK 11 or newer (for example: mise exec java@temurin-21 -- $0)."
+command -v perl >/dev/null || die "perl not found."
+
+JAR=${TLA2TOOLS_JAR:-"${XDG_CACHE_HOME:-$HOME/.cache}/trayscale/tla2tools-$TLA_VERSION.jar"}
+if [[ ! -f "$JAR" ]]; then
+  mkdir -p "$(dirname "$JAR")"
+  echo "downloading tla2tools.jar $TLA_VERSION to $JAR"
+  curl -fsSL -o "$JAR.part" "https://github.com/tlaplus/tlaplus/releases/download/v$TLA_VERSION/tla2tools.jar"
+  mv "$JAR.part" "$JAR"
+fi
+if command -v sha256sum >/dev/null; then
+  sum=$(sha256sum "$JAR" | cut -d' ' -f1)
+else
+  sum=$(shasum -a 256 "$JAR" | cut -d' ' -f1)
+fi
+[[ "$sum" == "$TLA_SHA256" ]] || die "$JAR has sha256 $sum, expected $TLA_SHA256. Delete it and rerun."
+
+ts=$(sed -n 's/^[[:space:]]*tailscale\.com \(v[^[:space:]]*\).*/\1/p' "$ROOT/go.mod" | head -n1)
+if [[ $ts != "$MODELED_TAILSCALE" ]]; then
+  echo "warning: go.mod has tailscale.com $ts, but the model describes $MODELED_TAILSCALE. Recheck the ll: and api: actions in the model against $ts, then update MODELED_TAILSCALE."
+fi
+
+# anchor FILE REGEX: TRUE when REGEX (Perl, /s) matches FILE.
+anchor() {
+  perl -0777 -ne "exit(/$2/s ? 0 : 1)" "$ROOT/$1" && echo TRUE || echo FALSE
+}
+all() { local v; for v in "$@"; do [[ $v == TRUE ]] || { echo FALSE; return; }; done; echo TRUE; }
+
+# One regex per model constant. A FALSE means the guard is gone from the code,
+# or the code moved and the regex needs updating. SKILL.md says how to tell.
+CLIENT=internal/tsutil/client.go
+APP=internal/ui/app.go
+FUNC_BODY='(?:(?!\n\}\n).)*?'
+FLAG_NAMES=()
+flag() { FLAG_NAMES+=("$1"); printf -v "FLAG_$1" %s "$2"; }
+flag SettingReadBack "$(all \
+  "$(anchor internal/ui/settings.go 'a\.settings\.SetString\("exit-node-selection", sel\.String\(\)\)')" \
+  "$(anchor internal/ui/settings.go 'func \(a \*App\) exitNodeSelection\(\)'"$FUNC_BODY"'return tsutil\.ParseExitNodeSelection\(gutil\.SettingsString\(a\.settings, "exit-node-selection"\)\)')" \
+  "$(anchor $CLIENT 'func ParseExitNodeSelection\(str string\) ExitNodeSelection \{\s*if str == "recommended" \{\s*return SelectRecommendedExitNode')" \
+  "$(anchor $CLIENT 'func \(sel ExitNodeSelection\) String\(\) string \{\s*if sel == SelectRecommendedExitNode \{\s*return "recommended"')" \
+  "$(anchor $CLIENT 'SelectPreviousExitNode ExitNodeSelection = iota\n(?:\s*\/\/[^\n]*\n|\s*\n)*\s*SelectRecommendedExitNode\n')" \
+  "$(anchor internal/ui/preferences.ui 'id="ExitNodeSelectionRow">.*?<item translatable="yes">Previous exit node<\/item>\s*<item translatable="yes">Recommended exit node<\/item>\s*<\/items>')")"
+flag MenuUsesSetting "$(anchor $APP 'NewSimpleActionStateful\("use_exit_node",.*?ConnectChangeState(?:(?!\n\t\}\)\n).)*?tsutil\.SetUseExitNode\(ctx, s, a\.exitNodeSelection\(\)\)')"
+flag TrayUsesSetting "$(anchor $APP 'OnExitToggle: func\(\) \{\s*sel := a\.exitNodeSelection\(\)(?:(?!\n\t\t\},\n).)*?tsutil\.SetUseExitNode\(ctx, toggle, sel\)')"
+flag RecommendedUsesAuto "$(anchor $CLIENT 'func SetUseExitNode\('"$FUNC_BODY"'if use && sel == SelectRecommendedExitNode \{\s*err := useAutoExitNode\(ctx\)')"
+flag PreviousPinsRestoredAuto "$(anchor $CLIENT 'func SetUseExitNode\('"$FUNC_BODY"'\n\treturn keepPreviousExitNode\(ctx\)\n\}\n')"
+flag OffPinsAutoNode "$(all \
+  "$(anchor $CLIENT 'func SetUseExitNode\('"$FUNC_BODY"'if !use \{\s*return DisableExitNode\(ctx\)')" \
+  "$(anchor $CLIENT 'func DisableExitNode\(ctx context\.Context\) error \{\s*if err := pinAutoExitNode\(ctx\); err != nil \{(?:(?!\n\}\n).)*?\}\s*return localClient\.SetUseExitNode\(ctx, false\)\n\}\n')")"
+flag SuggestRejectsEmpty "$(all \
+  "$(anchor $CLIENT 'func suggestExitNode\('"$FUNC_BODY"'if suggested\.ID == "" \{\s*return "", errNoRecommendedExitNode')" \
+  "$(anchor $CLIENT 'func useSuggestedExitNode\('"$FUNC_BODY"'id, err := suggestExitNode\(ctx\)')" \
+  "$(anchor $CLIENT 'func keepPreviousExitNode\('"$FUNC_BODY"'id, err = suggestExitNode\(ctx\)')")"
+flag KeepUndoesFailedPin "$(anchor $CLIENT 'func keepPreviousExitNode\('"$FUNC_BODY"'id, err = suggestExitNode\(ctx\)\s*if err != nil \{(?:\s*\/\/[^\n]*)*\s*return errors\.Join\(err, localClient\.SetUseExitNode\(ctx, false\)\)')"
+flag PeerPageOffKeepsPrior "$(anchor internal/ui/peerpage.go 'err = tsutil\.ExitNode\(context\.TODO\(\), page\.peer\.StableID\(\)\)\s*\} else \{\s*err = tsutil\.DisableExitNode\(context\.TODO\(\)\)')"
+flag MullvadPageOffKeepsPrior "$(anchor internal/ui/mullvadpage.go 'err = tsutil\.ExitNode\(context\.TODO\(\), peer\.StableID\(\)\)\s*\} else \{\s*err = tsutil\.DisableExitNode\(context\.TODO\(\)\)')"
+flag AdvertiseKeepsPrior "$(anchor internal/ui/selfpage.go 'connectSwitch\(page\.AdvertiseExitNodeRow, "advertise exit node", func\(s bool\) error \{\s*if s \{\s*err := tsutil\.DisableExitNode\(context\.TODO\(\)\)')"
+
+echo "code facts (model constants):"
+for k in "${FLAG_NAMES[@]}"; do
+  v="FLAG_$k"; printf '  %-26s %s\n' "$k" "${!v}"
+done
+
+rm -rf "$OUT" && mkdir -p "$OUT"
+cp "$SKILL_DIR/model/ExitNodeSelection.tla" "$OUT/"
+
+# write_cfg NAME OFF_WHILE_WAITING INVARIANTS...
+write_cfg() {
+  local name=$1 waiting=$2; shift 2
+  {
+    echo "SPECIFICATION Spec"
+    echo "CONSTANTS"
+    echo "  MaxClicks = 4"
+    echo "  MaxOther = 3"
+    echo "  MaxNetmap = 3"
+    echo "  MaxSetting = 2"
+    echo "  OffWhileWaiting = $waiting"
+    for k in "${FLAG_NAMES[@]}"; do v="FLAG_$k"; echo "  $k = ${!v}"; done
+    echo "CHECK_DEADLOCK FALSE"
+    echo "INVARIANT TypeOK $*"
+  } >"$OUT/$name.cfg"
+}
+
+# run NAME OFF_WHILE_WAITING INVARIANTS...: prints the violated invariant,
+# "none", or "tool-error".
+run() {
+  local name=$1; shift
+  write_cfg "$name" "$@"
+  (cd "$OUT" && java -XX:+UseParallelGC -cp "$JAR" tlc2.TLC -config "$name.cfg" \
+    -workers "$WORKERS" -metadir "$OUT/meta-$name" -nowarning ExitNodeSelection.tla) >"$OUT/$name.out" 2>&1 || true
+  if grep -q '^Model checking completed. No error has been found.' "$OUT/$name.out"; then
+    echo none
+  elif v=$(grep -oE '^Error: Invariant [A-Za-z]+ is violated' "$OUT/$name.out" | awk '{print $3}'); [[ -n $v ]]; then
+    echo "$v"
+  else
+    echo tool-error
+  fi
+}
+
+if [[ -n $ONLY ]]; then KNOWN_FINDINGS=(); fi
+is_known() { local x; for x in "${KNOWN_FINDINGS[@]}"; do [[ ${x%%:*} == "$1" ]] && return 0; done; return 1; }
+
+expected=()
+for p in "${PROPERTIES[@]}"; do is_known "$p" || expected+=("$p"); done
+[[ -n $ONLY ]] && expected=("$ONLY")
+
+status=0
+start=$SECONDS
+result=$(run main TRUE "${expected[@]}")
+case $result in
+  none) echo "PASS  ${expected[*]}" ;;
+  tool-error) echo "TOOL ERROR, see $OUT/main.out"; status=2 ;;
+  *) echo "FAIL  $result (counterexample: $OUT/main.out)"; status=1 ;;
+esac
+
+for entry in "${KNOWN_FINDINGS[@]}"; do
+  f=${entry%%:*} bound=${entry#*:}
+  r=$(run "$f-without-$bound" FALSE "$f")
+  case $r in
+    none) echo "PASS  $f with $bound FALSE" ;;
+    tool-error) echo "TOOL ERROR, see $OUT/$f-without-$bound.out"; status=2 ;;
+    *) echo "FAIL  $r with $bound FALSE (counterexample: $OUT/$f-without-$bound.out)"; [[ $status == 0 ]] && status=1 ;;
+  esac
+  r=$(run "$f" TRUE "$f")
+  case $r in
+    "$f") echo "KNOWN FINDING still present: $f with $bound TRUE (counterexample: $OUT/$f.out)" ;;
+    none) echo "FIXED? $f now passes with $bound TRUE. Confirm the fix with a test, then remove it from KNOWN_FINDINGS and the findings in SKILL.md."; status=1 ;;
+    tool-error) echo "TOOL ERROR, see $OUT/$f.out"; status=2 ;;
+    *) echo "FAIL  $r while checking $f (counterexample: $OUT/$f.out)"; [[ $status == 0 ]] && status=1 ;;
+  esac
+done
+echo "model checked in $((SECONDS - start))s"
+
+# Coverage drift: covered code changed since the sync commit in SKILL.md.
+sync=$(sed -n 's/^Sync commit: `\([0-9a-f]*\)`.*/\1/p' "$SKILL_DIR/SKILL.md")
+covered=$(sed -n 's/^- `\([^`]*\)`:.*/\1/p' "$SKILL_DIR/SKILL.md" | sort -u)
+if [[ -n $sync ]] && git -C "$ROOT" cat-file -e "$sync^{commit}" 2>/dev/null; then
+  # shellcheck disable=SC2086
+  drift=$(cd "$ROOT" && git diff --name-only "$sync" -- $covered)
+  if [[ -n $drift ]]; then
+    echo "covered code changed since sync commit $sync, so recheck the model against it:"
+    echo "$drift" | sed 's/^/  /'
+  fi
+else
+  echo "warning: sync commit '$sync' from SKILL.md is not in this clone; cannot check coverage drift."
+fi
+
+exit $status

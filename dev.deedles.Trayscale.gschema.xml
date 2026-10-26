@@ -44,6 +44,19 @@
 				destination is configured.
 			</description>
 		</key>
+		<key name="exit-node-selection" type="s">
+			<choices>
+				<choice value="previous"/>
+				<choice value="recommended"/>
+			</choices>
+			<default>'previous'</default>
+			<summary>Exit node to use when turning on exit node use</summary>
+			<description>
+				Either "previous" to reuse the most recently used exit node or
+				"recommended" to let Tailscale pick the recommended exit node
+				and keep tracking it.
+			</description>
+		</key>
 	</schema>
 </schemalist>
 

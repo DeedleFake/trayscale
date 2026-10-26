@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"cmp"
 	"context"
 	_ "embed"
@@ -226,6 +228,39 @@ func (page *MullvadPage) applySearch() {
 	page.LocationList.InvalidateSort()
 }
 
+// expanderRevealDelay is long enough for an AdwExpanderRow's reveal
+// animation to finish.
+const expanderRevealDelay = 300 * time.Millisecond
+
+// Reveal expands the location containing the given exit node and
+// scrolls it into view.
+func (page *MullvadPage) Reveal(id tailcfg.StableNodeID) {
+	node := page.exitNodes[id]
+	if node == nil {
+		return
+	}
+	if page.searching() {
+		page.SearchEntry.SetText("")
+		page.setQuery("")
+	}
+	focus := func() {
+		if page.exitNodes[id] == node {
+			node.row.GrabFocus()
+		}
+	}
+	if loc := page.locations[node.country]; loc != nil && !node.flat && !loc.GetExpanded() {
+		loc.SetExpanded(true)
+		// Focusing the row is what scrolls it into view, but while
+		// the expander's reveal animation runs, the row has no real
+		// size yet, so focusing it then only scrolls to the expander.
+		gutil.TimeoutAdd(expanderRevealDelay, focus)
+		return
+	}
+	// The row can't take focus until the newly visible page has been
+	// mapped.
+	gutil.IdleAdd(focus)
+}
+
 func (page *MullvadPage) setNodeTitle(node *mullvadExitNodeRow, searching bool) {
 	loc := node.peer.Hostinfo().Location()
 	if searching {
@@ -360,11 +395,12 @@ func (page *MullvadPage) getExitNodeRow(peer tailcfg.NodeView) *mullvadExitNodeR
 			}
 		}
 
-		var node tailcfg.StableNodeID
+		var err error
 		if s {
-			node = peer.StableID()
+			err = tsutil.ExitNode(context.TODO(), peer.StableID())
+		} else {
+			err = tsutil.DisableExitNode(context.TODO())
 		}
-		err := tsutil.ExitNode(context.TODO(), node)
 		if err != nil {
 			slog.Error("set exit node", "err", err)
 			sw.SetActive(!s)

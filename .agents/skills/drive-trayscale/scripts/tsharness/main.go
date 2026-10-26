@@ -42,15 +42,17 @@ type Peer struct {
 
 // Harness is the reusable fixture.
 type Harness struct {
-	Dir        string // state, logs, binaries
-	Socket     string // tailscaled LocalAPI socket
-	Tailscaled string // path to tailscaled binary
-	Tailscale  string // path to tailscale CLI binary
-	Hostname   string // this machine's hostname
-	Peers      []Peer
-	Churn      time.Duration // if nonzero, flip peer state this often
-	Mullvad    bool          // grant this machine the mullvad capability
-	Receiver   bool          // run a second real node, "receiver", that accepts Taildrop
+	Dir              string // state, logs, binaries
+	Socket           string // tailscaled LocalAPI socket
+	Tailscaled       string // path to tailscaled binary
+	Tailscale        string // path to tailscale CLI binary
+	Hostname         string // this machine's hostname
+	Peers            []Peer
+	Churn            time.Duration // if nonzero, flip peer state this often
+	Mullvad          bool          // grant this machine the mullvad capability
+	Receiver         bool          // run a second real node, "receiver", that accepts Taildrop
+	SuggestExitNodes bool          // allow fake exit nodes to be recommended automatically
+	RemoveExitAfter  time.Duration // if nonzero, remove bravo-exit from this machine's netmap after this long
 }
 
 const capFileSharing = tailcfg.NodeCapability(tailcfg.CapabilityFileSharing)
@@ -128,6 +130,7 @@ func (h *Harness) Run(ctx context.Context) error {
 		ctrl.SetNodeCapMap(selfKey, selfCaps)
 	}
 	var peerKeys []key.NodePublic
+	var removeID tailcfg.NodeID
 	for i, p := range h.Peers {
 		before := map[tailcfg.NodeID]bool{}
 		for _, n := range ctrl.AllNodes() {
@@ -158,11 +161,20 @@ func (h *Harness) Run(ctx context.Context) error {
 			n.Created = time.Now().Add(-30 * 24 * time.Hour)
 			if p.ExitNode {
 				n.AllowedIPs = append(n.AllowedIPs, netip.MustParsePrefix("0.0.0.0/0"), netip.MustParsePrefix("::/0"))
+				if h.SuggestExitNodes && p.Location == nil {
+					n.HomeDERP = 1 // The harness's local DERP region.
+				}
 			}
 			n.AllowedIPs = append(n.AllowedIPs, p.Routes...)
 			n.PrimaryRoutes = append(n.PrimaryRoutes, p.Routes...)
 			ctrl.UpdateNode(n)
+			if p.ExitNode && h.SuggestExitNodes {
+				ctrl.SetNodeCapMap(n.Key, tailcfg.NodeCapMap{tailcfg.NodeAttrSuggestExitNode: nil})
+			}
 			peerKeys = append(peerKeys, n.Key)
+			if p.Host == "bravo-exit" {
+				removeID = n.ID
+			}
 		}
 	}
 	if h.Receiver {
@@ -184,6 +196,14 @@ func (h *Harness) Run(ctx context.Context) error {
 	fmt.Println("READY", url)
 	if h.Churn > 0 {
 		go churn(ctx, ctrl, peerKeys, h.Churn)
+	}
+	if h.RemoveExitAfter > 0 {
+		time.AfterFunc(h.RemoveExitAfter, func() {
+			// Real control sends a delta like this when a node is deleted.
+			// testcontrol then stops sending this node full netmaps.
+			ok := ctrl.AddRawMapResponse(selfKey, &tailcfg.MapResponse{PeersRemoved: []tailcfg.NodeID{removeID}})
+			log.Printf("removed bravo-exit from netmap: %v", ok)
+		})
 	}
 	<-ctx.Done()
 	_ = cli("down")
@@ -274,6 +294,8 @@ func main() {
 	churnEvery := flag.Duration("churn", 0, "flip one peer's state this often (0 disables)")
 	receiver := flag.Bool("receiver", false, "run a second real node, receiver, that accepts Taildrop from this machine")
 	mullvad := flag.Int("mullvad", 0, "Mullvad exit nodes to register (also grants the mullvad capability)")
+	suggestExitNodes := flag.Bool("suggest-exit-nodes", false, "allow fake exit nodes to be recommended automatically")
+	removeExitAfter := flag.Duration("remove-exit-after", 0, "remove bravo-exit from this machine's netmap this long after READY (0 disables)")
 	flag.Parse()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -288,9 +310,11 @@ func main() {
 			{Host: "echo-down", Online: false, ExitNode: true},
 			{Host: "delta-router", Online: true, Routes: []netip.Prefix{netip.MustParsePrefix("192.168.50.0/24")}},
 		},
-		Churn:    *churnEvery,
-		Mullvad:  *mullvad > 0,
-		Receiver: *receiver,
+		Churn:            *churnEvery,
+		Mullvad:          *mullvad > 0,
+		Receiver:         *receiver,
+		SuggestExitNodes: *suggestExitNodes,
+		RemoveExitAfter:  *removeExitAfter,
 	}
 	for i := range *extra {
 		h.Peers = append(h.Peers, Peer{Host: fmt.Sprintf("peer-%02d", i), Online: i%3 != 0})

@@ -1,6 +1,8 @@
 package gutil
 
 import (
+	"time"
+
 	"sync"
 
 	"codeberg.org/puregotk/puregotk/v4/gio"
@@ -59,6 +61,12 @@ var idle glib.SourceFunc = func(id uintptr) bool {
 // goroutine.
 func IdleAdd(f func()) {
 	glib.IdleAdd(&idle, Hold(f))
+}
+
+// TimeoutAdd runs f once on the main loop after the given delay. It is
+// safe to call from any goroutine.
+func TimeoutAdd(delay time.Duration, f func()) {
+	glib.TimeoutAdd(uint32(delay.Milliseconds()), &idle, Hold(f))
 }
 
 // AsyncCallback is the GAsyncReadyCallback for functions passed to

@@ -141,6 +141,13 @@ func (a *App) showPreferences() {
 	a.settings.Bind("polling-interval", &dialog.PollingIntervalAdjustment.Object, "value", gio.GSettingsBindDefaultValue)
 	a.settings.Bind("taildrop-auto-save", &dialog.TaildropAutoSaveRow.Object, "active", gio.GSettingsBindDefaultValue)
 
+	// The row's items are in ExitNodeSelection order.
+	dialog.ExitNodeSelectionRow.SetSelected(uint32(a.exitNodeSelection()))
+	gutil.ConnectNotify(dialog.ExitNodeSelectionRow, "selected", func() {
+		sel := tsutil.ExitNodeSelection(dialog.ExitNodeSelectionRow.GetSelected())
+		a.settings.SetString("exit-node-selection", sel.String())
+	})
+
 	updateAutoSaveSubtitle := func() {
 		dir := gutil.SettingsString(a.settings, "taildrop-auto-save-dir")
 		if dir == "" {
@@ -241,4 +248,13 @@ func (a *App) getInterval() time.Duration {
 		return 5 * time.Second
 	}
 	return time.Duration(a.settings.GetDouble("polling-interval") * float64(time.Second))
+}
+
+// exitNodeSelection returns how to pick an exit node when exit node
+// use is turned on.
+func (a *App) exitNodeSelection() tsutil.ExitNodeSelection {
+	if a.settings == nil {
+		return tsutil.SelectPreviousExitNode
+	}
+	return tsutil.ParseExitNodeSelection(gutil.SettingsString(a.settings, "exit-node-selection"))
 }

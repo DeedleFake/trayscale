@@ -76,6 +76,26 @@ jobs:
       - name: go fix
         run: go fix -diff ./...
 
+  exit-node-selection:
+    name: exit node selection
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.go-version }}
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Model check
+        run: .agents/skills/verify-exit-node-selection/scripts/check-exit-node-selection
+      - name: Harness tests
+        run: .agents/skills/verify-exit-node-selection/scripts/run-harness-tests -v
+
   metainfo-validate:
     name: metainfo validate
     runs-on: ubuntu-latest

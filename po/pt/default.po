@@ -141,9 +141,6 @@ msgstr "Se ativado, um ícone será adicionado à bandeja do sistema"
 msgid "If you delete this file, you will no longer be able to save it to your local machine."
 msgstr "Se você excluir este arquivo, não poderá mais salvá-lo na sua máquina local."
 
-msgid "Interval, in seconds, at which to poll the Tailscale daemon"
-msgstr "Intervalo, em segundos, para consultar o daemon do Tailscale"
-
 msgid "Last handshake"
 msgstr "Último handshake"
 
@@ -212,9 +209,6 @@ msgstr "Abrir um navegador para autenticar com o Tailscale?"
 
 msgid "Options"
 msgstr "Opções"
-
-msgid "Polling Interval"
-msgstr "Intervalo de consulta"
 
 msgid "Port control protocol"
 msgstr "Protocolo de controle de portas"

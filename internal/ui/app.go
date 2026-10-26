@@ -693,8 +693,7 @@ func (a *App) Run(ctx context.Context) {
 	a.initSettings(ctx)
 
 	a.poller = &tsutil.Poller{
-		Interval: a.getInterval(),
-		New:      func(s tsutil.Status) { gutil.IdleAdd(func() { a.update(s) }) },
+		New: func(s tsutil.Status) { gutil.IdleAdd(func() { a.update(s) }) },
 		Error: func(err error) {
 			slog.Error("set Tailscale status", "err", err)
 			a.toast(locale.Get("Failed to start or stop Tailscale"))

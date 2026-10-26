@@ -141,9 +141,6 @@ msgstr "有効にすると、システムトレイにアイコンが追加され
 msgid "If you delete this file, you will no longer be able to save it to your local machine."
 msgstr "このファイルを削除すると、ローカルマシンに保存できなくなります。"
 
-msgid "Interval, in seconds, at which to poll the Tailscale daemon"
-msgstr "Tailscaleデーモンをポーリングする間隔（秒）"
-
 msgid "Last handshake"
 msgstr "最後のハンドシェイク"
 
@@ -212,9 +209,6 @@ msgstr "ブラウザを開いてTailscaleで認証しますか？"
 
 msgid "Options"
 msgstr "オプション"
-
-msgid "Polling Interval"
-msgstr "ポーリング間隔"
 
 msgid "Port control protocol"
 msgstr "ポート制御プロトコル"

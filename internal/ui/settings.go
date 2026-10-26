@@ -44,9 +44,6 @@ func (a *App) initSettings(ctx context.Context) {
 				a.tray = nil
 			})
 
-		case "polling-interval":
-			a.poller.SetInterval() <- a.getInterval()
-
 		case "taildrop-auto-save", "taildrop-auto-save-dir":
 			gutil.IdleAdd(func() {
 				// New enable/dir selection should retry files that failed
@@ -138,7 +135,6 @@ func (a *App) showPreferences() {
 
 	dialog := NewPreferencesDialog()
 	a.settings.Bind("tray-icon", &dialog.UseTrayIconRow.Object, "active", gio.GSettingsBindDefaultValue)
-	a.settings.Bind("polling-interval", &dialog.PollingIntervalAdjustment.Object, "value", gio.GSettingsBindDefaultValue)
 	a.settings.Bind("taildrop-auto-save", &dialog.TaildropAutoSaveRow.Object, "active", gio.GSettingsBindDefaultValue)
 
 	// The row's items are in ExitNodeSelection order.
@@ -237,13 +233,6 @@ func (a *App) showAbout() {
 	}
 
 	dialog.Present(a.parent())
-}
-
-func (a *App) getInterval() time.Duration {
-	if a.settings == nil {
-		return 5 * time.Second
-	}
-	return time.Duration(a.settings.GetDouble("polling-interval") * float64(time.Second))
 }
 
 // exitNodeSelection returns how to pick an exit node when exit node

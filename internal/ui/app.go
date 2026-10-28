@@ -613,14 +613,18 @@ func (a *App) initTray(ctx context.Context) {
 					return
 				}
 
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer cancel()
+				go func() {
+					ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+					defer cancel()
 
-				err := a.profiles.Switch(ctx, id)
-				if err != nil {
-					slog.Error("switch profile from tray", "err", err)
-					a.notify(locale.Get("Switch account"), err.Error())
-				}
+					err := a.profiles.Switch(ctx, id)
+					if err != nil {
+						slog.Error("switch profile from tray", "err", err)
+						gutil.IdleAdd(func() {
+							a.notify(locale.Get("Switch account"), err.Error())
+						})
+					}
+				}()
 			})
 		},
 

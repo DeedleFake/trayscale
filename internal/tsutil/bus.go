@@ -3,6 +3,7 @@ package tsutil
 import (
 	"context"
 	"log/slog"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -39,6 +40,9 @@ type Bus struct {
 	stopped chan struct{}
 	runMu   sync.Mutex
 
+	arrivedMu sync.Mutex
+	arrived   []string // names of files received since takeArrived
+
 	// setRunning is a test seam. Only tests set it, to fake starting
 	// and stopping Tailscale. It's nil in normal use, in which case
 	// SetRunning calls Start and Stop.
@@ -67,6 +71,7 @@ type busEvent struct {
 	status  *IPNStatus // to publish, if non-nil
 	engine  *EngineStatus
 	changes change
+	arrived []string // names of files that were just received
 }
 
 // Run follows the bus until ctx is done, reconnecting every 5 seconds
@@ -101,6 +106,13 @@ func (b *Bus) Run(ctx context.Context) error {
 			}
 			if ev.status != nil {
 				pending = ev.status
+			}
+			if ev.arrived != nil {
+				// Before the signal, so that the fetch it causes takes
+				// them.
+				b.arrivedMu.Lock()
+				b.arrived = append(b.arrived, ev.arrived...)
+				b.arrivedMu.Unlock()
 			}
 			// Signals aren't held while starting or stopping. Only
 			// publishing is.
@@ -209,13 +221,25 @@ func (b *Bus) watchOnce(ctx context.Context, send func(busEvent) bool) (connecte
 		if notify.Engine != nil {
 			ev.engine = &EngineStatus{LivePeers: notify.Engine.LivePeers}
 		}
-		if ev == (busEvent{}) {
+		ev.arrived, w.arrived = w.arrived, nil
+		if ev.status == nil && ev.engine == nil && ev.changes == 0 && ev.arrived == nil {
 			continue
 		}
 		if !send(ev) {
 			return true, ctx.Err()
 		}
 	}
+}
+
+// takeArrived returns the names of the files received since the last
+// call, in order. A name can repeat, and a file can be gone by the
+// time it's called.
+func (b *Bus) takeArrived() []string {
+	b.arrivedMu.Lock()
+	defer b.arrivedMu.Unlock()
+	arrived := b.arrived
+	b.arrived = nil
+	return arrived
 }
 
 // Latest returns the last status passed to New, waiting for the
@@ -344,6 +368,14 @@ type watchState struct {
 	// incoming holds the names of Taildrop transfers in progress.
 	incoming set.Set[string]
 
+	// received holds the finished transfers that tailscaled still
+	// lists, so that each is reported once.
+	received set.Set[transfer]
+
+	// arrived holds the names of the files received by the notifies
+	// applied since the last time it was cleared.
+	arrived []string
+
 	// filesWaiting is whether the last notify said that files are
 	// waiting. tailscaled sets it on every notify while they are.
 	filesWaiting bool
@@ -409,6 +441,12 @@ func (w *watchState) apply(notify *ipn.Notify) (c change) {
 	return c
 }
 
+// transfer identifies one Taildrop transfer.
+type transfer struct {
+	name    string
+	started time.Time
+}
+
 // applyFiles reports whether notify says that the waiting files may
 // have changed. Nothing reports a waiting file being deleted, except
 // that deleting the last one ends FilesWaiting.
@@ -420,13 +458,26 @@ func (w *watchState) applyFiles(notify *ipn.Notify) (changed bool) {
 
 	if incomingFiles != nil {
 		incoming := make(set.Set[string], len(incomingFiles))
+		received := make(set.Set[transfer])
 		for _, f := range incomingFiles {
 			if f.Done {
 				changed = true
+				// tailscaled sets FinalPath once the file is in place,
+				// before its last notify for the transfer. A transfer
+				// is new each time, even under a name that waited
+				// before.
+				if f.FinalPath != "" {
+					t := transfer{name: f.Name, started: f.Started}
+					if !w.received.Contains(t) {
+						w.arrived = append(w.arrived, filepath.Base(f.FinalPath))
+					}
+					received.Add(t)
+				}
 				continue
 			}
 			incoming.Add(f.Name)
 		}
+		w.received = received
 		for name := range w.incoming {
 			if !incoming.Contains(name) {
 				// It finished or failed without being reported as done.

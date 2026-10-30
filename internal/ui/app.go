@@ -149,14 +149,11 @@ func (a *App) update(status tsutil.Status) {
 		enabled, dir := a.autoSaveSettings()
 		autoSaveOn := autosave.Enabled(enabled, dir)
 
-		if a.waiting != nil {
+		// Auto-save handles the files right away, so there's nothing
+		// to tell.
+		if !autoSaveOn {
 			for _, file := range status.Files {
-				if !slices.Contains(*a.waiting, file) {
-					// Skip the manual-save notification when auto-save will
-					// handle the file immediately.
-					if autoSaveOn {
-						continue
-					}
+				if slices.Contains(status.Arrived, file.Name) {
 					body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
 					a.notify(locale.Get("New Incoming File"), body)
 				}

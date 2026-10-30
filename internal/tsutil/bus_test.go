@@ -1,6 +1,7 @@
 package tsutil
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -81,4 +82,41 @@ func incoming(files ...ipn.PartialFile) ipn.Notify {
 		files = []ipn.PartialFile{} // Means none, unlike nil.
 	}
 	return ipn.Notify{IncomingFiles: files} //nolint:staticcheck
+}
+
+// TestWatchStateArrived checks that each finished transfer is
+// reported once, under its final name, even when tailscaled lists it
+// in several notifies or the same name arrives again.
+func TestWatchStateArrived(t *testing.T) {
+	t.Parallel()
+
+	first := time.Unix(1, 0)
+	again := time.Unix(2, 0)
+	copying := ipn.PartialFile{Name: "a.txt", Started: first}
+	renaming := ipn.PartialFile{Name: "a.txt", Started: first, Done: true}
+	placed := ipn.PartialFile{Name: "a.txt", Started: first, Done: true, FinalPath: "/files/a.txt"}
+	resent := ipn.PartialFile{Name: "a.txt", Started: again, Done: true, FinalPath: "/files/a (1).txt"}
+
+	for _, tt := range []struct {
+		name     string
+		notifies []ipn.Notify
+		want     []string
+	}{
+		{name: "in progress", notifies: []ipn.Notify{incoming(copying)}},
+		{name: "not in place yet", notifies: []ipn.Notify{incoming(renaming)}},
+		{name: "in place", notifies: []ipn.Notify{incoming(copying), incoming(renaming), incoming(placed)}, want: []string{"a.txt"}},
+		{name: "listed twice", notifies: []ipn.Notify{incoming(placed), incoming(placed), incoming()}, want: []string{"a.txt"}},
+		{name: "sent again", notifies: []ipn.Notify{incoming(placed), incoming(), incoming(resent)}, want: []string{"a.txt", "a (1).txt"}},
+		{name: "sent again while listed", notifies: []ipn.Notify{incoming(placed), incoming(placed, resent)}, want: []string{"a.txt", "a (1).txt"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var w watchState
+			for _, n := range tt.notifies {
+				w.apply(&n)
+			}
+			if !slices.Equal(w.arrived, tt.want) {
+				t.Fatalf("arrived %q, want %q", w.arrived, tt.want)
+			}
+		})
+	}
 }

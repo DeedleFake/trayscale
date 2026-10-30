@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -23,6 +24,9 @@ type fakeDaemon struct {
 	// for release to be closed.
 	holdFiles atomic.Int32
 	release   chan struct{}
+
+	// waiting, if set, is the files list to serve, as JSON.
+	waiting atomic.Pointer[string]
 }
 
 func startFakeDaemon(t *testing.T) *fakeDaemon {
@@ -52,7 +56,11 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 		if d.files.Add(1) == d.holdFiles.Load() {
 			<-d.release
 		}
-		w.Write([]byte("[]"))
+		body := "[]"
+		if b := d.waiting.Load(); b != nil {
+			body = *b
+		}
+		w.Write([]byte(body))
 	case "/localapi/v0/profiles/current":
 		d.profiles.Add(1)
 		w.Write([]byte("{}"))
@@ -217,5 +225,37 @@ func TestProfilesSwitchRefreshes(t *testing.T) {
 	}
 	if _, p := d.settle(); p != before+1 {
 		t.Fatalf("%v profile fetches after Switch, not 1", p-before)
+	}
+}
+
+// TestFilesReportArrived checks that a list fetched after a transfer
+// finished says that the file arrived, and that the next one doesn't.
+func TestFilesReportArrived(t *testing.T) {
+	d := startFakeDaemon(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	statuses := make(chan *FileStatus, 16)
+	bus := &Bus{New: func(*IPNStatus) {}}
+	files := &Files{Bus: bus, New: func(s *FileStatus) { statuses <- s }}
+	go bus.Run(ctx)
+	go files.Run(ctx)
+	d.settle()
+	for len(statuses) > 0 {
+		<-statuses
+	}
+
+	waiting := `[{"Name":"a.txt","Size":1}]`
+	d.waiting.Store(&waiting)
+	d.notes <- incoming(ipn.PartialFile{Name: "a.txt", Started: time.Unix(1, 0), Done: true, FinalPath: "/files/a.txt"})
+	d.settle()
+	files.Refresh()
+	d.settle()
+
+	var got [][]string
+	for len(statuses) > 0 {
+		got = append(got, (<-statuses).Arrived)
+	}
+	if len(got) != 2 || !slices.Equal(got[0], []string{"a.txt"}) || got[1] != nil {
+		t.Fatalf("arrived per list %q, want [[a.txt] []]", got)
 	}
 }

@@ -115,6 +115,9 @@ msgstr "Exit Nodes"
 msgid "Exit node"
 msgstr "Exit node"
 
+msgid "Failed to delete file"
+msgstr "Failed to delete file"
+
 msgid "Failed to start login"
 msgstr "Failed to start login"
 

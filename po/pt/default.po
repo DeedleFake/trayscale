@@ -114,6 +114,9 @@ msgstr "Nós de saída"
 msgid "Exit node"
 msgstr "Nó de saída"
 
+msgid "Failed to delete file"
+msgstr "Falha ao excluir o arquivo"
+
 msgid "Failed to start login"
 msgstr "Falha ao iniciar o login"
 

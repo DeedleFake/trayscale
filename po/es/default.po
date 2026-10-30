@@ -114,6 +114,9 @@ msgstr "Nodos de salida"
 msgid "Exit node"
 msgstr "Nodo de salida"
 
+msgid "Failed to delete file"
+msgstr "No se pudo eliminar el archivo"
+
 msgid "Failed to start login"
 msgstr "No se pudo iniciar el inicio de sesión"
 

@@ -310,10 +310,16 @@ func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
 			Reject:  locale.Get("_Cancel"),
 		}.Show(a, func(accept bool) {
 			if accept {
-				err := a.files.Delete(context.TODO(), file.Name)
-				if err != nil {
-					slog.Error("delete file", "err", err)
-				}
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer cancel()
+
+					err := a.files.Delete(ctx, file.Name)
+					if err != nil {
+						slog.Error("delete file", "err", err)
+						a.toast(locale.Get("Failed to delete file"))
+					}
+				}()
 			}
 		})
 	})

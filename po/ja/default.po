@@ -114,6 +114,9 @@ msgstr "出口ノード"
 msgid "Exit node"
 msgstr "出口ノード"
 
+msgid "Failed to delete file"
+msgstr "ファイルを削除できませんでした"
+
 msgid "Failed to start login"
 msgstr "ログインの開始に失敗しました"
 

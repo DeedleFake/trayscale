@@ -116,7 +116,7 @@ Two ghost variables exist only to state properties. `lastUsed` is the last node 
 
 - Two toggles at once, for example the tray and the menu.
 - Other Tailscale clients, the CLI, and admin exit node policy. Turning exit node use off elsewhere while Recommended is on makes Tailscale remember Recommended, and Previous can't undo that.
-- Profile switches, logins, tailscaled restarts, and a node leaving the netmap.
+- Exit node prefs across profile switches, logins, tailscaled restarts, and a node leaving the netmap. How Trayscale loads and shows profiles across a switch is checked by `/verify-profiles-and-files`.
 - What the UI shows about the exit node. The model stops at tailscaled's prefs.
 - Picking a node on a page while Recommended has no node. tailscaled drops the pick and turns exit node use off. The model includes that step, but no property covers it.
 

@@ -96,6 +96,20 @@ jobs:
       - name: Harness tests
         run: .agents/skills/verify-exit-node-selection/scripts/run-harness-tests -v
 
+  profiles-and-files:
+    name: profiles and files
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Model check
+        run: .agents/skills/verify-profiles-and-files/scripts/check-profiles-and-files
+
   metainfo-validate:
     name: metainfo validate
     runs-on: ubuntu-latest

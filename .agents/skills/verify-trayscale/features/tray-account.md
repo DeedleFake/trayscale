@@ -29,3 +29,4 @@ Preconditions:
 - Isolated launch has no tray watcher, so the icon never registers.
 - A single login profile looks the same as a build with no account submenu. Check the profile count before calling the submenu missing.
 - The header profile combo is a different control. It is covered by `profile-private` in `main-window.md`.
+- During a switch the Connect or Disconnect, exit node, This machine, and Switch account items are disabled. They come back when tailscaled reports `Running`, or after 5 seconds if the switch stalls.

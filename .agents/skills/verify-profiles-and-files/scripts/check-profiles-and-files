@@ -16,8 +16,9 @@ RUNS=(
   files:files:0:2:1:0:0:1:1:TRUE
   switches:files:1:1:0:0:0:1:1:TRUE
 )
-PROFILE_PROPERTIES=(ProfilesSettle FailedTraySwitchNotifies MainThreadNeverWaits)
-FILE_PROPERTIES=(FilesSettle NoStrayFileNotice NoMissedFileNotice NoWrongDelete MainThreadNeverWaits)
+SWITCH_PROPERTIES=(SwitchStaysConnected HoldEnds HeldStateDisabled)
+PROFILE_PROPERTIES=(ProfilesSettle FailedTraySwitchNotifies MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
+FILE_PROPERTIES=(FilesSettle NoStrayFileNotice NoMissedFileNotice NoWrongDelete MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
 
 # Properties the current code is known to break, as PROPERTY@RUN:OVERRIDES.
 # The property must hold in RUN with the comma-separated CONSTANT=VALUE
@@ -25,7 +26,6 @@ FILE_PROPERTIES=(FilesSettle NoStrayFileNotice NoMissedFileNotice NoWrongDelete 
 # and OVERRIDES share one TLC run. Remove an entry once the code is fixed
 # and the check passes it.
 KNOWN_FINDINGS=(
-  MainThreadNeverWaits@profiles:DropDownSwitchOffMain=TRUE
   MainThreadNeverWaits@files:DeleteOffMain=TRUE,SelfPageFillsFiles=TRUE
   FilesSettle@files:DeleteOffMain=TRUE,SelfPageFillsFiles=TRUE
   MainThreadNeverWaits@switches:DeleteOffMain=TRUE,SelfPageFillsFiles=TRUE
@@ -72,7 +72,7 @@ fi
 
 # anchor FILE REGEX: TRUE when REGEX (Perl, /s) matches FILE.
 anchor() {
-  perl -0777 -ne "exit(/$2/s ? 0 : 1)" "$ROOT/$1" && echo TRUE || echo FALSE
+  [[ -f "$ROOT/$1" ]] && perl -0777 -ne "exit(/$2/s ? 0 : 1)" "$ROOT/$1" && echo TRUE || echo FALSE
 }
 all() { local v; for v in "$@"; do [[ $v == TRUE ]] || { echo FALSE; return; }; done; echo TRUE; }
 
@@ -82,6 +82,7 @@ SRC=internal/tsutil/sources.go
 APP=internal/ui/app.go
 WIN=internal/ui/mainwindow.go
 SELF=internal/ui/selfpage.go
+HOLD=internal/ui/switchhold.go
 FUNC_BODY='(?:(?!\n\}\n).)*?'
 TRAY_SWITCH='OnProfileSwitch: func\(id ipn\.ProfileID\) \{(?:(?!\n\t\t\},\n).)*?'
 DROPDOWN='ConnectNotify\(win\.ProfileDropDown, "selected-item", func\(\) \{(?:(?!\n\t\}\)\n).)*?'
@@ -105,6 +106,18 @@ flag DropDownSwitchOffMain "$(anchor $WIN "$DROPDOWN"'go func\(\) \{(?:(?!\n\t\}
 flag DeleteOffMain "$(anchor $SELF 'if accept \{\s*go func\(\) \{(?:(?!\n\t\t\}\)\n).)*?a\.files\.Delete\(')"
 flag SelfPageFillsFiles "$(anchor $SELF 'func \(page \*SelfPage\) init\('"$FUNC_BODY"'page\.fileModel\.Set\(\*a\.waiting\)')"
 flag FirstListQuiet "$(anchor $APP 'if a\.waiting != nil \{\s*for _, file := range status\.Files \{\s*if !slices\.Contains\(\*a\.waiting, file\)')"
+flag SwitchHold "$(all \
+  "$(anchor $APP 'hold, start, gen := a\.hold\.offer\(a\.online, status\)\s*if hold \{')" \
+  "$(anchor $HOLD 'if online && switching\(s\) \{')" \
+  "$(anchor $HOLD 'func switching\(s \*tsutil\.IPNStatus\) bool \{\s*return \(s\.State == ipn\.NoState \|\| s\.State == ipn\.Starting\) && s\.Prefs\.WantRunning\(\)')")"
+flag HoldDisables "$(all \
+  "$(anchor $APP 'if start \{\s*a\.setSwitching\(true\)')" \
+  "$(anchor $APP 'func \(a \*App\) setSwitching\(on bool\) \{\s*a\.tray\.SetSwitching\(on\)\s*if a\.win != nil \{\s*a\.win\.SetSwitching\(on\)')" \
+  "$(anchor $APP 'func \(a \*App\) onAppActivate\('"$FUNC_BODY"'a\.win\.SetSwitching\(a\.hold\.active\(\)\)')")"
+flag HoldReenables "$(all \
+  "$(anchor $APP 'a\.showIPN\(status\)\s*if wasHeld \{\s*a\.setSwitching\(false\)')" \
+  "$(anchor $APP 'if s := a\.hold\.expire\(gen\); s != nil \{\s*a\.showIPN\(s\)\s*a\.setSwitching\(false\)')")"
+flag HoldFallback "$(anchor $APP 'if start \{\s*a\.setSwitching\(true\)\s*gutil\.TimeoutAdd\(switchTimeout, ')"
 
 echo "code facts (model constants):"
 for k in "${FLAG_NAMES[@]}"; do

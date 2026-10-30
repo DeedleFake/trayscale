@@ -26,12 +26,6 @@ FILE_PROPERTIES=(FilesSettle NoStrayFileNotice NoMissedFileNotice NoWrongDelete 
 # and OVERRIDES share one TLC run. Remove an entry once the code is fixed
 # and the check passes it.
 KNOWN_FINDINGS=(
-  MainThreadNeverWaits@files:DeleteOffMain=TRUE,SelfPageFillsFiles=TRUE
-  FilesSettle@files:DeleteOffMain=TRUE,SelfPageFillsFiles=TRUE
-  MainThreadNeverWaits@switches:DeleteOffMain=TRUE,SelfPageFillsFiles=TRUE
-  FilesSettle@switches:DeleteOffMain=TRUE,SelfPageFillsFiles=TRUE
-  NoMissedFileNotice@files:Resends=FALSE,MaxToggles=0
-  NoMissedFileNotice@switches:Resends=FALSE,MaxToggles=0
   NoStrayFileNotice@switches:MaxSwitches=0
   NoWrongDelete@switches:MaxSwitches=0
 )
@@ -79,6 +73,7 @@ all() { local v; for v in "$@"; do [[ $v == TRUE ]] || { echo FALSE; return; }; 
 # One regex per model constant. A FALSE means the guard is gone from the code,
 # or the code moved and the regex needs updating. SKILL.md says how to tell.
 SRC=internal/tsutil/sources.go
+BUS=internal/tsutil/bus.go
 APP=internal/ui/app.go
 WIN=internal/ui/mainwindow.go
 SELF=internal/ui/selfpage.go
@@ -105,7 +100,9 @@ flag TraySwitchFailureNotifies "$(anchor $APP "$TRAY_SWITCH"'err := a\.profiles\
 flag DropDownSwitchOffMain "$(anchor $WIN "$DROPDOWN"'go func\(\) \{(?:(?!\n\t\}\)\n).)*?app\.profiles\.Switch\(')"
 flag DeleteOffMain "$(anchor $SELF 'if accept \{\s*go func\(\) \{(?:(?!\n\t\t\}\)\n).)*?a\.files\.Delete\(')"
 flag SelfPageFillsFiles "$(anchor $SELF 'func \(page \*SelfPage\) init\('"$FUNC_BODY"'page\.fileModel\.Set\(\*a\.waiting\)')"
-flag FirstListQuiet "$(anchor $APP 'if a\.waiting != nil \{\s*for _, file := range status\.Files \{\s*if !slices\.Contains\(\*a\.waiting, file\)')"
+flag NoticesFromArrivals "$(anchor $APP 'case \*tsutil\.FileStatus:(?:(?!\n\tcase ).)*?for _, file := range status\.Files \{\s*if slices\.Contains\(status\.Arrived, file\.Name\) \{\s*body := ')"
+flag ArrivalsOnce "$(anchor $BUS 'func \(w \*watchState\) applyFiles\('"$FUNC_BODY"'if !w\.received\.Contains\(t\) \{\s*w\.arrived = append\(w\.arrived, ')"
+flag ArrivedBeforeList "$(anchor $SRC 'func \(f \*Files\) Run\('"$FUNC_BODY"'arrived = append\(arrived, f\.Bus\.takeArrived\(\)\.\.\.\)\s*files, err := waitingFiles\(ctx\)')"
 flag SwitchHold "$(all \
   "$(anchor $APP 'hold, start, gen := a\.hold\.offer\(a\.online, status\)\s*if hold \{')" \
   "$(anchor $HOLD 'if online && switching\(s\) \{')" \

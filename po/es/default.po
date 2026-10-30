@@ -264,6 +264,9 @@ msgstr "Algunas funciones pueden no funcionar como se espera. Para solucionarlo,
 msgid "Switch account"
 msgstr "Cambiar de cuenta"
 
+msgid "Switching accounts"
+msgstr "Cambiando de cuenta"
+
 msgid "Taildrop"
 msgstr "Taildrop"
 

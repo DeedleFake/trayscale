@@ -59,6 +59,8 @@ type MainWindow struct {
 	PeersStack       *adw.ViewStack
 	WorkSpinner      *adw.Spinner
 	ProfileDropDown  *gtk.DropDown
+	SwitchSpinner    *adw.Spinner
+	ContentView      *adw.ToolbarView
 	PageMenuButton   *gtk.MenuButton
 
 	pages       map[string]Page
@@ -288,6 +290,22 @@ func (win *MainWindow) Update(status tsutil.Status) {
 		for _, page := range win.pages {
 			page.Update(status)
 		}
+	}
+}
+
+// SetSwitching greys out the window and shows a spinner by the
+// profile drop-down while a profile switch is in progress.
+func (win *MainWindow) SetSwitching(switching bool) {
+	win.SwitchSpinner.SetVisible(switching)
+	for _, w := range []*gtk.Widget{
+		&win.StatusSwitch.Widget,
+		&win.ProfileDropDown.Widget,
+		&win.PeerSearchButton.Widget,
+		&win.PeerSearchBar.Widget,
+		&win.PeersSidebar.Widget,
+		&win.ContentView.Widget,
+	} {
+		w.SetSensitive(!switching)
 	}
 }
 

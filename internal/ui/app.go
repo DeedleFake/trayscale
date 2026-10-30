@@ -40,6 +40,7 @@ type App struct {
 	files    *tsutil.Files
 	profiles *tsutil.Profiles
 	online   bool
+	hold     switchHold
 
 	app           *adw.Application
 	win           *MainWindow
@@ -118,42 +119,24 @@ func (a *App) showOperatorDialog() {
 func (a *App) update(status tsutil.Status) {
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
-		a.ipn = status
-		online := status.Online()
-		if a.online != online {
-			a.online = online
-
-			body := locale.Get("Tailscale is not connected.")
-			if online {
-				body = locale.Get("Tailscale is connected.")
-			}
-			a.notify(locale.Get("Tailscale Status"), body) // TODO: Notify on startup if not connected?
-		}
-
-		// LookupAction ref-sinks a transfer-none result. Drop that ref.
-		if action := a.app.LookupAction("use_exit_node"); action != nil {
-			defer gutil.Obj(action).Unref()
-			if useExitNodeAction, ok := gutil.Cast[gio.SimpleAction](action, gio.SimpleActionGLibType()); ok {
-				useExitNodeAction.SetEnabled(online)
-				useExitNodeAction.SetState(glib.NewVariantBoolean(status.ExitNodeActive()))
-			}
-		}
-
-		if online && !a.operatorCheck {
-			a.operatorCheck = true
-			if !status.OperatorIsCurrent() {
-				a.showOperatorDialog()
-			}
-		}
-
-		if !online {
+		wasHeld := a.hold.active()
+		hold, start, gen := a.hold.offer(a.online, status)
+		if hold {
 			a.waiting = nil
+			if start {
+				a.setSwitching(true)
+				gutil.TimeoutAdd(switchTimeout, func() {
+					if s := a.hold.expire(gen); s != nil {
+						a.showIPN(s)
+						a.setSwitching(false)
+					}
+				})
+			}
+			return
 		}
-
-		a.tray.Update(status)
-
-		if a.win != nil {
-			a.win.Update(status)
+		a.showIPN(status)
+		if wasHeld {
+			a.setSwitching(false)
 		}
 
 	case *tsutil.EngineStatus:
@@ -197,6 +180,61 @@ func (a *App) update(status tsutil.Status) {
 		if a.win != nil {
 			a.win.Update(status)
 		}
+	}
+}
+
+// switchTimeout is how long a profile switch can hold the last
+// connected status before the status that tailscaled reports shows.
+const switchTimeout = 5 * time.Second
+
+// setSwitching disables the window and the tray menu while a profile
+// switch is held, and enables them again after.
+func (a *App) setSwitching(on bool) {
+	a.tray.SetSwitching(on)
+	if a.win != nil {
+		a.win.SetSwitching(on)
+	}
+}
+
+// showIPN shows status everywhere, notifying if that connects or
+// disconnects.
+func (a *App) showIPN(status *tsutil.IPNStatus) {
+	a.ipn = status
+	online := status.Online()
+	if a.online != online {
+		a.online = online
+
+		body := locale.Get("Tailscale is not connected.")
+		if online {
+			body = locale.Get("Tailscale is connected.")
+		}
+		a.notify(locale.Get("Tailscale Status"), body) // TODO: Notify on startup if not connected?
+	}
+
+	// LookupAction ref-sinks a transfer-none result. Drop that ref.
+	if action := a.app.LookupAction("use_exit_node"); action != nil {
+		defer gutil.Obj(action).Unref()
+		if useExitNodeAction, ok := gutil.Cast[gio.SimpleAction](action, gio.SimpleActionGLibType()); ok {
+			useExitNodeAction.SetEnabled(online)
+			useExitNodeAction.SetState(glib.NewVariantBoolean(status.ExitNodeActive()))
+		}
+	}
+
+	if online && !a.operatorCheck {
+		a.operatorCheck = true
+		if !status.OperatorIsCurrent() {
+			a.showOperatorDialog()
+		}
+	}
+
+	if !online {
+		a.waiting = nil
+	}
+
+	a.tray.Update(status)
+
+	if a.win != nil {
+		a.win.Update(status)
 	}
 }
 
@@ -478,8 +516,9 @@ func (a *App) onAppActivate(ctx context.Context) {
 	a.profiles.Refresh()
 	a.win.MainWindow.Present()
 	if a.ipn != nil {
-		a.update(a.ipn)
+		a.showIPN(a.ipn)
 	}
+	a.win.SetSwitching(a.hold.active())
 	if a.engine != nil {
 		a.win.Update(a.engine)
 	}
@@ -649,6 +688,7 @@ func (a *App) startTray() {
 	if a.ipn != nil {
 		a.tray.Update(a.ipn)
 	}
+	a.tray.SetSwitching(a.hold.active())
 }
 
 // Quit exits the app completely, causing Run to return. It may be

@@ -265,6 +265,9 @@ msgstr "Some functionality may not work as expected. To resolve, run the followi
 msgid "Switch account"
 msgstr "Switch account"
 
+msgid "Switching accounts"
+msgstr "Switching accounts"
+
 msgid "Taildrop"
 msgstr "Taildrop"
 

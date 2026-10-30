@@ -264,6 +264,9 @@ msgstr "一部の機能が正常に動作しない可能性があります。解
 msgid "Switch account"
 msgstr "アカウントを切り替え"
 
+msgid "Switching accounts"
+msgstr "アカウントを切り替え中"
+
 msgid "Taildrop"
 msgstr "Taildrop"
 

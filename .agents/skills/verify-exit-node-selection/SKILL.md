@@ -15,7 +15,7 @@ From the repo root:
 .agents/skills/verify-exit-node-selection/scripts/check-exit-node-selection
 ```
 
-It needs Java 11 or newer, `perl`, and `curl`. Without a system Java, `mise exec java@temurin-21 -- <command>` works. The first run downloads `tla2tools.jar` 1.8.0 to `~/.cache/trayscale/` and checks its sha256. Set `TLA2TOOLS_JAR` to use another copy. A run takes about 5 seconds. `TLC_WORKERS=2` limits the cores it uses.
+It needs Java 11 or newer, `perl`, and `curl`. Without a system Java, `mise exec java@temurin-21 -- <command>` works. The first run downloads `tla2tools.jar` 1.7.4 to `~/.cache/trayscale/` and checks its sha256. Stay on a stable release: the 1.8.0 prerelease jar is rebuilt in place, so its sha256 changes. Set `TLA2TOOLS_JAR` to use another copy. A run takes about 5 seconds. `TLC_WORKERS=2` limits the cores it uses.
 
 To check one property alone, ignoring the known findings list:
 

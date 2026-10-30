@@ -4,8 +4,8 @@
 # guard in the code turns its constant FALSE and the check shows what breaks.
 set -euo pipefail
 
-TLA_VERSION=1.8.0
-TLA_SHA256=d15655eeaff4b3f7b3d65c46b838bc0f35d131b2ef4b1e473689b62c98d4726f
+TLA_VERSION=1.7.4
+TLA_SHA256=936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
 
 # The tailscale.com version whose daemon behavior the model describes.
 MODELED_TAILSCALE=v1.104.1

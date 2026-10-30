@@ -41,12 +41,17 @@ func (f *Files) init() {
 // Run fetches the list until ctx is done and returns ctx's error.
 func (f *Files) Run(ctx context.Context) error {
 	f.init()
+	var arrived []string
 	return fetchLoop(ctx, f.Bus, filesTriggers, f.refresh, "get waiting files", func(ctx context.Context) error {
+		// Taken before the list, so that every file in it is in the
+		// list unless it's already gone.
+		arrived = append(arrived, f.Bus.takeArrived()...)
 		files, err := waitingFiles(ctx)
 		if err != nil && !errors.Is(err, taildrop.ErrNoTaildrop) {
 			return err
 		}
-		f.New(&FileStatus{Files: files})
+		f.New(&FileStatus{Files: files, Arrived: arrived})
+		arrived = nil
 		return nil
 	})
 }

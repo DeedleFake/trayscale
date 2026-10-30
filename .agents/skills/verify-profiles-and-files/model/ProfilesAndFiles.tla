@@ -38,7 +38,11 @@ CONSTANTS
   DropDownSwitchOffMain,   \* win: the drop-down's selected-item handler calls Switch in a goroutine
   DeleteOffMain,           \* self: the delete confirmation calls a.files.Delete in a goroutine
   SelfPageFillsFiles,      \* self: SelfPage.init fills fileModel from a.waiting
-  FirstListQuiet           \* app: no New Incoming File notifications while a.waiting is nil
+  FirstListQuiet,          \* app: no New Incoming File notifications while a.waiting is nil
+  SwitchHold,              \* app: App.update holds NoState and Starting back while online and WantRunning
+  HoldDisables,            \* app: a hold's start calls a.setSwitching(true)
+  HoldReenables,           \* app: both ends of a hold call a.setSwitching(false)
+  HoldFallback             \* app: a hold's start arms the switchTimeout fallback
 
 Profiles == {"A", "B"}
 Files == {"f1", "f2"}
@@ -55,7 +59,7 @@ VARIABLES
   \* tailscaled
   cur,        \* the current profile
   known,      \* the profiles that exist
-  dstate,     \* "Running", "Stopped", or "NoState" during a profile switch
+  dstate,     \* "Running", "Stopped", or "NoState" then "Starting" during a profile switch
   files,      \* waiting files per profile: td:204-223 keeps a directory per login
   busQ,       \* notifies tailscaled has sent that Bus hasn't read yet
   \* Bus.Run
@@ -77,6 +81,10 @@ VARIABLES
   winProf,    \* the window's profiles and activeProfileID
   dropSel,    \* the profile the drop-down shows as selected
   selfPage,   \* the self page's file list, with its profile as a ghost; ok is FALSE when there's no self page
+  heldSt,     \* app: a.hold.held's state, or "none" when no switch is held
+  timerArmed, \* app: a switchTimeout fallback that hasn't fired yet
+  trayOff,    \* the tray's Tailscale items are disabled (Tray.SetSwitching)
+  winOff,     \* the window's content is insensitive (MainWindow.SetSwitching)
   \* ghosts for the properties
   unseenProf, \* a profile change nothing reports happened since the user last opened a profile list
   unseenFiles,\* a file deletion nothing reports happened since the user last opened the window
@@ -88,17 +96,21 @@ VARIABLES
   wrongDelete,\* a delete removed a file from a different profile than the list it was picked from
   failedTray, \* tray switches that failed
   notices,    \* "Switch account" notifications shown
+  stuck,      \* ghost: the switch stalled in Starting, a real failure, so the fallback may fire
+  flap,       \* ghost: a switch that didn't stall showed offline, with its disconnect notification
   budget
 
 vars == <<cur, known, dstate, files, busQ, busState, pending, hold, runPhase,
           pPhase, pSig, pRef, pRes, fPhase, fSig, fRef, fRes,
           mainQ, mainWait, ops, online, waiting, appProf, winOpen, winProf,
-          dropSel, selfPage, unseenProf, unseenFiles, gen, noticed, owed, told, stray,
-          wrongDelete, failedTray, notices, budget>>
+          dropSel, selfPage, heldSt, timerArmed, trayOff, winOff,
+          unseenProf, unseenFiles, gen, noticed, owed, told, stray,
+          wrongDelete, failedTray, notices, stuck, flap, budget>>
 daemonVars == <<cur, known, dstate, files>>
 loopVars == <<pPhase, pSig, pRef, pRes, fPhase, fSig, fRef, fRes>>
-uiVars == <<online, waiting, appProf, winOpen, winProf, dropSel, selfPage>>
-ghostVars == <<unseenProf, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices>>
+holdVars == <<heldSt, timerArmed, trayOff, winOff>>
+uiVars == <<online, waiting, appProf, winOpen, winProf, dropSel, selfPage, heldSt, timerArmed, trayOff, winOff>>
+ghostVars == <<unseenProf, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
 \* The loop that a Part leaves out gets no signals or refreshes.
 PMask == IF Part # "profiles" THEN {}
@@ -140,10 +152,12 @@ Init ==
   /\ mainQ = <<>> /\ mainWait = NoOp /\ ops = {}
   /\ online = FALSE /\ waiting = NoFiles /\ appProf = NoProfiles
   /\ winOpen = FALSE /\ winProf = NoProfiles /\ dropSel = "none" /\ selfPage = NoFiles
+  /\ heldSt = "none" /\ timerArmed = FALSE /\ trayOff = FALSE /\ winOff = FALSE
   /\ unseenProf = FALSE /\ unseenFiles = FALSE
   /\ gen = [p \in Profiles |-> NoGen] /\ noticed = [p \in Profiles |-> NoGen]
   /\ owed = [p \in Profiles |-> NoGen] /\ told = [p \in Profiles |-> NoGen]
   /\ stray = FALSE /\ wrongDelete = FALSE /\ failedTray = 0 /\ notices = 0
+  /\ stuck = FALSE /\ flap = FALSE
   /\ budget = [switch |-> MaxSwitches, recv |-> MaxReceives, odel |-> MaxOutsideDeletes,
                list |-> MaxListChanges, look |-> MaxLooks, del |-> MaxDeletes,
                toggle |-> MaxToggles]
@@ -168,11 +182,22 @@ OtherClientSwitches(p) ==
   /\ DoSwitch(p) /\ Spend("switch")
   /\ UNCHANGED <<known, files, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars, ghostVars>>
 
-\* startLocked after a switch.
+\* startLocked after a switch: Starting with WantRunning still set, then
+\* Running once the new profile's control server answers. Seen on the bus
+\* as NoState, Starting, Running about 250ms apart with tailscaled
+\* v1.104.4. s is TRUE when the switch stalls in Starting, as when the
+\* control server doesn't answer: a real failure.
+TailscaledStarts(s) ==
+  /\ dstate = "NoState" /\ dstate' = "Starting" /\ stuck' = s
+  /\ busQ' = Append(busQ, Notify("state", "Starting"))
+  /\ UNCHANGED <<cur, known, files, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
+                 unseenProf, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, flap, budget>>
+
 TailscaledComesBackUp ==
-  /\ dstate = "NoState" /\ dstate' = "Running"
+  /\ dstate = "Starting" /\ dstate' = "Running" /\ stuck' = FALSE
   /\ busQ' = Append(busQ, Notify("state", "Running"))
-  /\ UNCHANGED <<cur, known, files, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
+  /\ UNCHANGED <<cur, known, files, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
+                 unseenProf, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, flap, budget>>
 
 \* A Taildrop transfer finishes: IncomingFiles with Done, bus:421-437.
 FileArrives(f) ==
@@ -186,7 +211,7 @@ FileArrives(f) ==
   /\ owed' = IF waiting.ok /\ waiting.p = cur THEN [owed EXCEPT ![cur][f] = gen'[cur][f]] ELSE owed
   /\ Spend("recv")
   /\ UNCHANGED <<cur, known, dstate, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
-                 unseenProf, unseenFiles, noticed, told, stray, wrongDelete, failedTray, notices>>
+                 unseenProf, unseenFiles, noticed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
 \* `tailscale file get` or another client takes a waiting file. Nothing
 \* reports it unless it was the last one.
@@ -197,7 +222,7 @@ OtherClientTakesFile(f) ==
   /\ unseenFiles' = (unseenFiles \/ files'[cur] # {})
   /\ Spend("odel")
   /\ UNCHANGED <<cur, known, dstate, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
-                 unseenProf, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices>>
+                 unseenProf, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
 \* Another client adds or deletes a profile that isn't the current one.
 \* Nothing reports it, src:67-71.
@@ -207,7 +232,7 @@ OtherClientChangesProfiles(q) ==
   /\ unseenProf' = TRUE
   /\ Spend("list")
   /\ UNCHANGED <<cur, dstate, files, busQ, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
-                 unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices>>
+                 unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
 \* ---------------- Bus.Run, bus:76-118 ----------------
 
@@ -227,7 +252,7 @@ BusReads ==
   /\ UNCHANGED <<daemonVars, hold, runPhase, pPhase, pRef, pRes, fPhase, fRef, fRes,
                  mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
-\* publish, bus:89-92 and 120-127: Bus.New does gutil.IdleAdd(a.update), app:695-701.
+\* publish, bus:89-92 and 120-127: Bus.New does gutil.IdleAdd(a.update), app:735-741.
 BusPublishes ==
   /\ pending # "none" /\ hold = 0
   /\ mainQ' = Append(mainQ, [Msg("ipn") EXCEPT !.st = pending])
@@ -238,7 +263,8 @@ BusPublishes ==
 \* connection toggle, both in goroutines. It holds publishing, but not
 \* signals, while `tailscale up` or `down` runs.
 SetRunningHolds ==
-  /\ budget.toggle > 0 /\ runPhase = "idle" /\ dstate # "NoState" /\ BusSelects
+  /\ budget.toggle > 0 /\ runPhase = "idle" /\ dstate \in {"Running", "Stopped"} /\ BusSelects
+  /\ ~trayOff \/ (winOpen /\ ~winOff)
   /\ hold' = 1 /\ runPhase' = "held" /\ Spend("toggle")
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, loopVars, mainQ, mainWait, ops, uiVars, ghostVars>>
 
@@ -246,7 +272,7 @@ SetRunningCalls ==
   /\ runPhase = "held" /\ runPhase' = "called"
   /\ CASE dstate = "Running" -> dstate' = "Stopped" /\ busQ' = Append(busQ, Notify("state", "Stopped"))
        [] dstate = "Stopped" -> dstate' = "Running" /\ busQ' = Append(busQ, Notify("state", "Running"))
-       [] dstate = "NoState" -> UNCHANGED <<dstate, busQ>>
+       [] dstate \in {"NoState", "Starting"} -> UNCHANGED <<dstate, busQ>>
   /\ UNCHANGED <<cur, known, files, busState, pending, hold, loopVars, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
 SetRunningReleases ==
@@ -293,8 +319,8 @@ FilesPublish ==
 
 \* ---------------- Switches and deletes ----------------
 
-\* Profiles.Switch, src:116-119, from the tray (app:610-628) or the
-\* drop-down (win:121-157), and Files.Delete, src:62-65, from the self
+\* Profiles.Switch, src:116-119, from the tray (app:649-668) or the
+\* drop-down (win:122-164), and Files.Delete, src:62-65, from the self
 \* page (self:305-318) or saveFile (io:73). Each is one step: the LocalAPI
 \* call, then the deferred Refresh, then for the tray the failure
 \* notification's IdleAdd.
@@ -318,13 +344,13 @@ BackgroundFinishes(op) ==
   /\ op \in ops /\ ops' = ops \ {op}
   /\ Finish(op)
   /\ UNCHANGED <<busState, pending, hold, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRes, mainWait, uiVars,
-                 unseenProf, unseenFiles, gen, noticed, owed, told, stray, notices, budget>>
+                 unseenProf, unseenFiles, gen, noticed, owed, told, stray, notices, stuck, flap, budget>>
 
 MainThreadFinishes ==
   /\ mainWait # NoOp /\ mainWait' = NoOp
   /\ Finish(mainWait)
   /\ UNCHANGED <<busState, pending, hold, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRes, ops, uiVars,
-                 unseenProf, unseenFiles, gen, noticed, owed, told, stray, notices, budget>>
+                 unseenProf, unseenFiles, gen, noticed, owed, told, stray, notices, stuck, flap, budget>>
 
 \* Start op on the main thread or in a goroutine.
 Launch(op, offMain) ==
@@ -335,21 +361,63 @@ Launch(op, offMain) ==
 
 MainFree == mainWait = NoOp
 
-\* App.update, app:118-200, and MainWindow.Update, win:271-292.
-ApplyIPN(m) ==
-  LET on == m.st = "Running" IN
+\* showIPN, app:201-239, and MainWindow.Update, win:278-299. A change of
+\* online sends the Tailscale Status notification.
+Show(st) ==
+  LET on == st = "Running" IN
   /\ online' = on
-  /\ waiting' = IF on THEN waiting ELSE NoFiles                     \* app:149-151
+  /\ waiting' = IF on THEN waiting ELSE NoFiles                     \* app:230-232
   \* updatePeers: SelfPage.UpdateIPN returns false offline and the page
-  \* goes (self:360-363, win:385-397); online, ensureSectionPages adds it
-  \* (win:375-383).
+  \* goes (self:360-363, win:408-420); online, ensureSectionPages adds it
+  \* (win:398-406).
   /\ selfPage' = IF ~winOpen THEN NoFiles
                  ELSE IF ~on THEN NoFiles
                  ELSE IF selfPage.ok THEN selfPage
                  ELSE SelfInit
+  /\ flap' = (flap \/ (online /\ ~on /\ st \in {"NoState", "Starting"} /\ ~stuck))
+
+\* setSwitching, app:192-197: the tray and an open window. A window that
+\* opens later gets the hold's state from onAppActivate.
+SetSwitching(on) ==
+  /\ trayOff' = on
+  /\ winOff' = (winOpen /\ on)
+
+\* App.update's IPNStatus case, app:121-140, with switchHold.offer,
+\* internal/ui/switchhold.go. In this model WantRunning is set in every NoState and
+\* Starting status, because they only come from a switch.
+ApplyIPN(m) ==
+  /\ IF SwitchHold /\ online /\ m.st \in {"NoState", "Starting"} THEN
+       /\ heldSt' = m.st
+       /\ waiting' = NoFiles
+       /\ IF heldSt = "none"
+          THEN /\ timerArmed' = (timerArmed \/ HoldFallback)
+               /\ IF HoldDisables THEN SetSwitching(TRUE) ELSE UNCHANGED <<trayOff, winOff>>
+          ELSE UNCHANGED <<timerArmed, trayOff, winOff>>
+       /\ UNCHANGED <<online, selfPage, flap>>
+     ELSE
+       /\ heldSt' = "none"
+       /\ Show(m.st)
+       /\ IF heldSt # "none" /\ HoldReenables THEN SetSwitching(FALSE) ELSE UNCHANGED <<trayOff, winOff>>
+       /\ UNCHANGED timerArmed
   /\ UNCHANGED <<appProf, winOpen, winProf, dropSel, ops, mainWait, stray, noticed, told, notices>>
 
-\* app:166-188: a file in the new list that isn't in a.waiting gets a
+\* The fallback's TimeoutAdd callback, app:128-133: switchTimeout after the
+\* hold starts, show the latest held status. A switch that doesn't stall
+\* reaches Running well within switchTimeout, so the timer only fires
+\* after a stall or after the hold has already ended.
+HoldExpires ==
+  /\ MainFree /\ timerArmed /\ (stuck \/ heldSt = "none")
+  /\ timerArmed' = FALSE
+  /\ IF heldSt = "none"
+     THEN UNCHANGED <<online, waiting, appProf, winOpen, winProf, dropSel, selfPage, heldSt, trayOff, winOff, flap>>
+     ELSE /\ heldSt' = "none"
+          /\ Show(heldSt)
+          /\ IF HoldReenables THEN SetSwitching(FALSE) ELSE UNCHANGED <<trayOff, winOff>>
+          /\ UNCHANGED <<appProf, winOpen, winProf, dropSel>>
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops,
+                 unseenProf, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, budget>>
+
+\* app:148-171: a file in the new list that isn't in a.waiting gets a
 \* notification, unless a.waiting is nil.
 ApplyFiles(m) ==
   LET quiet == ~waiting.ok /\ FirstListQuiet
@@ -363,21 +431,21 @@ ApplyFiles(m) ==
   /\ told' = [told EXCEPT ![m.p] = [f \in Files |-> IF f \in new THEN m.gen[f] ELSE @[f]]]
   /\ waiting' = [ok |-> TRUE, p |-> m.p, fs |-> m.fs, gen |-> m.gen]
   /\ selfPage' = IF selfPage.ok THEN waiting' ELSE selfPage   \* self:398-403
-  /\ UNCHANGED <<online, appProf, winOpen, winProf, dropSel, ops, mainWait, notices>>
+  /\ UNCHANGED <<online, appProf, winOpen, winProf, dropSel, holdVars, ops, mainWait, notices, flap>>
 
-\* app:189-200 and updateProfiles, win:605-630.
+\* app:172-183 and updateProfiles, win:628-653.
 ApplyProfiles(m) ==
   /\ appProf' = [ok |-> TRUE, cur |-> m.cur, list |-> m.list]
   /\ winProf' = IF winOpen THEN appProf' ELSE winProf
   /\ dropSel' = IF winOpen THEN m.cur ELSE dropSel
-  /\ UNCHANGED <<online, waiting, winOpen, selfPage, ops, mainWait, stray, noticed, told, notices>>
+  /\ UNCHANGED <<online, waiting, winOpen, selfPage, holdVars, ops, mainWait, stray, noticed, told, notices, flap>>
 
-\* OnProfileSwitch's IdleAdd, app:610-628: skip the active profile, else
+\* OnProfileSwitch's IdleAdd, app:649-668: skip the active profile, else
 \* switch.
 ApplyTrayClick(m) ==
   /\ IF m.to = appProf.cur THEN UNCHANGED <<ops, mainWait>>
      ELSE Launch([NoOp EXCEPT !.k = "switch", !.src = "tray", !.to = m.to], TraySwitchOffMain)
-  /\ UNCHANGED <<uiVars, stray, noticed, told, notices>>
+  /\ UNCHANGED <<uiVars, stray, noticed, told, notices, flap>>
 
 MainRuns ==
   /\ MainFree /\ mainQ # <<>>
@@ -387,27 +455,29 @@ MainRuns ==
          [] m.k = "files" -> ApplyFiles(m)
          [] m.k = "profiles" -> ApplyProfiles(m)
          [] m.k = "tray" -> ApplyTrayClick(m)
-         [] m.k = "notice" -> notices' = notices + 1 /\ UNCHANGED <<uiVars, ops, mainWait, stray, noticed, told>>
+         [] m.k = "notice" -> notices' = notices + 1 /\ UNCHANGED <<uiVars, ops, mainWait, stray, noticed, told, flap>>
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, loopVars,
-                 unseenProf, unseenFiles, gen, owed, wrongDelete, failedTray, budget>>
+                 unseenProf, unseenFiles, gen, owed, wrongDelete, failedTray, stuck, budget>>
 
 \* ---------------- The user ----------------
 
-\* onAppActivate, app:410-486, when no window is open: refresh both, then
-\* a.update(a.ipn) builds the pages. The window shows no profiles until
+\* onAppActivate, app:448-525, when no window is open: refresh both, then
+\* showIPN(a.ipn) builds the pages, and the window takes the hold's state. The window shows no profiles until
 \* the next ProfileStatus. The window opens at most once: closing it drops
 \* everything, so a second open goes the same way as the first.
 UserOpensWindow ==
   /\ MainFree /\ ~winOpen
   /\ winOpen' = TRUE /\ winProf' = NoProfiles /\ dropSel' = "none"
   /\ selfPage' = IF online THEN SelfInit ELSE NoFiles
+  /\ winOff' = (heldSt # "none")
   /\ pRef' = IF WindowOpenRefreshes THEN KickP ELSE pRef
   /\ fRef' = IF WindowOpenRefreshes THEN KickF ELSE fRef
   /\ unseenProf' = FALSE /\ unseenFiles' = FALSE
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRes,
-                 mainQ, mainWait, ops, online, waiting, appProf, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, budget>>
+                 mainQ, mainWait, ops, online, waiting, appProf, heldSt, timerArmed, trayOff,
+                 gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap, budget>>
 
-\* win:160 and app:631: opening the drop-down or the tray's Switch account
+\* win:167 and app:670: opening the drop-down or the tray's Switch account
 \* submenu, on hosts that report it.
 UserOpensProfileList(where) ==
   /\ Part = "profiles" /\ MainFree /\ budget.look > 0
@@ -417,22 +487,22 @@ UserOpensProfileList(where) ==
   /\ unseenProf' = FALSE
   /\ Spend("look")
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRef, fRes,
-                 mainQ, mainWait, ops, uiVars, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices>>
+                 mainQ, mainWait, ops, uiVars, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
-\* The drop-down's selected-item handler, win:121-157.
+\* The drop-down's selected-item handler, win:122-164.
 UserPicksInDropDown(p) ==
-  /\ Part = "profiles" /\ MainFree /\ winOpen /\ winProf.ok /\ budget.switch > 0
+  /\ Part = "profiles" /\ MainFree /\ winOpen /\ ~winOff /\ winProf.ok /\ budget.switch > 0
   /\ p \in winProf.list /\ p # winProf.cur
   /\ dropSel' = p
   /\ Launch([NoOp EXCEPT !.k = "switch", !.src = "dropdown", !.to = p], DropDownSwitchOffMain)
   /\ Spend("switch")
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, loopVars, mainQ,
-                 online, waiting, appProf, winOpen, winProf, selfPage, ghostVars>>
+                 online, waiting, appProf, winOpen, winProf, selfPage, holdVars, ghostVars>>
 
 \* A tray radio item's handler runs on the D-Bus goroutine and IdleAdds,
-\* app:610-611.
+\* app:649-650.
 UserPicksInTray(p) ==
-  /\ Part = "profiles" /\ appProf.ok /\ Cardinality(appProf.list) > 1 /\ budget.switch > 0
+  /\ Part = "profiles" /\ ~trayOff /\ appProf.ok /\ Cardinality(appProf.list) > 1 /\ budget.switch > 0
   /\ p \in appProf.list /\ p # appProf.cur
   /\ mainQ' = Append(mainQ, [Msg("tray") EXCEPT !.to = p])
   /\ Spend("switch")
@@ -440,7 +510,7 @@ UserPicksInTray(p) ==
 
 \* The self page's delete confirmation, self:305-318.
 UserDeletes(f) ==
-  /\ Part = "files" /\ MainFree /\ selfPage.ok /\ f \in selfPage.fs /\ budget.del > 0
+  /\ Part = "files" /\ MainFree /\ ~winOff /\ selfPage.ok /\ f \in selfPage.fs /\ budget.del > 0
   /\ Launch([NoOp EXCEPT !.k = "delete", !.f = f, !.p = selfPage.p], DeleteOffMain)
   /\ Spend("del")
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, loopVars, mainQ, uiVars, ghostVars>>
@@ -448,6 +518,7 @@ UserDeletes(f) ==
 Next ==
   \/ \E p \in Profiles : OtherClientSwitches(p) \/ OtherClientChangesProfiles(p)
                          \/ UserPicksInDropDown(p) \/ UserPicksInTray(p)
+  \/ \E s \in BOOLEAN : TailscaledStarts(s)
   \/ TailscaledComesBackUp
   \/ \E f \in Files : FileArrives(f) \/ OtherClientTakesFile(f) \/ UserDeletes(f)
   \/ BusReads \/ BusPublishes
@@ -457,6 +528,7 @@ Next ==
   \/ \E op \in ops : BackgroundFinishes(op)
   \/ MainThreadFinishes
   \/ MainRuns
+  \/ HoldExpires
   \/ UserOpensWindow
   \/ \E w \in {"dropdown", "tray"} : UserOpensProfileList(w)
 
@@ -466,7 +538,8 @@ Spec == Init /\ [][Next]_vars
 
 TypeOK ==
   /\ cur \in Profiles /\ known \subseteq Profiles /\ cur \in known
-  /\ dstate \in {"Running", "Stopped", "NoState"}
+  /\ dstate \in {"Running", "Stopped", "NoState", "Starting"}
+  /\ heldSt \in {"none", "NoState", "Starting"}
   /\ hold \in {0, 1} /\ runPhase \in {"idle", "held", "called"}
   /\ pPhase \in {"deliver", "idle"} /\ fPhase \in {"deliver", "idle"}
 
@@ -478,7 +551,7 @@ Settled ==
   /\ (Part = "profiles") => (pPhase = "idle" /\ ~pSig /\ ~pRef)
   /\ (Part = "files") => (fPhase = "idle" /\ ~fSig /\ ~fRef)
   /\ mainQ = <<>> /\ mainWait = NoOp /\ ops = {}
-  /\ dstate # "NoState"
+  /\ dstate \in {"Running", "Stopped"} /\ ~timerArmed
 
 ProfilesSettle ==
   (Settled /\ ~unseenProf) =>
@@ -499,5 +572,26 @@ NoWrongDelete == ~wrongDelete
 FailedTraySwitchNotifies == Settled => notices = failedTray
 
 MainThreadNeverWaits == mainWait = NoOp
+
+\* A switch that doesn't stall never shows offline, so it sends neither
+\* Tailscale Status notification.
+SwitchStaysConnected == ~flap
+
+\* Once a switch has settled on Running, or stalled and the fallback has
+\* fired, nothing is held, the tray and the window are enabled, and they
+\* show tailscaled's state.
+SwitchSettled ==
+  /\ busQ = <<>> /\ pending = "none" /\ runPhase = "idle"
+  /\ mainQ = <<>> /\ mainWait = NoOp /\ ~timerArmed
+  /\ (dstate \in {"Running", "Stopped"} \/ stuck)
+
+HoldEnds ==
+  SwitchSettled =>
+    /\ heldSt = "none" /\ ~trayOff /\ ~winOff
+    /\ online = (dstate = "Running")
+
+\* While a switch is held, the window and the tray show the old profile,
+\* so none of their controls take a click.
+HeldStateDisabled == heldSt # "none" => (trayOff /\ (winOpen => winOff))
 
 =============================================================================

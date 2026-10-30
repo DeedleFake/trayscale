@@ -1,11 +1,11 @@
 ---
 name: verify-profiles-and-files
-description: Model-check that Trayscale's profile list and waiting Taildrop files list load, refresh, and switch correctly under every interleaving of tailscaled events, the Bus, Profiles, and Files goroutines, and the GTK main thread, using a TLA+ model whose guards are read from the code. Use when a change touches Bus, Files, Profiles, fetchLoop, await, or kick in internal/tsutil, the FileStatus, ProfileStatus, or IPNStatus cases of App.update, onAppActivate's refreshes, the tray's profile switch or Switch account submenu, the profile drop-down, the self page's file list or delete button, or the tailscale.com version, or when running /verify-profiles-and-files.
+description: Model-check that Trayscale's profile list and waiting Taildrop files list load, refresh, and switch correctly under every interleaving of tailscaled events, the Bus, Profiles, and Files goroutines, and the GTK main thread, using a TLA+ model whose guards are read from the code. Use when a change touches Bus, Files, Profiles, fetchLoop, await, or kick in internal/tsutil, the FileStatus, ProfileStatus, or IPNStatus cases of App.update, showIPN, switchHold, setSwitching or the switchTimeout fallback, onAppActivate's refreshes, the tray's profile switch, Switch account submenu, or SetSwitching, the profile drop-down, the self page's file list or delete button, or the tailscale.com version, or when running /verify-profiles-and-files.
 ---
 
 # Verify profiles and files
 
-The model in `model/ProfilesAndFiles.tla` checks what Trayscale shows about login profiles and waiting Taildrop files, and what it does when you switch profiles or delete a file. TLC, the TLA+ model checker, tries every order of the steps below within the bounds: tailscaled events, the `Bus`, `Profiles`, and `Files` goroutines, `gutil.IdleAdd` callbacks on the main thread, and what you click. Tests only cover the orders someone wrote down.
+The model in `model/ProfilesAndFiles.tla` checks what Trayscale shows about login profiles and waiting Taildrop files, what it does when you switch profiles or delete a file, and how it holds the old profile on screen while a switch is in progress. TLC, the TLA+ model checker, tries every order of the steps below within the bounds: tailscaled events, the `Bus`, `Profiles`, and `Files` goroutines, `gutil.IdleAdd` callbacks on the main thread, and what you click. Tests only cover the orders someone wrote down.
 
 One model covers both lists because they share the Bus, `fetchLoop`, and the main thread, and because a profile switch changes which files are waiting. The `Part` constant runs the profile side and the file side separately, so neither pays for the other's states.
 
@@ -17,7 +17,7 @@ From the repo root:
 .agents/skills/verify-profiles-and-files/scripts/check-profiles-and-files
 ```
 
-It needs Java 11 or newer, `perl`, and `curl`. Without a system Java, `mise exec java@temurin-21 -- <command>` works. The first run downloads `tla2tools.jar` 1.7.4 to `~/.cache/trayscale/` and checks its sha256. Stay on a stable release: the 1.8.0 prerelease jar is rebuilt in place, so its sha256 changes. Set `TLA2TOOLS_JAR` to use another copy. A run takes about 2.5 minutes on 4 cores. `TLC_WORKERS=2` limits the cores it uses.
+It needs Java 11 or newer, `perl`, and `curl`. Without a system Java, `mise exec java@temurin-21 -- <command>` works. The first run downloads `tla2tools.jar` 1.7.4 to `~/.cache/trayscale/` and checks its sha256. Stay on a stable release: the 1.8.0 prerelease jar is rebuilt in place, so its sha256 changes. Set `TLA2TOOLS_JAR` to use another copy. A run takes about 7 minutes on 8 cores. `TLC_WORKERS=2` limits the cores it uses.
 
 To check one property alone in the main runs, ignoring the known findings list:
 
@@ -38,8 +38,13 @@ Output and counterexamples go to `.agents/skills/verify-profiles-and-files/out/`
 | `NoStrayFileNotice` | A `New Incoming File` notification only names a file that just arrived and wasn't announced before. | You're told about a file that has been waiting all along, or about the same file twice. |
 | `NoMissedFileNotice` | Once nothing is in flight, every file that arrived while Trayscale already held that profile's list got a `New Incoming File` notification. | A file arrives and you never hear about it. |
 | `NoWrongDelete` | Deleting a file from the list deletes it from the profile the list came from. | You delete another account's file, which can't be undone. |
+| `SwitchStaysConnected` | A profile switch that doesn't stall never shows Tailscale as offline, so it sends neither `Tailscale Status` notification. | Every switch flashes `Not Connected`, tears down the peer pages, and sends a disconnected and a connected notification. |
+| `HoldEnds` | Once a switch has reached `Running`, or stalled and the 5-second fallback has fired, nothing is held, the tray and the window are enabled, and they show tailscaled's state. | The window stays greyed out, or keeps showing the old profile, after the switch is over. |
+| `HeldStateDisabled` | While a switch is held, the tray's Tailscale items are disabled and an open window's content is insensitive. | You click a peer, a file, or the status switch of the profile you just left. |
 
-`ProfilesSettle`, `FailedTraySwitchNotifies`, `FilesSettle`, and `NoMissedFileNotice` are checked only once nothing is in flight: the bus queue is read, both loops are idle with nothing pending, every `IdleAdd` callback has run, and tailscaled isn't mid-switch.
+`ProfilesSettle`, `FailedTraySwitchNotifies`, `FilesSettle`, and `NoMissedFileNotice` are checked only once nothing is in flight: the bus queue is read, both loops are idle with nothing pending, every `IdleAdd` callback has run, no fallback timer is armed, and tailscaled isn't mid-switch. `HoldEnds` uses a looser condition that also counts a switch stalled in `Starting` once the fallback has fired.
+
+The three switch properties run in every run. They only have something to check where a switch can happen: `profiles` and `switches`.
 
 The script makes three runs:
 
@@ -76,10 +81,14 @@ The script prints `code facts` first. Each is a model constant read from the cod
 | `TrayOpenRefreshes` | the tray's `OnAccountsOpen` calling `a.profiles.Refresh()` | `ProfilesSettle` |
 | `TraySwitchOffMain` | `OnProfileSwitch` calling `a.profiles.Switch` inside `go func()` | `MainThreadNeverWaits` |
 | `TraySwitchFailureNotifies` | a failed tray switch calling `a.notify(locale.Get("Switch account"), ...)` | `FailedTraySwitchNotifies` |
-| `DropDownSwitchOffMain` | the drop-down's `selected-item` handler calling `app.profiles.Switch` inside `go func()` | `MainThreadNeverWaits` (FALSE today, see Findings) |
+| `DropDownSwitchOffMain` | the drop-down's `selected-item` handler calling `app.profiles.Switch` inside `go func()` | `MainThreadNeverWaits` |
 | `DeleteOffMain` | the self page's delete confirmation calling `a.files.Delete` inside `go func()` | `MainThreadNeverWaits` (FALSE today, see Findings) |
 | `SelfPageFillsFiles` | `SelfPage.init` calling `page.fileModel.Set(*a.waiting)` | `FilesSettle` (FALSE today, see Findings) |
 | `FirstListQuiet` | `App.update` comparing a new file list against `*a.waiting` only inside `if a.waiting != nil` | `NoStrayFileNotice` |
+| `SwitchHold` | `App.update` starting with `a.hold.offer(a.online, status)` and returning while it holds, and `switchHold.offer` holding only `NoState` and `Starting` with `WantRunning` while online | `SwitchStaysConnected` |
+| `HoldDisables` | a hold's start calling `a.setSwitching(true)`, `setSwitching` reaching the tray and the window, and `onAppActivate` calling `a.win.SetSwitching(a.hold.active())` | `HeldStateDisabled` |
+| `HoldReenables` | `a.setSwitching(false)` after `showIPN` both when a hold ends on a new status and when the fallback fires | `HoldEnds` |
+| `HoldFallback` | a hold's start arming `gutil.TimeoutAdd(switchTimeout, ...)` | `HoldEnds`, after a stall |
 
 A regex checks the shape of one guard. It does not see a new code path that changes what the guard means, such as a second place that sets `a.waiting`. Model such a path as a new action before trusting a pass.
 
@@ -100,7 +109,8 @@ Each LocalAPI call is one step, because tailscaled serves it under `b.mu`. Each 
 | `SetRunningHolds`, `SetRunningCalls`, `SetRunningReleases` | `Bus.SetRunning` from the window's status switch or the tray's connection toggle: hold publishing (not signals), run `tailscale up` or `down`, release |
 | `ProfilesFetch`, `ProfilesPublish` | `fetchLoop` in `Profiles.Run`: `await` returns, `getProfileStatus`, then `New` does `IdleAdd(a.update)` |
 | `FilesFetch`, `FilesPublish` | `fetchLoop` in `Files.Run`: `await` returns, `waitingFiles` for the current login, then `New` |
-| `MainRuns` | one `IdleAdd` callback: `App.update` for an `IPNStatus`, `FileStatus`, or `ProfileStatus` (and `MainWindow.Update`), a tray click, or a notification |
+| `MainRuns` | one `IdleAdd` callback: `App.update` for an `IPNStatus` (`switchHold.offer`, then `showIPN` or a hold), `FileStatus`, or `ProfileStatus` (and `MainWindow.Update`), a tray click, or a notification |
+| `HoldExpires` | the `switchTimeout` callback in `App.update`: `switchHold.expire`, then `showIPN` and `setSwitching(false)` |
 | `UserOpensWindow` | `onAppActivate` with no window: refresh both lists, build the pages from `a.ipn` |
 | `UserOpensProfileList` | the drop-down's popover showing (`onDropDownPopup`) or the tray's `OnAccountsOpen` |
 | `UserPicksInDropDown` | the drop-down's `selected-item` handler calling `Profiles.Switch` |
@@ -108,7 +118,7 @@ Each LocalAPI call is one step, because tailscaled serves it under `b.mu`. Each 
 | `UserDeletes` | the self page's delete confirmation calling `Files.Delete` |
 | `BackgroundFinishes`, `MainThreadFinishes` | a `Switch` or `Delete` returning, with its deferred `Refresh`, on a goroutine or on the main thread |
 | `OtherClientSwitches` | `tailscale switch` or another client |
-| `TailscaledComesBackUp` | `startLocked` after a switch, back to `Running` |
+| `TailscaledStarts`, `TailscaledComesBackUp` | `startLocked` after a switch: `Starting`, then `Running`. `TailscaledStarts(TRUE)` is a switch that stalls in `Starting`, as when the new profile's control server doesn't answer |
 | `FileArrives` | a Taildrop transfer finishing, which `applyFiles` reports as `changeFiles` |
 | `OtherClientTakesFile` | `tailscale file get` or another client taking a waiting file |
 | `OtherClientChangesProfiles` | another client adding or deleting a profile that isn't current |
@@ -116,18 +126,24 @@ Each LocalAPI call is one step, because tailscaled serves it under `b.mu`. Each 
 Tailscale's side, at `MODELED_TAILSCALE`:
 
 - `SwitchProfile` runs under `b.mu`. `resetForProfileChangeLocked` moves the Taildrop manager to the new login (`onChangeProfile`) and enters `NoState` before `startLocked`. So the switch, the new file directory, and the `NoState` notify are one step.
+- After a switch the bus reports `NoState`, `Starting`, and `Running`, about 250ms apart, with `WantRunning` set throughout (seen on tsharness with tailscaled v1.104.4).
 - Taildrop keeps one directory per login (`fileRoot`), so each profile has its own waiting files, and `DeleteWaitingFile` deletes by name in the current profile's directory.
 - Nothing on the bus reports a waiting file taken by another client unless it was the last one, when `FilesWaiting` goes away. Nothing reports a profile that isn't current being added or deleted.
 
 When the warning says go.mod moved past `MODELED_TAILSCALE`, read each `ll:` and `td:` line in the model at the new version. Update the model where tailscaled's behavior changed, and the line numbers where only they moved. Then set `MODELED_TAILSCALE` and rerun.
 
-Ghost variables exist only to state properties. `gen` counts arrivals per profile and file. `noticed` is the latest arrival a notification or a quiet first list accounted for, and `stray` records a notification for anything else. `owed` is the latest arrival that landed while Trayscale held that profile's list, and `told` the latest one a notification named. `unseenProf` and `unseenFiles` record a change nothing reports since you last looked. `wrongDelete`, `failedTray`, and `notices` count what their names say.
+`heldSt`, `timerArmed`, `trayOff`, and `winOff` are App and UI state: the held status, the armed fallback, and the tray and window disabled by `SetSwitching`.
+
+Ghost variables exist only to state properties. `gen` counts arrivals per profile and file. `noticed` is the latest arrival a notification or a quiet first list accounted for, and `stray` records a notification for anything else. `owed` is the latest arrival that landed while Trayscale held that profile's list, and `told` the latest one a notification named. `unseenProf` and `unseenFiles` record a change nothing reports since you last looked. `wrongDelete`, `failedTray`, and `notices` count what their names say. `stuck` marks a switch that stalled in `Starting`, which is a real failure. `flap` records a switch that didn't stall showing offline.
 
 ## Bounds and assumptions
 
 - Two profiles, A and B. A starts with `f1` waiting, B with `f1` and `f2`. Run bounds are in `RUNS` in the script.
 - `Resends` is a bound, not a code fact. With it FALSE, a file only arrives under a name that never waited in that profile. The `files` and `switches` runs have it TRUE. One known finding needs it, so `NoMissedFileNotice` is also checked with it FALSE.
-- A switch always succeeds into `Running`, unless the profile no longer exists. The model has no `NeedsLogin`, `Starting`, or stopped profile after a switch.
+- A switch goes through `NoState` and `Starting` into `Running`, unless the profile no longer exists. It can stall in `Starting` and recover later. The model has no `NeedsLogin` or stopped profile after a switch, so every `NoState` and `Starting` status has `WantRunning` set.
+- A switch that doesn't stall reaches `Running` on the main thread well within `switchTimeout`, so the fallback only fires after a stall or after the hold has ended. Without this, an untimed model lets the 5-second timer fire after any step.
+- The bounds allow one switch, so one hold. The generation check that keeps an old hold's timer from ending a newer hold is covered by `TestSwitchHold`, not by the model.
+- The connect toggle, the drop-down, the tray's account items, and the delete button only act while enabled. The model doesn't start a tray icon in the middle of a hold.
 - Bus connects once, at the start. No reconnects or tailscaled restarts.
 - The self page exists exactly while Tailscale is `Running` and the window is open. In the code it needs a self node too.
 - `changeIdentity` is not modeled. It only adds profile fetches, which can't make `ProfilesSettle` fail.
@@ -137,7 +153,8 @@ Ghost variables exist only to state properties. `gen` counts arrivals per profil
 
 ## Not covered
 
-- What the window shows while something is in flight. The settle properties only look once everything has landed.
+- What the window shows while something is in flight, other than the switch hold. The settle properties only look once everything has landed.
+- The peer list during a switch. Trayscale shows whatever peer list tailscaled sends with `Running`.
 - `saveFile`'s delete after saving, and auto-save. Both pick files by name from `a.waiting` like the delete button does, so the `NoWrongDelete` finding likely applies to them too (inferred, not modeled).
 - Two profiles that share a login. Taildrop keys its directory by login, so they share waiting files.
 - Logins, logouts, and profile deletion of the current profile.
@@ -147,8 +164,6 @@ Ghost variables exist only to state properties. `gen` counts arrivals per profil
 ## Findings
 
 Each finding lists the shortest path TLC found, in code terms.
-
-**The drop-down switches profiles on the main thread** (`MainThreadNeverWaits` in `profiles`). Open the window, pick another profile in the drop-down. The `selected-item` handler in `mainwindow.go` calls `app.profiles.Switch` directly, so the window is frozen until tailscaled answers, up to 30 seconds. The tray already switches in a goroutine.
 
 **The delete button deletes on the main thread** (`MainThreadNeverWaits` in `files` and `switches`). Open the window, delete a waiting file, confirm. The confirmation callback in `selfpage.go` calls `a.files.Delete` directly, with `context.TODO()` and no timeout.
 
@@ -167,14 +182,16 @@ With `Resends` FALSE and no connect or disconnect, the property holds.
 
 ## Coverage
 
-Sync commit: `f8dc492`
+Sync commit: `945e01d`
 
 Move the sync commit forward only after you confirm, at the new commit, that the model and the code facts still describe the code below. The script lists covered files changed since the sync commit. The repo squash merges, so after a PR that moved the sync commit merges, set it to the merge commit on `master`.
 
 - `internal/tsutil/sources.go`: `Files`, `Profiles`, `filesTriggers`, `profilesTriggers`, `kick`, `fetchLoop`, `await`
 - `internal/tsutil/bus.go`: `Bus.Run`, `publish`, `watchOnce`, `SetRunning`, `watchState.apply`, `applyFiles`, `fire`
 - `internal/tsutil/client.go`: `waitingFiles`, `deleteWaitingFile`, `getProfileStatus`, `switchProfile`
-- `internal/ui/app.go`: `App.update`, `onAppActivate`, `OnProfileSwitch`, `OnAccountsOpen`, and the source wiring in `Run`
-- `internal/ui/mainwindow.go`: the drop-down's `selected-item` handler, `onDropDownPopup`, `Update`, `updateProfiles`, `ensureSectionPages`, `updatePages`
+- `internal/ui/app.go`: `App.update`, `showIPN`, `setSwitching`, `switchTimeout`, `onAppActivate`, `startTray`, `OnProfileSwitch`, `OnAccountsOpen`, and the source wiring in `Run`
+- `internal/ui/switchhold.go`: `switchHold`, `switching`
+- `internal/tray/tray.go`: `SetSwitching`, `update`
+- `internal/ui/mainwindow.go`: the drop-down's `selected-item` handler, `onDropDownPopup`, `SetSwitching`, `Update`, `updateProfiles`, `ensureSectionPages`, `updatePages`
 - `internal/ui/selfpage.go`: `init`, the delete button in `fileRow`, `UpdateIPN`, `UpdateFiles`
 - `go.mod`: the `tailscale.com` version

@@ -149,13 +149,18 @@ func NewMainWindow(app *App) *MainWindow {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 
-		err := app.profiles.Switch(ctx, profile.ID)
-		if err != nil {
-			slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
-		}
+			err := app.profiles.Switch(ctx, profile.ID)
+			if err != nil {
+				slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
+				gutil.IdleAdd(func() {
+					app.notify(locale.Get("Switch account"), err.Error())
+				})
+			}
+		}()
 	})
 	// Nothing reports a profile that isn't the current one being
 	// deleted, so the list could be stale.

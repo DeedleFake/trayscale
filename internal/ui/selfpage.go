@@ -95,9 +95,6 @@ func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
 func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	page.app = a
 	page.peer, _ = status.Self()
-	if a.waiting != nil {
-		page.incomingFiles = len(*a.waiting)
-	}
 
 	page.actions = gio.NewSimpleActionGroup()
 
@@ -119,6 +116,10 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	page.fileModel = gobj.NewList(func(f1, f2 apitype.WaitingFile) int { return cmp.Compare(f1.Name, f2.Name) })
 	gobj.BindListBox(page.FilesList, page.fileModel, page.fileRow)
 	setPlaceholder(page.FilesList, locale.Get("No incoming files."))
+	if a.waiting != nil {
+		page.fileModel.Set(*a.waiting)
+		page.incomingFiles = len(*a.waiting)
+	}
 
 	gutil.Connect(page.ExitNodeRow, page.ExitNodeRow.ConnectActivated, func(adw.ActionRow) {
 		page.showExitNode()

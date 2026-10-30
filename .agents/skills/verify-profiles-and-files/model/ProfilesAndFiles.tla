@@ -38,7 +38,9 @@ CONSTANTS
   DropDownSwitchOffMain,   \* win: the drop-down's selected-item handler calls Switch in a goroutine
   DeleteOffMain,           \* self: the delete confirmation calls a.files.Delete in a goroutine
   SelfPageFillsFiles,      \* self: SelfPage.init fills fileModel from a.waiting
-  FirstListQuiet,          \* app: no New Incoming File notifications while a.waiting is nil
+  NoticesFromArrivals,     \* app: a New Incoming File notification names only a file in FileStatus.Arrived
+  ArrivalsOnce,            \* bus: applyFiles reports each finished transfer once, however often it's listed
+  ArrivedBeforeList,       \* src: Files.Run takes the Bus's arrivals before it fetches the list
   SwitchHold,              \* app: App.update holds NoState and Starting back while online and WantRunning
   HoldDisables,            \* app: a hold's start calls a.setSwitching(true)
   HoldReenables,           \* app: both ends of a hold call a.setSwitching(false)
@@ -52,8 +54,11 @@ StartFiles == [p \in Profiles |-> IF p = "A" THEN {"f1"} ELSE {"f1", "f2"}]
 NoFiles == [ok |-> FALSE, p |-> "none", fs |-> {}, gen |-> NoGen]
 NoProfiles == [ok |-> FALSE, cur |-> "none", list |-> {}]
 NoOp == [k |-> "none", src |-> "none", to |-> "none", f |-> "none", p |-> "none"]
-Msg(k) == [k |-> k, st |-> "none", cur |-> "none", list |-> {}, p |-> "none", fs |-> {}, gen |-> NoGen, to |-> "none"]
-Notify(k, st) == [k |-> k, st |-> st]
+\* A finished transfer as applyFiles reports it: the file's name, with the
+\* profile and arrival it belongs to as ghosts. The code only has the name.
+NoArr == [f |-> "none", p |-> "none", g |-> 0]
+Msg(k) == [k |-> k, st |-> "none", cur |-> "none", list |-> {}, p |-> "none", fs |-> {}, gen |-> NoGen, to |-> "none", arr |-> {}]
+Notify(k, st) == [k |-> k, st |-> st, a |-> NoArr]
 
 VARIABLES
   \* tailscaled
@@ -66,6 +71,7 @@ VARIABLES
   busState,   \* watchState.ipn.State, bus:357-367
   pending,    \* the status Run will publish next, bus:86, or "none"
   hold,       \* holds from SetRunning, bus:87
+  arrived,    \* b.arrived: finished transfers no fetch has taken yet
   runPhase,   \* the one SetRunning in flight (b.runMu): "idle", "held", "called"
   \* Profiles.Run and Files.Run (fetchLoop, src:131-191)
   pPhase, pSig, pRef, pRes,
@@ -90,7 +96,7 @@ VARIABLES
   unseenFiles,\* a file deletion nothing reports happened since the user last opened the window
   gen,        \* ghost: per profile and file, how many times it has arrived; 0 means it was there from the start
   noticed,    \* ghost: per profile and file, the latest arrival a notification or a first list has accounted for
-  owed,       \* ghost: per profile and file, the latest arrival that landed while Trayscale held that profile's list
+  owed,       \* ghost: per profile and file, the latest arrival that Trayscale owes a notification
   told,       \* ghost: per profile and file, the latest arrival a New Incoming File notification named
   stray,      \* a New Incoming File notification went out for a file that didn't just arrive
   wrongDelete,\* a delete removed a file from a different profile than the list it was picked from
@@ -100,7 +106,7 @@ VARIABLES
   flap,       \* ghost: a switch that didn't stall showed offline, with its disconnect notification
   budget
 
-vars == <<cur, known, dstate, files, busQ, busState, pending, hold, runPhase,
+vars == <<cur, known, dstate, files, busQ, busState, pending, hold, arrived, runPhase,
           pPhase, pSig, pRef, pRes, fPhase, fSig, fRef, fRes,
           mainQ, mainWait, ops, online, waiting, appProf, winOpen, winProf,
           dropSel, selfPage, heldSt, timerArmed, trayOff, winOff,
@@ -136,19 +142,19 @@ FilesGoneNotify(fs) == IF fs = {} THEN <<Notify("files", "none")>> ELSE <<>>
 \* The profiles Part leaves the self page out.
 SelfInit == IF Part # "files" THEN NoFiles
             ELSE IF SelfPageFillsFiles /\ waiting.ok
-            THEN [waiting EXCEPT !.ok = TRUE]
-            ELSE [NoFiles EXCEPT !.ok = TRUE]   \* self:95-121 sets only incomingFiles
+            THEN [waiting EXCEPT !.ok = TRUE]   \* self:119-122
+            ELSE [NoFiles EXCEPT !.ok = TRUE]
 
 Init ==
   /\ cur = "A" /\ known = Profiles /\ dstate = "Running"
   /\ files = StartFiles
   \* bus:179 changeConnected, then the initial state, bus:167-172
   /\ busQ = <<Notify("connected", "none"), Notify("state", "Running")>>
-  /\ busState = "NoState" /\ pending = "none" /\ hold = 0 /\ runPhase = "idle"
+  /\ busState = "NoState" /\ pending = "none" /\ hold = 0 /\ arrived = {} /\ runPhase = "idle"
   \* fetchLoop fetches once at the start, src:134-138, which a pending
   \* refresh stands for.
   /\ pPhase = "idle" /\ pSig = FALSE /\ pRef = (Part = "profiles") /\ pRes = NoProfiles
-  /\ fPhase = "idle" /\ fSig = FALSE /\ fRef = (Part = "files") /\ fRes = NoFiles
+  /\ fPhase = "idle" /\ fSig = FALSE /\ fRef = (Part = "files") /\ fRes = [ok |-> FALSE, p |-> "none", fs |-> {}, gen |-> NoGen, arr |-> {}]
   /\ mainQ = <<>> /\ mainWait = NoOp /\ ops = {}
   /\ online = FALSE /\ waiting = NoFiles /\ appProf = NoProfiles
   /\ winOpen = FALSE /\ winProf = NoProfiles /\ dropSel = "none" /\ selfPage = NoFiles
@@ -180,7 +186,7 @@ DoSwitch(p) ==
 OtherClientSwitches(p) ==
   /\ budget.switch > 0 /\ p # cur /\ p \in known
   /\ DoSwitch(p) /\ Spend("switch")
-  /\ UNCHANGED <<known, files, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars, ghostVars>>
+  /\ UNCHANGED <<known, files, busState, pending, hold, arrived, runPhase, loopVars, mainQ, mainWait, ops, uiVars, ghostVars>>
 
 \* startLocked after a switch: Starting with WantRunning still set, then
 \* Running once the new profile's control server answers. Seen on the bus
@@ -190,27 +196,32 @@ OtherClientSwitches(p) ==
 TailscaledStarts(s) ==
   /\ dstate = "NoState" /\ dstate' = "Starting" /\ stuck' = s
   /\ busQ' = Append(busQ, Notify("state", "Starting"))
-  /\ UNCHANGED <<cur, known, files, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
+  /\ UNCHANGED <<cur, known, files, busState, pending, hold, arrived, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
                  unseenProf, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, flap, budget>>
 
 TailscaledComesBackUp ==
   /\ dstate = "Starting" /\ dstate' = "Running" /\ stuck' = FALSE
   /\ busQ' = Append(busQ, Notify("state", "Running"))
-  /\ UNCHANGED <<cur, known, files, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
+  /\ UNCHANGED <<cur, known, files, busState, pending, hold, arrived, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
                  unseenProf, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, flap, budget>>
 
-\* A Taildrop transfer finishes: IncomingFiles with Done, bus:421-437.
+\* A Taildrop transfer finishes. PutFile (feature/taildrop/send.go:151-163) marks it done,
+\* renames it into place, and sends IncomingFiles with Done and FinalPath
+\* set, which applyFiles (bus:453-490) reports as an arrival. The arrival
+\* is named by its final name, which is f: Rename keeps the name when no
+\* other file has it. Another transfer's progress notify can list a
+\* finished one again before PutFile drops it, which the second notify
+\* stands for when ArrivalsOnce is FALSE.
 FileArrives(f) ==
   /\ Part = "files" /\ budget.recv > 0 /\ dstate = "Running" /\ f \notin files[cur]
   /\ Resends \/ (f \notin StartFiles[cur] /\ gen[cur][f] = 0)
   /\ files' = [files EXCEPT ![cur] = @ \cup {f}]
-  /\ busQ' = Append(busQ, Notify("files", "none"))
   /\ gen' = [gen EXCEPT ![cur][f] = @ + 1]
-  \* A file that lands before Trayscale holds a list for this profile is
-  \* one the first list takes quietly, by design.
-  /\ owed' = IF waiting.ok /\ waiting.p = cur THEN [owed EXCEPT ![cur][f] = gen'[cur][f]] ELSE owed
+  /\ LET n == [Notify("files", "none") EXCEPT !.a = [f |-> f, p |-> cur, g |-> gen'[cur][f]]]
+     IN busQ' = busQ \o (IF ArrivalsOnce THEN <<n>> ELSE <<n, n>>)
+  /\ owed' = [owed EXCEPT ![cur][f] = gen'[cur][f]]
   /\ Spend("recv")
-  /\ UNCHANGED <<cur, known, dstate, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
+  /\ UNCHANGED <<cur, known, dstate, busState, pending, hold, arrived, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
                  unseenProf, unseenFiles, noticed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
 \* `tailscale file get` or another client takes a waiting file. Nothing
@@ -221,7 +232,7 @@ OtherClientTakesFile(f) ==
   /\ busQ' = busQ \o FilesGoneNotify(files'[cur])
   /\ unseenFiles' = (unseenFiles \/ files'[cur] # {})
   /\ Spend("odel")
-  /\ UNCHANGED <<cur, known, dstate, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
+  /\ UNCHANGED <<cur, known, dstate, busState, pending, hold, arrived, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
                  unseenProf, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
 \* Another client adds or deletes a profile that isn't the current one.
@@ -231,13 +242,14 @@ OtherClientChangesProfiles(q) ==
   /\ known' = IF q \in known THEN known \ {q} ELSE known \cup {q}
   /\ unseenProf' = TRUE
   /\ Spend("list")
-  /\ UNCHANGED <<cur, dstate, files, busQ, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
+  /\ UNCHANGED <<cur, dstate, files, busQ, busState, pending, hold, arrived, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
                  unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
 \* ---------------- Bus.Run, bus:76-118 ----------------
 
-\* One notify: watchState.apply (bus:354-410), then Run sets pending and
-\* fires the changes before it publishes, bus:98-109.
+\* One notify: watchState.apply (bus:384-442), then Run sets pending, adds
+\* the arrivals to b.arrived, and fires the changes before it publishes,
+\* bus:103-121.
 BusReads ==
   /\ busQ # <<>> /\ BusSelects
   /\ LET n == Head(busQ)
@@ -247,6 +259,7 @@ BusReads ==
      IN /\ busQ' = Tail(busQ)
         /\ busState' = IF n.k = "state" THEN n.st ELSE busState
         /\ pending' = IF n.k = "state" THEN n.st ELSE pending
+        /\ arrived' = IF n.a # NoArr THEN arrived \cup {n.a} ELSE arrived
         /\ pSig' = (pSig \/ changes \cap PMask # {})
         /\ fSig' = (fSig \/ changes \cap FMask # {})
   /\ UNCHANGED <<daemonVars, hold, runPhase, pPhase, pRef, pRes, fPhase, fRef, fRes,
@@ -257,7 +270,7 @@ BusPublishes ==
   /\ pending # "none" /\ hold = 0
   /\ mainQ' = Append(mainQ, [Msg("ipn") EXCEPT !.st = pending])
   /\ pending' = "none"
-  /\ UNCHANGED <<daemonVars, busQ, busState, hold, runPhase, loopVars, mainWait, ops, uiVars, ghostVars, budget>>
+  /\ UNCHANGED <<daemonVars, busQ, busState, hold, arrived, runPhase, loopVars, mainWait, ops, uiVars, ghostVars, budget>>
 
 \* SetRunning, bus:261-290, from the window's status switch or the tray's
 \* connection toggle, both in goroutines. It holds publishing, but not
@@ -266,19 +279,19 @@ SetRunningHolds ==
   /\ budget.toggle > 0 /\ runPhase = "idle" /\ dstate \in {"Running", "Stopped"} /\ BusSelects
   /\ ~trayOff \/ (winOpen /\ ~winOff)
   /\ hold' = 1 /\ runPhase' = "held" /\ Spend("toggle")
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, loopVars, mainQ, mainWait, ops, uiVars, ghostVars>>
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, arrived, loopVars, mainQ, mainWait, ops, uiVars, ghostVars>>
 
 SetRunningCalls ==
   /\ runPhase = "held" /\ runPhase' = "called"
   /\ CASE dstate = "Running" -> dstate' = "Stopped" /\ busQ' = Append(busQ, Notify("state", "Stopped"))
        [] dstate = "Stopped" -> dstate' = "Running" /\ busQ' = Append(busQ, Notify("state", "Running"))
        [] dstate \in {"NoState", "Starting"} -> UNCHANGED <<dstate, busQ>>
-  /\ UNCHANGED <<cur, known, files, busState, pending, hold, loopVars, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
+  /\ UNCHANGED <<cur, known, files, busState, pending, hold, arrived, loopVars, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
 SetRunningReleases ==
   /\ runPhase = "called" /\ BusSelects
   /\ hold' = 0 /\ runPhase' = "idle"
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, loopVars, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, arrived, loopVars, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
 \* ---------------- Profiles.Run and Files.Run, src:131-191 ----------------
 
@@ -290,30 +303,36 @@ ProfilesFetch ==
   /\ Part = "profiles" /\ pPhase = "idle" /\ (pSig \/ pRef)
   /\ pPhase' = "deliver" /\ pSig' = FALSE /\ pRef' = FALSE
   /\ pRes' = [ok |-> TRUE, cur |-> cur, list |-> known]
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, fPhase, fSig, fRef, fRes,
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, fPhase, fSig, fRef, fRes,
                  mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
 \* p.New, src:102, does gutil.IdleAdd(a.update).
 ProfilesPublish ==
   /\ pPhase = "deliver" /\ pPhase' = "idle"
   /\ mainQ' = Append(mainQ, [Msg("profiles") EXCEPT !.cur = pRes.cur, !.list = pRes.list])
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, pSig, pRef, pRes, fPhase, fSig, fRef, fRes,
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, pSig, pRef, pRes, fPhase, fSig, fRef, fRes,
                  mainWait, ops, uiVars, ghostVars, budget>>
 
-\* Like ProfilesFetch: await, then waitingFiles against the current
-\* login's manager.
+\* Like ProfilesFetch: await, takeArrived, then waitingFiles against the
+\* current login's manager, src:42-56. An arrival after the take fires
+\* changeFiles, which the next await sees. With ArrivedBeforeList FALSE
+\* the take comes after the list, at FilesPublish.
 FilesFetch ==
   /\ Part = "files" /\ fPhase = "idle" /\ (fSig \/ fRef)
   /\ fPhase' = "deliver" /\ fSig' = FALSE /\ fRef' = FALSE
   /\ fRes' = [ok |-> TRUE, p |-> cur, fs |-> files[cur],
-              gen |-> [f \in Files |-> IF f \in files[cur] THEN gen[cur][f] ELSE 0]]
+              gen |-> [f \in Files |-> IF f \in files[cur] THEN gen[cur][f] ELSE 0],
+              arr |-> IF ArrivedBeforeList THEN arrived ELSE {}]
+  /\ arrived' = IF ArrivedBeforeList THEN {} ELSE arrived
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, pPhase, pSig, pRef, pRes,
                  mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
-\* f.New, src:49.
+\* f.New, src:53.
 FilesPublish ==
   /\ fPhase = "deliver" /\ fPhase' = "idle"
-  /\ mainQ' = Append(mainQ, [Msg("files") EXCEPT !.p = fRes.p, !.fs = fRes.fs, !.gen = fRes.gen])
+  /\ LET arr == IF ArrivedBeforeList THEN fRes.arr ELSE arrived
+     IN mainQ' = Append(mainQ, [Msg("files") EXCEPT !.p = fRes.p, !.fs = fRes.fs, !.gen = fRes.gen, !.arr = arr])
+  /\ arrived' = IF ArrivedBeforeList THEN arrived ELSE {}
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, pPhase, pSig, pRef, pRes, fSig, fRef, fRes,
                  mainWait, ops, uiVars, ghostVars, budget>>
 
@@ -321,7 +340,7 @@ FilesPublish ==
 
 \* Profiles.Switch, src:116-119, from the tray (app:649-668) or the
 \* drop-down (win:122-164), and Files.Delete, src:62-65, from the self
-\* page (self:305-318) or saveFile (io:73). Each is one step: the LocalAPI
+\* page (self:306-325) or saveFile (io:73). Each is one step: the LocalAPI
 \* call, then the deferred Refresh, then for the tray the failure
 \* notification's IdleAdd.
 Finish(op) ==
@@ -343,13 +362,13 @@ Finish(op) ==
 BackgroundFinishes(op) ==
   /\ op \in ops /\ ops' = ops \ {op}
   /\ Finish(op)
-  /\ UNCHANGED <<busState, pending, hold, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRes, mainWait, uiVars,
+  /\ UNCHANGED <<busState, pending, hold, arrived, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRes, mainWait, uiVars,
                  unseenProf, unseenFiles, gen, noticed, owed, told, stray, notices, stuck, flap, budget>>
 
 MainThreadFinishes ==
   /\ mainWait # NoOp /\ mainWait' = NoOp
   /\ Finish(mainWait)
-  /\ UNCHANGED <<busState, pending, hold, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRes, ops, uiVars,
+  /\ UNCHANGED <<busState, pending, hold, arrived, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRes, ops, uiVars,
                  unseenProf, unseenFiles, gen, noticed, owed, told, stray, notices, stuck, flap, budget>>
 
 \* Start op on the main thread or in a goroutine.
@@ -368,7 +387,7 @@ Show(st) ==
   /\ online' = on
   /\ waiting' = IF on THEN waiting ELSE NoFiles                     \* app:230-232
   \* updatePeers: SelfPage.UpdateIPN returns false offline and the page
-  \* goes (self:360-363, win:408-420); online, ensureSectionPages adds it
+  \* goes (self:367-370, win:408-420); online, ensureSectionPages adds it
   \* (win:398-406).
   /\ selfPage' = IF ~winOpen THEN NoFiles
                  ELSE IF ~on THEN NoFiles
@@ -414,26 +433,38 @@ HoldExpires ==
           /\ Show(heldSt)
           /\ IF HoldReenables THEN SetSwitching(FALSE) ELSE UNCHANGED <<trayOff, winOff>>
           /\ UNCHANGED <<appProf, winOpen, winProf, dropSel>>
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, loopVars, mainQ, mainWait, ops,
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, loopVars, mainQ, mainWait, ops,
                  unseenProf, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, budget>>
 
-\* app:148-171: a file in the new list that isn't in a.waiting gets a
-\* notification, unless a.waiting is nil.
+\* app:148-167: a file in the new list whose name is in Arrived gets a
+\* notification. With NoticesFromArrivals FALSE, as before fa9adf4, a file
+\* in the new list that isn't in a.waiting gets one, unless a.waiting is
+\* nil.
 ApplyFiles(m) ==
-  LET quiet == ~waiting.ok /\ FirstListQuiet
-      new == IF quiet THEN {} ELSE IF waiting.ok THEN m.fs \ waiting.fs ELSE m.fs
+  LET quiet == ~NoticesFromArrivals /\ ~waiting.ok
+      names == {a.f : a \in m.arr}
+      new == IF NoticesFromArrivals THEN {f \in m.fs : f \in names}
+             ELSE IF quiet THEN {} ELSE IF waiting.ok THEN m.fs \ waiting.fs ELSE m.fs
       \* A list taken quietly accounts for the arrival of each file in it.
       seen == IF quiet THEN m.fs ELSE new
+      \* The arrival a notification for f stands for: the latest one in the
+      \* list's profile that Arrived reports, or with NoticesFromArrivals
+      \* FALSE, the one the list shows. 0 is none, a file that was there
+      \* from the start or an arrival in another profile.
+      credit(f) == IF ~NoticesFromArrivals THEN m.gen[f]
+                   ELSE LET gs == {a.g : a \in {x \in m.arr : x.f = f /\ x.p = m.p}}
+                        IN IF gs = {} THEN 0 ELSE CHOOSE g \in gs : \A h \in gs : h <= g
+      acct(f) == IF quiet THEN m.gen[f] ELSE credit(f)
   IN
-  /\ stray' = (stray \/ \E f \in new : m.gen[f] = 0 \/ m.gen[f] <= noticed[m.p][f])
+  /\ stray' = (stray \/ \E f \in new : credit(f) = 0 \/ credit(f) <= noticed[m.p][f])
   /\ noticed' = [noticed EXCEPT ![m.p] = [f \in Files |->
-                   IF f \in seen /\ m.gen[f] > @[f] THEN m.gen[f] ELSE @[f]]]
-  /\ told' = [told EXCEPT ![m.p] = [f \in Files |-> IF f \in new THEN m.gen[f] ELSE @[f]]]
+                   IF f \in seen /\ acct(f) > @[f] THEN acct(f) ELSE @[f]]]
+  /\ told' = [told EXCEPT ![m.p] = [f \in Files |-> IF f \in new /\ credit(f) > @[f] THEN credit(f) ELSE @[f]]]
   /\ waiting' = [ok |-> TRUE, p |-> m.p, fs |-> m.fs, gen |-> m.gen]
-  /\ selfPage' = IF selfPage.ok THEN waiting' ELSE selfPage   \* self:398-403
+  /\ selfPage' = IF selfPage.ok THEN waiting' ELSE selfPage   \* self:405-410
   /\ UNCHANGED <<online, appProf, winOpen, winProf, dropSel, holdVars, ops, mainWait, notices, flap>>
 
-\* app:172-183 and updateProfiles, win:628-653.
+\* app:169-180 and updateProfiles, win:628-653.
 ApplyProfiles(m) ==
   /\ appProf' = [ok |-> TRUE, cur |-> m.cur, list |-> m.list]
   /\ winProf' = IF winOpen THEN appProf' ELSE winProf
@@ -456,7 +487,7 @@ MainRuns ==
          [] m.k = "profiles" -> ApplyProfiles(m)
          [] m.k = "tray" -> ApplyTrayClick(m)
          [] m.k = "notice" -> notices' = notices + 1 /\ UNCHANGED <<uiVars, ops, mainWait, stray, noticed, told, flap>>
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, loopVars,
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, loopVars,
                  unseenProf, unseenFiles, gen, owed, wrongDelete, failedTray, stuck, budget>>
 
 \* ---------------- The user ----------------
@@ -473,7 +504,7 @@ UserOpensWindow ==
   /\ pRef' = IF WindowOpenRefreshes THEN KickP ELSE pRef
   /\ fRef' = IF WindowOpenRefreshes THEN KickF ELSE fRef
   /\ unseenProf' = FALSE /\ unseenFiles' = FALSE
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRes,
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRes,
                  mainQ, mainWait, ops, online, waiting, appProf, heldSt, timerArmed, trayOff,
                  gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap, budget>>
 
@@ -486,7 +517,7 @@ UserOpensProfileList(where) ==
              THEN KickP ELSE pRef
   /\ unseenProf' = FALSE
   /\ Spend("look")
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRef, fRes,
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRef, fRes,
                  mainQ, mainWait, ops, uiVars, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
 \* The drop-down's selected-item handler, win:122-164.
@@ -496,7 +527,7 @@ UserPicksInDropDown(p) ==
   /\ dropSel' = p
   /\ Launch([NoOp EXCEPT !.k = "switch", !.src = "dropdown", !.to = p], DropDownSwitchOffMain)
   /\ Spend("switch")
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, loopVars, mainQ,
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, loopVars, mainQ,
                  online, waiting, appProf, winOpen, winProf, selfPage, holdVars, ghostVars>>
 
 \* A tray radio item's handler runs on the D-Bus goroutine and IdleAdds,
@@ -506,14 +537,14 @@ UserPicksInTray(p) ==
   /\ p \in appProf.list /\ p # appProf.cur
   /\ mainQ' = Append(mainQ, [Msg("tray") EXCEPT !.to = p])
   /\ Spend("switch")
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, loopVars, mainWait, ops, uiVars, ghostVars>>
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, loopVars, mainWait, ops, uiVars, ghostVars>>
 
-\* The self page's delete confirmation, self:305-318.
+\* The self page's delete confirmation, self:306-325.
 UserDeletes(f) ==
   /\ Part = "files" /\ MainFree /\ ~winOff /\ selfPage.ok /\ f \in selfPage.fs /\ budget.del > 0
   /\ Launch([NoOp EXCEPT !.k = "delete", !.f = f, !.p = selfPage.p], DeleteOffMain)
   /\ Spend("del")
-  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, runPhase, loopVars, mainQ, uiVars, ghostVars>>
+  /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, loopVars, mainQ, uiVars, ghostVars>>
 
 Next ==
   \/ \E p \in Profiles : OtherClientSwitches(p) \/ OtherClientChangesProfiles(p)

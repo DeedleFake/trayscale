@@ -36,20 +36,27 @@ var appCSS string
 // App is the main type for the app, containing all of the state
 // necessary to run it.
 type App struct {
-	poller *tsutil.Poller
-	online bool
+	bus      *tsutil.Bus
+	files    *tsutil.Files
+	profiles *tsutil.Profiles
+	online   bool
+	hold     switchHold
 
 	app           *adw.Application
 	win           *MainWindow
 	settings      *gio.Settings
 	tray          *tray.Tray
 	activeProfile ipn.ProfileID
-	// trayDone stops the goroutine started by startTray.
-	trayDone context.CancelFunc
+
+	// The latest statuses, for what opens after they arrive. Only
+	// update sets them.
+	ipn           *tsutil.IPNStatus
+	engine        *tsutil.EngineStatus
+	profileStatus *tsutil.ProfileStatus
 
 	spinnum        int
 	operatorCheck  bool
-	files          *[]apitype.WaitingFile
+	waiting        *[]apitype.WaitingFile
 	autoSaving     sync.Map // waiting-file name -> struct{} while save is in flight
 	autoSaveFailed sync.Map // waiting-file name -> struct{} after a failed auto-save attempt
 	autoSaveDirBad string   // destination dir last logged as unusable; avoids log spam
@@ -112,39 +119,28 @@ func (a *App) showOperatorDialog() {
 func (a *App) update(status tsutil.Status) {
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
-		online := status.Online()
-		if a.online != online {
-			a.online = online
-
-			body := locale.Get("Tailscale is not connected.")
-			if online {
-				body = locale.Get("Tailscale is connected.")
+		wasHeld := a.hold.active()
+		hold, start, gen := a.hold.offer(a.online, status)
+		if hold {
+			a.waiting = nil
+			if start {
+				a.setSwitching(true)
+				gutil.TimeoutAdd(switchTimeout, func() {
+					if s := a.hold.expire(gen); s != nil {
+						a.showIPN(s)
+						a.setSwitching(false)
+					}
+				})
 			}
-			a.notify(locale.Get("Tailscale Status"), body) // TODO: Notify on startup if not connected?
+			return
+		}
+		a.showIPN(status)
+		if wasHeld {
+			a.setSwitching(false)
 		}
 
-		// LookupAction ref-sinks a transfer-none result. Drop that ref.
-		if action := a.app.LookupAction("use_exit_node"); action != nil {
-			defer gutil.Obj(action).Unref()
-			if useExitNodeAction, ok := gutil.Cast[gio.SimpleAction](action, gio.SimpleActionGLibType()); ok {
-				useExitNodeAction.SetEnabled(online)
-				useExitNodeAction.SetState(glib.NewVariantBoolean(status.ExitNodeActive()))
-			}
-		}
-
-		if online && !a.operatorCheck {
-			a.operatorCheck = true
-			if !status.OperatorIsCurrent() {
-				a.showOperatorDialog()
-			}
-		}
-
-		if !online {
-			a.files = nil
-		}
-
-		a.tray.Update(status)
-
+	case *tsutil.EngineStatus:
+		a.engine = status
 		if a.win != nil {
 			a.win.Update(status)
 		}
@@ -153,20 +149,17 @@ func (a *App) update(status tsutil.Status) {
 		enabled, dir := a.autoSaveSettings()
 		autoSaveOn := autosave.Enabled(enabled, dir)
 
-		if a.files != nil {
+		// Auto-save handles the files right away, so there's nothing
+		// to tell.
+		if !autoSaveOn {
 			for _, file := range status.Files {
-				if !slices.Contains(*a.files, file) {
-					// Skip the manual-save notification when auto-save will
-					// handle the file immediately.
-					if autoSaveOn {
-						continue
-					}
+				if slices.Contains(status.Arrived, file.Name) {
 					body := fmt.Sprintf("%v (%v)", file.Name, bytesize.ByteSize(file.Size))
 					a.notify(locale.Get("New Incoming File"), body)
 				}
 			}
 		}
-		a.files = &status.Files
+		a.waiting = &status.Files
 		a.maybeAutoSaveFiles()
 
 		if a.win != nil {
@@ -174,6 +167,7 @@ func (a *App) update(status tsutil.Status) {
 		}
 
 	case *tsutil.ProfileStatus:
+		a.profileStatus = status
 		a.activeProfile = status.Profile.ID
 		if a.tray != nil {
 			a.tray.SetProfiles(status)
@@ -183,6 +177,61 @@ func (a *App) update(status tsutil.Status) {
 		if a.win != nil {
 			a.win.Update(status)
 		}
+	}
+}
+
+// switchTimeout is how long a profile switch can hold the last
+// connected status before the status that tailscaled reports shows.
+const switchTimeout = 5 * time.Second
+
+// setSwitching disables the window and the tray menu while a profile
+// switch is held, and enables them again after.
+func (a *App) setSwitching(on bool) {
+	a.tray.SetSwitching(on)
+	if a.win != nil {
+		a.win.SetSwitching(on)
+	}
+}
+
+// showIPN shows status everywhere, notifying if that connects or
+// disconnects.
+func (a *App) showIPN(status *tsutil.IPNStatus) {
+	a.ipn = status
+	online := status.Online()
+	if a.online != online {
+		a.online = online
+
+		body := locale.Get("Tailscale is not connected.")
+		if online {
+			body = locale.Get("Tailscale is connected.")
+		}
+		a.notify(locale.Get("Tailscale Status"), body) // TODO: Notify on startup if not connected?
+	}
+
+	// LookupAction ref-sinks a transfer-none result. Drop that ref.
+	if action := a.app.LookupAction("use_exit_node"); action != nil {
+		defer gutil.Obj(action).Unref()
+		if useExitNodeAction, ok := gutil.Cast[gio.SimpleAction](action, gio.SimpleActionGLibType()); ok {
+			useExitNodeAction.SetEnabled(online)
+			useExitNodeAction.SetState(glib.NewVariantBoolean(status.ExitNodeActive()))
+		}
+	}
+
+	if online && !a.operatorCheck {
+		a.operatorCheck = true
+		if !status.OperatorIsCurrent() {
+			a.showOperatorDialog()
+		}
+	}
+
+	if !online {
+		a.waiting = nil
+	}
+
+	a.tray.Update(status)
+
+	if a.win != nil {
+		a.win.Update(status)
 	}
 }
 
@@ -264,19 +313,13 @@ func unrefFiles(files []*gio.FileBase) {
 // getIPN returns the latest status, or ctx's error if there's none
 // before ctx is done, as when tailscaled has been down since launch.
 func (a *App) getIPN(ctx context.Context) (*tsutil.IPNStatus, error) {
-	select {
-	case s := <-a.poller.GetIPN():
-		return s, nil
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
+	return a.bus.Latest(ctx)
 }
 
-// setRunning asks the poller to start Tailscale if up is true and
-// stop it otherwise, offering to log in instead if starting needs it.
-// It reports whether the request was sent. The result arrives as a
-// status update, and errors as a toast. It blocks, so don't call it
-// from the main thread.
+// setRunning starts Tailscale if up is true and stops it otherwise,
+// offering to log in instead if starting needs it. It reports whether
+// it tried. The result arrives as a status update, and errors as a
+// toast. It blocks, so don't call it from the main thread.
 func (a *App) setRunning(ctx context.Context, up bool) (bool, error) {
 	if up {
 		status, err := a.getIPN(ctx)
@@ -300,12 +343,12 @@ func (a *App) setRunning(ctx context.Context, up bool) (bool, error) {
 		}
 	}
 
-	select {
-	case a.poller.SetRunning() <- up:
-		return true, nil
-	case <-ctx.Done():
-		return false, ctx.Err()
+	err := a.bus.SetRunning(ctx, up)
+	if err != nil {
+		slog.Error("set Tailscale status", "err", err)
+		a.toast(locale.Get("Failed to start or stop Tailscale"))
 	}
+	return true, nil
 }
 
 // toast shows msg in the main window, if it's open. It's safe to call
@@ -342,8 +385,8 @@ func (a *App) toggleConn(ctx context.Context) {
 func (a *App) onAppOpen(ctx context.Context, files []*gio.FileBase) {
 	type selectOption = SelectOption[tailcfg.NodeView]
 
-	s := <-a.poller.GetIPN()
-	if !s.Online() {
+	s := a.ipn
+	if s == nil || !s.Online() {
 		unrefFiles(files)
 		return
 	}
@@ -464,13 +507,18 @@ func (a *App) onAppActivate(ctx context.Context) {
 		return false
 	})
 
-	<-a.poller.Poll()
+	// Nothing reports some changes made outside of Trayscale, such as
+	// deleting a profile that isn't the current one.
+	a.files.Refresh()
+	a.profiles.Refresh()
 	a.win.MainWindow.Present()
-
-	go func() {
-		s := <-a.poller.GetIPN()
-		gutil.IdleAdd(func() { a.update(s) })
-	}()
+	if a.ipn != nil {
+		a.showIPN(a.ipn)
+	}
+	a.win.SetSwitching(a.hold.active())
+	if a.engine != nil {
+		a.win.Update(a.engine)
+	}
 }
 
 // login starts an interactive login and opens the login URL. It
@@ -507,15 +555,14 @@ func (a *App) login(ctx context.Context) {
 		}
 
 		for {
-			select {
-			case <-ctx.Done():
+			status, err := a.bus.Next(ctx)
+			if err != nil {
 				fail()
 				return
-			case status := <-a.poller.NextIPN():
-				if status.BrowseToURL != "" {
-					gutil.IdleAdd(func() { a.launchURI(status.BrowseToURL) })
-					return
-				}
+			}
+			if status.BrowseToURL != "" {
+				gutil.IdleAdd(func() { a.launchURI(status.BrowseToURL) })
+				return
 			}
 		}
 	}()
@@ -530,7 +577,7 @@ func (a *App) launchURI(uri string) {
 
 func (a *App) initTray(ctx context.Context) {
 	if a.tray != nil {
-		a.startTray(ctx, nil)
+		a.startTray()
 		return
 	}
 
@@ -551,9 +598,13 @@ func (a *App) initTray(ctx context.Context) {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 
-				s := <-a.poller.GetIPN()
+				s, err := a.getIPN(ctx)
+				if err != nil {
+					slog.Error("toggle exit node from tray", "err", err)
+					return
+				}
 				toggle := !s.ExitNodeActive()
-				err := tsutil.SetUseExitNode(ctx, toggle, sel)
+				err = tsutil.SetUseExitNode(ctx, toggle, sel)
 				gutil.IdleAdd(func() {
 					if err != nil {
 						a.notify(locale.Get("Toggle exit node"), err.Error())
@@ -572,7 +623,14 @@ func (a *App) initTray(ctx context.Context) {
 
 		OnSelfNode: func() {
 			go func() {
-				addr := (<-a.poller.GetIPN()).SelfAddr()
+				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				defer cancel()
+
+				s, err := a.getIPN(ctx)
+				if err != nil {
+					return
+				}
+				addr := s.SelfAddr()
 				if !addr.IsValid() {
 					return
 				}
@@ -591,64 +649,43 @@ func (a *App) initTray(ctx context.Context) {
 					return
 				}
 
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer cancel()
+				go func() {
+					ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+					defer cancel()
 
-				err := tsutil.SwitchProfile(ctx, id)
-				if err != nil {
-					slog.Error("switch profile from tray", "err", err)
-					a.notify(locale.Get("Switch account"), err.Error())
-					return
-				}
-				<-a.poller.Poll()
+					err := a.profiles.Switch(ctx, id)
+					if err != nil {
+						slog.Error("switch profile from tray", "err", err)
+						gutil.IdleAdd(func() {
+							a.notify(locale.Get("Switch account"), err.Error())
+						})
+					}
+				}()
 			})
 		},
+
+		OnAccountsOpen: func() { a.profiles.Refresh() },
 
 		OnQuit: func() {
 			a.Quit()
 		},
 	}
 
-	var ps *tsutil.ProfileStatus
-	profile, profiles, err := tsutil.GetProfileStatus(ctx)
-	if err != nil {
-		slog.Error("get profile status", "err", err)
-	} else {
-		a.activeProfile = profile.ID
-		ps = &tsutil.ProfileStatus{Profile: profile, Profiles: profiles}
-	}
-
-	a.startTray(ctx, ps)
+	a.startTray()
 }
 
-// startTray shows the tray icon without waiting for a status, which
-// never arrives while tailscaled is down. The menu fills in from the
-// latest status once there is one, and from update after that.
-func (a *App) startTray(ctx context.Context, profiles *tsutil.ProfileStatus) {
-	a.stopTray()
-	t := a.tray
-	err := t.Start(profiles)
+// startTray shows the tray icon with the latest statuses, if there
+// are any yet, and update fills in the rest.
+func (a *App) startTray() {
+	err := a.tray.Start(a.profileStatus)
 	if err != nil {
 		slog.Error("failed to start tray icon", "err", err)
 		return
 	}
-
-	ctx, a.trayDone = context.WithCancel(ctx)
-	go func() {
-		select {
-		case s := <-a.poller.GetIPN():
-			t.Update(s)
-		case <-ctx.Done():
-		}
-	}()
-}
-
-// stopTray stops the goroutine started by the last startTray.
-func (a *App) stopTray() {
-	if a.trayDone != nil {
-		a.trayDone()
-		a.trayDone = nil
+	if a.ipn != nil {
+		a.tray.Update(a.ipn)
 	}
+	a.tray.SetSwitching(a.hold.active())
 }
 
 // Quit exits the app completely, causing Run to return. It may be
@@ -685,22 +722,23 @@ func (a *App) Run(ctx context.Context) {
 	}
 
 	if a.app.GetIsRemote() {
-		// Forward this invocation without starting another poller or tray.
+		// Forward this invocation without starting another bus or tray.
 		a.app.Run(int32(len(os.Args)), os.Args)
 		return
 	}
 
 	a.initSettings(ctx)
 
-	a.poller = &tsutil.Poller{
-		Interval: a.getInterval(),
-		New:      func(s tsutil.Status) { gutil.IdleAdd(func() { a.update(s) }) },
-		Error: func(err error) {
-			slog.Error("set Tailscale status", "err", err)
-			a.toast(locale.Get("Failed to start or stop Tailscale"))
-		},
+	update := func(s tsutil.Status) { gutil.IdleAdd(func() { a.update(s) }) }
+	a.bus = &tsutil.Bus{
+		New:       func(s *tsutil.IPNStatus) { update(s) },
+		NewEngine: func(s *tsutil.EngineStatus) { update(s) },
 	}
-	go a.poller.Run(ctx)
+	a.files = &tsutil.Files{Bus: a.bus, New: func(s *tsutil.FileStatus) { update(s) }}
+	a.profiles = &tsutil.Profiles{Bus: a.bus, New: func(s *tsutil.ProfileStatus) { update(s) }}
+	go a.bus.Run(ctx)
+	go a.files.Run(ctx)
+	go a.profiles.Run(ctx)
 
 	a.app.Run(int32(len(os.Args)), os.Args)
 }

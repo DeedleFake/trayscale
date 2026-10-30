@@ -92,82 +92,27 @@ func TestApplyInitialStatusReplacesNonEmptyPeerMap(t *testing.T) {
 	require.Equal(t, lastSeen, s.Peers[keep].LastSeen().Get())
 }
 
-func TestApplyNotifyDeltasAfterBootstrap(t *testing.T) {
+func TestWatchStateDeltasAfterBootstrap(t *testing.T) {
 	id := tailcfg.StableNodeID("n1")
-	var s IPNStatus
-	s.applyNotify(&ipn.Notify{InitialStatus: testStatus(testPeerStatus(id, 1, false, time.Time{}))})
-	require.False(t, s.Peers[id].Online().Get())
+	var w watchState
+	w.apply(&ipn.Notify{InitialStatus: testStatus(testPeerStatus(id, 1, false, time.Time{}))})
+	require.False(t, w.ipn.Peers[id].Online().Get())
 
-	s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, true)}})
-	require.True(t, s.Peers[id].Online().Get())
+	w.apply(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, true)}})
+	require.True(t, w.ipn.Peers[id].Online().Get())
 }
 
-func TestApplyNotifyTargetsDirty(t *testing.T) {
-	t.Parallel()
-
+func TestWatchStatePeersRemoved(t *testing.T) {
 	id := tailcfg.StableNodeID("n1")
-	selfA := testSelfNode(10, "self-a", 100)
-
-	t.Run("bootstrap initial status", func(t *testing.T) {
-		var s IPNStatus
-		_, targetsDirty := s.applyNotify(&ipn.Notify{InitialStatus: testStatus(testPeerStatus(id, 1, true, time.Time{}))})
-		require.True(t, targetsDirty)
-	})
-
-	t.Run("new peer", func(t *testing.T) {
-		var s IPNStatus
-		_, targetsDirty := s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, false)}})
-		require.True(t, targetsDirty)
-	})
-
-	t.Run("online upsert", func(t *testing.T) {
-		var s IPNStatus
-		s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, false)}})
-		_, targetsDirty := s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, true)}})
-		require.False(t, targetsDirty)
-		require.True(t, s.Peers[id].Online().Get())
-	})
-
-	t.Run("remove", func(t *testing.T) {
-		var s IPNStatus
-		s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, true)}})
-		_, targetsDirty := s.applyNotify(&ipn.Notify{PeersRemoved: []tailcfg.NodeID{1}})
-		require.True(t, targetsDirty)
-		require.NotContains(t, s.Peers, id)
-	})
-
-	t.Run("remove unknown", func(t *testing.T) {
-		var s IPNStatus
-		s.applyNotify(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, true)}})
-		_, targetsDirty := s.applyNotify(&ipn.Notify{PeersRemoved: []tailcfg.NodeID{99}})
-		require.False(t, targetsDirty)
-		require.Contains(t, s.Peers, id)
-	})
-
-	t.Run("first self", func(t *testing.T) {
-		var s IPNStatus
-		_, targetsDirty := s.applyNotify(&ipn.Notify{SelfChange: selfA})
-		require.False(t, targetsDirty)
-	})
-
-	t.Run("same identity self", func(t *testing.T) {
-		var s IPNStatus
-		s.applyNotify(&ipn.Notify{SelfChange: selfA})
-		renamed := testSelfNode(selfA.ID, selfA.StableID, selfA.User)
-		renamed.Name = "renamed.tailnet.ts.net."
-		_, targetsDirty := s.applyNotify(&ipn.Notify{SelfChange: renamed})
-		require.False(t, targetsDirty)
-	})
-
-	t.Run("identity change", func(t *testing.T) {
-		var s IPNStatus
-		s.applyNotify(&ipn.Notify{SelfChange: selfA})
-		_, targetsDirty := s.applyNotify(&ipn.Notify{SelfChange: testSelfNode(11, "self-b", 200)})
-		require.True(t, targetsDirty)
-	})
+	var w watchState
+	w.apply(&ipn.Notify{PeersChanged: []*tailcfg.Node{testPeerNode(id, 1, true)}})
+	w.apply(&ipn.Notify{PeersRemoved: []tailcfg.NodeID{99}})
+	require.Contains(t, w.ipn.Peers, id)
+	w.apply(&ipn.Notify{PeersRemoved: []tailcfg.NodeID{1}})
+	require.NotContains(t, w.ipn.Peers, id)
 }
 
-func TestApplyNotifySelfIdentityChange(t *testing.T) {
+func TestWatchStateSelfIdentityChange(t *testing.T) {
 	t.Parallel()
 
 	oldPeer := tailcfg.StableNodeID("old")
@@ -175,25 +120,25 @@ func TestApplyNotifySelfIdentityChange(t *testing.T) {
 	selfA := testSelfNode(10, "self-a", 100)
 
 	t.Run("first self keeps existing peers", func(t *testing.T) {
-		var s IPNStatus
-		s.applyNotify(&ipn.Notify{
+		var w watchState
+		w.apply(&ipn.Notify{
 			PeersChanged: []*tailcfg.Node{testPeerNode(oldPeer, 1, true)},
 		})
-		s.applyNotify(&ipn.Notify{SelfChange: selfA})
-		require.Contains(t, s.Peers, oldPeer)
+		w.apply(&ipn.Notify{SelfChange: selfA})
+		require.Contains(t, w.ipn.Peers, oldPeer)
 	})
 
 	t.Run("same identity keeps peers", func(t *testing.T) {
-		var s IPNStatus
-		s.applyNotify(&ipn.Notify{
+		var w watchState
+		w.apply(&ipn.Notify{
 			SelfChange:   selfA,
 			PeersChanged: []*tailcfg.Node{testPeerNode(oldPeer, 1, true)},
 		})
 		renamed := testSelfNode(selfA.ID, selfA.StableID, selfA.User)
 		renamed.Name = "renamed.tailnet.ts.net."
-		s.applyNotify(&ipn.Notify{SelfChange: renamed})
-		require.Contains(t, s.Peers, oldPeer)
-		got, ok := s.Self()
+		w.apply(&ipn.Notify{SelfChange: renamed})
+		require.Contains(t, w.ipn.Peers, oldPeer)
+		got, ok := w.ipn.Self()
 		require.True(t, ok)
 		require.Equal(t, renamed.Name, got.Name())
 	})
@@ -208,22 +153,22 @@ func TestApplyNotifySelfIdentityChange(t *testing.T) {
 			{name: "user", next: testSelfNode(selfA.ID, selfA.StableID, 200)},
 		} {
 			t.Run(tt.name, func(t *testing.T) {
-				var s IPNStatus
-				s.applyNotify(&ipn.Notify{
+				var w watchState
+				w.apply(&ipn.Notify{
 					SelfChange:   selfA,
 					PeersChanged: []*tailcfg.Node{testPeerNode(oldPeer, 1, true)},
 				})
-				s.FileTargets.Make()
-				s.FileTargets.Add(oldPeer)
+				w.ipn.FileTargets.Make()
+				w.ipn.FileTargets.Add(oldPeer)
 
-				s.applyNotify(&ipn.Notify{
+				w.apply(&ipn.Notify{
 					SelfChange:   tt.next,
 					PeersChanged: []*tailcfg.Node{testPeerNode(newPeer, 2, true)},
 				})
-				require.Len(t, s.Peers, 1)
-				require.Contains(t, s.Peers, newPeer)
-				require.NotContains(t, s.Peers, oldPeer)
-				require.False(t, s.FileTargets.Contains(oldPeer))
+				require.Len(t, w.ipn.Peers, 1)
+				require.Contains(t, w.ipn.Peers, newPeer)
+				require.NotContains(t, w.ipn.Peers, oldPeer)
+				require.False(t, w.ipn.FileTargets.Contains(oldPeer))
 			})
 		}
 	})

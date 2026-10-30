@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+# Model-checks .agents/skills/verify-profiles-and-files/model/ProfilesAndFiles.tla
+# with TLC. The model's guard constants are read from the code, so removing a
+# guard in the code turns its constant FALSE and the check shows what breaks.
+set -euo pipefail
+
+TLA_VERSION=1.7.4
+TLA_SHA256=936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
+
+# The tailscale.com version whose daemon behavior the model describes.
+MODELED_TAILSCALE=v1.104.4
+
+# RUN:PART:MaxSwitches:MaxReceives:MaxOutsideDeletes:MaxListChanges:MaxLooks:MaxDeletes:MaxToggles:Resends
+RUNS=(
+  profiles:profiles:1:0:0:1:2:0:0:FALSE
+  files:files:0:2:1:0:0:1:1:TRUE
+  switches:files:1:1:0:0:0:1:1:TRUE
+)
+SWITCH_PROPERTIES=(SwitchStaysConnected HoldEnds HeldStateDisabled)
+PROFILE_PROPERTIES=(ProfilesSettle FailedTraySwitchNotifies MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
+FILE_PROPERTIES=(FilesSettle NoStrayFileNotice NoMissedFileNotice NoWrongDelete MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
+
+# Properties the current code is known to break, as PROPERTY@RUN:OVERRIDES.
+# The property must hold in RUN with the comma-separated CONSTANT=VALUE
+# overrides and is expected to fail without them. Entries with the same RUN
+# and OVERRIDES share one TLC run. Remove an entry once the code is fixed
+# and the check passes it.
+KNOWN_FINDINGS=(
+  NoStrayFileNotice@switches:MaxSwitches=0
+  NoWrongDelete@switches:MaxSwitches=0
+)
+
+ONLY=
+if [[ ${1:-} == --only ]]; then
+  ONLY=${2:?usage: check-profiles-and-files [--only PROPERTY]}
+fi
+
+ROOT=$(git rev-parse --show-toplevel)
+SKILL_DIR="$ROOT/.agents/skills/verify-profiles-and-files"
+OUT="$SKILL_DIR/out"
+WORKERS=${TLC_WORKERS:-auto}
+
+die() { echo "error: $*" >&2; exit 2; }
+
+command -v java >/dev/null || die "java not found. Install a JDK 11 or newer (for example: mise exec java@temurin-21 -- $0)."
+command -v perl >/dev/null || die "perl not found."
+
+JAR=${TLA2TOOLS_JAR:-"${XDG_CACHE_HOME:-$HOME/.cache}/trayscale/tla2tools-$TLA_VERSION.jar"}
+if [[ ! -f "$JAR" ]]; then
+  mkdir -p "$(dirname "$JAR")"
+  echo "downloading tla2tools.jar $TLA_VERSION to $JAR"
+  curl -fsSL -o "$JAR.part" "https://github.com/tlaplus/tlaplus/releases/download/v$TLA_VERSION/tla2tools.jar"
+  mv "$JAR.part" "$JAR"
+fi
+if command -v sha256sum >/dev/null; then
+  sum=$(sha256sum "$JAR" | cut -d' ' -f1)
+else
+  sum=$(shasum -a 256 "$JAR" | cut -d' ' -f1)
+fi
+[[ "$sum" == "$TLA_SHA256" ]] || die "$JAR has sha256 $sum, expected $TLA_SHA256. Delete it and rerun."
+
+ts=$(sed -n 's/^[[:space:]]*tailscale\.com \(v[^[:space:]]*\).*/\1/p' "$ROOT/go.mod" | head -n1)
+if [[ $ts != "$MODELED_TAILSCALE" ]]; then
+  echo "warning: go.mod has tailscale.com $ts, but the model describes $MODELED_TAILSCALE. Recheck the ll: and td: actions in the model against $ts, then update MODELED_TAILSCALE."
+fi
+
+# anchor FILE REGEX: TRUE when REGEX (Perl, /s) matches FILE.
+anchor() {
+  [[ -f "$ROOT/$1" ]] && perl -0777 -ne "exit(/$2/s ? 0 : 1)" "$ROOT/$1" && echo TRUE || echo FALSE
+}
+all() { local v; for v in "$@"; do [[ $v == TRUE ]] || { echo FALSE; return; }; done; echo TRUE; }
+
+# One regex per model constant. A FALSE means the guard is gone from the code,
+# or the code moved and the regex needs updating. SKILL.md says how to tell.
+SRC=internal/tsutil/sources.go
+BUS=internal/tsutil/bus.go
+APP=internal/ui/app.go
+WIN=internal/ui/mainwindow.go
+SELF=internal/ui/selfpage.go
+HOLD=internal/ui/switchhold.go
+FUNC_BODY='(?:(?!\n\}\n).)*?'
+TRAY_SWITCH='OnProfileSwitch: func\(id ipn\.ProfileID\) \{(?:(?!\n\t\t\},\n).)*?'
+DROPDOWN='ConnectNotify\(win\.ProfileDropDown, "selected-item", func\(\) \{(?:(?!\n\t\}\)\n).)*?'
+FLAG_NAMES=()
+flag() { FLAG_NAMES+=("$1"); printf -v "FLAG_$1" %s "$2"; }
+flag ProfilesOnState "$(anchor $SRC 'const profilesTriggers = [^\n]*\bchangeState\b')"
+flag FilesOnState "$(anchor $SRC 'const filesTriggers = [^\n]*\bchangeState\b')"
+flag FilesOnFiles "$(anchor $SRC 'const filesTriggers = [^\n]*\bchangeFiles\b')"
+flag RefreshBuffered "$(all \
+  "$(anchor $SRC 'f\.refresh = make\(chan struct\{\}, 1\)')" \
+  "$(anchor $SRC 'p\.refresh = make\(chan struct\{\}, 1\)')" \
+  "$(anchor $SRC 'func kick\(c chan<- struct\{\}\) \{\s*select \{\s*case c <- struct\{\}\{\}:\s*default:\s*\}')")"
+flag SwitchRefreshes "$(anchor $SRC 'func \(p \*Profiles\) Switch\(ctx context\.Context, id ipn\.ProfileID\) error \{\s*defer p\.Refresh\(\)')"
+flag DeleteRefreshes "$(anchor $SRC 'func \(f \*Files\) Delete\(ctx context\.Context, name string\) error \{\s*defer f\.Refresh\(\)')"
+flag WindowOpenRefreshes "$(anchor $APP 'func \(a \*App\) onAppActivate\('"$FUNC_BODY"'\ta\.files\.Refresh\(\)\s*a\.profiles\.Refresh\(\)')"
+flag DropDownRefreshes "$(anchor $WIN 'onDropDownPopup\(win\.ProfileDropDown, app\.profiles\.Refresh\)')"
+flag TrayOpenRefreshes "$(anchor $APP 'OnAccountsOpen: func\(\) \{ a\.profiles\.Refresh\(\) \}')"
+flag TraySwitchOffMain "$(anchor $APP "$TRAY_SWITCH"'go func\(\) \{(?:(?!\n\t\t\},\n).)*?a\.profiles\.Switch\(ctx, id\)')"
+flag TraySwitchFailureNotifies "$(anchor $APP "$TRAY_SWITCH"'err := a\.profiles\.Switch\(ctx, id\)\s*if err != nil \{(?:(?!\n\t\t\t\t\t\}\n).)*?a\.notify\(locale\.Get\("Switch account"\)')"
+flag DropDownSwitchOffMain "$(anchor $WIN "$DROPDOWN"'go func\(\) \{(?:(?!\n\t\}\)\n).)*?app\.profiles\.Switch\(')"
+flag DeleteOffMain "$(anchor $SELF 'if accept \{\s*go func\(\) \{(?:(?!\n\t\t\}\)\n).)*?a\.files\.Delete\(')"
+flag SelfPageFillsFiles "$(anchor $SELF 'func \(page \*SelfPage\) init\('"$FUNC_BODY"'page\.fileModel\.Set\(\*a\.waiting\)')"
+flag NoticesFromArrivals "$(anchor $APP 'case \*tsutil\.FileStatus:(?:(?!\n\tcase ).)*?for _, file := range status\.Files \{\s*if slices\.Contains\(status\.Arrived, file\.Name\) \{\s*body := ')"
+flag ArrivalsOnce "$(anchor $BUS 'func \(w \*watchState\) applyFiles\('"$FUNC_BODY"'if !w\.received\.Contains\(t\) \{\s*w\.arrived = append\(w\.arrived, ')"
+flag ArrivedBeforeList "$(anchor $SRC 'func \(f \*Files\) Run\('"$FUNC_BODY"'arrived = append\(arrived, f\.Bus\.takeArrived\(\)\.\.\.\)\s*files, err := waitingFiles\(ctx\)')"
+flag SwitchHold "$(all \
+  "$(anchor $APP 'hold, start, gen := a\.hold\.offer\(a\.online, status\)\s*if hold \{')" \
+  "$(anchor $HOLD 'if online && switching\(s\) \{')" \
+  "$(anchor $HOLD 'func switching\(s \*tsutil\.IPNStatus\) bool \{\s*return \(s\.State == ipn\.NoState \|\| s\.State == ipn\.Starting\) && s\.Prefs\.WantRunning\(\)')")"
+flag HoldDisables "$(all \
+  "$(anchor $APP 'if start \{\s*a\.setSwitching\(true\)')" \
+  "$(anchor $APP 'func \(a \*App\) setSwitching\(on bool\) \{\s*a\.tray\.SetSwitching\(on\)\s*if a\.win != nil \{\s*a\.win\.SetSwitching\(on\)')" \
+  "$(anchor $APP 'func \(a \*App\) onAppActivate\('"$FUNC_BODY"'a\.win\.SetSwitching\(a\.hold\.active\(\)\)')")"
+flag HoldReenables "$(all \
+  "$(anchor $APP 'a\.showIPN\(status\)\s*if wasHeld \{\s*a\.setSwitching\(false\)')" \
+  "$(anchor $APP 'if s := a\.hold\.expire\(gen\); s != nil \{\s*a\.showIPN\(s\)\s*a\.setSwitching\(false\)')")"
+flag HoldFallback "$(anchor $APP 'if start \{\s*a\.setSwitching\(true\)\s*gutil\.TimeoutAdd\(switchTimeout, ')"
+
+echo "code facts (model constants):"
+for k in "${FLAG_NAMES[@]}"; do
+  v="FLAG_$k"; printf '  %-26s %s\n' "$k" "${!v}"
+done
+
+rm -rf "$OUT" && mkdir -p "$OUT"
+cp "$SKILL_DIR/model/ProfilesAndFiles.tla" "$OUT/"
+
+run_spec() { local r; for r in "${RUNS[@]}"; do [[ ${r%%:*} == "$1" ]] && { echo "$r"; return; }; done; die "unknown run $1"; }
+
+# write_cfg NAME RUN OVERRIDES INVARIANTS...
+write_cfg() {
+  local name=$1 spec overrides=$3 kv k v
+  spec=$(run_spec "$2"); shift 3
+  local -A c
+  IFS=: read -r _ c[Part] c[MaxSwitches] c[MaxReceives] c[MaxOutsideDeletes] \
+    c[MaxListChanges] c[MaxLooks] c[MaxDeletes] c[MaxToggles] c[Resends] <<<"$spec"
+  c[Part]="\"${c[Part]}\""
+  for k in "${FLAG_NAMES[@]}"; do v="FLAG_$k"; c[$k]=${!v}; done
+  IFS=, read -ra kvs <<<"$overrides"
+  for kv in "${kvs[@]}"; do [[ -n $kv ]] && c[${kv%%=*}]=${kv#*=}; done
+  {
+    echo "SPECIFICATION Spec"
+    echo "CONSTANTS"
+    for k in Part MaxSwitches MaxReceives MaxOutsideDeletes MaxListChanges MaxLooks MaxDeletes MaxToggles Resends "${FLAG_NAMES[@]}"; do
+      echo "  $k = ${c[$k]}"
+    done
+    echo "CHECK_DEADLOCK FALSE"
+    echo "INVARIANT TypeOK $*"
+  } >"$OUT/$name.cfg"
+}
+
+# run NAME RUN OVERRIDES INVARIANTS...: prints the violated invariant,
+# "none", or "tool-error".
+run() {
+  local name=$1; shift
+  write_cfg "$name" "$@"
+  (cd "$OUT" && java -XX:+UseParallelGC -cp "$JAR" tlc2.TLC -config "$name.cfg" \
+    -workers "$WORKERS" -metadir "$OUT/meta-$name" -nowarning ProfilesAndFiles.tla) >"$OUT/$name.out" 2>&1 || true
+  rm -rf "$OUT/meta-$name"
+  if grep -q '^Model checking completed. No error has been found.' "$OUT/$name.out"; then
+    echo none
+  elif v=$(grep -oE '^Error: Invariant [A-Za-z]+ is violated' "$OUT/$name.out" | awk '{print $3}'); [[ -n $v ]]; then
+    echo "$v"
+  else
+    echo tool-error
+  fi
+}
+
+if [[ -n $ONLY ]]; then KNOWN_FINDINGS=(); fi
+is_known() { local x; for x in "${KNOWN_FINDINGS[@]}"; do [[ ${x%%:*} == "$1@$2" ]] && return 0; done; return 1; }
+
+status=0
+start=$SECONDS
+for spec in "${RUNS[@]}"; do
+  name=${spec%%:*} part=$(cut -d: -f2 <<<"$spec")
+  if [[ $part == profiles ]]; then props=("${PROFILE_PROPERTIES[@]}"); else props=("${FILE_PROPERTIES[@]}"); fi
+  expected=()
+  for p in "${props[@]}"; do
+    [[ -n $ONLY && $p != "$ONLY" ]] && continue
+    is_known "$p" "$name" || expected+=("$p")
+  done
+  [[ ${#expected[@]} == 0 ]] && continue
+  result=$(run "$name" "$name" "" "${expected[@]}")
+  case $result in
+    none) echo "PASS  ${expected[*]} in $name" ;;
+    tool-error) echo "TOOL ERROR, see $OUT/$name.out"; status=2 ;;
+    *) echo "FAIL  $result in $name (counterexample: $OUT/$name.out)"; [[ $status == 0 ]] && status=1 ;;
+  esac
+done
+
+groups=()
+for entry in "${KNOWN_FINDINGS[@]}"; do
+  g=${entry#*@}
+  [[ " ${groups[*]} " == *" $g "* ]] || groups+=("$g")
+done
+for g in "${groups[@]}"; do
+  r=${g%%:*} overrides=${g#*:}
+  props=()
+  for entry in "${KNOWN_FINDINGS[@]}"; do [[ ${entry#*@} == "$g" ]] && props+=("${entry%%@*}"); done
+  tag="$r-$(tr ',=' '-_' <<<"$overrides")"
+  res=$(run "$tag" "$r" "$overrides" "${props[@]}")
+  case $res in
+    none) echo "PASS  ${props[*]} in $r with $overrides" ;;
+    tool-error) echo "TOOL ERROR, see $OUT/$tag.out"; status=2 ;;
+    *) echo "FAIL  $res in $r with $overrides (counterexample: $OUT/$tag.out)"; [[ $status == 0 ]] && status=1 ;;
+  esac
+done
+for entry in "${KNOWN_FINDINGS[@]}"; do
+  f=${entry%%@*} r=${entry#*@}; r=${r%%:*}
+  tag="$f-$r"
+  res=$(run "$tag" "$r" "" "$f")
+  case $res in
+    "$f") echo "KNOWN FINDING still present: $f in $r (counterexample: $OUT/$tag.out)" ;;
+    none) echo "FIXED? $f now passes in $r. Confirm the fix with a test, then remove it from KNOWN_FINDINGS and the findings in SKILL.md."; status=1 ;;
+    tool-error) echo "TOOL ERROR, see $OUT/$tag.out"; status=2 ;;
+    *) echo "FAIL  $res while checking $f in $r (counterexample: $OUT/$tag.out)"; [[ $status == 0 ]] && status=1 ;;
+  esac
+done
+echo "model checked in $((SECONDS - start))s"
+
+# Coverage drift: covered code changed since the sync commit in SKILL.md.
+sync=$(sed -n 's/^Sync commit: `\([0-9a-f]*\)`.*/\1/p' "$SKILL_DIR/SKILL.md")
+covered=$(sed -n 's/^- `\([^`]*\)`:.*/\1/p' "$SKILL_DIR/SKILL.md" | sort -u)
+if [[ -n $sync ]] && git -C "$ROOT" cat-file -e "$sync^{commit}" 2>/dev/null; then
+  # shellcheck disable=SC2086
+  drift=$(cd "$ROOT" && git diff --name-only "$sync" -- $covered)
+  if [[ -n $drift ]]; then
+    echo "covered code changed since sync commit $sync, so recheck the model against it:"
+    echo "$drift" | sed 's/^/  /'
+  fi
+else
+  echo "warning: sync commit '$sync' from SKILL.md is not in this clone; cannot check coverage drift."
+fi
+
+exit $status

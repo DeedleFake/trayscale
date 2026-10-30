@@ -114,6 +114,9 @@ msgstr "Nodos de salida"
 msgid "Exit node"
 msgstr "Nodo de salida"
 
+msgid "Failed to delete file"
+msgstr "No se pudo eliminar el archivo"
+
 msgid "Failed to start login"
 msgstr "No se pudo iniciar el inicio de sesión"
 
@@ -140,9 +143,6 @@ msgstr "Si está activado, se añadirá un icono a la bandeja del sistema"
 
 msgid "If you delete this file, you will no longer be able to save it to your local machine."
 msgstr "Si elimina este archivo, ya no podrá guardarlo en su máquina local."
-
-msgid "Interval, in seconds, at which to poll the Tailscale daemon"
-msgstr "Intervalo, en segundos, para consultar el demonio de Tailscale"
 
 msgid "Last handshake"
 msgstr "Último handshake"
@@ -213,9 +213,6 @@ msgstr "¿Abrir un navegador para autenticarse con Tailscale?"
 msgid "Options"
 msgstr "Opciones"
 
-msgid "Polling Interval"
-msgstr "Intervalo de consulta"
-
 msgid "Port control protocol"
 msgstr "Protocolo de control de puertos"
 
@@ -269,6 +266,9 @@ msgstr "Algunas funciones pueden no funcionar como se espera. Para solucionarlo,
 
 msgid "Switch account"
 msgstr "Cambiar de cuenta"
+
+msgid "Switching accounts"
+msgstr "Cambiando de cuenta"
 
 msgid "Taildrop"
 msgstr "Taildrop"

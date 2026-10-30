@@ -15,7 +15,7 @@ From the repo root:
 .agents/skills/verify-exit-node-selection/scripts/check-exit-node-selection
 ```
 
-It needs Java 11 or newer, `perl`, and `curl`. Without a system Java, `mise exec java@temurin-21 -- <command>` works. The first run downloads `tla2tools.jar` 1.8.0 to `~/.cache/trayscale/` and checks its sha256. Set `TLA2TOOLS_JAR` to use another copy. A run takes about 5 seconds. `TLC_WORKERS=2` limits the cores it uses.
+It needs Java 11 or newer, `perl`, and `curl`. Without a system Java, `mise exec java@temurin-21 -- <command>` works. The first run downloads `tla2tools.jar` 1.7.4 to `~/.cache/trayscale/` and checks its sha256. Stay on a stable release: the 1.8.0 prerelease jar is rebuilt in place, so its sha256 changes. Set `TLA2TOOLS_JAR` to use another copy. A run takes about 5 seconds. `TLC_WORKERS=2` limits the cores it uses.
 
 To check one property alone, ignoring the known findings list:
 
@@ -116,7 +116,7 @@ Two ghost variables exist only to state properties. `lastUsed` is the last node 
 
 - Two toggles at once, for example the tray and the menu.
 - Other Tailscale clients, the CLI, and admin exit node policy. Turning exit node use off elsewhere while Recommended is on makes Tailscale remember Recommended, and Previous can't undo that.
-- Profile switches, logins, tailscaled restarts, and a node leaving the netmap.
+- Exit node prefs across profile switches, logins, tailscaled restarts, and a node leaving the netmap. How Trayscale loads and shows profiles across a switch is checked by `/verify-profiles-and-files`.
 - What the UI shows about the exit node. The model stops at tailscaled's prefs.
 - Picking a node on a page while Recommended has no node. tailscaled drops the pick and turns exit node use off. The model includes that step, but no property covers it.
 

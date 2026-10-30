@@ -114,6 +114,9 @@ msgstr "出口ノード"
 msgid "Exit node"
 msgstr "出口ノード"
 
+msgid "Failed to delete file"
+msgstr "ファイルを削除できませんでした"
+
 msgid "Failed to start login"
 msgstr "ログインの開始に失敗しました"
 
@@ -140,9 +143,6 @@ msgstr "有効にすると、システムトレイにアイコンが追加され
 
 msgid "If you delete this file, you will no longer be able to save it to your local machine."
 msgstr "このファイルを削除すると、ローカルマシンに保存できなくなります。"
-
-msgid "Interval, in seconds, at which to poll the Tailscale daemon"
-msgstr "Tailscaleデーモンをポーリングする間隔（秒）"
 
 msgid "Last handshake"
 msgstr "最後のハンドシェイク"
@@ -213,9 +213,6 @@ msgstr "ブラウザを開いてTailscaleで認証しますか？"
 msgid "Options"
 msgstr "オプション"
 
-msgid "Polling Interval"
-msgstr "ポーリング間隔"
-
 msgid "Port control protocol"
 msgstr "ポート制御プロトコル"
 
@@ -269,6 +266,9 @@ msgstr "一部の機能が正常に動作しない可能性があります。解
 
 msgid "Switch account"
 msgstr "アカウントを切り替え"
+
+msgid "Switching accounts"
+msgstr "アカウントを切り替え中"
 
 msgid "Taildrop"
 msgstr "Taildrop"

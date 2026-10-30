@@ -22,8 +22,6 @@ type PreferencesDialog struct {
 
 	PreferencesDialog            *adw.PreferencesDialog `gtk:"-"`
 	UseTrayIconRow               *adw.SwitchRow
-	PollingIntervalRow           *adw.SpinRow
-	PollingIntervalAdjustment    *gtk.Adjustment
 	ExitNodeSelectionRow         *adw.ComboRow
 	TaildropAutoSaveRow          *adw.SwitchRow
 	TaildropAutoSaveFolderButton *gtk.Button

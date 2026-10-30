@@ -70,13 +70,12 @@ func (a *App) saveFile(ctx context.Context, name string, file *gio.FileBase) err
 		return err
 	}
 
-	err = tsutil.DeleteWaitingFile(ctx, name)
+	err = a.files.Delete(ctx, name)
 	if err != nil {
 		slog.Error("delete file", "err", err)
 		return err
 	}
 
-	<-a.poller.Poll()
 	slog.Info("done saving file")
 	return nil
 }
@@ -107,7 +106,7 @@ func (a *App) clearAutoSaveFailures() {
 // usable again. Individual save failures are remembered so the same
 // waiting file is not retried on every poll (which would spam the log).
 func (a *App) maybeAutoSaveFiles() {
-	if a.files == nil {
+	if a.waiting == nil {
 		return
 	}
 
@@ -127,8 +126,8 @@ func (a *App) maybeAutoSaveFiles() {
 	}
 	a.autoSaveDirBad = ""
 
-	waiting := make(map[string]bool, len(*a.files))
-	for _, f := range *a.files {
+	waiting := make(map[string]bool, len(*a.waiting))
+	for _, f := range *a.waiting {
 		waiting[f.Name] = true
 	}
 	// Drop failure memory for files that are no longer waiting so a
@@ -154,7 +153,7 @@ func (a *App) maybeAutoSaveFiles() {
 		return true
 	})
 
-	for _, name := range autosave.Files(enabled, dir, *a.files, skip) {
+	for _, name := range autosave.Files(enabled, dir, *a.waiting, skip) {
 		if _, loaded := a.autoSaving.LoadOrStore(name, struct{}{}); loaded {
 			continue
 		}

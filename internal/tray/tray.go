@@ -76,6 +76,9 @@ type Tray struct {
 	profileNames   map[ipn.ProfileID]string
 	activeID       ipn.ProfileID
 	quitItem       *tray.MenuItem
+
+	last      *tsutil.IPNStatus
+	switching bool
 }
 
 // Start registers the tray icon. The menu shows a disconnected state
@@ -146,6 +149,7 @@ func (t *Tray) Close() error {
 	err := t.item.Close()
 	t.item = nil
 	t.prev = nil
+	t.last = nil
 	t.accountItem = nil
 	t.quitSep = nil
 	t.accountIDs = nil
@@ -181,32 +185,59 @@ func (t *Tray) dirty(key unique.Handle[string], vals ...any) bool {
 	return true
 }
 
+// SetSwitching disables the menu's Tailscale items while a profile
+// switch is in progress, and enables them again after.
+func (t *Tray) SetSwitching(switching bool) {
+	if t == nil {
+		return
+	}
+
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	if t.switching == switching {
+		return
+	}
+	t.switching = switching
+	if t.accountItem != nil {
+		t.accountItem.SetProps(tray.MenuItemEnabled(!switching))
+	}
+	if t.last != nil {
+		t.update(t.last)
+	}
+}
+
 func (t *Tray) update(status *tsutil.IPNStatus) {
 	if t.item == nil {
 		return
 	}
+	t.last = status
 
 	selfTitle, connected := selfTitle(status)
 	connToggleLabel := connToggleText(status.Online())
 	exitToggleLabel := exitToggleText(status)
+	enabled := connected && !t.switching
 
 	t.updateStatusIcon(status)
 
-	if t.dirty(selfHandle, selfTitle, connected) {
+	if t.dirty(selfHandle, selfTitle, enabled) {
 		t.selfNodeItem.SetProps(
 			tray.MenuItemLabel(locale.Get("This machine: %v", selfTitle)),
-			tray.MenuItemEnabled(connected),
+			tray.MenuItemEnabled(enabled),
 		)
 	}
 
-	if t.dirty(connToggleHandle, connToggleLabel) {
-		t.connToggleItem.SetProps(tray.MenuItemLabel(connToggleLabel))
+	if t.dirty(connToggleHandle, connToggleLabel, t.switching) {
+		t.connToggleItem.SetProps(
+			tray.MenuItemLabel(connToggleLabel),
+			tray.MenuItemEnabled(!t.switching),
+		)
 	}
 
-	if t.dirty(exitToggleHandle, exitToggleLabel, connected) {
+	if t.dirty(exitToggleHandle, exitToggleLabel, enabled) {
 		t.exitToggleItem.SetProps(
 			tray.MenuItemLabel(exitToggleLabel),
-			tray.MenuItemEnabled(connected),
+			tray.MenuItemEnabled(enabled),
 		)
 	}
 }
@@ -320,6 +351,7 @@ func (t *Tray) rebuildAccountMenu(profiles []ipn.LoginProfile, active ipn.Profil
 		root := t.item.Menu()
 		t.accountItem, _ = root.AddChild(
 			tray.MenuItemLabel(locale.Get("Switch account")),
+			tray.MenuItemEnabled(!t.switching),
 			tray.MenuItemHandler(func(id tray.MenuEventID, _ any, _ uint32) error {
 				if id == tray.Opened && t.OnAccountsOpen != nil {
 					t.OnAccountsOpen()

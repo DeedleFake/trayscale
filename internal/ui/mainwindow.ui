@@ -18,7 +18,7 @@
             <property name="content">
               <object class="AdwNavigationPage">
                 <property name="child">
-                  <object class="AdwToolbarView">
+                  <object class="AdwToolbarView" id="ContentView">
                     <property name="content">
                       <object class="AdwViewStack" id="PeersStack"/>
                     </property>
@@ -82,7 +82,18 @@
                           </object>
                         </child>
                         <child type="title">
-                          <object class="GtkDropDown" id="ProfileDropDown"/>
+                          <object class="GtkBox">
+                            <property name="spacing">6</property>
+                            <child>
+                              <object class="GtkDropDown" id="ProfileDropDown"/>
+                            </child>
+                            <child>
+                              <object class="AdwSpinner" id="SwitchSpinner">
+                                <property name="visible">False</property>
+                                <property name="tooltip-text" translatable="yes">Switching accounts</property>
+                              </object>
+                            </child>
+                          </object>
                         </child>
                       </object>
                     </child>

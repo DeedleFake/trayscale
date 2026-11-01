@@ -66,6 +66,7 @@ type MainWindow struct {
 	showOffline bool
 	peerQuery   string
 	ipn         *tsutil.IPNStatus
+	sidebarHold int
 
 	profiles         []ipn.LoginProfile
 	profileModel     *gtk.StringList
@@ -195,6 +196,25 @@ func (win *MainWindow) OpenPeerSearch() {
 	win.PeerSearchEntry.GrabFocus()
 }
 
+// holdSidebar detaches the sidebar from the stack until the returned
+// function is called. AdwViewSwitcherSidebar rebuilds all of its rows
+// whenever the stack's pages change, so adding or removing pages one at
+// a time with it attached takes time quadratic in the number of pages.
+// Holds nest. The sidebar is reattached, and rebuilt once, when the
+// last one is released.
+func (win *MainWindow) holdSidebar() (release func()) {
+	if win.sidebarHold == 0 {
+		win.PeersSidebar.SetStack(nil)
+	}
+	win.sidebarHold++
+	return func() {
+		win.sidebarHold--
+		if win.sidebarHold == 0 {
+			win.PeersSidebar.SetStack(win.PeersStack)
+		}
+	}
+}
+
 func (win *MainWindow) addPage(name string, page Page) {
 	win.pages[name] = page
 	if old := win.stackPages[name]; old != nil {
@@ -321,6 +341,7 @@ func (win *MainWindow) applyLayout(status *tsutil.IPNStatus) {
 	layout := sidebarLayout(maps.Keys(win.pages), status, win.showOffline, win.peerQuery)
 	names := sidebarNames(layout)
 	if !slices.Equal(win.stackPageNames(), names) {
+		defer win.holdSidebar()()
 		win.restack(names)
 		win.updateStackPages(status)
 	}
@@ -347,14 +368,20 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 
 	win.ensureSectionPages(status)
 
+	var newPeers []tailcfg.StableNodeID
 	for id, peer := range status.Peers {
 		if tsutil.IsMullvad(peer) || tsutil.IsShareeNode(peer) {
 			continue
 		}
-		if _, ok := win.pages[string(id)]; ok {
-			continue
+		if _, ok := win.pages[string(id)]; !ok {
+			newPeers = append(newPeers, id)
 		}
-		win.addPage(string(id), NewPeerPage(win.app, status, peer))
+	}
+	if len(newPeers) > 0 {
+		defer win.holdSidebar()()
+	}
+	for _, id := range newPeers {
+		win.addPage(string(id), NewPeerPage(win.app, status, status.Peers[id]))
 	}
 
 	win.updatePages(status)
@@ -377,6 +404,9 @@ func (win *MainWindow) updatePages(status *tsutil.IPNStatus) {
 		if !ok {
 			remove = append(remove, name)
 		}
+	}
+	if len(remove) > 0 {
+		defer win.holdSidebar()()
 	}
 	for _, name := range remove {
 		win.removePage(name, win.pages[name])

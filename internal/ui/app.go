@@ -554,6 +554,13 @@ func (a *App) initTray(ctx context.Context) {
 				s := <-a.poller.GetIPN()
 				toggle := !s.ExitNodeActive()
 				err := tsutil.SetUseExitNode(ctx, toggle, sel)
+				var node tailcfg.NodeView
+				if err == nil && toggle {
+					prefs, err := tsutil.Prefs(ctx)
+					if err == nil {
+						node = s.Peers[prefs.ExitNodeID]
+					}
+				}
 				gutil.IdleAdd(func() {
 					if err != nil {
 						a.notify(locale.Get("Toggle exit node"), err.Error())
@@ -562,7 +569,11 @@ func (a *App) initTray(ctx context.Context) {
 					}
 
 					if toggle {
-						a.notify(locale.Get("Exit node"), locale.Get("Enabled"))
+						msg := locale.Get("Enabled")
+						if node.Valid() {
+							msg += ": " + peerName(node)
+						}
+						a.notify(locale.Get("Exit node"), msg)
 						return
 					}
 					a.notify(locale.Get("Exit node"), locale.Get("Disabled"))

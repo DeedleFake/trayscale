@@ -105,6 +105,9 @@ msgstr "Activar nodo de salida"
 msgid "Enabled"
 msgstr "Activado"
 
+msgid "Enabled: %v"
+msgstr "Activado: %v"
+
 msgid "Error setting control URL: %v"
 msgstr "Error al establecer la URL de control: %v"
 

@@ -105,6 +105,9 @@ msgstr "出口ノードを有効にする"
 msgid "Enabled"
 msgstr "有効"
 
+msgid "Enabled: %v"
+msgstr "有効: %v"
+
 msgid "Error setting control URL: %v"
 msgstr "コントロールURLの設定エラー: %v"
 

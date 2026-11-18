@@ -105,6 +105,9 @@ msgstr "Ativar nó de saída"
 msgid "Enabled"
 msgstr "Ativado"
 
+msgid "Enabled: %v"
+msgstr "Ativado: %v"
+
 msgid "Error setting control URL: %v"
 msgstr "Erro ao definir a URL de controle: %v"
 

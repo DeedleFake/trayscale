@@ -571,7 +571,7 @@ func (a *App) initTray(ctx context.Context) {
 					if toggle {
 						msg := locale.Get("Enabled")
 						if node.Valid() {
-							msg += ": " + peerName(node)
+							msg = locale.Get("Enabled: %v", peerName(node))
 						}
 						a.notify(locale.Get("Exit node"), msg)
 						return

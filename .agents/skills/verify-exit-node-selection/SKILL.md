@@ -15,7 +15,7 @@ From the repo root:
 .agents/skills/verify-exit-node-selection/scripts/check-exit-node-selection
 ```
 
-It needs Java 11 or newer, `perl`, and `curl`. Without a system Java, `mise exec java@temurin-21 -- <command>` works. The first run downloads `tla2tools.jar` 1.8.0 to `~/.cache/trayscale/` and checks its sha256. Set `TLA2TOOLS_JAR` to use another copy. A run takes about 5 seconds. `TLC_WORKERS=2` limits the cores it uses.
+It needs Java 11 or newer, `perl`, and `curl`. Without a system Java, `mise exec java@temurin-21 -- <command>` works. The first run downloads `tla2tools.jar` 1.7.4, the latest stable release, to `~/.cache/trayscale/` and checks its sha256. Set `TLA2TOOLS_JAR` to use another copy. A run takes about 5 seconds. `TLC_WORKERS=2` limits the cores it uses.
 
 To check one property alone, ignoring the known findings list:
 
@@ -139,7 +139,7 @@ Turning off while waiting through the self page's `Advertise exit node` switch h
 
 ## Coverage
 
-Sync commit: `fe68ed678f14b29df73d1ea98935e2e3972ef263`
+Sync commit: `67266aa86b8af80eda9e902ed1df5929779b8de7`
 
 Move the sync commit forward only after you confirm, at the new commit, that the model and the code facts still describe the code below. The script lists covered files changed since the sync commit. The repo squash merges, so after a PR that moved the sync commit merges, set it to the merge commit on `master`.
 

@@ -139,7 +139,7 @@ Turning off while waiting through the self page's `Advertise exit node` switch h
 
 ## Coverage
 
-Sync commit: `fe68ed678f14b29df73d1ea98935e2e3972ef263`
+Sync commit: `67266aa86b8af80eda9e902ed1df5929779b8de7`
 
 Move the sync commit forward only after you confirm, at the new commit, that the model and the code facts still describe the code below. The script lists covered files changed since the sync commit. The repo squash merges, so after a PR that moved the sync commit merges, set it to the merge commit on `master`.
 

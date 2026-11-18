@@ -106,6 +106,9 @@ msgstr "Enable exit node"
 msgid "Enabled"
 msgstr "Enabled"
 
+msgid "Enabled: %v"
+msgstr "Enabled: %v"
+
 msgid "Error setting control URL: %v"
 msgstr "Error setting control URL: %v"
 

@@ -1,6 +1,7 @@
 package tsutil
 
 import (
+	"context"
 	"slices"
 	"testing"
 	"time"
@@ -118,5 +119,54 @@ func TestWatchStateArrived(t *testing.T) {
 				t.Fatalf("arrived %q, want %q", w.arrived, tt.want)
 			}
 		})
+	}
+}
+
+// TestBusOnline checks that Online returns an online status right
+// away, waits through offline ones for the next online one, and gives
+// up when its context is done.
+func TestBusOnline(t *testing.T) {
+	t.Parallel()
+
+	b := &Bus{New: func(*IPNStatus) {}}
+	b.init()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+	if _, err := b.Online(ctx); err != context.DeadlineExceeded {
+		t.Fatalf("Online with no status: err = %v, want %v", err, context.DeadlineExceeded)
+	}
+
+	b.publish(&IPNStatus{State: ipn.Starting})
+	got := make(chan *IPNStatus, 1)
+	go func() {
+		s, err := b.Online(t.Context())
+		if err != nil {
+			t.Error(err)
+		}
+		got <- s
+	}()
+
+	select {
+	case s := <-got:
+		t.Fatalf("Online returned %v before an online status", s.State)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	b.publish(&IPNStatus{State: ipn.NoState})
+	running := &IPNStatus{State: ipn.Running}
+	b.publish(running)
+	select {
+	case s := <-got:
+		if s != running {
+			t.Fatalf("Online returned %v, want the running status", s.State)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Online didn't return after an online status")
+	}
+
+	s, err := b.Online(t.Context())
+	if err != nil || s != running {
+		t.Fatalf("Online while online = %v, %v, want the running status", s, err)
 	}
 }

@@ -257,6 +257,30 @@ func (b *Bus) Latest(ctx context.Context) (*IPNStatus, error) {
 	}
 }
 
+// Online returns the last status passed to New if it's online, or
+// else waits for the next one that is.
+func (b *Bus) Online(ctx context.Context) (*IPNStatus, error) {
+	// Taken before checking latest, so that a status published in
+	// between isn't missed.
+	s := b.signals()
+	if latest := b.latest.Load(); latest != nil && latest.Online() {
+		return latest, nil
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-s.done:
+			if s.c&changePublished != 0 {
+				if latest := b.latest.Load(); latest.Online() {
+					return latest, nil
+				}
+			}
+			s = s.next
+		}
+	}
+}
+
 // Next waits for the next status passed to New after Next is called.
 func (b *Bus) Next(ctx context.Context) (*IPNStatus, error) {
 	s := b.signals()

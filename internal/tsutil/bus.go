@@ -3,7 +3,6 @@ package tsutil
 import (
 	"context"
 	"log/slog"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/types/key"
-	"tailscale.com/util/set"
 )
 
 // A Bus follows tailscaled's IPN bus and publishes what it says. It's
@@ -346,10 +344,6 @@ const (
 	// or the self node's identity.
 	changeIdentity
 
-	// changeFiles: a Taildrop transfer finished, or files started or
-	// stopped waiting.
-	changeFiles
-
 	// changePublished: Bus passed a new status to New.
 	changePublished
 
@@ -365,21 +359,6 @@ const (
 // watchState is what one bus connection remembers between notifies.
 type watchState struct {
 	ipn IPNStatus
-
-	// incoming holds the names of Taildrop transfers in progress.
-	incoming set.Set[string]
-
-	// received holds the finished transfers that tailscaled still
-	// lists, so that each is reported once.
-	received set.Set[transfer]
-
-	// arrived holds the names of the files received by the notifies
-	// applied since the last time it was cleared.
-	arrived []string
-
-	// filesWaiting is whether the last notify said that files are
-	// waiting. tailscaled sets it on every notify while they are.
-	filesWaiting bool
 }
 
 // apply folds notify into w and reports what it changed. It's the one
@@ -435,64 +414,7 @@ func (w *watchState) apply(notify *ipn.Notify) (c change) {
 			c |= changeTargets
 		}
 	}
-
-	if w.applyFiles(notify) {
-		c |= changeFiles
-	}
 	return c
-}
-
-// transfer identifies one Taildrop transfer.
-type transfer struct {
-	name    string
-	started time.Time
-}
-
-// applyFiles reports whether notify says that the waiting files may
-// have changed. Nothing reports a waiting file being deleted, except
-// that deleting the last one ends FilesWaiting.
-func (w *watchState) applyFiles(notify *ipn.Notify) (changed bool) {
-	// Both fields are deprecated in favor of AwaitWaitingFiles, but that
-	// only returns once files are waiting, so it can't report changes.
-	incomingFiles := notify.IncomingFiles //nolint:staticcheck
-	waiting := notify.FilesWaiting != nil //nolint:staticcheck
-
-	if incomingFiles != nil {
-		incoming := make(set.Set[string], len(incomingFiles))
-		received := make(set.Set[transfer])
-		for _, f := range incomingFiles {
-			if f.Done {
-				changed = true
-				// tailscaled sets FinalPath once the file is in place,
-				// before its last notify for the transfer. A transfer
-				// is new each time, even under a name that waited
-				// before.
-				if f.FinalPath != "" {
-					t := transfer{name: f.Name, started: f.Started}
-					if !w.received.Contains(t) {
-						w.arrived = append(w.arrived, filepath.Base(f.FinalPath))
-					}
-					received.Add(t)
-				}
-				continue
-			}
-			incoming.Add(f.Name)
-		}
-		w.received = received
-		for name := range w.incoming {
-			if !incoming.Contains(name) {
-				// It finished or failed without being reported as done.
-				changed = true
-			}
-		}
-		w.incoming = incoming
-	}
-
-	if waiting != w.filesWaiting {
-		w.filesWaiting = waiting
-		changed = true
-	}
-	return changed
 }
 
 // busSignal is one link of a broadcast chain. Bus.fire sets c and

@@ -141,7 +141,9 @@ func (a *App) update(status tsutil.Status) {
 
 	case *tsutil.EngineStatus:
 		a.engine = status
-		if a.win != nil {
+		// During a hold, the window still shows the old profile, which
+		// the new one's engine status doesn't describe.
+		if a.win != nil && !a.hold.active() {
 			a.win.Update(status)
 		}
 
@@ -162,7 +164,7 @@ func (a *App) update(status tsutil.Status) {
 		a.waiting = &status.Files
 		a.maybeAutoSaveFiles()
 
-		if a.win != nil {
+		if a.win != nil && !a.hold.active() {
 			a.win.Update(status)
 		}
 
@@ -190,8 +192,22 @@ func (a *App) setSwitching(on bool) {
 	a.tray.SetSwitching(on)
 	if a.win != nil {
 		a.win.SetSwitching(on)
+		if !on {
+			a.syncWindow()
+		}
 	}
 	a.syncActions()
+}
+
+// syncWindow shows the latest engine status and waiting files in the
+// window, which update holds back from it during a profile switch.
+func (a *App) syncWindow() {
+	if a.engine != nil {
+		a.win.Update(a.engine)
+	}
+	if a.waiting != nil {
+		a.win.Update(&tsutil.FileStatus{Files: *a.waiting})
+	}
 }
 
 // syncActions enables the app actions that act on Tailscale's state
@@ -565,8 +581,8 @@ func (a *App) onAppActivate(ctx context.Context) {
 		a.showIPN(a.ipn)
 	}
 	a.win.SetSwitching(a.hold.active())
-	if a.engine != nil {
-		a.win.Update(a.engine)
+	if !a.hold.active() {
+		a.syncWindow()
 	}
 }
 

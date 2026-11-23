@@ -68,12 +68,12 @@ VARIABLES
   files,      \* waiting files per profile: td:204-223 keeps a directory per login
   busQ,       \* notifies tailscaled has sent that Bus hasn't read yet
   \* Bus.Run
-  busState,   \* watchState.ipn.State, bus:357-367
-  pending,    \* the status Run will publish next, bus:86, or "none"
-  hold,       \* holds from SetRunning, bus:87
+  busState,   \* watchState.ipn.State, bus:389-398
+  pending,    \* the status Run will publish next, bus:91, or "none"
+  hold,       \* holds from SetRunning, bus:92
   arrived,    \* b.arrived: finished transfers no fetch has taken yet
   runPhase,   \* the one SetRunning in flight (b.runMu): "idle", "held", "called"
-  \* Profiles.Run and Files.Run (fetchLoop, src:131-191)
+  \* Profiles.Run and Files.Run (fetchLoop, src:136-196)
   pPhase, pSig, pRef, pRes,
   fPhase, fSig, fRef, fRes,
   \* the main thread
@@ -125,18 +125,19 @@ FMask == IF Part # "files" THEN {}
          ELSE {"connected"} \cup (IF FilesOnState THEN {"state"} ELSE {})
                             \cup (IF FilesOnFiles THEN {"files"} ELSE {})
 
-\* kick, src:121-126. With an unbuffered channel the send only lands while
+\* kick, src:126-131. With an unbuffered channel the send only lands while
 \* the loop is blocked in await.
 Kick(ref, phase) == IF RefreshBuffered \/ phase = "idle" THEN TRUE ELSE ref
 KickP == IF Part = "profiles" THEN Kick(pRef, pPhase) ELSE pRef
 KickF == IF Part = "files" THEN Kick(fRef, fPhase) ELSE fRef
 
 \* The bus's select only runs when nothing is waiting to be published,
-\* bus:89-95.
+\* bus:93-100.
 BusSelects == pending = "none" \/ hold > 0
 
 \* tailscaled loses FilesWaiting on its next notify once no file waits;
-\* engine updates send one about every 2 seconds, bus:415-444.
+\* engine updates (bus:181) send one about every 2 seconds, and applyFiles
+\* reports FilesWaiting ending, bus:490-493.
 FilesGoneNotify(fs) == IF fs = {} THEN <<Notify("files", "none")>> ELSE <<>>
 
 \* The profiles Part leaves the self page out.
@@ -148,10 +149,10 @@ SelfInit == IF Part # "files" THEN NoFiles
 Init ==
   /\ cur = "A" /\ known = Profiles /\ dstate = "Running"
   /\ files = StartFiles
-  \* bus:179 changeConnected, then the initial state, bus:167-172
+  \* bus:191 changeConnected, then the initial state, bus:179-180
   /\ busQ = <<Notify("connected", "none"), Notify("state", "Running")>>
   /\ busState = "NoState" /\ pending = "none" /\ hold = 0 /\ arrived = {} /\ runPhase = "idle"
-  \* fetchLoop fetches once at the start, src:134-138, which a pending
+  \* fetchLoop fetches once at the start, src:139-143, which a pending
   \* refresh stands for.
   /\ pPhase = "idle" /\ pSig = FALSE /\ pRef = (Part = "profiles") /\ pRes = NoProfiles
   /\ fPhase = "idle" /\ fSig = FALSE /\ fRef = (Part = "files") /\ fRes = [ok |-> FALSE, p |-> "none", fs |-> {}, gen |-> NoGen, arr |-> {}]
@@ -207,7 +208,7 @@ TailscaledComesBackUp ==
 
 \* A Taildrop transfer finishes. PutFile (feature/taildrop/send.go:151-163) marks it done,
 \* renames it into place, and sends IncomingFiles with Done and FinalPath
-\* set, which applyFiles (bus:453-490) reports as an arrival. The arrival
+\* set, which applyFiles (bus:453-495) reports as an arrival. The arrival
 \* is named by its final name, which is f: Rename keeps the name when no
 \* other file has it. Another transfer's progress notify can list a
 \* finished one again before PutFile drops it, which the second notify
@@ -236,7 +237,7 @@ OtherClientTakesFile(f) ==
                  unseenProf, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
 \* Another client adds or deletes a profile that isn't the current one.
-\* Nothing reports it, src:67-71.
+\* Nothing reports it, src:74-76.
 OtherClientChangesProfiles(q) ==
   /\ Part = "profiles" /\ budget.list > 0 /\ q # cur
   /\ known' = IF q \in known THEN known \ {q} ELSE known \cup {q}
@@ -245,7 +246,7 @@ OtherClientChangesProfiles(q) ==
   /\ UNCHANGED <<cur, dstate, files, busQ, busState, pending, hold, arrived, runPhase, loopVars, mainQ, mainWait, ops, uiVars,
                  unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
-\* ---------------- Bus.Run, bus:76-118 ----------------
+\* ---------------- Bus.Run, bus:81-130 ----------------
 
 \* One notify: watchState.apply (bus:384-442), then Run sets pending, adds
 \* the arrivals to b.arrived, and fires the changes before it publishes,
@@ -265,14 +266,14 @@ BusReads ==
   /\ UNCHANGED <<daemonVars, hold, runPhase, pPhase, pRef, pRes, fPhase, fRef, fRes,
                  mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
-\* publish, bus:89-92 and 120-127: Bus.New does gutil.IdleAdd(a.update), app:735-741.
+\* publish, bus:94-97 and 132-139: Bus.New does gutil.IdleAdd(a.update), app:743-750.
 BusPublishes ==
   /\ pending # "none" /\ hold = 0
   /\ mainQ' = Append(mainQ, [Msg("ipn") EXCEPT !.st = pending])
   /\ pending' = "none"
   /\ UNCHANGED <<daemonVars, busQ, busState, hold, arrived, runPhase, loopVars, mainWait, ops, uiVars, ghostVars, budget>>
 
-\* SetRunning, bus:261-290, from the window's status switch or the tray's
+\* SetRunning, bus:285-314, from the window's status switch or the tray's
 \* connection toggle, both in goroutines. It holds publishing, but not
 \* signals, while `tailscale up` or `down` runs.
 SetRunningHolds ==
@@ -293,10 +294,10 @@ SetRunningReleases ==
   /\ hold' = 0 /\ runPhase' = "idle"
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, arrived, loopVars, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
-\* ---------------- Profiles.Run and Files.Run, src:131-191 ----------------
+\* ---------------- Profiles.Run and Files.Run, src:136-196 ----------------
 
 \* await returns on a signal in mask or a refresh and drains the rest
-\* (src:165-191), then getProfileStatus is one LocalAPI call. A change
+\* (src:170-196), then getProfileStatus is one LocalAPI call. A change
 \* between the drain and the call fires a signal that the next await sees,
 \* so taking both as one step only drops a fetch that repeats this one.
 ProfilesFetch ==
@@ -306,7 +307,7 @@ ProfilesFetch ==
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, fPhase, fSig, fRef, fRes,
                  mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
-\* p.New, src:102, does gutil.IdleAdd(a.update).
+\* p.New, src:107, does gutil.IdleAdd(a.update).
 ProfilesPublish ==
   /\ pPhase = "deliver" /\ pPhase' = "idle"
   /\ mainQ' = Append(mainQ, [Msg("profiles") EXCEPT !.cur = pRes.cur, !.list = pRes.list])
@@ -314,7 +315,7 @@ ProfilesPublish ==
                  mainWait, ops, uiVars, ghostVars, budget>>
 
 \* Like ProfilesFetch: await, takeArrived, then waitingFiles against the
-\* current login's manager, src:42-56. An arrival after the take fires
+\* current login's manager, src:42-57. An arrival after the take fires
 \* changeFiles, which the next await sees. With ArrivedBeforeList FALSE
 \* the take comes after the list, at FilesPublish.
 FilesFetch ==
@@ -338,8 +339,8 @@ FilesPublish ==
 
 \* ---------------- Switches and deletes ----------------
 
-\* Profiles.Switch, src:116-119, from the tray (app:649-668) or the
-\* drop-down (win:122-164), and Files.Delete, src:62-65, from the self
+\* Profiles.Switch, src:121-124, from the tray (app:657-676) or the
+\* drop-down (win:123-165), and Files.Delete, src:67-70, from the self
 \* page (self:306-325) or saveFile (io:73). Each is one step: the LocalAPI
 \* call, then the deferred Refresh, then for the tray the failure
 \* notification's IdleAdd.
@@ -380,22 +381,23 @@ Launch(op, offMain) ==
 
 MainFree == mainWait = NoOp
 
-\* showIPN, app:201-239, and MainWindow.Update, win:278-299. A change of
+\* showIPN, app:198-236, and MainWindow.Update, win:298-319. A change of
 \* online sends the Tailscale Status notification.
 Show(st) ==
   LET on == st = "Running" IN
   /\ online' = on
-  /\ waiting' = IF on THEN waiting ELSE NoFiles                     \* app:230-232
+  /\ waiting' = IF on THEN waiting ELSE NoFiles                     \* app:227-229
   \* updatePeers: SelfPage.UpdateIPN returns false offline and the page
-  \* goes (self:367-370, win:408-420); online, ensureSectionPages adds it
-  \* (win:398-406).
+  \* goes (self:367-370, win:435-451); online, ensureSectionPages adds it
+  \* (win:425-433). holdSidebar (win:214-225) detaches the sidebar around
+  \* those page changes within this step and changes nothing modeled.
   /\ selfPage' = IF ~winOpen THEN NoFiles
                  ELSE IF ~on THEN NoFiles
                  ELSE IF selfPage.ok THEN selfPage
                  ELSE SelfInit
   /\ flap' = (flap \/ (online /\ ~on /\ st \in {"NoState", "Starting"} /\ ~stuck))
 
-\* setSwitching, app:192-197: the tray and an open window. A window that
+\* setSwitching, app:189-194: the tray and an open window. A window that
 \* opens later gets the hold's state from onAppActivate.
 SetSwitching(on) ==
   /\ trayOff' = on
@@ -464,14 +466,14 @@ ApplyFiles(m) ==
   /\ selfPage' = IF selfPage.ok THEN waiting' ELSE selfPage   \* self:405-410
   /\ UNCHANGED <<online, appProf, winOpen, winProf, dropSel, holdVars, ops, mainWait, notices, flap>>
 
-\* app:169-180 and updateProfiles, win:628-653.
+\* app:169-180 and updateProfiles, win:658-683.
 ApplyProfiles(m) ==
   /\ appProf' = [ok |-> TRUE, cur |-> m.cur, list |-> m.list]
   /\ winProf' = IF winOpen THEN appProf' ELSE winProf
   /\ dropSel' = IF winOpen THEN m.cur ELSE dropSel
   /\ UNCHANGED <<online, waiting, winOpen, selfPage, holdVars, ops, mainWait, stray, noticed, told, notices, flap>>
 
-\* OnProfileSwitch's IdleAdd, app:649-668: skip the active profile, else
+\* OnProfileSwitch's IdleAdd, app:657-676: skip the active profile, else
 \* switch.
 ApplyTrayClick(m) ==
   /\ IF m.to = appProf.cur THEN UNCHANGED <<ops, mainWait>>
@@ -492,7 +494,7 @@ MainRuns ==
 
 \* ---------------- The user ----------------
 
-\* onAppActivate, app:448-525, when no window is open: refresh both, then
+\* onAppActivate, app:445-522, when no window is open: refresh both, then
 \* showIPN(a.ipn) builds the pages, and the window takes the hold's state. The window shows no profiles until
 \* the next ProfileStatus. The window opens at most once: closing it drops
 \* everything, so a second open goes the same way as the first.
@@ -508,7 +510,7 @@ UserOpensWindow ==
                  mainQ, mainWait, ops, online, waiting, appProf, heldSt, timerArmed, trayOff,
                  gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap, budget>>
 
-\* win:167 and app:670: opening the drop-down or the tray's Switch account
+\* win:168 and app:678: opening the drop-down or the tray's Switch account
 \* submenu, on hosts that report it.
 UserOpensProfileList(where) ==
   /\ Part = "profiles" /\ MainFree /\ budget.look > 0
@@ -520,7 +522,7 @@ UserOpensProfileList(where) ==
   /\ UNCHANGED <<daemonVars, busQ, busState, pending, hold, arrived, runPhase, pPhase, pSig, pRes, fPhase, fSig, fRef, fRes,
                  mainQ, mainWait, ops, uiVars, unseenFiles, gen, noticed, owed, told, stray, wrongDelete, failedTray, notices, stuck, flap>>
 
-\* The drop-down's selected-item handler, win:122-164.
+\* The drop-down's selected-item handler, win:123-165.
 UserPicksInDropDown(p) ==
   /\ Part = "profiles" /\ MainFree /\ winOpen /\ ~winOff /\ winProf.ok /\ budget.switch > 0
   /\ p \in winProf.list /\ p # winProf.cur
@@ -531,7 +533,7 @@ UserPicksInDropDown(p) ==
                  online, waiting, appProf, winOpen, winProf, selfPage, holdVars, ghostVars>>
 
 \* A tray radio item's handler runs on the D-Bus goroutine and IdleAdds,
-\* app:649-650.
+\* app:657-658.
 UserPicksInTray(p) ==
   /\ Part = "profiles" /\ ~trayOff /\ appProf.ok /\ Cardinality(appProf.list) > 1 /\ budget.switch > 0
   /\ p \in appProf.list /\ p # appProf.cur

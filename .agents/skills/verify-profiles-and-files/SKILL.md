@@ -150,6 +150,7 @@ Ghost variables exist only to state properties. `gen` counts arrivals per profil
 - The connect toggle, the drop-down, the tray's account items, and the delete button only act while enabled. The model doesn't start a tray icon in the middle of a hold.
 - Bus connects once, at the start. No reconnects or tailscaled restarts. A transfer that finishes while Bus is reconnecting, for example after tailscaled closes a lagging watcher, gets no notification in the code. The model doesn't cover that.
 - The self page exists exactly while Tailscale is `Running` and the window is open. In the code it needs a self node too.
+- Adding and removing pages is part of the `IPNStatus` step that does it. `updatePeers` and `updatePages` detach the sidebar with `holdSidebar` while they change the stack's pages and reattach it before they return, on the main thread, and touch nothing the model tracks.
 - `changeIdentity` is not modeled. It only adds profile fetches, which can't make `ProfilesSettle` fail.
 - Auto-save is off and notifications are on, so every new file would get a notification.
 - No LocalAPI call fails or times out, other than a switch to a deleted profile.
@@ -175,7 +176,7 @@ Each finding lists the shortest path TLC found, in code terms.
 
 ## Coverage
 
-Sync commit: `e732a10`
+Sync commit: `e269e5e`
 
 Move the sync commit forward only after you confirm, at the new commit, that the model and the code facts still describe the code below. The script lists covered files changed since the sync commit. The repo squash merges, so after a PR that moved the sync commit merges, set it to the merge commit on `master`.
 
@@ -185,6 +186,6 @@ Move the sync commit forward only after you confirm, at the new commit, that the
 - `internal/ui/app.go`: `App.update`, `showIPN`, `setSwitching`, `switchTimeout`, `onAppActivate`, `startTray`, `OnProfileSwitch`, `OnAccountsOpen`, and the source wiring in `Run`
 - `internal/ui/switchhold.go`: `switchHold`, `switching`
 - `internal/tray/tray.go`: `SetSwitching`, `update`
-- `internal/ui/mainwindow.go`: the drop-down's `selected-item` handler, `onDropDownPopup`, `SetSwitching`, `Update`, `updateProfiles`, `ensureSectionPages`, `updatePages`
+- `internal/ui/mainwindow.go`: the drop-down's `selected-item` handler, `onDropDownPopup`, `SetSwitching`, `Update`, `updateProfiles`, `updatePeers`, `ensureSectionPages`, `updatePages`, `holdSidebar`
 - `internal/ui/selfpage.go`: `init`, the delete button in `fileRow`, `UpdateIPN`, `UpdateFiles`
 - `go.mod`: the `tailscale.com` version

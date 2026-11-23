@@ -43,3 +43,29 @@ func popdown(dd *gtk.DropDown) {
 		}
 	}
 }
+
+// TestWindowActive checks that onWindowActive's function runs each time
+// the window becomes the active one, and not when it stops being it.
+func TestWindowActive(t *testing.T) {
+	requireGTK(t)
+
+	w := gtk.NewWindow()
+	defer w.Destroy()
+	other := gtk.NewWindow()
+	defer other.Destroy()
+	var active int
+	onWindowActive(w, func() { active++ })
+
+	for want := 1; want <= 2; want++ {
+		w.Present()
+		iterateUntil(t, w.IsActive)
+		if active != want {
+			t.Fatalf("%v activations seen, not %v", active, want)
+		}
+		other.Present()
+		iterateUntil(t, func() bool { return !w.IsActive() })
+		if active != want {
+			t.Fatalf("%v activations seen after another window became active, not %v", active, want)
+		}
+	}
+}

@@ -166,6 +166,9 @@ func NewMainWindow(app *App) *MainWindow {
 	// Nothing reports a profile that isn't the current one being
 	// deleted, so the list could be stale.
 	onDropDownPopup(win.ProfileDropDown, app.profiles.Refresh)
+	// Nothing reports a profile that isn't the current one being
+	// deleted, so check whenever the user comes back to the window.
+	onWindowActive(&win.MainWindow.Window, app.profiles.Refresh)
 
 	contentVariant := glib.NewVariantString("content").RefSink()
 	gutil.Connect(win.PeersSidebar, win.PeersSidebar.ConnectActivated, func(adw.ViewSwitcherSidebar) {
@@ -696,6 +699,16 @@ func onDropDownPopup(dd *gtk.DropDown, f func()) {
 		}
 	}
 	slog.Error("drop down has no popover")
+}
+
+// onWindowActive calls f each time w becomes the active window, as
+// when the user switches to it.
+func onWindowActive(w *gtk.Window, f func()) {
+	gutil.ConnectNotify(w, "is-active", func() {
+		if w.IsActive() {
+			f()
+		}
+	})
 }
 
 func (win *MainWindow) Toast(msg string) {

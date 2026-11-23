@@ -511,6 +511,9 @@ func (a *App) addAction(action *gio.SimpleAction, activate func(param *glib.Vari
 
 func (a *App) onAppActivate(ctx context.Context) {
 	if a.win != nil {
+		// Presenting may not make it the active window, as on Wayland,
+		// so this doesn't count on onWindowActive.
+		a.profiles.Refresh()
 		a.win.MainWindow.Present()
 		return
 	}

@@ -35,7 +35,7 @@ Pages == {"peer", "mullvad", "self"}
 
 VARIABLES
   auto,       \* prefs.AutoExitNode is set ("any")
-  eid,        \* prefs.ExitNodeID: "", a node, or "U" for unresolvedExitNodeID "auto:any" (ll:9177)
+  eid,        \* prefs.ExitNodeID: "", a node, or "U" for unresolvedExitNodeID "auto:any" (ll:9192)
   prior,      \* prefs.InternalExitNodePrior: "", a node, or "A" for "auto:any"
   sugg,       \* b.lastSuggestedExitNode, "none" when zero
   setting,    \* the exit-node-selection GSettings key
@@ -49,11 +49,11 @@ vars == <<auto, eid, prior, sugg, setting, lastUsed, req, clicks, otherSince, bu
 
 Used(e) == IF e \in Nodes THEN e ELSE lastUsed
 
-\* resolveAutoExitNodeLocked, ll:2831-2870
+\* resolveAutoExitNodeLocked, ll:2846-2885
 Resolve(e) ==
-  IF sugg # "none" THEN sugg                      \* ll:2852-2854
-  ELSE IF e \in Nodes THEN e                      \* ll:2855-2858 isAllowedAutoExitNodeID
-  ELSE "U"                                        \* ll:2859-2864
+  IF sugg # "none" THEN sugg                      \* ll:2867-2869
+  ELSE IF e \in Nodes THEN e                      \* ll:2870-2873 isAllowedAutoExitNodeID
+  ELSE "U"                                        \* ll:2874-2879
 
 Init ==
   /\ auto = FALSE /\ eid = "" /\ prior = ""
@@ -70,16 +70,16 @@ Go(pc) == req' = [req EXCEPT !.pc = pc]
 GoId(pc, id) == req' = [req EXCEPT !.pc = pc, !.id = id]
 Fail == req' = [req EXCEPT !.pc = "done", !.failed = TRUE]
 
-\* SetUseExitNodeEnabled(false), ll:5137-5184
+\* SetUseExitNodeEnabled(false), ll:5152-5199
 DisableInTailscale ==
-  IF eid = "" THEN UNCHANGED <<auto, eid, prior>>               \* ll:5149-5152
-  ELSE /\ prior' = IF auto THEN "A" ELSE eid                    \* ll:5176-5181
+  IF eid = "" THEN UNCHANGED <<auto, eid, prior>>               \* ll:5164-5167
+  ELSE /\ prior' = IF auto THEN "A" ELSE eid                    \* ll:5191-5196
        /\ eid' = "" /\ auto' = FALSE
 
 \* ---------------- The user and the network ----------------
 
-\* The menu's use_exit_node action (app:408-420) or the tray's OnExitToggle
-\* (app:548-570) asks for the opposite of ExitNodeActive (poll:595-597).
+\* The menu's use_exit_node action (app:451-464) or the tray's OnExitToggle
+\* (app:595-633) asks for the opposite of ExitNodeActive (poll:197-199).
 \* want is the setting the user chose, sel what the code passes on.
 Click ==
   /\ clicks < MaxClicks
@@ -98,7 +98,7 @@ Click ==
   /\ otherSince' = FALSE
   /\ UNCHANGED <<auto, eid, prior, sugg, setting, lastUsed, budget>>
 
-\* The Preferences combo row writes the key (set:145-149).
+\* The Preferences combo row writes the key (set:139-142).
 ChangeSetting ==
   /\ budget.setting > 0
   /\ setting' = IF setting = "previous" THEN "recommended" ELSE "previous"
@@ -107,7 +107,7 @@ ChangeSetting ==
 
 \* A peer or Mullvad page's switch turned on: ExitNode(n) (tc:59-89) with
 \* AutoExitNodeSet, so the prior stays. adjustEditPrefsLocked empties the
-\* pick while the daemon still holds the unresolved placeholder (ll:5327-5331).
+\* pick while the daemon still holds the unresolved placeholder (ll:5342-5346).
 PickOnPage ==
   /\ budget.other > 0
   /\ \E n \in Nodes :
@@ -119,13 +119,13 @@ PickOnPage ==
   /\ otherSince' = TRUE
   /\ UNCHANGED <<prior, sugg, setting, req, clicks>>
 
-\* A peer or Mullvad page's switch turned off (peer:147-172, mv:385-409), only
-\* shown on for the node in use, or Advertise exit node turned on (self:130-138).
+\* A peer or Mullvad page's switch turned off (peer:151-177, mv:387-412), only
+\* shown on for the node in use, or Advertise exit node turned on (self:128-136).
 \* With the fact, the page calls DisableExitNode: pinAutoExitNode then
 \* SetUseExitNodeEnabled(false), composed into one step because the main
 \* thread runs the handler and auto is off between the two calls. Without it,
 \* the page calls ExitNode(""), and an empty ExitNodeID makes
-\* adjustEditPrefsLocked zero the prior (ll:5321-5325) even when no exit node
+\* adjustEditPrefsLocked zero the prior (ll:5336-5340) even when no exit node
 \* was in use.
 OffOnPage ==
   /\ budget.other > 0
@@ -145,7 +145,7 @@ OffOnPage ==
   /\ UNCHANGED <<sugg, setting, lastUsed, req, clicks>>
 
 \* A netmap brings a new suggestion: suggestExitNodeLocked, then
-\* refreshExitNodeLocked under the same lock (ll:2130-2140).
+\* refreshExitNodeLocked under the same lock (ll:2145-2155).
 \* Without OffWhileWaiting, no suggestion lands between a toggle's decision
 \* not to pin and its disable, since that is the same turning off while
 \* Recommended has no node.
@@ -175,18 +175,18 @@ UseAutoExitNode ==
 EnableExitNode ==
   /\ req.pc = "pEnable"
   /\ LET next == IF PreviousPinsRestoredAuto THEN "kRead" ELSE "done" IN
-     IF eid # "" THEN                                           \* ll:5145-5148 already on
+     IF eid # "" THEN                                           \* ll:5160-5163 already on
         /\ Go(next)
         /\ UNCHANGED <<auto, eid, lastUsed>>
-     ELSE IF prior = "" THEN                                    \* ll:5155-5160 error
+     ELSE IF prior = "" THEN                                    \* ll:5170-5175 error
         /\ Go("fSuggest")                                       \* tc:138-143
         /\ UNCHANGED <<auto, eid, lastUsed>>
-     ELSE IF prior = "A" THEN                                   \* ll:5163-5170
+     ELSE IF prior = "A" THEN                                   \* ll:5178-5185
         /\ auto' = TRUE
         /\ eid' = Resolve("U")
         /\ lastUsed' = Used(Resolve("U"))
         /\ Go(next)
-     ELSE                                                       \* ll:5164-5165, adjust ll:5333-5338
+     ELSE                                                       \* ll:5179-5180, adjust ll:5348-5353
         /\ auto' = FALSE /\ eid' = prior
         /\ lastUsed' = prior
         /\ Go(next)
@@ -202,10 +202,10 @@ FallbackSuggest ==
   /\ UNCHANGED <<auto, eid, prior, sugg, setting, lastUsed, otherSince, budget, clicks>>
 
 \* ExitNode(id) (tc:59-89). An empty ID clears the exit node, and
-\* adjustEditPrefsLocked zeroes the prior with it (ll:5321-5325).
+\* adjustEditPrefsLocked zeroes the prior with it (ll:5336-5340).
 FallbackPin ==
   /\ req.pc = "fPin"
-  /\ eid' = (IF eid = "U" THEN "" ELSE req.id) /\ auto' = FALSE \* ll:5327-5331
+  /\ eid' = (IF eid = "U" THEN "" ELSE req.id) /\ auto' = FALSE \* ll:5342-5346
   /\ prior' = IF req.id = "" THEN "" ELSE prior
   /\ lastUsed' = Used(IF eid = "U" THEN "" ELSE req.id)
   /\ Go("done")
@@ -229,8 +229,8 @@ KeepSuggest ==
   /\ UNCHANGED <<auto, eid, prior, sugg, setting, lastUsed, otherSince, budget, clicks>>
 
 \* The pin's EditPrefs (tc:250-255). adjustEditPrefsLocked empties it while
-\* the daemon still holds the placeholder (ll:5327-5331), and an empty
-\* ExitNodeID zeroes the prior (ll:5321-5325).
+\* the daemon still holds the placeholder (ll:5342-5346), and an empty
+\* ExitNodeID zeroes the prior (ll:5336-5340).
 KeepPin ==
   /\ req.pc = "kPin"
   /\ LET e2 == IF eid = "U" THEN "" ELSE req.id IN
@@ -259,7 +259,7 @@ OffReadPrefs ==
 \* pinAutoExitNode's EditPrefs (tc:178-186).
 OffPin ==
   /\ req.pc = "oPin"
-  /\ LET e2 == IF eid = "U" THEN "" ELSE req.id IN              \* ll:5327-5331
+  /\ LET e2 == IF eid = "U" THEN "" ELSE req.id IN              \* ll:5342-5346
        /\ eid' = e2
        /\ lastUsed' = Used(e2)
   /\ auto' = FALSE

@@ -46,3 +46,28 @@ func TestHoldGatesWindowUpdates(t *testing.T) {
 	require.Same(t, engine, a.win.engine, "held engine status not shown after the hold")
 	require.Equal(t, files, slices.Collect(self.fileModel.All()), "held waiting files not shown after the hold")
 }
+
+// TestDisconnectClearsEngine checks that the engine status from before
+// a disconnect isn't shown on the pages made after reconnecting.
+func TestDisconnectClearsEngine(t *testing.T) {
+	requireGTK(t)
+
+	a := &App{app: newTestApp(t, "disconnect-engine"), operatorCheck: true}
+	a.update(ipnStatus(ipn.Running, true))
+	a.win = NewMainWindow(a)
+	t.Cleanup(func() {
+		a.win.MainWindow.Destroy()
+		a.win.Dispose()
+	})
+
+	a.update(&tsutil.EngineStatus{})
+	require.NotNil(t, a.win.engine)
+
+	a.update(ipnStatus(ipn.Stopped, false))
+	require.Nil(t, a.engine, "app kept the engine status after disconnecting")
+	require.Nil(t, a.win.engine, "window kept the engine status after disconnecting")
+
+	a.update(ipnStatus(ipn.Running, true))
+	a.syncWindow()
+	require.Nil(t, a.win.engine, "reconnecting showed the old engine status")
+}

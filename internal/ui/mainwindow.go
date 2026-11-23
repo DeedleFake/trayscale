@@ -298,6 +298,10 @@ func (win *MainWindow) Dispose() {
 func (win *MainWindow) Update(status tsutil.Status) {
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
+		if !status.Online() {
+			// Pages made after reconnecting would show its counters.
+			win.engine = nil
+		}
 		win.updateStatusSwitch(status.Online())
 
 		win.updatePeers(status)

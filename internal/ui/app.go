@@ -266,7 +266,9 @@ func (a *App) showIPN(status *tsutil.IPNStatus) {
 	}
 
 	if !online {
+		// Neither applies once Tailscale reconnects.
 		a.waiting = nil
+		a.engine = nil
 	}
 
 	a.tray.Update(status)

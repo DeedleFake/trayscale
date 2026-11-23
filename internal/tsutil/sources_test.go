@@ -31,6 +31,9 @@ type fakeDaemon struct {
 
 	// filesErr, if set, is the error to fail files fetches with.
 	filesErr atomic.Pointer[string]
+
+	// failProfiles is how many more profile fetches to fail.
+	failProfiles atomic.Int32
 }
 
 func startFakeDaemon(t *testing.T) *fakeDaemon {
@@ -71,6 +74,10 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(body))
 	case "/localapi/v0/profiles/current":
 		d.profiles.Add(1)
+		if d.failProfiles.Add(-1) >= 0 {
+			http.Error(w, "busy", http.StatusInternalServerError)
+			return
+		}
 		w.Write([]byte("{}"))
 	case "/localapi/v0/profiles/":
 		w.Write([]byte("[]"))
@@ -296,5 +303,79 @@ func TestIsNoTaildrop(t *testing.T) {
 				t.Fatalf("isNoTaildrop(%v) = %v, want %v", err, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestRetryDelay(t *testing.T) {
+	for _, tt := range []struct {
+		n    int
+		want time.Duration
+		ok   bool
+	}{
+		{n: 0},
+		{n: 1, want: time.Second, ok: true},
+		{n: 2, want: 2 * time.Second, ok: true},
+		{n: 3, want: 4 * time.Second, ok: true},
+		{n: 5, want: 16 * time.Second, ok: true},
+		{n: 6},
+		{n: 100},
+	} {
+		if got, ok := retryDelay(tt.n); got != tt.want || ok != tt.ok {
+			t.Errorf("retryDelay(%v) = %v, %v, want %v, %v", tt.n, got, ok, tt.want, tt.ok)
+		}
+	}
+}
+
+// fastRetries makes retries quick for the rest of the test.
+func fastRetries(t *testing.T) {
+	old := retryBase
+	retryBase = 10 * time.Millisecond
+	t.Cleanup(func() { retryBase = old })
+}
+
+// TestFetchRetries checks that a failed fetch is retried until it works
+// and that a fetch that keeps failing is retried only so many times.
+func TestFetchRetries(t *testing.T) {
+	fastRetries(t)
+
+	for _, tt := range []struct {
+		name  string
+		fails int32
+		want  int32
+	}{
+		{name: "brief", fails: 2, want: 3},
+		{name: "lasting", fails: 100, want: 1 + maxRetries},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			d := startFakeDaemon(t)
+			d.failProfiles.Store(tt.fails)
+			d.run(t)
+			if _, p := d.settle(); p != tt.want {
+				t.Fatalf("%v profile fetches, want %v", p, tt.want)
+			}
+		})
+	}
+}
+
+// TestFetchRetryYieldsToTriggers checks that a trigger during the wait
+// to retry fetches right away and that the retry it replaces doesn't
+// fetch again.
+func TestFetchRetryYieldsToTriggers(t *testing.T) {
+	d := startFakeDaemon(t)
+	_, profiles, _ := d.run(t)
+	_, before := d.settle()
+
+	d.failProfiles.Store(1)
+	profiles.Refresh()
+	for d.profiles.Load() == before {
+		time.Sleep(10 * time.Millisecond)
+	}
+	profiles.Refresh()
+	if _, p := d.settle(); p != before+2 {
+		t.Fatalf("%v profile fetches, want 2", p-before)
+	}
+	time.Sleep(retryBase)
+	if _, p := d.settle(); p != before+2 {
+		t.Fatalf("%v profile fetches after the retry was due, want 2", p-before)
 	}
 }

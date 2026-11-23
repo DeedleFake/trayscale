@@ -382,14 +382,38 @@ func (a *App) toggleConn(ctx context.Context) {
 	}()
 }
 
+// onAppOpen offers to send files opened with Trayscale. It doesn't
+// block, as the open signal can come before the bus has a status, such
+// as when launching with files, or during a profile switch.
 func (a *App) onAppOpen(ctx context.Context, files []*gio.FileBase) {
+	a.openFiles(ctx, files, a.bus.Online)
+}
+
+// openFiles waits off the main thread for online to return a status
+// and then offers to send files to the peers in it. It releases files
+// once it's done with them, telling the user if it gave up.
+func (a *App) openFiles(ctx context.Context, files []*gio.FileBase, online func(context.Context) (*tsutil.IPNStatus, error)) {
+	go func() {
+		wait, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		s, err := online(wait)
+		gutil.IdleAdd(func() {
+			if err != nil {
+				slog.Error("send opened files", "err", err)
+				unrefFiles(files)
+				a.notify(locale.Get("Taildrop"), locale.Get("Tailscale is not connected."))
+				return
+			}
+			a.showSendFiles(ctx, s, files)
+		})
+	}()
+}
+
+// showSendFiles asks which peer in s to send files to and sends them.
+func (a *App) showSendFiles(ctx context.Context, s *tsutil.IPNStatus, files []*gio.FileBase) {
 	type selectOption = SelectOption[tailcfg.NodeView]
 
-	s := a.ipn
-	if s == nil || !s.Online() {
-		unrefFiles(files)
-		return
-	}
 	options := func(yield func(selectOption) bool) {
 		for _, peer := range s.Peers {
 			if !s.FileTargets.Contains(peer.StableID()) || tsutil.IsMullvad(peer) || tsutil.IsShareeNode(peer) {

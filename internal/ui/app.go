@@ -191,6 +191,38 @@ func (a *App) setSwitching(on bool) {
 	if a.win != nil {
 		a.win.SetSwitching(on)
 	}
+	a.syncActions()
+}
+
+// syncActions enables the app actions that act on Tailscale's state
+// only while it's online and no profile switch is held, as the state
+// they would act on is stale during a hold. It's the only place that
+// enables them.
+func (a *App) syncActions() {
+	usable := a.online && !a.hold.active()
+	a.withAction("use_exit_node", func(action *gio.SimpleAction) {
+		action.SetEnabled(usable)
+		if a.ipn != nil {
+			action.SetState(glib.NewVariantBoolean(a.ipn.ExitNodeActive()))
+		}
+	})
+	a.withAction("search-peers", func(action *gio.SimpleAction) {
+		action.SetEnabled(!a.hold.active())
+	})
+}
+
+// withAction calls f with the app's action named name, if there is
+// one.
+func (a *App) withAction(name string, f func(*gio.SimpleAction)) {
+	// LookupAction ref-sinks a transfer-none result. Drop that ref.
+	action := a.app.LookupAction(name)
+	if action == nil {
+		return
+	}
+	defer gutil.Obj(action).Unref()
+	if action, ok := gutil.Cast[gio.SimpleAction](action, gio.SimpleActionGLibType()); ok {
+		f(action)
+	}
 }
 
 // showIPN shows status everywhere, notifying if that connects or
@@ -208,14 +240,7 @@ func (a *App) showIPN(status *tsutil.IPNStatus) {
 		a.notify(locale.Get("Tailscale Status"), body) // TODO: Notify on startup if not connected?
 	}
 
-	// LookupAction ref-sinks a transfer-none result. Drop that ref.
-	if action := a.app.LookupAction("use_exit_node"); action != nil {
-		defer gutil.Obj(action).Unref()
-		if useExitNodeAction, ok := gutil.Cast[gio.SimpleAction](action, gio.SimpleActionGLibType()); ok {
-			useExitNodeAction.SetEnabled(online)
-			useExitNodeAction.SetState(glib.NewVariantBoolean(status.ExitNodeActive()))
-		}
-	}
+	a.syncActions()
 
 	if online && !a.operatorCheck {
 		a.operatorCheck = true

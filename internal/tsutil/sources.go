@@ -9,64 +9,6 @@ import (
 	"tailscale.com/ipn"
 )
 
-// Files keeps the list of Taildrop files waiting to be saved. It
-// fetches the list when Bus reports a reconnect, a state change, or a
-// finished transfer, after Delete, and when Refresh is called.
-// Nothing reports a waiting file deleted outside of Trayscale while
-// others are still waiting, so call Refresh before showing the list.
-//
-// Set the exported fields before calling Run and don't change them
-// afterwards.
-type Files struct {
-	// Bus is where the triggers come from. Required. Run doesn't run
-	// it.
-	Bus *Bus
-
-	// New is called with each fetched list, from one goroutine.
-	// Required.
-	New func(*FileStatus)
-
-	once    sync.Once
-	refresh chan struct{}
-}
-
-const filesTriggers = changeConnected | changeState | changeFiles
-
-func (f *Files) init() {
-	f.once.Do(func() { f.refresh = make(chan struct{}, 1) })
-}
-
-// Run fetches the list until ctx is done and returns ctx's error.
-func (f *Files) Run(ctx context.Context) error {
-	f.init()
-	var arrived []string
-	return fetchLoop(ctx, f.Bus, filesTriggers, f.refresh, "get waiting files", func(ctx context.Context) error {
-		// Taken before the list, so that every file in it is in the
-		// list unless it's already gone.
-		arrived = append(arrived, f.Bus.takeArrived()...)
-		files, err := waitingFiles(ctx)
-		if err != nil && !isNoTaildrop(err) {
-			return err
-		}
-		f.New(&FileStatus{Files: files, Arrived: arrived})
-		arrived = nil
-		return nil
-	})
-}
-
-// Refresh asks Files to fetch the list again. It never blocks.
-func (f *Files) Refresh() {
-	f.init()
-	kick(f.refresh)
-}
-
-// Delete deletes a waiting file and then fetches the list again, even
-// if deleting failed, as that most likely means the list was stale.
-func (f *Files) Delete(ctx context.Context, name string) error {
-	defer f.Refresh()
-	return deleteWaitingFile(ctx, name)
-}
-
 // Profiles keeps the current login profile and the list of profiles.
 // It fetches them when Bus reports a reconnect, a state change, or an
 // identity change, after Switch, and when Refresh is called. Nothing

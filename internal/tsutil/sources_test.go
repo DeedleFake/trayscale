@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"slices"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -31,6 +31,11 @@ type fakeDaemon struct {
 
 	// filesErr, if set, is the error to fail files fetches with.
 	filesErr atomic.Pointer[string]
+
+	// longPolls counts the files fetches that asked to wait for a file,
+	// and canceled the ones that were canceled while waiting.
+	longPolls atomic.Int32
+	canceled  atomic.Int32
 
 	// failProfiles is how many more profile fetches to fail.
 	failProfiles atomic.Int32
@@ -67,11 +72,25 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, *msg, http.StatusInternalServerError)
 			return
 		}
-		body := "[]"
-		if b := d.waiting.Load(); b != nil {
-			body = *b
+		if ws := r.FormValue("waitsec"); ws != "" && ws != "0" {
+			// Like tailscaled, answer once files are waiting or after
+			// waitsec.
+			d.longPolls.Add(1)
+			sec, _ := strconv.Atoi(ws)
+			deadline := time.After(time.Duration(sec) * time.Second)
+		wait:
+			for d.waitingBody() == "[]" {
+				select {
+				case <-r.Context().Done():
+					d.canceled.Add(1)
+					return
+				case <-deadline:
+					break wait
+				case <-time.After(5 * time.Millisecond):
+				}
+			}
 		}
-		w.Write([]byte(body))
+		w.Write([]byte(d.waitingBody()))
 	case "/localapi/v0/profiles/current":
 		d.profiles.Add(1)
 		if d.failProfiles.Add(-1) >= 0 {
@@ -86,6 +105,18 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "not found", http.StatusNotFound)
 	}
+}
+
+func (d *fakeDaemon) waitingBody() string {
+	if b := d.waiting.Load(); b != nil {
+		return *b
+	}
+	return "[]"
+}
+
+// setWaiting sets the files list to serve, as JSON.
+func (d *fakeDaemon) setWaiting(body string) {
+	d.waiting.Store(&body)
 }
 
 // run starts a Bus, Files, and Profiles against the fake daemon. It
@@ -150,80 +181,12 @@ func TestSourcesIgnoreEngineUpdates(t *testing.T) {
 		t.Fatalf("engine updates caused %v files and %v profiles fetches", f-files, p-profiles)
 	}
 
+	// Files doesn't check while Tailscale is offline.
 	stopped := ipn.Stopped
 	d.notes <- ipn.Notify{State: &stopped}
 	waitState(t, statuses, ipn.Stopped)
-	if f, p := d.settle(); f != files+1 || p != profiles+1 {
-		t.Fatalf("state change caused %v files and %v profiles fetches, not 1 each", f-files, p-profiles)
-	}
-}
-
-// TestFilesFetchCoalesces checks that triggers that arrive during a
-// fetch cause exactly one more fetch.
-func TestFilesFetchCoalesces(t *testing.T) {
-	bus := func(d *fakeDaemon, statuses <-chan *IPNStatus) {
-		d.notes <- filesWaiting(ipn.Notify{})
-		d.notes <- ipn.Notify{}
-		stopped := ipn.Stopped
-		d.notes <- filesWaiting(ipn.Notify{State: &stopped})
-		// Published only after everything before it fired.
-		waitState(t, statuses, ipn.Stopped)
-	}
-	refresh := func(files *Files) {
-		for range 5 {
-			files.Refresh()
-		}
-	}
-
-	for _, tt := range []struct {
-		name    string
-		trigger func(*fakeDaemon, *Files, <-chan *IPNStatus)
-	}{
-		{name: "bus", trigger: func(d *fakeDaemon, _ *Files, statuses <-chan *IPNStatus) { bus(d, statuses) }},
-		{name: "refresh", trigger: func(_ *fakeDaemon, files *Files, _ <-chan *IPNStatus) { refresh(files) }},
-		{name: "both", trigger: func(d *fakeDaemon, files *Files, statuses <-chan *IPNStatus) {
-			bus(d, statuses)
-			refresh(files)
-		}},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			d := startFakeDaemon(t)
-			files, _, statuses := d.run(t)
-			before, _ := d.settle()
-
-			d.holdFiles.Store(before + 1)
-			files.Refresh()
-			for d.files.Load() == before {
-				time.Sleep(10 * time.Millisecond)
-			}
-			tt.trigger(d, files, statuses)
-			close(d.release)
-
-			if f, _ := d.settle(); f != before+2 {
-				t.Fatalf("%v fetches after the held one, not 1", f-before-1)
-			}
-		})
-	}
-}
-
-// TestFilesFirstFetchKeepsTriggers checks that triggers that arrive
-// during the first fetch, before Files could be waiting for them,
-// aren't lost.
-func TestFilesFirstFetchKeepsTriggers(t *testing.T) {
-	d := startFakeDaemon(t)
-	d.holdFiles.Store(1)
-	_, _, statuses := d.run(t)
-	for d.files.Load() == 0 {
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	stopped := ipn.Stopped
-	d.notes <- ipn.Notify{State: &stopped}
-	waitState(t, statuses, ipn.Stopped)
-	close(d.release)
-
-	if f, _ := d.settle(); f != 2 {
-		t.Fatalf("%v fetches, not 2", f)
+	if f, p := d.settle(); f != files || p != profiles+1 {
+		t.Fatalf("state change caused %v files and %v profiles fetches, not 0 and 1", f-files, p-profiles)
 	}
 }
 
@@ -240,38 +203,6 @@ func TestProfilesSwitchRefreshes(t *testing.T) {
 	}
 	if _, p := d.settle(); p != before+1 {
 		t.Fatalf("%v profile fetches after Switch, not 1", p-before)
-	}
-}
-
-// TestFilesReportArrived checks that a list fetched after a transfer
-// finished says that the file arrived, and that the next one doesn't.
-func TestFilesReportArrived(t *testing.T) {
-	d := startFakeDaemon(t)
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	statuses := make(chan *FileStatus, 16)
-	bus := &Bus{New: func(*IPNStatus) {}}
-	files := &Files{Bus: bus, New: func(s *FileStatus) { statuses <- s }}
-	go bus.Run(ctx)
-	go files.Run(ctx)
-	d.settle()
-	for len(statuses) > 0 {
-		<-statuses
-	}
-
-	waiting := `[{"Name":"a.txt","Size":1}]`
-	d.waiting.Store(&waiting)
-	d.notes <- incoming(ipn.PartialFile{Name: "a.txt", Started: time.Unix(1, 0), Done: true, FinalPath: "/files/a.txt"})
-	d.settle()
-	files.Refresh()
-	d.settle()
-
-	var got [][]string
-	for len(statuses) > 0 {
-		got = append(got, (<-statuses).Arrived)
-	}
-	if len(got) != 2 || !slices.Equal(got[0], []string{"a.txt"}) || got[1] != nil {
-		t.Fatalf("arrived per list %q, want [[a.txt] []]", got)
 	}
 }
 
@@ -295,7 +226,7 @@ func TestIsNoTaildrop(t *testing.T) {
 			if tt.err != "" {
 				d.filesErr.Store(&tt.err)
 			}
-			_, err := waitingFiles(t.Context())
+			_, err := waitingFiles(t.Context(), 0)
 			if (err != nil) != (tt.err != "") {
 				t.Fatalf("waitingFiles err = %v", err)
 			}

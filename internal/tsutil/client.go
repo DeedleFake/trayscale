@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"strings"
+	"time"
 
 	"tailscale.com/client/local"
 	"tailscale.com/client/tailscale/apitype"
@@ -417,9 +418,11 @@ func isNoTaildrop(err error) bool {
 	return err != nil && strings.Contains(err.Error(), taildrop.ErrNoTaildrop.Error())
 }
 
-// waitingFiles returns the files waiting to be saved.
-func waitingFiles(ctx context.Context) ([]apitype.WaitingFile, error) {
-	return localClient.AwaitWaitingFiles(ctx, 0)
+// waitingFiles returns the files waiting to be saved. If none are and
+// wait is at least a second, tailscaled answers once one is, or after
+// wait, rounded down to seconds.
+func waitingFiles(ctx context.Context, wait time.Duration) ([]apitype.WaitingFile, error) {
+	return localClient.AwaitWaitingFiles(ctx, wait)
 }
 
 func FileTargets(ctx context.Context) ([]apitype.FileTarget, error) {

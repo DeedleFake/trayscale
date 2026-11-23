@@ -40,9 +40,6 @@ type Bus struct {
 	stopped chan struct{}
 	runMu   sync.Mutex
 
-	arrivedMu sync.Mutex
-	arrived   []string // names of files received since takeArrived
-
 	// setRunning is a test seam. Only tests set it, to fake starting
 	// and stopping Tailscale. It's nil in normal use, in which case
 	// SetRunning calls Start and Stop.
@@ -71,7 +68,6 @@ type busEvent struct {
 	status  *IPNStatus // to publish, if non-nil
 	engine  *EngineStatus
 	changes change
-	arrived []string // names of files that were just received
 }
 
 // Run follows the bus until ctx is done, reconnecting every 5 seconds
@@ -106,13 +102,6 @@ func (b *Bus) Run(ctx context.Context) error {
 			}
 			if ev.status != nil {
 				pending = ev.status
-			}
-			if ev.arrived != nil {
-				// Before the signal, so that the fetch it causes takes
-				// them.
-				b.arrivedMu.Lock()
-				b.arrived = append(b.arrived, ev.arrived...)
-				b.arrivedMu.Unlock()
 			}
 			// Signals aren't held while starting or stopping. Only
 			// publishing is.
@@ -221,25 +210,13 @@ func (b *Bus) watchOnce(ctx context.Context, send func(busEvent) bool) (connecte
 		if notify.Engine != nil {
 			ev.engine = &EngineStatus{LivePeers: notify.Engine.LivePeers}
 		}
-		ev.arrived, w.arrived = w.arrived, nil
-		if ev.status == nil && ev.engine == nil && ev.changes == 0 && ev.arrived == nil {
+		if ev.status == nil && ev.engine == nil && ev.changes == 0 {
 			continue
 		}
 		if !send(ev) {
 			return true, ctx.Err()
 		}
 	}
-}
-
-// takeArrived returns the names of the files received since the last
-// call, in order. A name can repeat, and a file can be gone by the
-// time it's called.
-func (b *Bus) takeArrived() []string {
-	b.arrivedMu.Lock()
-	defer b.arrivedMu.Unlock()
-	arrived := b.arrived
-	b.arrived = nil
-	return arrived
 }
 
 // Latest returns the last status passed to New, waiting for the

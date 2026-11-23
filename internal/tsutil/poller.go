@@ -259,9 +259,11 @@ func (s *IPNStatus) SelfAddr() netip.Addr {
 type FileStatus struct {
 	Files []apitype.WaitingFile
 
-	// Arrived holds the names of the files received since the last
-	// FileStatus, as tailscaled reported their transfers finishing.
-	// Some may no longer be waiting.
+	// Arrived holds the names of the files in Files that weren't in
+	// the previous list, or that have changed size since. It's empty
+	// in the first list after Files starts, reconnects, or sees the
+	// state or the login change, as when switching profiles, so that
+	// files that were already waiting aren't reported as new.
 	Arrived []string
 }
 

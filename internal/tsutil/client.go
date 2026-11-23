@@ -7,10 +7,12 @@ import (
 	"io"
 	"log/slog"
 	"net/netip"
+	"strings"
 
 	"tailscale.com/client/local"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/cmd/tailscale/cli"
+	"tailscale.com/feature/taildrop"
 	"tailscale.com/ipn"
 	"tailscale.com/net/netcheck"
 	"tailscale.com/net/netmon"
@@ -406,6 +408,13 @@ func GetWaitingFile(ctx context.Context, name string) (io.ReadCloser, int64, err
 
 func deleteWaitingFile(ctx context.Context, name string) error {
 	return localClient.DeleteWaitingFile(ctx, name)
+}
+
+// isNoTaildrop reports whether err says that tailscaled has nowhere to
+// keep received files, as when it's logged out. The LocalAPI sends
+// errors as text, so errors.Is can't tell.
+func isNoTaildrop(err error) bool {
+	return err != nil && strings.Contains(err.Error(), taildrop.ErrNoTaildrop.Error())
 }
 
 // waitingFiles returns the files waiting to be saved.

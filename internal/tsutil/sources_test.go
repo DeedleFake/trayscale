@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"tailscale.com/feature/taildrop"
 	"tailscale.com/ipn"
 )
 
@@ -27,6 +28,9 @@ type fakeDaemon struct {
 
 	// waiting, if set, is the files list to serve, as JSON.
 	waiting atomic.Pointer[string]
+
+	// filesErr, if set, is the error to fail files fetches with.
+	filesErr atomic.Pointer[string]
 }
 
 func startFakeDaemon(t *testing.T) *fakeDaemon {
@@ -55,6 +59,10 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 	case "/localapi/v0/files/":
 		if d.files.Add(1) == d.holdFiles.Load() {
 			<-d.release
+		}
+		if msg := d.filesErr.Load(); msg != nil {
+			http.Error(w, *msg, http.StatusInternalServerError)
+			return
 		}
 		body := "[]"
 		if b := d.waiting.Load(); b != nil {
@@ -257,5 +265,36 @@ func TestFilesReportArrived(t *testing.T) {
 	}
 	if len(got) != 2 || !slices.Equal(got[0], []string{"a.txt"}) || got[1] != nil {
 		t.Fatalf("arrived per list %q, want [[a.txt] []]", got)
+	}
+}
+
+// TestIsNoTaildrop checks that isNoTaildrop recognizes tailscaled's
+// error for having nowhere to keep files once it has come through the
+// LocalAPI, and nothing else.
+func TestIsNoTaildrop(t *testing.T) {
+	d := startFakeDaemon(t)
+
+	for _, tt := range []struct {
+		name string
+		err  string // "" to succeed
+		want bool
+	}{
+		{name: "no error"},
+		{name: "no taildrop", err: taildrop.ErrNoTaildrop.Error(), want: true},
+		{name: "other", err: "file access denied"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			d.filesErr.Store(nil)
+			if tt.err != "" {
+				d.filesErr.Store(&tt.err)
+			}
+			_, err := waitingFiles(t.Context())
+			if (err != nil) != (tt.err != "") {
+				t.Fatalf("waitingFiles err = %v", err)
+			}
+			if got := isNoTaildrop(err); got != tt.want {
+				t.Fatalf("isNoTaildrop(%v) = %v, want %v", err, got, tt.want)
+			}
+		})
 	}
 }

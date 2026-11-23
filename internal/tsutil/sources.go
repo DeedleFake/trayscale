@@ -2,12 +2,10 @@ package tsutil
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"sync"
 	"time"
 
-	"tailscale.com/feature/taildrop"
 	"tailscale.com/ipn"
 )
 
@@ -47,7 +45,7 @@ func (f *Files) Run(ctx context.Context) error {
 		// list unless it's already gone.
 		arrived = append(arrived, f.Bus.takeArrived()...)
 		files, err := waitingFiles(ctx)
-		if err != nil && !errors.Is(err, taildrop.ErrNoTaildrop) {
+		if err != nil && !isNoTaildrop(err) {
 			return err
 		}
 		f.New(&FileStatus{Files: files, Arrived: arrived})

@@ -71,6 +71,11 @@ func (a *App) clip(text string) {
 }
 
 func (a *App) notify(title, body string) {
+	// SendNotification requires a registered application.
+	if !a.app.GetIsRegistered() {
+		return
+	}
+
 	n := gio.NewNotification(title)
 	defer n.Unref()
 	n.SetBody(body)

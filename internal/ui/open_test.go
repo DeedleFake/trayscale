@@ -16,15 +16,13 @@ import (
 	"tailscale.com/ipn"
 )
 
-// newTestApp returns a registered app that isn't unique, so that
-// notifications can be sent without a session bus.
+// newTestApp returns an app that isn't unique. It is not registered:
+// Register emits startup, which allocates strings that GTK and
+// libadwaita only free on shutdown, and these tests never Run the app.
 func newTestApp(t *testing.T, id string) *adw.Application {
 	t.Helper()
 	app := adw.NewApplication("dev.deedles.Trayscale.test."+id, gio.GApplicationNonUniqueValue)
 	t.Cleanup(app.Unref)
-	if _, err := app.Register(nil); gutil.Err(err) != nil {
-		t.Fatal(err)
-	}
 	return app
 }
 

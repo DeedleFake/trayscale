@@ -18,7 +18,7 @@ RUNS=(
 )
 SWITCH_PROPERTIES=(SwitchStaysConnected HoldEnds HeldStateDisabled)
 PROFILE_PROPERTIES=(ProfilesSettle FailedTraySwitchNotifies MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
-FILE_PROPERTIES=(FilesSettle NoStrayFileNotice NoMissedFileNotice NoWrongDelete MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
+FILE_PROPERTIES=(FilesSettle FilesWatched NoStrayFileNotice NoDuplicateFileNotice NoMissedFileNotice NoWrongDelete MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
 
 # Properties the current code is known to break, as PROPERTY@RUN:OVERRIDES.
 # The property must hold in RUN with the comma-separated CONSTANT=VALUE
@@ -28,6 +28,8 @@ FILE_PROPERTIES=(FilesSettle NoStrayFileNotice NoMissedFileNotice NoWrongDelete 
 KNOWN_FINDINGS=(
   NoStrayFileNotice@switches:MaxSwitches=0
   NoWrongDelete@switches:MaxSwitches=0
+  NoMissedFileNotice@files:Resends=FALSE,MaxToggles=0
+  NoMissedFileNotice@switches:Resends=FALSE,MaxToggles=0
 )
 
 ONLY=
@@ -73,6 +75,7 @@ all() { local v; for v in "$@"; do [[ $v == TRUE ]] || { echo FALSE; return; }; 
 # One regex per model constant. A FALSE means the guard is gone from the code,
 # or the code moved and the regex needs updating. SKILL.md says how to tell.
 SRC=internal/tsutil/sources.go
+FILES=internal/tsutil/files.go
 BUS=internal/tsutil/bus.go
 APP=internal/ui/app.go
 WIN=internal/ui/mainwindow.go
@@ -84,16 +87,27 @@ DROPDOWN='ConnectNotify\(win\.ProfileDropDown, "selected-item", func\(\) \{(?:(?
 FLAG_NAMES=()
 flag() { FLAG_NAMES+=("$1"); printf -v "FLAG_$1" %s "$2"; }
 flag ProfilesOnState "$(anchor $SRC 'const profilesTriggers = [^\n]*\bchangeState\b')"
-flag FilesOnState "$(anchor $SRC 'const filesTriggers = [^\n]*\bchangeState\b')"
-flag FilesOnFiles "$(anchor $SRC 'const filesTriggers = [^\n]*\bchangeFiles\b')"
+FILES_RUN='func \(r \*filesRun\) run\(ctx context\.Context\) error \{'"$FUNC_BODY"
+flag FilesResetOnState "$(anchor $FILES 'const filesResets = [^\n]*\bchangeState\b')"
+flag ResetOnPublished "$(anchor $FILES 'reset := c&filesResets != 0 \|\| state != r\.state')"
+flag FilesGatedOnline "$(all \
+  "$(anchor $FILES 'func \(r \*filesRun\) run\(ctx context\.Context\) error \{\s*for \{\s*if !r\.online\(\) \{\s*r\.reset\(\)')" \
+  "$(anchor $FILES 'func \(r \*filesRun\) online\(\) bool \{\s*latest := r\.f\.Bus\.latest\.Load\(\)\s*return latest != nil && latest\.Online\(\)')")"
+flag DiscardStaleFetch "$(anchor $FILES "$FILES_RUN"'case filesReset:\s*continue\s*\}(?:\s*\/\/[^\n]*)*\s*if r\.drain\(\) \{\s*continue')"
+flag PollWhileWaiting "$(anchor $FILES "$FILES_RUN"'r\.push\(res\.files\)\s*if len\(r\.last\) == 0 \{\s*continue\s*\}\s*timer = time\.After\(r\.interval\)')"
+flag BaselineQuiet "$(anchor $FILES 'func \(r \*filesRun\) push\(files \[\]apitype\.WaitingFile\) \{\s*if !r\.baseline \{\s*r\.f\.New\(&FileStatus\{Files: files\}\)')"
+flag RefreshRepeats "$(anchor $FILES 'case filesRefresh:(?:\s*\/\/[^\n]*)*\s*again = again \|\| wait == 0')"
 flag RefreshBuffered "$(all \
-  "$(anchor $SRC 'f\.refresh = make\(chan struct\{\}, 1\)')" \
+  "$(anchor $FILES 'f\.refresh = make\(chan struct\{\}, 1\)')" \
   "$(anchor $SRC 'p\.refresh = make\(chan struct\{\}, 1\)')" \
   "$(anchor $SRC 'func kick\(c chan<- struct\{\}\) \{\s*select \{\s*case c <- struct\{\}\{\}:\s*default:\s*\}')")"
 flag SwitchRefreshes "$(anchor $SRC 'func \(p \*Profiles\) Switch\(ctx context\.Context, id ipn\.ProfileID\) error \{\s*defer p\.Refresh\(\)')"
-flag DeleteRefreshes "$(anchor $SRC 'func \(f \*Files\) Delete\(ctx context\.Context, name string\) error \{\s*defer f\.Refresh\(\)')"
+flag DeleteRefreshes "$(anchor $FILES 'func \(f \*Files\) Delete\(ctx context\.Context, name string\) error \{\s*defer f\.Refresh\(\)')"
 flag WindowOpenRefreshes "$(anchor $APP 'func \(a \*App\) onAppActivate\('"$FUNC_BODY"'\ta\.files\.Refresh\(\)\s*a\.profiles\.Refresh\(\)')"
 flag DropDownRefreshes "$(anchor $WIN 'onDropDownPopup\(win\.ProfileDropDown, app\.profiles\.Refresh\)')"
+flag FocusRefreshes "$(all \
+  "$(anchor $WIN 'onWindowActive\(&win\.MainWindow\.Window, app\.profiles\.Refresh\)')" \
+  "$(anchor $WIN 'func onWindowActive\(w \*gtk\.Window, f func\(\)\) \{\s*gutil\.ConnectNotify\(w, "is-active", func\(\) \{\s*if w\.IsActive\(\) \{\s*f\(\)')")"
 flag TrayOpenRefreshes "$(anchor $APP 'OnAccountsOpen: func\(\) \{ a\.profiles\.Refresh\(\) \}')"
 flag TraySwitchOffMain "$(anchor $APP "$TRAY_SWITCH"'go func\(\) \{(?:(?!\n\t\t\},\n).)*?a\.profiles\.Switch\(ctx, id\)')"
 flag TraySwitchFailureNotifies "$(anchor $APP "$TRAY_SWITCH"'err := a\.profiles\.Switch\(ctx, id\)\s*if err != nil \{(?:(?!\n\t\t\t\t\t\}\n).)*?a\.notify\(locale\.Get\("Switch account"\)')"
@@ -101,8 +115,10 @@ flag DropDownSwitchOffMain "$(anchor $WIN "$DROPDOWN"'go func\(\) \{(?:(?!\n\t\}
 flag DeleteOffMain "$(anchor $SELF 'if accept \{\s*go func\(\) \{(?:(?!\n\t\t\}\)\n).)*?a\.files\.Delete\(')"
 flag SelfPageFillsFiles "$(anchor $SELF 'func \(page \*SelfPage\) init\('"$FUNC_BODY"'page\.fileModel\.Set\(\*a\.waiting\)')"
 flag NoticesFromArrivals "$(anchor $APP 'case \*tsutil\.FileStatus:(?:(?!\n\tcase ).)*?for _, file := range status\.Files \{\s*if slices\.Contains\(status\.Arrived, file\.Name\) \{\s*body := ')"
-flag ArrivalsOnce "$(anchor $BUS 'func \(w \*watchState\) applyFiles\('"$FUNC_BODY"'if !w\.received\.Contains\(t\) \{\s*w\.arrived = append\(w\.arrived, ')"
-flag ArrivedBeforeList "$(anchor $SRC 'func \(f \*Files\) Run\('"$FUNC_BODY"'arrived = append\(arrived, f\.Bus\.takeArrived\(\)\.\.\.\)\s*files, err := waitingFiles\(ctx\)')"
+flag HoldGatesFiles "$(anchor $APP 'case \*tsutil\.FileStatus:(?:(?!\n\tcase ).)*?if a\.win != nil && !a\.hold\.active\(\) \{\s*a\.win\.Update\(status\)')"
+flag HoldReplaysFiles "$(all \
+  "$(anchor $APP 'func \(a \*App\) setSwitching\(on bool\) \{'"$FUNC_BODY"'if !on \{\s*a\.syncWindow\(\)')" \
+  "$(anchor $APP 'func \(a \*App\) syncWindow\(\) \{'"$FUNC_BODY"'if a\.waiting != nil \{\s*a\.win\.Update\(&tsutil\.FileStatus\{Files: \*a\.waiting\}\)')")"
 flag SwitchHold "$(all \
   "$(anchor $APP 'hold, start, gen := a\.hold\.offer\(a\.online, status\)\s*if hold \{')" \
   "$(anchor $HOLD 'if online && switching\(s\) \{')" \
@@ -110,7 +126,9 @@ flag SwitchHold "$(all \
 flag HoldDisables "$(all \
   "$(anchor $APP 'if start \{\s*a\.setSwitching\(true\)')" \
   "$(anchor $APP 'func \(a \*App\) setSwitching\(on bool\) \{\s*a\.tray\.SetSwitching\(on\)\s*if a\.win != nil \{\s*a\.win\.SetSwitching\(on\)')" \
-  "$(anchor $APP 'func \(a \*App\) onAppActivate\('"$FUNC_BODY"'a\.win\.SetSwitching\(a\.hold\.active\(\)\)')")"
+  "$(anchor $APP 'func \(a \*App\) onAppActivate\('"$FUNC_BODY"'a\.win\.SetSwitching\(a\.hold\.active\(\)\)')" \
+  "$(anchor $APP 'func \(a \*App\) setSwitching\(on bool\) \{'"$FUNC_BODY"'a\.syncActions\(\)\n\}')" \
+  "$(anchor $APP 'func \(a \*App\) syncActions\(\) \{\s*usable := a\.online && !a\.hold\.active\(\)')")"
 flag HoldReenables "$(all \
   "$(anchor $APP 'a\.showIPN\(status\)\s*if wasHeld \{\s*a\.setSwitching\(false\)')" \
   "$(anchor $APP 'if s := a\.hold\.expire\(gen\); s != nil \{\s*a\.showIPN\(s\)\s*a\.setSwitching\(false\)')")"

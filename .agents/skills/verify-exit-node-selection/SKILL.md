@@ -23,7 +23,7 @@ To check one property alone, ignoring the known findings list:
 .agents/skills/verify-exit-node-selection/scripts/check-exit-node-selection --only TurningOnTurnsOn
 ```
 
-Output and counterexamples go to `.agents/skills/verify-exit-node-selection/out/`. CI runs the same command, then `scripts/run-harness-tests`, in the `exit node selection` job.
+Output and counterexamples go to `.agents/skills/verify-exit-node-selection/out/`.
 
 ## What it checks
 
@@ -127,20 +127,22 @@ Two ghost variables exist only to state properties. `lastUsed` is the last node 
 
 ## Findings
 
-`PreviousIsLastUsed` fails when exit node use is turned off from Trayscale while Recommended has no node yet. Shortest path:
+`PreviousIsLastUsed` fails when exit node use is turned off from Trayscale while Recommended has no node yet. The shortest path TLC finds, 12 states, uses a last-used node from a page pick that overlaps a tray toggle (the tray's `OnExitToggle` runs `SetUseExitNode` in a goroutine, so a page click can land between its LocalAPI calls):
 
-1. With Recommended selected, turn exit node use on. Tailscale has nothing to recommend, so it waits on `auto:any`.
-2. Turn exit node use off. `pinAutoExitNode` reads `auto:any` and has no node to pin.
-3. A netmap arrives, and Tailscale starts using its recommended node X.
-4. `SetUseExitNodeEnabled(false)` runs and remembers `auto:any`, not X.
-5. Switch the preference to Previous and turn exit node use on. Tailscale turns Recommended back on.
-6. Another netmap moves the recommendation to Y, and `keepPreviousExitNode` pins Y instead of X.
+1. With Recommended selected, turn exit node use on from the tray. The call is still in flight.
+2. Switch the preference to Previous and pick node Y on a peer or Mullvad page, then turn that switch off, so Tailscale remembers Y.
+3. The tray toggle finishes: Recommended is on and waiting on `auto:any`, and Y stays the last node used.
+4. Turn `Advertise exit node` on (or otherwise call `DisableExitNode`) while Recommended is still waiting. That remembers `auto:any`, not Y.
+5. Turn exit node use on with Previous. Tailscale restores Recommended and waits again.
+6. A netmap recommends X, and `keepPreviousExitNode` pins X instead of Y.
 
-Turning off while waiting through the self page's `Advertise exit node` switch has the same effect. Fixing it needs Trayscale to record the last node it saw in use instead of relying on Tailscale's memory.
+A longer path, the one that needs the `OffWhileWaiting` bound and no overlapping page clicks, is the same root cause. With Recommended selected, turn exit node use on and off while nothing is recommended, so `pinAutoExitNode` has no node to pin. A netmap then starts using X while the disable is still in flight, and `SetUseExitNodeEnabled(false)` remembers `auto:any`, not X. Switching to Previous and turning exit node use on restores Recommended; another netmap moves the recommendation to Y, and `keepPreviousExitNode` pins Y instead of X.
+
+Fixing it needs Trayscale to record the last node it saw in use instead of relying on Tailscale's memory.
 
 ## Coverage
 
-Sync commit: `1752fc1`
+Sync commit: `ea8b5b7`
 
 Move the sync commit forward only after you confirm, at the new commit, that the model and the code facts still describe the code below. The script lists covered files changed since the sync commit. The repo squash merges, so after a PR that moved the sync commit merges, set it to the merge commit on `master`.
 

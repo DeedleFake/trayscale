@@ -1,6 +1,6 @@
 ---
 name: verify-profiles-and-files
-description: Model-check that Trayscale's profile list and waiting Taildrop files list load, refresh, and switch correctly under every interleaving of tailscaled events, the Bus, Profiles, and Files goroutines, and the GTK main thread, using a TLA+ model whose guards are read from the code. Use when a change touches Bus, Profiles, fetchLoop, await, or kick in internal/tsutil, the Files poller in internal/tsutil/files.go, the FileStatus, ProfileStatus, or IPNStatus cases of App.update, showIPN, switchHold, setSwitching or the switchTimeout fallback, onAppActivate's refreshes, onWindowActive, the tray's profile switch, Switch account submenu, or SetSwitching, the profile drop-down, the self page's file list or delete button, or the tailscale.com version, or when running /verify-profiles-and-files.
+description: Model-check that Trayscale's profile list and waiting Taildrop files list load, refresh, and switch correctly under every interleaving of tailscaled events, the Bus, Profiles, and Files goroutines, and the GTK main thread, using a TLA+ model whose guards are read from the code. Use when a change touches Bus, Profiles, fetchLoop, await, or kick in internal/tsutil, the Files poller in internal/tsutil/files.go, the FileStatus, ProfileStatus, or IPNStatus cases of App.update, showIPN, switchHold, setSwitching or the switchTimeout fallback, syncWindow, onAppActivate's refreshes, onWindowActive, the tray's profile switch, Switch account submenu, or SetSwitching, the profile drop-down, the self page's file list, save, or delete button, saveFile, maybeAutoSaveFiles, or the tailscale.com version, or when running /verify-profiles-and-files.
 ---
 
 # Verify profiles and files
@@ -17,7 +17,7 @@ From the repo root:
 .agents/skills/verify-profiles-and-files/scripts/check-profiles-and-files
 ```
 
-It needs Java 11 or newer, `perl`, and `curl`. Without a system Java, `mise exec java@temurin-21 -- <command>` works. The first run downloads `tla2tools.jar` 1.7.4 to `~/.cache/trayscale/` and checks its sha256. Stay on a stable release: the 1.8.0 prerelease jar is rebuilt in place, so its sha256 changes. Set `TLA2TOOLS_JAR` to use another copy. A run takes about 2 minutes on 8 cores. `TLC_WORKERS=2` limits the cores it uses.
+It needs Java 11 or newer, `perl`, and `curl`. Without a system Java, `mise exec java@temurin-21 -- <command>` works. The first run downloads `tla2tools.jar` 1.7.4 to `~/.cache/trayscale/` and checks its sha256. Stay on a stable release: the 1.8.0 prerelease jar is rebuilt in place, so its sha256 changes. Set `TLA2TOOLS_JAR` to use another copy. A run takes a few minutes on 8 cores. `TLC_WORKERS=2` limits the cores it uses.
 
 To check one property alone in the main runs, ignoring the known findings list:
 
@@ -25,7 +25,7 @@ To check one property alone in the main runs, ignoring the known findings list:
 .agents/skills/verify-profiles-and-files/scripts/check-profiles-and-files --only ProfilesSettle
 ```
 
-Output and counterexamples go to `.agents/skills/verify-profiles-and-files/out/`. CI runs the same command in the `profiles and files` job.
+Output and counterexamples go to `.agents/skills/verify-profiles-and-files/out/`.
 
 ## What it checks
 
@@ -39,7 +39,9 @@ Output and counterexamples go to `.agents/skills/verify-profiles-and-files/out/`
 | `NoStrayFileNotice` | A `New Incoming File` notification only names a file that arrived in that profile. | You're told about a file that has been waiting all along, or one from the other account. |
 | `NoDuplicateFileNotice` | No arrival gets a second `New Incoming File` notification. | You're told about the same file twice. |
 | `NoMissedFileNotice` | Once `Files` has read the current list and nothing is in flight, every file still waiting that arrived after `Files` passed its first list for the profile got a `New Incoming File` notification. | A file arrives and you never hear about it. |
-| `NoWrongDelete` | Deleting a file from the list deletes it from the profile the list came from. | You delete another account's file, which can't be undone. |
+| `NoWrongDelete` | Deleting or saving a file from the list, or auto-saving one from `a.waiting`, deletes it from the profile that list came from. | You delete another account's file, which can't be undone. |
+| `NoStaleFilesShown` | When the window is enabled and the self page shows a list taken from a profile, that profile is the one currently logged in. | After a switch you still see the old account's files, and saving or deleting one can hit the new account. |
+| `NoStaleFilesAfterHold` | Once a switch has reached `Running`, or stalled and the 5-second fallback has fired, and the bus has been applied, an enabled self page does not still show the previous profile's files. | The hold ends, the window is usable, and the old account's files stay on the page until the next file list arrives. |
 | `SwitchStaysConnected` | A profile switch that doesn't stall never shows Tailscale as offline, so it sends neither `Tailscale Status` notification. | Every switch flashes `Not Connected`, tears down the peer pages, and sends a disconnected and a connected notification. |
 | `HoldEnds` | Once a switch has reached `Running`, or stalled and the 5-second fallback has fired, nothing is held, the tray and the window are enabled, and they show tailscaled's state. | The window stays greyed out, or keeps showing the old profile, after the switch is over. |
 | `HeldStateDisabled` | While a switch is held, the tray's Tailscale items are disabled and an open window's content is insensitive. | You click a peer, a file, or the status switch of the profile you just left. |
@@ -48,11 +50,12 @@ Output and counterexamples go to `.agents/skills/verify-profiles-and-files/out/`
 
 The three switch properties run in every run. They only have something to check where a switch can happen: `profiles` and `switches`.
 
-The script makes three runs:
+The script makes four runs:
 
 - `profiles`: the profile side. One switch, one profile added or deleted by another client, two looks at a profile list.
-- `files`: the file side with no switch. Two arrivals, one file taken by another client, one delete, one connect or disconnect.
-- `switches`: the file side across one switch by another client, with one arrival, one delete, and one connect or disconnect.
+- `files`: the file side with no switch. Two arrivals, one file taken by another client, one delete, one connect or disconnect. Auto-save is off.
+- `switches`: the file side across one switch by another client, with one arrival, one delete, and one connect or disconnect. Auto-save is off.
+- `autosave`: the file side with auto-save on, one switch, and one save from the self page. No new arrivals, so the start files are the ones auto-saved or saved.
 
 ## Read the result
 
@@ -94,11 +97,14 @@ The script prints `code facts` first. Each is a model constant read from the cod
 | `SelfPageFillsFiles` | `SelfPage.init` calling `page.fileModel.Set(*a.waiting)` | `FilesSettle` |
 | `NoticesFromArrivals` | `App.update`'s `FileStatus` case notifying only for a file whose name is in `status.Arrived`. FALSE gives the list diff against `a.waiting` that came before it | none in these bounds: `push` already compares with the last list |
 | `HoldGatesFiles` | `App.update`'s `FileStatus` case updating the window only `if a.win != nil && !a.hold.active()` | none: the settle properties don't look during a hold |
-| `HoldReplaysFiles` | `setSwitching(false)` calling `syncWindow`, which shows `*a.waiting` | none in these bounds: `Files` passes a first list after every switch anyway |
+| `HoldReplaysFiles` | `setSwitching(false)` calling `syncWindow`, which shows `*a.waiting` when it is not nil | none on its own: the stale-row findings are `NoStaleFilesShown` and `NoStaleFilesAfterHold`, from `syncWindow` skipping a nil `a.waiting` |
 | `SwitchHold` | `App.update` starting with `a.hold.offer(a.online, status)` and returning while it holds, and `switchHold.offer` holding only `NoState` and `Starting` with `WantRunning` while online | `SwitchStaysConnected` |
 | `HoldDisables` | a hold's start calling `a.setSwitching(true)`, `setSwitching` reaching the tray and the window and calling `syncActions`, `syncActions` enabling `use_exit_node` only `a.online && !a.hold.active()`, and `onAppActivate` calling `a.win.SetSwitching(a.hold.active())` | `HeldStateDisabled` |
 | `HoldReenables` | `a.setSwitching(false)` after `showIPN` both when a hold ends on a new status and when the fallback fires | `HoldEnds` |
 | `HoldFallback` | a hold's start arming `gutil.TimeoutAdd(switchTimeout, ...)` | `HoldEnds`, after a stall |
+| `SaveOffMain` | the self page's save button calling `a.saveFile` inside `go func()` | `MainThreadNeverWaits` |
+| `AutoSaveOffMain` | `maybeAutoSaveFiles` starting `a.saveFile` inside `go func()` | `MainThreadNeverWaits`, in `autosave` |
+| `SyncShowsEmptyWaiting` | `syncWindow` updating the self page with an empty file list when `a.waiting` is nil. FALSE in the current code, which only calls `win.Update` when `a.waiting != nil` | `NoStaleFilesAfterHold` holds when this is TRUE in `autosave`. In `switches`, opening the window from a stale `a.waiting` still fails, so that run uses `MaxSwitches=0` |
 
 A regex checks the shape of one guard. It does not see a new code path that changes what the guard means, such as a second place that sets `a.waiting`. Model such a path as a new action before trusting a pass.
 
@@ -122,14 +128,15 @@ Each LocalAPI call is one step, because tailscaled serves it under `b.mu`. Each 
 | `FilesRefreshWakes`, `FilesRefreshDuringCheck`, `FilesTimer` | `filesRun.next` returning for a `Refresh` or the `Interval` timer, or `check` taking a `Refresh`, which it repeats only for a check that doesn't wait |
 | `FilesFetch` | the check goroutine's `waitingFiles`: `AwaitWaitingFiles` for the current login, which waits for a file while the last list was empty |
 | `FilesPush` | `drain` finding nothing, then `push`: `New` with the first list after a reset and no `Arrived`, or with a changed list and the files that weren't in the last one, then a long poll for an empty list or the `Interval` timer |
-| `MainRuns` | one `IdleAdd` callback: `App.update` for an `IPNStatus` (`switchHold.offer`, then `showIPN` or a hold), `FileStatus`, or `ProfileStatus` (and `MainWindow.Update`), a tray click, or a notification |
+| `MainRuns` | one `IdleAdd` callback: `App.update` for an `IPNStatus` (`switchHold.offer`, then `showIPN` or a hold), `FileStatus` (notices, `a.waiting`, `maybeAutoSaveFiles`, and the window unless a hold is active), or `ProfileStatus` (and `MainWindow.Update`), a tray click, or a notification |
 | `HoldExpires` | the `switchTimeout` callback in `App.update`: `switchHold.expire`, then `showIPN` and `setSwitching(false)` |
 | `UserOpensWindow` | `onAppActivate` with no window: refresh both lists, build the pages from `a.ipn` |
 | `UserOpensProfileList` | the drop-down's popover showing (`onDropDownPopup`), the tray's `OnAccountsOpen`, or the window becoming active (`onWindowActive`) |
 | `UserPicksInDropDown` | the drop-down's `selected-item` handler calling `Profiles.Switch` |
 | `UserPicksInTray` | `OnProfileSwitch`, which does `IdleAdd` and then switches unless the profile is already active |
 | `UserDeletes` | the self page's delete confirmation calling `Files.Delete` |
-| `BackgroundFinishes`, `MainThreadFinishes` | a `Switch` or `Delete` returning, with its deferred `Refresh`, on a goroutine or on the main thread |
+| `UserSaves` | the self page's save button calling `saveFile`, which writes the file and then `Files.Delete` by name |
+| `BackgroundFinishes`, `MainThreadFinishes` | a `Switch`, `Delete`, `saveFile`, or auto-save returning, with its deferred `Refresh`, on a goroutine or on the main thread |
 | `OtherClientSwitches` | `tailscale switch` or another client |
 | `TailscaledStarts`, `TailscaledComesBackUp` | `startLocked` after a switch: `Starting`, then `Running`. `TailscaledStarts(TRUE)` is a switch that stalls in `Starting`, as when the new profile's control server doesn't answer |
 | `FileArrives` | a Taildrop transfer finishing: `PutFile` in `feature/taildrop/send.go` renames it into place, which wakes a waiting `AwaitWaitingFiles` |
@@ -154,6 +161,7 @@ Ghost variables exist only to state properties. `gen` counts arrivals per profil
 
 - Two profiles, A and B. A starts with `f1` waiting, B with `f1` and `f2`. Run bounds are in `RUNS` in the script.
 - `Resends` is a bound, not a code fact. With it FALSE, a file only arrives under a name that never waited in that profile. The `files` and `switches` runs have it TRUE.
+- `AutoSaveEnabled` is a bound, not a code fact. It stands for the `taildrop-auto-save` setting being on and a usable folder being set. The `profiles`, `files`, and `switches` runs have it FALSE. The `autosave` run has it TRUE, and assumes `autosave.DirOK` succeeds, so every waiting file is started exactly once (`autoSaving` skips a name already in flight; failed auto-saves are not modeled).
 - A file sent again under the name of one still waiting arrives under a new name in the code, because `Rename` picks one. The model has `FileArrives` only for a name that isn't waiting.
 - A switch goes through `NoState` and `Starting` into `Running`, unless the profile no longer exists. It can stall in `Starting` and recover later. The model has no `NeedsLogin` or stopped profile after a switch, so every `NoState` and `Starting` status has `WantRunning` set.
 - A switch that doesn't stall reaches `Running` on the main thread well within `switchTimeout`, so the fallback only fires after a stall or after the hold has ended. Without this, an untimed model lets the 5-second timer fire after any step.
@@ -163,7 +171,7 @@ Ghost variables exist only to state properties. `gen` counts arrivals per profil
 - The self page exists exactly while Tailscale is `Running` and the window is open. In the code it needs a self node too.
 - Adding and removing pages is part of the `IPNStatus` step that does it. `updatePeers` and `updatePages` detach the sidebar with `holdSidebar` while they change the stack's pages and reattach it before they return, on the main thread, and touch nothing the model tracks.
 - `changeIdentity` is not modeled. It only adds profile fetches, which can't make `ProfilesSettle` fail, and `Files` resets on it, which a switch's state change already does.
-- Auto-save is off and notifications are on, so every new file would get a notification.
+- In the `files` and `switches` runs, auto-save is off and notifications are on, so every new file would get a notification. In the `autosave` run, auto-save is on, so `App.update` sends no `New Incoming File` notification and starts `saveFile` for each waiting name instead.
 - No LocalAPI call fails or times out, other than a switch to a deleted profile. `Files`' retry backoff and its `ErrNoTaildrop` case are covered by `TestFilesRetry` and `TestFilesNoTaildrop`, not by the model.
 - A long poll whose deadline passes with no file waiting answers an empty list that `push` drops as unchanged, so the model leaves it out.
 - `arrivedFiles` compares names and sizes. The model compares names, as a file sent again can have the same size.
@@ -173,7 +181,8 @@ Ghost variables exist only to state properties. `gen` counts arrivals per profil
 
 - What the window shows while something is in flight, other than the switch hold. The settle properties only look once everything has landed.
 - The peer list during a switch. Trayscale shows whatever peer list tailscaled sends with `Running`.
-- `saveFile`'s delete after saving, and auto-save. Both pick files by name from `a.waiting` like the delete button does, so the `NoWrongDelete` finding likely applies to them too (inferred, not modeled).
+- Changing the auto-save setting or folder, a missing auto-save directory, and `autoSaveFailed` retries. `maybeAutoSaveFiles` is modeled when a `FileStatus` arrives, not when the setting changes.
+- Picking a unique destination name (`autosave.UniquePath`). The model only tracks the waiting-file name that `saveFile` later deletes.
 - Two profiles that share a login. Taildrop keys its directory by login, so they share waiting files.
 - Logins, logouts, and profile deletion of the current profile.
 - The exit node across a switch. `/verify-exit-node-selection` covers exit node prefs without switches.
@@ -187,11 +196,17 @@ Each finding lists the shortest path TLC found, in code terms.
 
 **A file that arrives just before a disconnect, or replaces a file of the same name within `Interval`, gets no notification** (`NoMissedFileNotice` in `files` and `switches`). Either a check lists `f2`, then Tailscale stops before `drain` takes the result, so the reset drops it and the list after reconnecting is a quiet first list; or `f2` is taken and sent again under the same name between two checks, so `push` sees the same list. Both lists still show the file. The first window is milliseconds; the second needs the same name and size within 5 seconds. `master` has the same behavior, as it compares each list with the last too.
 
-**A delete right after a switch can delete the other profile's file** (`NoWrongDelete` in `switches`). The window shows A's list with `f1`. Another client switches to B, and B also has a file named `f1`. Before the `NoState` status reaches the main thread, you delete `f1` from the list. `DeleteWaitingFile` deletes by name in the current login's directory, so B's `f1` is gone and A's stays. The LocalAPI has no delete for a given profile, at v1.100 or v1.104.4.
+**A delete right after a switch can delete the other profile's file** (`NoWrongDelete` in `switches` and `autosave`). The window shows A's list with `f1`. Another client switches to B, and B also has a file named `f1`. Before the `NoState` status reaches the main thread, you delete or save `f1` from the list, or an auto-save that was started from A's list finishes `saveFile`'s `Files.Delete`. `DeleteWaitingFile` deletes by name in the current login's directory, so B's `f1` is gone and A's stays. The LocalAPI has no delete for a given profile, at v1.100 or v1.104.4.
+
+**The self page can keep the previous profile's files after a switch** (`NoStaleFilesShown` in `switches` and `autosave`). The shortest path TLC finds is: `Files` pushes A's list, another client switches to B, `App.update` applies that `FileStatus` (a.waiting is still A's list), and opening the window fills the self page from `a.waiting` while the hold has not started. The window is enabled and shows A's files on B. The same mismatch happens when the window was already open and the list is not refreshed before the hold begins. Saving, deleting, or auto-saving one of those names is the `NoWrongDelete` path.
+
+**The self page can still show the previous profile's files after the switch hold ends** (`NoStaleFilesAfterHold` in `switches` and `autosave`). In the `autosave` run, with the window already open, a `FileStatus` for A can be applied after the switch and before the hold starts. The hold then sets `a.waiting = nil` without clearing the self-page list. When the hold ends on `Running`, `setSwitching(false)` calls `syncWindow`, which only updates the file list when `a.waiting != nil`, so the window is enabled with A's rows still on the self page. That path holds when `SyncShowsEmptyWaiting` is TRUE, which would make `syncWindow` show an empty list when `a.waiting` is nil.
+
+In the `switches` run, the shortest path is a bit different: a stale `FileStatus` for A is applied after the switch has already reached `Running`, and opening the window fills the self page from that `a.waiting`. `SyncShowsEmptyWaiting` only affects `syncWindow`, so it is not enough there; the property holds with `MaxSwitches=0`. Neither fix closes the shorter `NoStaleFilesShown` window before the bus catches up.
 
 ## Coverage
 
-Sync commit: `1752fc1`
+Sync commit: `ea8b5b7`
 
 Move the sync commit forward only after you confirm, at the new commit, that the model and the code facts still describe the code below. The script lists covered files changed since the sync commit. The repo squash merges, so after a PR that moved the sync commit merges, set it to the merge commit on `master`.
 
@@ -200,8 +215,10 @@ Move the sync commit forward only after you confirm, at the new commit, that the
 - `internal/tsutil/bus.go`: `Bus.Run`, `publish`, `latest`, `watchOnce`, `SetRunning`, `watchState.apply`, `fire`
 - `internal/tsutil/client.go`: `waitingFiles`, `deleteWaitingFile`, `getProfileStatus`, `switchProfile`
 - `internal/ui/app.go`: `App.update`, `showIPN`, `setSwitching`, `syncWindow`, `syncActions`, `switchTimeout`, `onAppActivate`, `startTray`, `OnProfileSwitch`, `OnAccountsOpen`, and the source wiring in `Run`
+- `internal/ui/io.go`: `saveFile`, `autoSaveSettings`, `maybeAutoSaveFiles`
+- `internal/autosave/autosave.go`: `Enabled`, `DirOK`, `Files`, `UniquePath`
 - `internal/ui/switchhold.go`: `switchHold`, `switching`
 - `internal/tray/tray.go`: `SetSwitching`, `update`
 - `internal/ui/mainwindow.go`: the drop-down's `selected-item` handler, `onDropDownPopup`, `onWindowActive`, `SetSwitching`, `Update`, `updateProfiles`, `updatePeers`, `ensureSectionPages`, `updatePages`, `holdSidebar`
-- `internal/ui/selfpage.go`: `init`, the delete button in `fileRow`, `UpdateIPN`, `UpdateFiles`
+- `internal/ui/selfpage.go`: `init`, the save and delete buttons in `fileRow`, `UpdateIPN`, `UpdateFiles`
 - `go.mod`: the `tailscale.com` version

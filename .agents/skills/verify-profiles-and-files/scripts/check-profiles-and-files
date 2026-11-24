@@ -10,15 +10,16 @@ TLA_SHA256=936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
 # The tailscale.com version whose daemon behavior the model describes.
 MODELED_TAILSCALE=v1.104.4
 
-# RUN:PART:MaxSwitches:MaxReceives:MaxOutsideDeletes:MaxListChanges:MaxLooks:MaxDeletes:MaxToggles:Resends
+# RUN:PART:MaxSwitches:MaxReceives:MaxOutsideDeletes:MaxListChanges:MaxLooks:MaxDeletes:MaxSaves:MaxToggles:Resends:AutoSaveEnabled
 RUNS=(
-  profiles:profiles:1:0:0:1:2:0:0:FALSE
-  files:files:0:2:1:0:0:1:1:TRUE
-  switches:files:1:1:0:0:0:1:1:TRUE
+  profiles:profiles:1:0:0:1:2:0:0:0:FALSE:FALSE
+  files:files:0:2:1:0:0:1:0:1:TRUE:FALSE
+  switches:files:1:1:0:0:0:1:0:1:TRUE:FALSE
+  autosave:files:1:0:0:0:0:0:1:0:FALSE:TRUE
 )
 SWITCH_PROPERTIES=(SwitchStaysConnected HoldEnds HeldStateDisabled)
 PROFILE_PROPERTIES=(ProfilesSettle FailedTraySwitchNotifies MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
-FILE_PROPERTIES=(FilesSettle FilesWatched NoStrayFileNotice NoDuplicateFileNotice NoMissedFileNotice NoWrongDelete MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
+FILE_PROPERTIES=(FilesSettle FilesWatched NoStrayFileNotice NoDuplicateFileNotice NoMissedFileNotice NoWrongDelete NoStaleFilesShown NoStaleFilesAfterHold MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
 
 # Properties the current code is known to break, as PROPERTY@RUN:OVERRIDES.
 # The property must hold in RUN with the comma-separated CONSTANT=VALUE
@@ -28,8 +29,13 @@ FILE_PROPERTIES=(FilesSettle FilesWatched NoStrayFileNotice NoDuplicateFileNotic
 KNOWN_FINDINGS=(
   NoStrayFileNotice@switches:MaxSwitches=0
   NoWrongDelete@switches:MaxSwitches=0
+  NoStaleFilesShown@switches:MaxSwitches=0
   NoMissedFileNotice@files:Resends=FALSE,MaxToggles=0
   NoMissedFileNotice@switches:Resends=FALSE,MaxToggles=0
+  NoStaleFilesAfterHold@switches:MaxSwitches=0
+  NoWrongDelete@autosave:MaxSwitches=0
+  NoStaleFilesShown@autosave:MaxSwitches=0
+  NoStaleFilesAfterHold@autosave:SyncShowsEmptyWaiting=TRUE
 )
 
 ONLY=
@@ -133,6 +139,10 @@ flag HoldReenables "$(all \
   "$(anchor $APP 'a\.showIPN\(status\)\s*if wasHeld \{\s*a\.setSwitching\(false\)')" \
   "$(anchor $APP 'if s := a\.hold\.expire\(gen\); s != nil \{\s*a\.showIPN\(s\)\s*a\.setSwitching\(false\)')")"
 flag HoldFallback "$(anchor $APP 'if start \{\s*a\.setSwitching\(true\)\s*gutil\.TimeoutAdd\(switchTimeout, ')"
+IO=internal/ui/io.go
+flag SaveOffMain "$(anchor $SELF 'go func\(\) \{\s*a\.saveFile\(context\.TODO\(\), file\.Name, f\)')"
+flag AutoSaveOffMain "$(anchor $IO 'go func\(name, dest string\) \{(?:(?!\n\t\}\)\n).)*?err := a\.saveFile\(context\.Background\(\), name, f\)')"
+flag SyncShowsEmptyWaiting "$(anchor $APP 'func \(a \*App\) syncWindow\(\) \{'"$FUNC_BODY"'if a\.waiting != nil \{\s*a\.win\.Update\(&tsutil\.FileStatus\{Files: \*a\.waiting\}\)\s*\} else \{\s*a\.win\.Update\(&tsutil\.FileStatus')"
 
 echo "code facts (model constants):"
 for k in "${FLAG_NAMES[@]}"; do
@@ -150,7 +160,7 @@ write_cfg() {
   spec=$(run_spec "$2"); shift 3
   local -A c
   IFS=: read -r _ c[Part] c[MaxSwitches] c[MaxReceives] c[MaxOutsideDeletes] \
-    c[MaxListChanges] c[MaxLooks] c[MaxDeletes] c[MaxToggles] c[Resends] <<<"$spec"
+    c[MaxListChanges] c[MaxLooks] c[MaxDeletes] c[MaxSaves] c[MaxToggles] c[Resends] c[AutoSaveEnabled] <<<"$spec"
   c[Part]="\"${c[Part]}\""
   for k in "${FLAG_NAMES[@]}"; do v="FLAG_$k"; c[$k]=${!v}; done
   IFS=, read -ra kvs <<<"$overrides"
@@ -158,7 +168,7 @@ write_cfg() {
   {
     echo "SPECIFICATION Spec"
     echo "CONSTANTS"
-    for k in Part MaxSwitches MaxReceives MaxOutsideDeletes MaxListChanges MaxLooks MaxDeletes MaxToggles Resends "${FLAG_NAMES[@]}"; do
+    for k in Part MaxSwitches MaxReceives MaxOutsideDeletes MaxListChanges MaxLooks MaxDeletes MaxSaves MaxToggles Resends AutoSaveEnabled "${FLAG_NAMES[@]}"; do
       echo "  $k = ${c[$k]}"
     done
     echo "CHECK_DEADLOCK FALSE"

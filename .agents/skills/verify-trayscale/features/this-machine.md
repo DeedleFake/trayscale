@@ -8,8 +8,8 @@ This machine is the self peer page. It shows the hostname, Tailscale IPs with co
 - `self-ips` lists each Tailscale address under `Tailscale IPs`.
 - `self-options` shows `Advertise exit node`, `Allow LAN access`, `Accept routes`, and `Accept DNS`.
 - `self-exit-node` shows the `Exit node` row first in `Options`, with `None` or the node in use. See [Exit node](./exit-node.md) for activating it.
-- `self-files` shows `No incoming files.` when none are waiting.
-- `self-routes` shows `No advertised routes.` when none are advertised.
+- `self-files` shows `No incoming files.` when none are waiting. When files are waiting, each is a `list item` named after the file, with a size label, `button 'Save'`, and `button 'Delete'`. The this-machine sidebar row then also has a numeric `label` for the Files badge (for example `label '1'`).
+- `self-routes` shows `No advertised routes.` when none are advertised, or one row per advertised prefix. Default `/0` exit-node routes are omitted, the same rule as on a peer page.
 - `self-netcheck` shows `Last run` with `Never` until a check runs.
 
 ## How to get to it (user POV)
@@ -29,13 +29,14 @@ Preconditions:
 - **IPs.** That snapshot contains `grouping 'Tailscale IPs'` and at least one `list item` that is not `No addresses.`. Each address has a `button` with the same name as the address.
 - **Options.** The snapshot contains `switch 'Advertise exit node'`, `switch 'Allow LAN access'`, `switch 'Accept routes'`, and `switch 'Accept DNS'`. Do not toggle them.
 - **Exit node.** The snapshot contains `list item 'Exit node'` whose second label is `None` or the node in use. Do not activate it here; [Exit node](./exit-node.md) covers that.
-- **Empty files and routes.** The snapshot contains `No incoming files.` and `No advertised routes.` unless the live node actually has files or routes.
+- **Files and routes.** The snapshot contains `No incoming files.` and `No advertised routes.` unless the live node actually has files or routes. A waiting file is `list item '<name>'` with a size label (for example `23.00B`), `button 'Save'`, and `button 'Delete'`. The selected this-machine sidebar row then includes `label '<count>'` next to the hostname; that badge is absent when no files are waiting. Do not click Save or Delete in a routine proof (a file chooser or a confirmation). Default `/0` routes do not appear as advertised-route rows.
 - **Netcheck.** The snapshot contains `grouping 'Network Check'`, `label 'Last run'`, and `label 'Never'` if no check has run in this session.
 - **Proof.** Keep `page.tree.txt`. It must include `frame 'Trayscale'`, `grouping 'Tailscale IPs'`, and the four option switches.
 
 ## Gotchas
 
 - IP strings and hostnames come from the live node. Assert grouping names and the presence of address rows, not a particular IP.
-- Copy buttons are named with the address. Their action copies; that is not proof the page loaded.
+- Copy buttons are named with the address. Their tooltip is `Copy to Clipboard`. Their action copies; that is not proof the page loaded.
 - `select` on a sidebar label marks `states=selected` on the parent list item but leaves the content page where it was. A selected self row is not proof that the self page is showing; confirm `grouping 'Options'` and the four option switches.
 - Checked state on `Allow LAN access` or `Accept DNS` is tailscaled prefs, not a GSettings default.
+- Files already waiting at launch still appear in the list, but they do not produce a new-file notification. During a profile-switch hold the Files list on screen stays frozen until the hold ends. After a new file arrives, wait a few seconds if the list has not updated yet.

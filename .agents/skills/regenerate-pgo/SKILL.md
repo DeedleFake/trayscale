@@ -17,6 +17,8 @@ Trayscale mostly sits idle and reacts to IPN bus notifications. The hot path is:
 
 So the profile is driven by **state churn across many peers**, not by clicking. Clicks add page construction, search filtering, and dialogs on top.
 
+The inventory of regular-usage flows is `.agents/skills/verify-trayscale/features/`. When that map gains or changes a recurring regular-usage flow, cover it here if the drive below does not already. Keep most of the profile in flows users hit repeatedly; do not give equal wall time to one-off dialogs or rare states.
+
 ## Setup
 
 This needs tsharness, so only run it where no real `tailscaled` owns `/run/tailscale/tailscaled.sock`. If one does, stop and tell the user; do not profile against their tailnet. The drive below changes exit nodes, takes the node down, and sends files, so it must never run against a real tailnet.

@@ -104,7 +104,7 @@ The script prints `code facts` first. Each is a model constant read from the cod
 | `HoldFallback` | a hold's start arming `gutil.TimeoutAdd(switchTimeout, ...)` | `HoldEnds`, after a stall |
 | `SaveOffMain` | the self page's save button calling `a.saveFile` inside `go func()` | `MainThreadNeverWaits` |
 | `AutoSaveOffMain` | `maybeAutoSaveFiles` starting `a.saveFile` inside `go func()` | `MainThreadNeverWaits`, in `autosave` |
-| `SyncShowsEmptyWaiting` | `syncWindow` updating the self page with an empty file list when `a.waiting` is nil. FALSE in the current code, which only calls `win.Update` when `a.waiting != nil` | `NoStaleFilesAfterHold` holds when this is TRUE in `autosave`. In `switches`, opening the window from a stale `a.waiting` still fails, so that run uses `MaxSwitches=0` |
+| `SyncShowsEmptyWaiting` | `syncWindow` updating the self page with an empty file list when `a.waiting` is nil | `NoStaleFilesAfterHold` holds in `autosave` when this is TRUE. In `switches`, opening the window from a stale `a.waiting` after the new profile is already `Running` still fails, so that run uses `MaxSwitches=0` |
 
 A regex checks the shape of one guard. It does not see a new code path that changes what the guard means, such as a second place that sets `a.waiting`. Model such a path as a new action before trusting a pass.
 
@@ -200,13 +200,11 @@ Each finding lists the shortest path TLC found, in code terms.
 
 **The self page can keep the previous profile's files after a switch** (`NoStaleFilesShown` in `switches` and `autosave`). The shortest path TLC finds is: `Files` pushes A's list, another client switches to B, `App.update` applies that `FileStatus` (a.waiting is still A's list), and opening the window fills the self page from `a.waiting` while the hold has not started. The window is enabled and shows A's files on B. The same mismatch happens when the window was already open and the list is not refreshed before the hold begins. Saving, deleting, or auto-saving one of those names is the `NoWrongDelete` path.
 
-**The self page can still show the previous profile's files after the switch hold ends** (`NoStaleFilesAfterHold` in `switches` and `autosave`). In the `autosave` run, with the window already open, a `FileStatus` for A can be applied after the switch and before the hold starts. The hold then sets `a.waiting = nil` without clearing the self-page list. When the hold ends on `Running`, `setSwitching(false)` calls `syncWindow`, which only updates the file list when `a.waiting != nil`, so the window is enabled with A's rows still on the self page. That path holds when `SyncShowsEmptyWaiting` is TRUE, which would make `syncWindow` show an empty list when `a.waiting` is nil.
-
-In the `switches` run, the shortest path is a bit different: a stale `FileStatus` for A is applied after the switch has already reached `Running`, and opening the window fills the self page from that `a.waiting`. `SyncShowsEmptyWaiting` only affects `syncWindow`, so it is not enough there; the property holds with `MaxSwitches=0`. Neither fix closes the shorter `NoStaleFilesShown` window before the bus catches up.
+**The self page can still show the previous profile's files after a switch has already reached `Running`** (`NoStaleFilesAfterHold` in `switches`). A stale `FileStatus` for A is applied after the new profile is already `Running`, and opening the window fills the self page from that `a.waiting`. `syncWindow` now shows an empty list when `a.waiting` is nil, so the hold-end path in `autosave` holds. That is not enough here: `a.waiting` is not nil, it still has A's list. The property holds in `switches` with `MaxSwitches=0`. Tagging `FileStatus` with the login it was fetched for, and ignoring a list that does not match the current profile, would also close `NoStaleFilesShown`. The LocalAPI waiting-file list is name-keyed and not profile-tagged, so that is left as a known finding.
 
 ## Coverage
 
-Sync commit: `ea8b5b7`
+Sync commit: `51b50aa`
 
 Move the sync commit forward only after you confirm, at the new commit, that the model and the code facts still describe the code below. The script lists covered files changed since the sync commit. The repo squash merges, so after a PR that moved the sync commit merges, set it to the merge commit on `master`.
 

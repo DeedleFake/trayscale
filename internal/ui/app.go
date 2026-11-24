@@ -211,12 +211,16 @@ func (a *App) setSwitching(on bool) {
 
 // syncWindow shows the latest engine status and waiting files in the
 // window, which update holds back from it during a profile switch.
+// A nil a.waiting still updates the file list, so rows from the
+// previous profile don't stay after a switch hold.
 func (a *App) syncWindow() {
 	if a.engine != nil {
 		a.win.Update(a.engine)
 	}
 	if a.waiting != nil {
 		a.win.Update(&tsutil.FileStatus{Files: *a.waiting})
+	} else {
+		a.win.Update(&tsutil.FileStatus{})
 	}
 }
 
@@ -627,24 +631,13 @@ func (a *App) login(ctx context.Context) {
 			return
 		}
 
-		err = tsutil.StartLogin(ctx)
+		url, err := a.bus.WaitBrowseURL(ctx, tsutil.StartLogin)
 		if err != nil {
 			slog.Error("failed to start login", "err", err)
 			fail()
 			return
 		}
-
-		for {
-			status, err := a.bus.Next(ctx)
-			if err != nil {
-				fail()
-				return
-			}
-			if status.BrowseToURL != "" {
-				gutil.IdleAdd(func() { a.launchURI(status.BrowseToURL) })
-				return
-			}
-		}
+		gutil.IdleAdd(func() { a.launchURI(url) })
 	}()
 }
 

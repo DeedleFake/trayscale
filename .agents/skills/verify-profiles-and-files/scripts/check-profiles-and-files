@@ -35,7 +35,6 @@ KNOWN_FINDINGS=(
   NoStaleFilesAfterHold@switches:MaxSwitches=0
   NoWrongDelete@autosave:MaxSwitches=0
   NoStaleFilesShown@autosave:MaxSwitches=0
-  NoStaleFilesAfterHold@autosave:SyncShowsEmptyWaiting=TRUE
 )
 
 ONLY=

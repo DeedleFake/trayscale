@@ -258,16 +258,51 @@ func (b *Bus) Online(ctx context.Context) (*IPNStatus, error) {
 
 // Next waits for the next status passed to New after Next is called.
 func (b *Bus) Next(ctx context.Context) (*IPNStatus, error) {
-	s := b.signals()
+	return b.cursor().next(ctx)
+}
+
+// WaitBrowseURL runs fn and returns the BrowseToURL published after the
+// wait began, including one published while fn runs. It subscribes
+// before calling fn so a URL published during StartLogin is not missed.
+func (b *Bus) WaitBrowseURL(ctx context.Context, fn func(context.Context) error) (string, error) {
+	cur := b.cursor()
+	if err := fn(ctx); err != nil {
+		return "", err
+	}
+	for {
+		s, err := cur.next(ctx)
+		if err != nil {
+			return "", err
+		}
+		if s.BrowseToURL != "" {
+			return s.BrowseToURL, nil
+		}
+	}
+}
+
+// cursor is a point in the stream of statuses passed to New. next waits
+// for the first status published after the cursor was taken, then
+// advances so a later call waits for a later status.
+type cursor struct {
+	b *Bus
+	s *busSignal
+}
+
+func (b *Bus) cursor() *cursor {
+	return &cursor{b: b, s: b.signals()}
+}
+
+func (c *cursor) next(ctx context.Context) (*IPNStatus, error) {
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-s.done:
-			if s.c&changePublished != 0 {
-				return b.latest.Load(), nil
+		case <-c.s.done:
+			fired := c.s
+			c.s = fired.next
+			if fired.c&changePublished != 0 {
+				return c.b.latest.Load(), nil
 			}
-			s = s.next
 		}
 	}
 }

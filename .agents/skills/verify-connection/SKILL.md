@@ -57,7 +57,7 @@ The script prints `code facts` first. Each is a model constant read from the cod
 | `OfflineIgnoresEngine` | the `EngineStatus` case of `App.update` returns if `!a.online` | `OfflineIdleAndCleared` |
 | `WindowClearsEngine` | `MainWindow.Update` sets `win.engine = nil` when the status is not online | `OfflineIdleAndCleared` |
 | `NeedsAuthPrompts` | `setRunning` offers a login confirmation instead of `SetRunning` when `NeedsAuth()`, and `NeedsAuth` is `State == NeedsLogin` | `NeedsAuthPromptsLogin` |
-| `LoginWaitsAfterStart` | `login` calls `StartLogin`, then `a.bus.Next` | `LoginSeesBrowseURL` still fails (this *is* the finding). FALSE is the subscribe-first order, which makes that property pass |
+| `LoginWaitsAfterStart` | `login` calls `StartLogin`, then `a.bus.Next`, or `WaitBrowseURL` runs `fn` before taking a cursor. FALSE is the subscribe-first order in `WaitBrowseURL` | none: `LoginSeesBrowseURL` holds when this is FALSE |
 | `SetRunningHolds` | `SetRunning` sends `holds <- 1` before `run` and `holds <- -1` after, and `Run` publishes only while `holds == 0` | none in these bounds: publishing the steps on the way still settles on the same state |
 | `SetRunningResendsOnFail` | `SetRunning` queues `resend` when `run` returns an error | `SetRunningHoldReleases`: the switch stays flipped after a failed start that published nothing |
 | `WatchSendsNoState` | `watch` sends a synthetic `NoState` when the bus connection drops | `DaemonReconnectResyncs` |
@@ -85,8 +85,8 @@ Each LocalAPI or CLI call is one step, because tailscaled serves it under `b.mu`
 | `BusPublishes` | `Bus.publish`: it swaps `b.latest`, its `New` does `IdleAdd(a.update)`, and it fires `changePublished`. It waits while `SetRunning` holds publishing. Engine updates are not held. |
 | `BusResends` | The `resend` arm of `Run`: `New(latest)` again, without `changePublished`. |
 | `AppUpdates` | One `IdleAdd` callback: `showIPN`, an ignored or kept engine update, or a waiting-file list. |
-| `LoginStarts`, `UserConfirmsLogin` | `App.login`, including from the confirmation's Accept. `StartLoginInteractive` either pops an existing auth URL under `b.mu` before the RPC returns, or asks control for one. |
-| `LoginSubscribes` | `a.bus.Next` after `StartLogin` returns, when `LoginWaitsAfterStart`. |
+| `LoginStarts`, `UserConfirmsLogin` | `App.login`, including from the confirmation's Accept. It calls `Bus.WaitBrowseURL`, which takes a cursor and then `StartLogin`. `StartLoginInteractive` either pops an existing auth URL under `b.mu` before the RPC returns, or asks control for one. |
+| `LoginSubscribes` | `a.bus.Next` after `StartLogin` returns, only when `LoginWaitsAfterStart`. The current code subscribes first, so this action is disabled. |
 | `LoginSeesStatus` | `Next` returning the latest published status; a non-empty `BrowseToURL` opens it. |
 | `LoginTimesOut` | The 10s context on `login` running out while nothing still in flight would unblock `Next`. |
 | `DaemonOffersURL` | Control sending an auth URL after `cc.Login`. |
@@ -97,19 +97,13 @@ Each LocalAPI or CLI call is one step, because tailscaled serves it under `b.mu`
 
 The check uses `MaxToggles = 2`, `MaxLogins = 2`, `MaxDrops = 1`, `MaxEngine = 1`, and `MaxFiles = 1`, and at most one failed `SetRunning`. A drop is modeled only while `SetRunning` and `login` are idle, so the reconnect invariant is checked without mixing it into an in-flight CLI call. `login` requires a live bus; if tailscaled is already down, `StartLogin` fails at the LocalAPI and is not the `BrowseToURL` race. Profile switches, the operator dialog, `NeedsMachineAuth`, and wall-clock delays other than the login timeout and the 5s reconnect wait (which is one step) are left out.
 
-## Findings
-
-**`LoginSeesBrowseURL`.** `App.login` calls `StartLogin` and only then `a.bus.Next`. `Next` waits for a status published after it is called. `StartLoginInteractive` can publish `BrowseToURL` before `StartLogin` returns: when a valid auth URL already exists, `popBrowserAuthNowLocked` sends it under `b.mu` before the LocalAPI call comes back (`ll:4725-4726`). `Bus.Run` can then `publish` that status, firing `changePublished`, before `login` reaches `Next`. If no later status arrives, the 10s context ends and the user sees "Failed to start login", even though the URL is already in `b.latest`. The same miss happens if control's URL arrives in the gap between `StartLogin` returning and `Next` being called.
-
-The model finds this with `LoginWaitsAfterStart` TRUE, which is the current code. With that constant FALSE, the model takes the Next subscription first, and the property holds. A fix is to subscribe (`Bus.Next` or `signals()`) before `StartLogin`, or to also look at `Latest` after `StartLogin` returns, so a URL that was already published is not missed.
-
 ## Coverage
 
-Sync commit: `ea8b5b7`
+Sync commit: `51b50aa`
 
 Move the sync commit forward only after you confirm, at the new commit, that the model and the code facts still describe the code below. The script lists covered files changed since the sync commit. The repo squash merges, so after a PR that moved the sync commit merges, set it to the merge commit on `master`.
 
-- `internal/tsutil/bus.go`: `Bus.Run`, `watch`, `watchOnce`, `publish`, `Next`, `Latest`, `SetRunning`, `fire`
+- `internal/tsutil/bus.go`: `Bus.Run`, `watch`, `watchOnce`, `publish`, `Next`, `WaitBrowseURL`, `cursor`, `Latest`, `SetRunning`, `fire`
 - `internal/tsutil/poller.go`: `IPNStatus.Online`, `IPNStatus.NeedsAuth`, `IPNStatus.copy`
 - `internal/tsutil/client.go`: `Start`, `Stop`, `StartLogin`
 - `internal/tsutil/files.go`: `filesRun.online`, `filesRun.push`

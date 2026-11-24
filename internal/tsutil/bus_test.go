@@ -111,3 +111,28 @@ func TestBusOnline(t *testing.T) {
 		t.Fatalf("Online while online = %v, %v, want the running status", s, err)
 	}
 }
+
+// TestWaitBrowseURLSeesPublishDuringStart checks that a BrowseToURL
+// published while the start function runs, before WaitBrowseURL would
+// have called Next, is still returned. App.login used to call StartLogin
+// and then Next, which missed that URL and timed out.
+func TestWaitBrowseURLSeesPublishDuringStart(t *testing.T) {
+	t.Parallel()
+
+	b := &Bus{New: func(*IPNStatus) {}}
+	b.init()
+	const url = "https://login.example/auth"
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+
+	got, err := b.WaitBrowseURL(ctx, func(context.Context) error {
+		b.publish(&IPNStatus{BrowseToURL: url})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != url {
+		t.Fatalf("got %q, want %q", got, url)
+	}
+}

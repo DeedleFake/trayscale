@@ -211,12 +211,16 @@ func (a *App) setSwitching(on bool) {
 
 // syncWindow shows the latest engine status and waiting files in the
 // window, which update holds back from it during a profile switch.
+// A nil a.waiting still updates the file list, so rows from the
+// previous profile don't stay after a switch hold.
 func (a *App) syncWindow() {
 	if a.engine != nil {
 		a.win.Update(a.engine)
 	}
 	if a.waiting != nil {
 		a.win.Update(&tsutil.FileStatus{Files: *a.waiting})
+	} else {
+		a.win.Update(&tsutil.FileStatus{})
 	}
 }
 

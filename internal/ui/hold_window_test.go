@@ -47,6 +47,36 @@ func TestHoldGatesWindowUpdates(t *testing.T) {
 	require.Equal(t, files, slices.Collect(self.fileModel.All()), "held waiting files not shown after the hold")
 }
 
+// TestSyncWindowClearsWaitingFilesAfterHold checks that ending a switch
+// hold which cleared a.waiting also clears the self-page list, instead
+// of leaving the previous profile's rows on screen.
+func TestSyncWindowClearsWaitingFilesAfterHold(t *testing.T) {
+	requireGTK(t)
+
+	a := &App{app: newTestApp(t, "hold-clear-files"), operatorCheck: true}
+	a.update(ipnStatus(ipn.Running, true))
+	a.win = NewMainWindow(a)
+	t.Cleanup(func() {
+		a.win.MainWindow.Destroy()
+		a.win.Dispose()
+	})
+	self := NewSelfPage(a, ipnStatus(ipn.Running, true))
+	a.win.pages["self"] = self
+
+	files := []apitype.WaitingFile{{Name: "old.txt", Size: 1}}
+	a.update(&tsutil.FileStatus{Files: files})
+	require.Equal(t, files, slices.Collect(self.fileModel.All()))
+
+	a.update(ipnStatus(ipn.NoState, true))
+	require.True(t, a.hold.active(), "NoState while online didn't start a hold")
+	require.Nil(t, a.waiting)
+	require.Equal(t, files, slices.Collect(self.fileModel.All()), "precondition: rows remain during the hold")
+
+	a.update(ipnStatus(ipn.Running, true))
+	require.False(t, a.hold.active())
+	require.Empty(t, slices.Collect(self.fileModel.All()), "previous profile's waiting files still shown after the hold")
+}
+
 // TestDisconnectClearsEngine checks that the engine status from before
 // a disconnect isn't shown on the pages made after reconnecting.
 func TestDisconnectClearsEngine(t *testing.T) {

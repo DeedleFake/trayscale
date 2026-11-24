@@ -23,7 +23,7 @@ EXTENDS Naturals, Sequences, FiniteSets
 CONSTANTS
   Part,                    \* bound: "profiles" or "files", which loop and which user actions run
   MaxSwitches, MaxReceives, MaxOutsideDeletes, MaxListChanges, MaxLooks,
-  MaxDeletes, MaxToggles,
+  MaxDeletes, MaxSaves, MaxToggles,
   Resends,                 \* bound: a file can arrive under the name of one that waited before
   ProfilesOnState,         \* src: profilesTriggers has changeState
   FilesResetOnState,       \* files: filesResets has changeState
@@ -51,7 +51,11 @@ CONSTANTS
   SwitchHold,              \* app: App.update holds NoState and Starting back while online and WantRunning
   HoldDisables,            \* app: a hold's start calls a.setSwitching(true)
   HoldReenables,           \* app: both ends of a hold call a.setSwitching(false)
-  HoldFallback             \* app: a hold's start arms the switchTimeout fallback
+  HoldFallback,            \* app: a hold's start arms the switchTimeout fallback
+  AutoSaveEnabled,         \* bound: the taildrop-auto-save setting is on and a folder is set
+  SyncShowsEmptyWaiting,   \* app: syncWindow updates the self page even when a.waiting is nil
+  SaveOffMain,             \* self, io: the save button calls saveFile in a goroutine
+  AutoSaveOffMain          \* io: maybeAutoSaveFiles starts saveFile in a goroutine
 
 Profiles == {"A", "B"}
 Files == {"f1", "f2"}
@@ -177,7 +181,7 @@ Init ==
   /\ stuck = FALSE /\ flap = FALSE
   /\ budget = [switch |-> MaxSwitches, recv |-> MaxReceives, odel |-> MaxOutsideDeletes,
                list |-> MaxListChanges, look |-> MaxLooks, del |-> MaxDeletes,
-               toggle |-> MaxToggles]
+               save |-> MaxSaves, toggle |-> MaxToggles]
 
 Spend(k) == budget' = [budget EXCEPT ![k] = @ - 1]
 
@@ -408,9 +412,12 @@ FilesPush ==
 
 \* Profiles.Switch, src, from the tray (OnProfileSwitch) or the drop-down
 \* (its selected-item handler), and Files.Delete, files, from the self page
-\* (fileRow's delete button) or saveFile (io). Each is one step: the
+\* (fileRow's delete button), saveFile's post-save delete (io), or
+\* maybeAutoSaveFiles, which calls saveFile. Each is one step: the
 \* LocalAPI call, then the deferred Refresh, then for the tray the failure
-\* notification's IdleAdd.
+\* notification's IdleAdd. DeleteWaitingFile always deletes by name in
+\* the current login's directory, so a save or delete started from another
+\* profile's list can remove that name from the profile you have switched to.
 Finish(op) ==
   IF op.k = "switch" THEN
     /\ DoSwitch(op.to)
@@ -462,13 +469,19 @@ ShowPage(st) ==
   ELSE IF selfPage.ok THEN selfPage
   ELSE SelfInit
 
-\* replay is a hold ending: setSwitching(false) then syncWindow shows
-\* a.waiting, which update kept from the window during the hold.
+\* replay is a hold ending: setSwitching(false) then syncWindow.
+\* The code only updates the self page when a.waiting != nil
+\* (SyncShowsEmptyWaiting is FALSE), so stale rows from the old
+\* profile stay on screen when no FileStatus arrived during the hold.
+ReplayShown(st) ==
+  IF ShowWaiting(st).ok THEN ShowWaiting(st)
+  ELSE IF SyncShowsEmptyWaiting THEN [NoFiles EXCEPT !.ok = TRUE]
+  ELSE selfPage
+
 Show(st, replay) ==
   /\ online' = (st = "Running")
   /\ waiting' = ShowWaiting(st)
-  /\ selfPage' = IF replay /\ ShowPage(st).ok /\ ShowWaiting(st).ok
-                 THEN ShowWaiting(st) ELSE ShowPage(st)
+  /\ selfPage' = IF replay /\ ShowPage(st).ok THEN ReplayShown(st) ELSE ShowPage(st)
   /\ flap' = (flap \/ (online /\ st # "Running" /\ st \in {"NoState", "Starting"} /\ ~stuck))
 
 \* setSwitching: the tray, an open window, and the app actions. A window
@@ -513,12 +526,16 @@ HoldExpires ==
                  unseenProf, fDirty, gen, noteVars, owed, wrongDelete, failedTray, notices, stuck, budget>>
 
 \* App.update's FileStatus case: a file in the new list whose name is in
-\* Arrived gets a notification. With NoticesFromArrivals FALSE, a file in
-\* the new list that isn't in a.waiting gets one, unless a.waiting is nil.
-\* During a hold the window keeps the old profile's list.
+\* Arrived gets a notification, unless auto-save is on, in which case
+\* maybeAutoSaveFiles (io) handles the files and there is nothing to tell.
+\* With NoticesFromArrivals FALSE, a file in the new list that isn't in
+\* a.waiting gets one, unless a.waiting is nil. During a hold the window
+\* keeps the old profile's list. maybeAutoSaveFiles reads a.waiting and
+\* starts saveFile in a goroutine for each name not already in flight.
 ApplyFiles(m) ==
   LET quiet == ~NoticesFromArrivals /\ ~waiting.ok
-      new == IF NoticesFromArrivals THEN m.fs \cap m.arr
+      new == IF AutoSaveEnabled THEN {}
+             ELSE IF NoticesFromArrivals THEN m.fs \cap m.arr
              ELSE IF quiet THEN {} ELSE m.fs \ waiting.fs
       \* A list taken quietly accounts for the arrival of each file in it.
       seen == IF quiet THEN m.fs ELSE new
@@ -526,6 +543,9 @@ ApplyFiles(m) ==
       \* list's profile when it was read. 0 is none, a file that was there
       \* from the start.
       credit(f) == m.gen[f]
+      saving == {op.f : op \in {o \in ops : o.k \in {"save", "autosave"}}}
+      toSave == IF AutoSaveEnabled THEN m.fs \ saving ELSE {}
+      SaveOp(f) == [NoOp EXCEPT !.k = "autosave", !.f = f, !.p = m.p]
   IN
   /\ stray' = (stray \/ \E f \in new : credit(f) = 0)
   /\ dup' = (dup \/ \E f \in new : credit(f) > 0 /\ credit(f) <= noticed[m.p][f])
@@ -534,7 +554,11 @@ ApplyFiles(m) ==
   /\ told' = [told EXCEPT ![m.p] = [f \in Files |-> IF f \in new /\ credit(f) > @[f] THEN credit(f) ELSE @[f]]]
   /\ waiting' = [ok |-> TRUE, p |-> m.p, fs |-> m.fs, gen |-> m.gen]
   /\ selfPage' = IF selfPage.ok /\ (heldSt = "none" \/ ~HoldGatesFiles) THEN waiting' ELSE selfPage
-  /\ UNCHANGED <<online, appProf, winOpen, winProf, dropSel, holdVars, ops, mainWait, notices, flap>>
+  /\ IF toSave = {} THEN UNCHANGED <<ops, mainWait>>
+     ELSE IF AutoSaveOffMain THEN ops' = ops \cup {SaveOp(f) : f \in toSave} /\ UNCHANGED mainWait
+     ELSE /\ \E f \in toSave : mainWait' = SaveOp(f)
+          /\ UNCHANGED ops
+  /\ UNCHANGED <<online, appProf, winOpen, winProf, dropSel, holdVars, notices, flap>>
 
 \* App.update's ProfileStatus case and updateProfiles.
 ApplyProfiles(m) ==
@@ -624,12 +648,22 @@ UserDeletes(f) ==
   /\ Spend("del")
   /\ UNCHANGED <<daemonVars, busVars, pVars, fVars, mainQ, uiVars, ghostVars>>
 
+\* The self page's save button: saveFile (io) writes the file, then
+\* a.files.Delete by name, the same LocalAPI as the delete button, on
+\* the same current login. The name comes from the row, which can be
+\* a previous profile's after a switch hold.
+UserSaves(f) ==
+  /\ Part = "files" /\ MainFree /\ ~winOff /\ selfPage.ok /\ f \in selfPage.fs /\ budget.save > 0
+  /\ Launch([NoOp EXCEPT !.k = "save", !.f = f, !.p = selfPage.p], SaveOffMain)
+  /\ Spend("save")
+  /\ UNCHANGED <<daemonVars, busVars, pVars, fVars, mainQ, uiVars, ghostVars>>
+
 Next ==
   \/ \E p \in Profiles : OtherClientSwitches(p) \/ OtherClientChangesProfiles(p)
                          \/ UserPicksInDropDown(p) \/ UserPicksInTray(p)
   \/ \E s \in BOOLEAN : TailscaledStarts(s)
   \/ TailscaledComesBackUp
-  \/ \E f \in Files : FileArrives(f) \/ OtherClientTakesFile(f) \/ UserDeletes(f)
+  \/ \E f \in Files : FileArrives(f) \/ OtherClientTakesFile(f) \/ UserDeletes(f) \/ UserSaves(f)
   \/ BusReads \/ BusPublishes
   \/ SetRunningHolds \/ SetRunningCalls \/ SetRunningReleases
   \/ ProfilesFetch \/ ProfilesPublish
@@ -721,6 +755,23 @@ HoldEnds ==
   SwitchSettled =>
     /\ heldSt = "none" /\ ~trayOff /\ ~winOff
     /\ online = (dstate = "Running")
+
+\* When the window is enabled and the self page shows a list taken from
+\* a profile, that profile is the one currently logged in. This fails
+\* as soon as another client switches, before the bus has caught up, and
+\* again after a switch hold ends if a.waiting is still nil: setSwitching
+\* cleared a.waiting without clearing the self-page rows, and syncWindow
+\* skips them when a.waiting is nil.
+NoStaleFilesShown ==
+  (winOpen /\ ~winOff /\ selfPage.ok /\ selfPage.p # "none") => selfPage.p = cur
+
+\* Once the switch has reached Running (or stalled and the fallback has
+\* fired) and the bus has been applied, the enabled self page must not
+\* still show the previous profile's rows. SyncShowsEmptyWaiting is
+\* FALSE in the code, so this fails until a later FileStatus arrives.
+NoStaleFilesAfterHold ==
+  (SwitchSettled /\ winOpen /\ online /\ ~winOff /\ selfPage.ok /\ selfPage.p # "none") =>
+    selfPage.p = cur
 
 \* While a switch is held, the window, the tray, and the app actions show
 \* or act on the old profile, so none of them take a click.

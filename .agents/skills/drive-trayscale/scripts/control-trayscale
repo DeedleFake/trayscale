@@ -1063,7 +1063,7 @@ def main() -> int:
 
     p_snap = sub.add_parser("snapshot", help="dump the AT-SPI tree")
     p_snap.add_argument("--path")
-    p_snap.add_argument("--max-depth", type=int, default=25)
+    p_snap.add_argument("--max-depth", type=int, default=60)
     p_snap.add_argument("--max-nodes", type=int, default=4000)
     p_snap.set_defaults(func=cmd_snapshot)
 

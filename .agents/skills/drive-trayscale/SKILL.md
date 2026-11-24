@@ -120,7 +120,7 @@ AT-SPI handles:
 | `General`, `Taildrop` | `grouping` | Inside Preferences |
 | `Exit Node` | `combo box` | Inside `General`. The current choice is a `label` (`Previous exit node` or `Recommended exit node`) inside its `list item ''`. It exposes no AT-SPI action, so `click` cannot open it |
 | (empty) | `toggle button` | Page menu button in the content header: `click --role "toggle button" --name "" --exact --index 1` (index 0 is the main menu). Insensitive when no peer page is visible |
-| (empty) | `menu item` | Page menu items, in order: index 0 `Copy FQDN`, 1 `Send file...`, 2 `Send directory...`. Need `snapshot --max-depth 60` to see |
+| (empty) | `menu item` | Page menu items, in order: index 0 `Copy FQDN`, 1 `Send file...`, 2 `Send directory...`. Visible in a default snapshot |
 | `Select dir(s) to send to <host>` / `Select file(s) ...` | `dialog` | File chooser from the send items. `press --key /` opens its location field (`text ''`); `fill --role text --name "" --exact --value <path>`; then `click --role button --name Open` (file) or `Select` (directory) |
 
 ```bash
@@ -132,6 +132,8 @@ $CTRL select --role label --name "<peer sidebar label>" --exact
 $CTRL fill --role entry --value "query"
 $CTRL screenshot --path FILE --allow-fail
 ```
+
+A default snapshot uses `--max-depth 60`. Depth 25 cuts off Preferences rows and action-row subtitles under libadwaita 1.10 and GTK 4.24.
 
 `click` uses a `click`/`press`/`activate`/`toggle` action and refuses to default to `clipboard.copy`. Sidebar rows have empty `list item` names and no actions; `select --name` selects the list item containing that label, which marks it `selected` but does not change the content page. To show a peer page, search for the peer: when the visible page is not among the matches, the first match becomes the visible page.
 

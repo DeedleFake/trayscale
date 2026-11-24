@@ -43,8 +43,9 @@ Preconditions:
 
 - The preference applies only when Trayscale turns exit node use on. `tailscale set` and other clients ignore it.
 - If exit node use is turned off outside Trayscale while automatic mode is on, Tailscale remembers automatic mode instead of a node, and Previous can restore only what Tailscale remembered. Turn it off from Trayscale when testing Previous.
-- To get back to the self page, click `This machine`'s sidebar row. `select` marks it selected but does not change the page.
+- To get back to the self page, click the self peer's sidebar row (its hostname, under the `This machine` section). `This machine` is the section title, not the row. `select` marks the row selected but does not change the page.
 - Recommended can pick a different node on each run. Assert `AutoExitNode` and that the row names a node, not a specific server.
 - Sharee nodes and nodes known only by IP have no page, so their row is not activatable.
 - The Mullvad page expands the country first and focuses the node row after the expand animation. A snapshot taken right away may show only the country expanded.
 - A private D-Bus session isolates the app, not the Tailscale socket. Use a separate test machine or a mount namespace exposing only the harness socket at Trayscale's default path.
+- `use_exit_node` is disabled while Tailscale is offline, and also during a profile-switch hold. The main menu button stays sensitive during a hold.

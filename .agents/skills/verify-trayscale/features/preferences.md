@@ -6,7 +6,7 @@ Preferences is a dialog with a General group (tray icon and exit node selection)
 
 - `prefs-open` opens the Preferences dialog from the app menu action.
 - `prefs-general` shows a `General` group, including the `Exit Node` combo row. See [Exit node](./exit-node.md) for what it does.
-- `prefs-taildrop` shows a `Taildrop` group.
+- `prefs-taildrop` shows a `Taildrop` group, including `Auto-save Received Files` and a `Choose folder` suffix button that is sensitive only while auto-save is on.
 
 ## How to get to it (user POV)
 
@@ -22,7 +22,7 @@ Preconditions:
 
 - **Menu action.** Open Preferences. Run `control-trayscale action preferences`. Exit is 0.
 - **Dialog.** Wait for the dialog. Run `control-trayscale wait --role dialog --name Preferences --exact --timeout 10`. Output is `dialog 'Preferences'`.
-- **Groups.** Capture the tree. Run `control-trayscale snapshot --path .agents/skills/verify-trayscale/artifacts/preferences/open.tree.txt`. Under `dialog 'Preferences'` the tree contains `grouping 'General'` and `grouping 'Taildrop'`.
+- **Groups.** Capture the tree. Run `control-trayscale snapshot --path .agents/skills/verify-trayscale/artifacts/preferences/open.tree.txt`. Under `dialog 'Preferences'` the tree contains `grouping 'General'` and `grouping 'Taildrop'`. The Taildrop group has `switch 'Auto-save Received Files'`, a `No folder selected` subtitle until a folder is chosen, and `button 'Choose folder'`. The button is visible while auto-save is off but is sensitive only while auto-save is on. Do not click it in a routine proof; it opens a folder chooser. AT-SPI snapshots do not record sensitive or insensitive.
 - **Proof.** Keep `open.tree.txt`. It must contain `frame 'Trayscale'`, `dialog 'Preferences'`, `grouping 'General'`, and `grouping 'Taildrop'`.
 
 ## Gotchas

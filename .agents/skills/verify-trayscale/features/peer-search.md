@@ -20,8 +20,9 @@ Peer search filters the sidebar to matching peers. The user opens it from the se
 Preconditions:
 
 - `control-trayscale doctor` reports `frame 'Trayscale'`.
-- Tailscale is connected and the sidebar lists at least one peer label besides this machine.
+- For `search-match`, `search-empty`, and `search-close`, Tailscale is connected and the sidebar lists at least one peer label besides this machine.
 - No dialog is open, so the search entry is the only `entry` in the tree.
+- `search-peers` stays enabled while Tailscale is offline. Opening search then still shows the `Not Connected` page, and typing a query does not list peers. The action is disabled only during a profile-switch hold, when the `Search peers` toggle and search bar are also insensitive.
 
 - **Button entry.** Choose Search peers. Run `control-trayscale click --role toggle --name "Search peers" --exact`. Output names `toggle button 'Search peers'`.
 - **Entry present.** Wait for the entry. Run `control-trayscale wait --role entry --timeout 10`. Output is `entry ''`. A `find` immediately after the click can miss the entry.
@@ -29,6 +30,7 @@ Preconditions:
 - **Empty.** Type a token that no peer has. Run `control-trayscale fill --role entry --value "zzzxnotapeer"`. Then run `control-trayscale find --name "No matching peers" --exact`. Output is `grouping 'No matching peers'`. The snapshot has no peer `panel`.
 - **Close.** Choose Search peers again. Run `control-trayscale click --role toggle --name "Search peers" --exact`. The next snapshot has `label 'This machine'` and the other section titles again, and `control-trayscale find --role entry` fails.
 - **Shortcut entry.** Open search through the same action as Ctrl+F. Run `control-trayscale action search-peers`. Exit is 0, and `control-trayscale find --role entry` prints `entry ''`.
+- **Offline.** When Tailscale is already down, `control-trayscale actions` still lists `search-peers` as enabled. `action search-peers` opens `entry ''`, and a snapshot after typing a token still has `label 'Not Connected'` and no peer sections.
 - **Proof.** Snapshot `.agents/skills/verify-trayscale/artifacts/peer-search/<step>.tree.txt` after each step. Each file contains `frame 'Trayscale'` and `toggle button 'Search peers'`.
 
 ## Gotchas
@@ -41,3 +43,4 @@ Preconditions:
 - Self and Mullvad pages are omitted from search results. A query that only matches this machine shows `No matching peers`.
 - A search that matches peers also changes the content page to the first match when the current page is not a match. Snapshot the content page before you assume it is still this machine.
 - Search still lists offline peers when Show Offline Peers is off. Hiding the Offline section does not hide those peers from a query.
+- During a profile-switch hold, `search-peers` is disabled and the `Search peers` toggle and search bar are insensitive. The main menu button stays sensitive. A single-profile harness cannot enter that hold.

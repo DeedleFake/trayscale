@@ -29,7 +29,7 @@ Preconditions:
 - **Open.** Start search and type a distinctive part of the peer's name. Run `control-trayscale action search-peers`, then `control-trayscale fill --role entry --value "<token>"`. When the visible page is not a match, the first match becomes the visible page.
 - **Identity.** Snapshot `.agents/skills/verify-trayscale/artifacts/peer-page/<peer>.tree.txt`. The tree has a `panel` named after the peer's sidebar label, and under it the hostname label and the MagicDNS label (the full name with a trailing dot).
 - **IPs.** That snapshot contains `grouping 'Tailscale IPs'` and a `list item` per address, each with a `button` of the same name.
-- **Misc.** It contains `grouping 'Misc.'` with list items `Online`, `Created at`, `Last handshake`, `Bytes received`, and `Bytes sent`. For an offline peer it also has `Last seen`. For an exit-node peer it has `switch 'Use as exit node'`. Do not toggle it.
+- **Misc.** It contains `grouping 'Misc.'` with list items `Online`, `Created at`, `Last handshake`, `Bytes received`, and `Bytes sent`. For an offline peer it also has `Last seen`. For an exit-node peer it has `switch 'Use as exit node'`. Do not toggle it. `Last handshake`, `Bytes received`, and `Bytes sent` are cleared on disconnect and ignored while offline; the `Not Connected` page does not show them.
 - **Routes.** It contains `grouping 'Advertised Routes'`. A peer with no subnet routes has `No advertised routes.` A subnet router has a `list item` titled with the prefix and no `button 'Remove'` on that row.
 - **Send file / directory.** Only under tsharness started with `-receiver`, and only after `check-fake-tailnet` prints `FAKE`. Open `receiver`'s page by search, then `click --role "toggle button" --name "" --exact --index 1`, `click --role "menu item" --name "" --exact --index 1` (file) or `--index 2` (directory). Require `dialog 'Select file(s) to send to receiver'` (or `dir(s)`). `press --key /`, `fill --role text --name "" --exact --value <path>`, `click --role button --name Open --exact` (or `Select`). Proof: `inner.log` has `starting file push` and `done pushing file` with the path, and `/tmp/tsharness/receiver/state/files/*/` holds the file (or `<dir>.tar.zst`).
 - **Proof.** Keep one snapshot per peer kind. Each must include `frame 'Trayscale'`, the peer's `panel`, `grouping 'Tailscale IPs'`, and `grouping 'Misc.'`. Close search afterwards with `control-trayscale click --role toggle --name "Search peers" --exact`.
@@ -38,8 +38,9 @@ Preconditions:
 
 - Sidebar row icons (online, offline, exit node, active exit node) are not in the AT-SPI tree. Check them in a screenshot when the compositor allows one.
 - The `Online` row shows its value as an icon, so the snapshot only proves the row exists.
-- `Created at`, `Last handshake`, and the byte counts depend on the live peer and can be empty or `0`.
+- `Created at`, `Last handshake`, and the byte counts depend on the live peer and can be empty or `0`. Those engine stats are cleared on disconnect and are not shown on the `Not Connected` page.
 - The page menu (Copy FQDN, Send file, Send directory) sits behind an unnamed header button, and its items have no accessible names; address them by index. Never send against a real tailnet: it delivers files to the user's devices.
 - The send items are disabled for peers that are not Taildrop targets (every fake peer except `receiver`).
 - `press --key /` only works on X11; on GNOME Wayland the location field may not open, so the send is unreachable there.
 - `Use as exit node` changes the live Tailscale state. Never toggle it in a routine proof.
+- IP copy buttons are named with the address, not `Copy to Clipboard`. That string is only the tooltip.

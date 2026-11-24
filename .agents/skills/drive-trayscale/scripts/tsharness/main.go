@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"tailscale.com/tailcfg"
+	"tailscale.com/tailcfg/nodecap"
 	"tailscale.com/tstest/integration"
 	"tailscale.com/tstest/integration/testcontrol"
 	"tailscale.com/types/key"
@@ -55,7 +56,7 @@ type Harness struct {
 	RemoveExitAfter  time.Duration // if nonzero, remove bravo-exit from this machine's netmap after this long
 }
 
-const capFileSharing = tailcfg.NodeCapability(tailcfg.CapabilityFileSharing)
+const capFileSharing = nodecap.Cap(nodecap.FileSharing)
 
 func (h *Harness) Run(ctx context.Context) error {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -169,7 +170,7 @@ func (h *Harness) Run(ctx context.Context) error {
 			n.PrimaryRoutes = append(n.PrimaryRoutes, p.Routes...)
 			ctrl.UpdateNode(n)
 			if p.ExitNode && h.SuggestExitNodes {
-				ctrl.SetNodeCapMap(n.Key, tailcfg.NodeCapMap{tailcfg.NodeAttrSuggestExitNode: nil})
+				ctrl.SetNodeCapMap(n.Key, tailcfg.NodeCapMap{nodecap.SuggestExitNode: nil})
 			}
 			peerKeys = append(peerKeys, n.Key)
 			if p.Host == "bravo-exit" {

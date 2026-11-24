@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Update Go module dependencies in this repository.
+#
+# `go get -u` follows gvisor.dev/gvisor's default branch (`master`),
+# which is not usable with the normal Go toolchain (duplicate packages
+# under pkg/tcpip/stack and pkg/refs). This script re-pins gvisor to
+# the `go` branch afterwards, in both modules.
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+
+update() {
+	local dir=$1
+	echo "Updating $dir"
+	(
+		cd "$dir"
+		go get -u
+		go get gvisor.dev/gvisor@go
+		go mod tidy
+		go list -m gvisor.dev/gvisor
+	)
+}
+
+update "$root"
+update "$root/.agents/skills/drive-trayscale/scripts/tsharness"

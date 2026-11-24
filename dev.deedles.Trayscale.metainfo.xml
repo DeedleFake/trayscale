@@ -58,6 +58,21 @@
 	<content_rating type="oars-1.1" />
 
 	<releases>
+		<release version="v0.22.0" date="2026-11-24">
+			<description>
+				<ul>
+					<li>Add an Exit Node preference to use the previous or recommended exit node when turning exit node use on. Show the current exit node on this machine's page.</li>
+					<li>Show the exit node name in the notification when enabling or disabling an exit node.</li>
+					<li>Refresh status from Tailscale events instead of polling. The polling interval setting is gone.</li>
+					<li>Hold the window during a profile switch instead of briefly showing Not Connected and sending extra notifications.</li>
+					<li>Fix starting login sometimes showing "Failed to start login" instead of opening the login URL.</li>
+					<li>Fix leftover incoming file rows from the previous profile after ending a profile switch hold.</li>
+					<li>Speed up opening the window and updating the peer list when there are many peers.</li>
+					<li>Update Tailscale to v1.106.0 and other dependencies.</li>
+					<li>Bug fixes and performance improvements.</li>
+				</ul>
+			</description>
+		</release>
 		<release version="v0.21.0" date="2026-10-15">
 			<description>
 				<ul>

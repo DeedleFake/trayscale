@@ -97,6 +97,6 @@ require (
 	golang.org/x/tools v0.53.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard/windows v1.1.1 // indirect
-	gvisor.dev/gvisor v0.0.0-20261117040555-0303b2605d5e // indirect
+	gvisor.dev/gvisor v0.0.0-20261124041148-963211a35187 // indirect
 	honnef.co/go/tools v0.8.2 // indirect
 )

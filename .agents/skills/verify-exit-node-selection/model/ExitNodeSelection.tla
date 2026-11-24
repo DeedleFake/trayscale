@@ -78,8 +78,8 @@ DisableInTailscale ==
 
 \* ---------------- The user and the network ----------------
 
-\* The menu's use_exit_node action (app:521-534) or the tray's OnExitToggle
-\* (app:665-703) asks for the opposite of ExitNodeActive (poll:197-199).
+\* The menu's use_exit_node action (app:531-544) or the tray's OnExitToggle
+\* (app:675-713) asks for the opposite of ExitNodeActive (poll:197-199).
 \* want is the setting the user chose, sel what the code passes on.
 Click ==
   /\ clicks < MaxClicks

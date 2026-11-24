@@ -16,7 +16,7 @@ MODELED_TAILSCALE=v1.104.4
 # Properties the current code is known to break, as PROPERTY:CONSTANT.
 # The property must hold with the CONSTANT FALSE and is expected to fail
 # with it TRUE. Remove an entry once the code is fixed and the check passes it.
-KNOWN_FINDINGS=(LoginSeesBrowseURL:LoginWaitsAfterStart)
+KNOWN_FINDINGS=()
 
 PROPERTIES=(OfflineIdleAndCleared NeedsAuthPromptsLogin LoginSeesBrowseURL SetRunningHoldReleases DaemonReconnectResyncs NoDeadlock)
 
@@ -79,7 +79,20 @@ flag NeedsAuthPrompts "$(all \
   "$(anchor $APP 'func \(a \*App\) setRunning\('"$FUNC_BODY"'if status\.NeedsAuth\(\) \{\s*gutil\.IdleAdd\(func\(\) \{\s*Confirmation\{')" \
   "$(anchor $APP 'if accept \{\s*a\.app\.ActivateAction\("login", nil\)')" \
   "$(anchor $POLL 'func \(s \*IPNStatus\) NeedsAuth\(\) bool \{\s*return s\.State == ipn\.NeedsLogin')")"
-flag LoginWaitsAfterStart "$(anchor $APP 'err = tsutil\.StartLogin\(ctx\)\s*if err != nil \{\s*slog\.Error\("failed to start login", "err", err\)\s*fail\(\)\s*return\s*\}\s*for \{\s*status, err := a\.bus\.Next\(ctx\)')"
+# TRUE when login still waits for Next only after StartLogin returns, or
+# when WaitBrowseURL runs fn before taking a cursor. FALSE is subscribe-first.
+login_waits_after_start() {
+  if [[ $(anchor $APP 'err = tsutil\.StartLogin\(ctx\)\s*if err != nil \{\s*slog\.Error\("failed to start login", "err", err\)\s*fail\(\)\s*return\s*\}\s*for \{\s*status, err := a\.bus\.Next\(ctx\)') == TRUE ]]; then
+    echo TRUE
+    return
+  fi
+  if [[ $(anchor $BUS 'func \(b \*Bus\) WaitBrowseURL\(ctx context.Context, fn func\(context.Context\) error\) \(string, error\) \{\s*(?:\/\/[^\n]*\n\s*)*if err := fn\(') == TRUE ]]; then
+    echo TRUE
+    return
+  fi
+  echo FALSE
+}
+flag LoginWaitsAfterStart "$(login_waits_after_start)"
 flag SetRunningHolds "$(all \
   "$(anchor $BUS 'func \(b \*Bus\) SetRunning\('"$FUNC_BODY"'case b\.holds <- 1:')" \
   "$(anchor $BUS 'select \{\s*case <-b\.stopped:\s*case b\.holds <- -1:')" \

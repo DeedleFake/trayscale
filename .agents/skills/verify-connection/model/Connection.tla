@@ -304,7 +304,7 @@ BeginLogin ==
   /\ PopOrRequestURL
   /\ loginPc' = IF LoginWaitsAfterStart THEN "started" ELSE "waiting"
 
-\* app:578, app:604-648. The login action, including from the offline page.
+\* app:608-639, bus:267-281. WaitBrowseURL takes a cursor, then StartLogin.
 LoginStarts ==
   /\ ~prompt
   /\ BeginLogin
@@ -332,7 +332,7 @@ UserCancelsLogin ==
                  awaitingURL, sawURL, opened, lastUpAuth, lastUpRan,
                  lastUpPrompt, lastUpDone, downNoted, budget>>
 
-\* app:637-638: a.bus.Next after StartLogin returns.
+\* The subscribe-after-StartLogin path, only when LoginWaitsAfterStart.
 LoginSubscribes ==
   /\ LoginWaitsAfterStart
   /\ loginPc = "started"

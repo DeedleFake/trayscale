@@ -88,3 +88,15 @@ jobs:
           sudo apt-get install -y appstream
       - name: appstreamcli validate
         run: appstreamcli validate --pedantic --no-net --explain dev.deedles.Trayscale.metainfo.xml
+
+  commit-subjects:
+    name: commit subjects
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check commit subjects
+        run: bash .github/check-commit-subjects.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"

@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.go-version }}
       - name: golangci-lint
@@ -40,7 +40,7 @@ jobs:
       LSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/lsan.supp:print_suppressions=0
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install Dependencies
         run: |
           sudo apt-get update
@@ -57,7 +57,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libpango-1.0-0-dbgsym libpangoft2-1.0-0-dbgsym libpangocairo-1.0-0-dbgsym libfontconfig1-dbgsym
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.go-version }}
       - name: go test ${{ matrix.flag }}
@@ -68,9 +68,9 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.go-version }}
       - name: go fix
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install Dependencies
         run: |
           sudo apt-get update

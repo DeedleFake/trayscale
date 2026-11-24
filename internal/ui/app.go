@@ -145,6 +145,11 @@ func (a *App) update(status tsutil.Status) {
 		}
 
 	case *tsutil.EngineStatus:
+		// tailscaled sends engine status every 2 seconds in any state,
+		// but there are no peers to describe while offline.
+		if !a.online {
+			return
+		}
 		a.engine = status
 		// During a hold, the window still shows the old profile, which
 		// the new one's engine status doesn't describe.

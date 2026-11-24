@@ -71,3 +71,27 @@ func TestDisconnectClearsEngine(t *testing.T) {
 	a.syncWindow()
 	require.Nil(t, a.win.engine, "reconnecting showed the old engine status")
 }
+
+// TestOfflineIgnoresEngine checks that the engine status tailscaled
+// keeps sending while offline is neither kept nor shown, so it can't
+// reach the pages made after reconnecting.
+func TestOfflineIgnoresEngine(t *testing.T) {
+	requireGTK(t)
+
+	a := &App{app: newTestApp(t, "offline-engine"), operatorCheck: true}
+	a.update(ipnStatus(ipn.Running, true))
+	a.win = NewMainWindow(a)
+	t.Cleanup(func() {
+		a.win.MainWindow.Destroy()
+		a.win.Dispose()
+	})
+	a.update(ipnStatus(ipn.Stopped, false))
+
+	a.update(&tsutil.EngineStatus{})
+	require.Nil(t, a.engine, "app kept an engine status that arrived while offline")
+	require.Nil(t, a.win.engine, "window got an engine status that arrived while offline")
+
+	a.update(ipnStatus(ipn.Running, true))
+	a.syncWindow()
+	require.Nil(t, a.win.engine, "reconnecting showed an engine status from while offline")
+}

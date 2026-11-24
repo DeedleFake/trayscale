@@ -140,14 +140,14 @@ Turning off while waiting through the self page's `Advertise exit node` switch h
 
 ## Coverage
 
-Sync commit: `e269e5e`
+Sync commit: `c4c2604`
 
 Move the sync commit forward only after you confirm, at the new commit, that the model and the code facts still describe the code below. The script lists covered files changed since the sync commit. The repo squash merges, so after a PR that moved the sync commit merges, set it to the merge commit on `master`.
 
 - `internal/tsutil/client.go`: `ExitNode`, `ParseExitNodeSelection`, `ExitNodeSelection.String`, `SetUseExitNode`, `DisableExitNode`, `pinAutoExitNode`, `useAutoExitNode`, `suggestExitNode`, `useSuggestedExitNode`, `keepPreviousExitNode`
 - `internal/tsutil/poller.go`: `IPNStatus.ExitNodeActive`
 - `internal/tsutil/bus.go`: `Bus.Latest`, which the tray's `OnExitToggle` reads through `getIPN`
-- `internal/ui/app.go`: the `use_exit_node` action and `OnExitToggle`
+- `internal/ui/app.go`: the `use_exit_node` action, `syncActions`, which enables it, and `OnExitToggle`
 - `internal/ui/settings.go`: the `ExitNodeSelectionRow` handler and `exitNodeSelection`
 - `internal/ui/preferences.ui`: `ExitNodeSelectionRow`
 - `internal/ui/peerpage.go`: the `Use as exit node` switch

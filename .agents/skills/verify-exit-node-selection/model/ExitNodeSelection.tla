@@ -78,8 +78,8 @@ DisableInTailscale ==
 
 \* ---------------- The user and the network ----------------
 
-\* The menu's use_exit_node action (app:451-464) or the tray's OnExitToggle
-\* (app:595-633) asks for the opposite of ExitNodeActive (poll:197-199).
+\* The menu's use_exit_node action (app:521-534) or the tray's OnExitToggle
+\* (app:665-703) asks for the opposite of ExitNodeActive (poll:197-199).
 \* want is the setting the user chose, sel what the code passes on.
 Click ==
   /\ clicks < MaxClicks
@@ -105,7 +105,7 @@ ChangeSetting ==
   /\ budget' = [budget EXCEPT !.setting = @ - 1]
   /\ UNCHANGED <<auto, eid, prior, sugg, lastUsed, req, clicks, otherSince>>
 
-\* A peer or Mullvad page's switch turned on: ExitNode(n) (tc:59-89) with
+\* A peer or Mullvad page's switch turned on: ExitNode(n) (tc:62-92) with
 \* AutoExitNodeSet, so the prior stays. adjustEditPrefsLocked empties the
 \* pick while the daemon still holds the unresolved placeholder (ll:5342-5346).
 PickOnPage ==
@@ -162,7 +162,7 @@ NewSuggestion ==
 
 \* ---------------- One toggle, one LocalAPI call per step ----------------
 
-\* Recommended: useAutoExitNode (tc:190-199), then setPrefsLocked resolves it.
+\* Recommended: useAutoExitNode (tc:193-202), then setPrefsLocked resolves it.
 UseAutoExitNode ==
   /\ req.pc = "rAuto"
   /\ auto' = TRUE
@@ -171,7 +171,7 @@ UseAutoExitNode ==
   /\ Go("done")
   /\ UNCHANGED <<prior, sugg, setting, otherSince, budget, clicks>>
 
-\* Previous: localClient.SetUseExitNode(true) (tc:137) -> SetUseExitNodeEnabled.
+\* Previous: localClient.SetUseExitNode(true) (tc:140) -> SetUseExitNodeEnabled.
 EnableExitNode ==
   /\ req.pc = "pEnable"
   /\ LET next == IF PreviousPinsRestoredAuto THEN "kRead" ELSE "done" IN
@@ -179,7 +179,7 @@ EnableExitNode ==
         /\ Go(next)
         /\ UNCHANGED <<auto, eid, lastUsed>>
      ELSE IF prior = "" THEN                                    \* ll:5170-5175 error
-        /\ Go("fSuggest")                                       \* tc:138-143
+        /\ Go("fSuggest")                                       \* tc:141-146
         /\ UNCHANGED <<auto, eid, lastUsed>>
      ELSE IF prior = "A" THEN                                   \* ll:5178-5185
         /\ auto' = TRUE
@@ -192,7 +192,7 @@ EnableExitNode ==
         /\ Go(next)
   /\ UNCHANGED <<prior, sugg, setting, otherSince, budget, clicks>>
 
-\* useSuggestedExitNode -> suggestExitNode (tc:206-224). tailscaled answers an
+\* useSuggestedExitNode -> suggestExitNode (tc:209-227). tailscaled answers an
 \* empty ID, not an error, when it has nothing to recommend (api:1826-1881).
 FallbackSuggest ==
   /\ req.pc = "fSuggest"
@@ -201,7 +201,7 @@ FallbackSuggest ==
      ELSE GoId("fPin", "")
   /\ UNCHANGED <<auto, eid, prior, sugg, setting, lastUsed, otherSince, budget, clicks>>
 
-\* ExitNode(id) (tc:59-89). An empty ID clears the exit node, and
+\* ExitNode(id) (tc:62-92). An empty ID clears the exit node, and
 \* adjustEditPrefsLocked zeroes the prior with it (ll:5336-5340).
 FallbackPin ==
   /\ req.pc = "fPin"
@@ -211,15 +211,15 @@ FallbackPin ==
   /\ Go("done")
   /\ UNCHANGED <<sugg, setting, otherSince, budget, clicks>>
 
-\* keepPreviousExitNode reads prefs (tc:231-234).
+\* keepPreviousExitNode reads prefs (tc:234-237).
 KeepReadPrefs ==
   /\ req.pc = "kRead"
-  /\ IF ~auto THEN Go("done")                                   \* tc:235-237
-     ELSE IF eid \in {"", "U"} THEN Go("kSuggest")              \* tc:241
+  /\ IF ~auto THEN Go("done")                                   \* tc:238-240
+     ELSE IF eid \in {"", "U"} THEN Go("kSuggest")              \* tc:244
      ELSE GoId("kPin", eid)
   /\ UNCHANGED <<auto, eid, prior, sugg, setting, lastUsed, otherSince, budget, clicks>>
 
-\* suggestExitNode inside keepPreviousExitNode (tc:242-247).
+\* suggestExitNode inside keepPreviousExitNode (tc:245-250).
 KeepSuggest ==
   /\ req.pc = "kSuggest"
   /\ IF sugg # "none" THEN GoId("kPin", sugg)
@@ -228,7 +228,7 @@ KeepSuggest ==
      ELSE Fail
   /\ UNCHANGED <<auto, eid, prior, sugg, setting, lastUsed, otherSince, budget, clicks>>
 
-\* The pin's EditPrefs (tc:250-255). adjustEditPrefsLocked empties it while
+\* The pin's EditPrefs (tc:253-258). adjustEditPrefsLocked empties it while
 \* the daemon still holds the placeholder (ll:5342-5346), and an empty
 \* ExitNodeID zeroes the prior (ll:5336-5340).
 KeepPin ==
@@ -241,14 +241,14 @@ KeepPin ==
   /\ Go("done")
   /\ UNCHANGED <<sugg, setting, otherSince, budget, clicks>>
 
-\* localClient.SetUseExitNode(false) after a failed pin (tc:246).
+\* localClient.SetUseExitNode(false) after a failed pin (tc:249).
 KeepUndo ==
   /\ req.pc = "kUndo"
   /\ DisableInTailscale
   /\ Fail
   /\ UNCHANGED <<sugg, setting, lastUsed, otherSince, budget, clicks>>
 
-\* Off: DisableExitNode (tc:152-157) -> pinAutoExitNode reads prefs (tc:164-176).
+\* Off: DisableExitNode (tc:155-160) -> pinAutoExitNode reads prefs (tc:167-179).
 OffReadPrefs ==
   /\ req.pc = "oRead"
   /\ IF OffPinsAutoNode /\ auto /\ eid \in Nodes
@@ -256,7 +256,7 @@ OffReadPrefs ==
        ELSE Go("oOff")
   /\ UNCHANGED <<auto, eid, prior, sugg, setting, lastUsed, otherSince, budget, clicks>>
 
-\* pinAutoExitNode's EditPrefs (tc:178-186).
+\* pinAutoExitNode's EditPrefs (tc:181-189).
 OffPin ==
   /\ req.pc = "oPin"
   /\ LET e2 == IF eid = "U" THEN "" ELSE req.id IN              \* ll:5342-5346
@@ -266,7 +266,7 @@ OffPin ==
   /\ Go("oOff")
   /\ UNCHANGED <<prior, sugg, setting, otherSince, budget, clicks>>
 
-\* localClient.SetUseExitNode(false) (tc:156).
+\* localClient.SetUseExitNode(false) (tc:159).
 OffDisable ==
   /\ req.pc = "oOff"
   /\ DisableInTailscale

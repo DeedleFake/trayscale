@@ -108,7 +108,7 @@ func TestSelfPageStartsWithWaitingFiles(t *testing.T) {
 	requireGTK(t)
 
 	waiting := []apitype.WaitingFile{{Name: "a.txt", Size: 1}, {Name: "b.txt", Size: 2}}
-	page := NewSelfPage(&App{waiting: &waiting}, &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()})
+	page := NewSelfPage(&App{waiting: &tsutil.FileStatus{Profile: "pA", Files: waiting}}, &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()})
 	defer page.Widget().Unref()
 
 	require.Equal(t, waiting, slices.Collect(page.fileModel.All()))

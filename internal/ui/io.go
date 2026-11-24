@@ -5,12 +5,16 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"time"
 
 	"codeberg.org/puregotk/puregotk/v4/gio"
 	"deedles.dev/trayscale/internal/autosave"
 	"deedles.dev/trayscale/internal/giofs"
 	"deedles.dev/trayscale/internal/gutil"
+	"deedles.dev/trayscale/internal/locale"
 	"deedles.dev/trayscale/internal/tsutil"
+	"tailscale.com/client/tailscale/apitype"
+	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
 )
 
@@ -37,14 +41,19 @@ func (a *App) pushFile(ctx context.Context, peerID tailcfg.StableNodeID, file *g
 	slog.Info("done pushing file")
 }
 
-func (a *App) saveFile(ctx context.Context, name string, file *gio.FileBase) error {
+// saveFile saves profile's waiting file to dest and then deletes it
+// from the waiting files. It fails with tsutil.ErrProfileChanged,
+// saving nothing, if profile isn't current when it opens the file. If
+// profile isn't current when it deletes the file, it leaves it waiting
+// for retryPendingDeletes, tells the user, and succeeds.
+func (a *App) saveFile(ctx context.Context, profile ipn.ProfileID, file apitype.WaitingFile, dest *gio.FileBase) error {
 	a.spin()
 	defer a.stopSpin()
 
-	slog := slog.With("path", gutil.FilePath(file), "filename", name)
+	slog := slog.With("path", gutil.FilePath(dest), "filename", file.Name)
 	slog.Info("starting file save")
 
-	r, size, err := tsutil.GetWaitingFile(ctx, name)
+	r, size, err := a.files.Open(ctx, profile, file.Name)
 	if err != nil {
 		slog.Error("get file", "err", err)
 		return err
@@ -55,7 +64,7 @@ func (a *App) saveFile(ctx context.Context, name string, file *gio.FileBase) err
 	// destination when the stream is closed. Leaving it open leaves
 	// hidden .goutputstream-* files and never updates an existing target.
 	c, release := giofs.Cancellable(ctx)
-	s, err := file.Replace("", false, gio.GFileCreateNoneValue, c)
+	s, err := dest.Replace("", false, gio.GFileCreateNoneValue, c)
 	release()
 	if err = gutil.Err(err); err != nil {
 		slog.Error("create file", "err", err)
@@ -70,7 +79,12 @@ func (a *App) saveFile(ctx context.Context, name string, file *gio.FileBase) err
 		return err
 	}
 
-	err = a.files.Delete(ctx, name)
+	err = a.deleteSaved(ctx, profile, file)
+	if errors.Is(err, tsutil.ErrProfileChanged) {
+		slog.Info("saved a file of another profile, so it stays waiting until that profile is current")
+		a.toast(locale.Get("File saved. It will leave the incoming files the next time its account is active"))
+		return nil
+	}
 	if err != nil {
 		slog.Error("delete file", "err", err)
 		return err
@@ -78,6 +92,42 @@ func (a *App) saveFile(ctx context.Context, name string, file *gio.FileBase) err
 
 	slog.Info("done saving file")
 	return nil
+}
+
+// deleteSaved deletes profile's waiting file once it's been saved. If
+// profile isn't current, it fails with tsutil.ErrProfileChanged and
+// adds the file to a.pending, so that retryPendingDeletes deletes it
+// once profile is current again. It's safe to call from any thread.
+func (a *App) deleteSaved(ctx context.Context, profile ipn.ProfileID, file apitype.WaitingFile) error {
+	err := a.files.Delete(ctx, profile, file.Name)
+	if errors.Is(err, tsutil.ErrProfileChanged) {
+		gutil.IdleAdd(func() { a.pending.add(profile, file) })
+	}
+	return err
+}
+
+// retryPendingDeletes deletes the files in a.pending that were saved
+// from status's profile while another one was current, if they're
+// still waiting with the same name and size. It runs on the main
+// thread and deletes in the background.
+func (a *App) retryPendingDeletes(status *tsutil.FileStatus) {
+	for _, file := range a.pending.take(status.Profile, status.Files) {
+		// Taken by the name, so that maybeAutoSaveFiles doesn't save
+		// it again.
+		if _, loaded := a.autoSaving.LoadOrStore(file.Name, struct{}{}); loaded {
+			a.pending.add(status.Profile, file)
+			continue
+		}
+		go func() {
+			defer a.autoSaving.Delete(file.Name)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			err := a.deleteSaved(ctx, status.Profile, file)
+			if err != nil && !errors.Is(err, tsutil.ErrProfileChanged) {
+				slog.Error("delete saved file", "filename", file.Name, "err", err)
+			}
+		}()
+	}
 }
 
 func (a *App) autoSaveSettings() (enabled bool, dir string) {
@@ -126,15 +176,15 @@ func (a *App) maybeAutoSaveFiles() {
 	}
 	a.autoSaveDirBad = ""
 
-	waiting := make(map[string]bool, len(*a.waiting))
-	for _, f := range *a.waiting {
-		waiting[f.Name] = true
+	waiting := make(map[string]apitype.WaitingFile, len(a.waiting.Files))
+	for _, f := range a.waiting.Files {
+		waiting[f.Name] = f
 	}
 	// Drop failure memory for files that are no longer waiting so a
 	// later re-transfer of the same name can be auto-saved again.
 	a.autoSaveFailed.Range(func(key, _ any) bool {
-		if name, ok := key.(string); ok && !waiting[name] {
-			a.autoSaveFailed.Delete(name)
+		if _, ok := waiting[key.(string)]; !ok {
+			a.autoSaveFailed.Delete(key)
 		}
 		return true
 	})
@@ -153,7 +203,8 @@ func (a *App) maybeAutoSaveFiles() {
 		return true
 	})
 
-	for _, name := range autosave.Files(enabled, dir, *a.waiting, skip) {
+	profile := a.waiting.Profile
+	for _, name := range autosave.Files(enabled, dir, a.waiting.Files, skip) {
 		if _, loaded := a.autoSaving.LoadOrStore(name, struct{}{}); loaded {
 			continue
 		}
@@ -163,9 +214,11 @@ func (a *App) maybeAutoSaveFiles() {
 		go func(name, dest string) {
 			defer a.autoSaving.Delete(name)
 			f := gio.FileNewForPath(dest)
-			err := a.saveFile(context.Background(), name, f)
+			err := a.saveFile(context.Background(), profile, waiting[name], f)
 			gutil.IdleAdd(gutil.Obj(f).Unref)
-			if err != nil {
+			// A file of a profile that isn't current anymore is saved
+			// once its profile's list arrives again.
+			if err != nil && !errors.Is(err, tsutil.ErrProfileChanged) {
 				a.autoSaveFailed.Store(name, struct{}{})
 			}
 		}(name, dest)

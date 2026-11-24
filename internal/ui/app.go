@@ -25,7 +25,6 @@ import (
 	"deedles.dev/trayscale/internal/tray"
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/inhies/go-bytesize"
-	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
 )
@@ -56,7 +55,8 @@ type App struct {
 
 	spinnum        int
 	operatorCheck  bool
-	waiting        *[]apitype.WaitingFile
+	waiting        *tsutil.FileStatus
+	pending        pendingDeletes
 	autoSaving     sync.Map // waiting-file name -> struct{} while save is in flight
 	autoSaveFailed sync.Map // waiting-file name -> struct{} after a failed auto-save attempt
 	autoSaveDirBad string   // destination dir last logged as unusable; avoids log spam
@@ -171,7 +171,8 @@ func (a *App) update(status tsutil.Status) {
 				}
 			}
 		}
-		a.waiting = &status.Files
+		a.waiting = status
+		a.retryPendingDeletes(status)
 		a.maybeAutoSaveFiles()
 
 		if a.win != nil && !a.hold.active() {
@@ -181,6 +182,7 @@ func (a *App) update(status tsutil.Status) {
 	case *tsutil.ProfileStatus:
 		a.profileStatus = status
 		a.activeProfile = status.Profile.ID
+		a.pending.prune(status.Profiles)
 		if a.tray != nil {
 			a.tray.SetProfiles(status)
 			a.tray.SetActiveProfile(status.Profile.ID)
@@ -218,7 +220,7 @@ func (a *App) syncWindow() {
 		a.win.Update(a.engine)
 	}
 	if a.waiting != nil {
-		a.win.Update(&tsutil.FileStatus{Files: *a.waiting})
+		a.win.Update(a.waiting)
 	} else {
 		a.win.Update(&tsutil.FileStatus{})
 	}
@@ -812,6 +814,7 @@ func (a *App) Run(ctx context.Context) {
 	}
 
 	a.initSettings(ctx)
+	a.pending = loadPendingDeletes(pendingDeletesPath())
 
 	update := func(s tsutil.Status) { gutil.IdleAdd(func() { a.update(s) }) }
 	a.bus = &tsutil.Bus{

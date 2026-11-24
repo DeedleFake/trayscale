@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	_ "embed"
+	"errors"
 	"log/slog"
 	"net/netip"
 	"slices"
@@ -21,6 +22,7 @@ import (
 	"deedles.dev/xiter"
 	"github.com/inhies/go-bytesize"
 	"tailscale.com/client/tailscale/apitype"
+	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
 )
 
@@ -80,6 +82,7 @@ type SelfPage struct {
 	addrModel  *gobj.List[netip.Addr]
 	routeModel *gobj.List[netip.Prefix]
 	fileModel  *gobj.List[apitype.WaitingFile]
+	fileProf   ipn.ProfileID // the profile fileModel's files are from
 
 	incomingFiles int
 	exitNode      tailcfg.NodeView
@@ -117,8 +120,9 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	gobj.BindListBox(page.FilesList, page.fileModel, page.fileRow)
 	setPlaceholder(page.FilesList, locale.Get("No incoming files."))
 	if a.waiting != nil {
-		page.fileModel.Set(*a.waiting)
-		page.incomingFiles = len(*a.waiting)
+		page.fileModel.Set(a.waiting.Files)
+		page.fileProf = a.waiting.Profile
+		page.incomingFiles = len(a.waiting.Files)
 	}
 
 	gutil.Connect(page.ExitNodeRow, page.ExitNodeRow.ConnectActivated, func(adw.ActionRow) {
@@ -278,6 +282,7 @@ func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
 	saveButton.SetHasFrame(false)
 	saveButton.SetTooltipText(locale.Get("Save"))
 	gutil.Connect(saveButton, saveButton.ConnectClicked, func(gtk.Button) {
+		profile := page.fileProf
 		dialog := gtk.NewFileDialog()
 		defer dialog.Unref() // The operation keeps it alive.
 		dialog.SetModal(true)
@@ -292,8 +297,11 @@ func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
 			}
 
 			go func() {
-				a.saveFile(context.TODO(), file.Name, f)
+				err := a.saveFile(context.TODO(), profile, file, f)
 				gutil.IdleAdd(gutil.Obj(f).Unref)
+				if errors.Is(err, tsutil.ErrProfileChanged) {
+					a.toast(locale.Get("Not saved because the account changed"))
+				}
 			}()
 		}))
 	})
@@ -304,6 +312,7 @@ func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
 	deleteButton.SetHasFrame(false)
 	deleteButton.SetTooltipText(locale.Get("Delete"))
 	gutil.Connect(deleteButton, deleteButton.ConnectClicked, func(gtk.Button) {
+		profile := page.fileProf
 		Confirmation{
 			Heading: locale.Get("Delete file?"),
 			Body:    locale.Get("If you delete this file, you will no longer be able to save it to your local machine."),
@@ -315,7 +324,11 @@ func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
 					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 					defer cancel()
 
-					err := a.files.Delete(ctx, file.Name)
+					err := a.files.Delete(ctx, profile, file.Name)
+					if errors.Is(err, tsutil.ErrProfileChanged) {
+						a.toast(locale.Get("Not deleted because the account changed"))
+						return
+					}
 					if err != nil {
 						slog.Error("delete file", "err", err)
 						a.toast(locale.Get("Failed to delete file"))
@@ -404,6 +417,7 @@ func (page *SelfPage) UpdateIPN(status *tsutil.IPNStatus) bool {
 
 func (page *SelfPage) UpdateFiles(status *tsutil.FileStatus) bool {
 	page.fileModel.Set(status.Files)
+	page.fileProf = status.Profile
 	page.incomingFiles = len(status.Files)
 	page.applyIncomingBadge()
 	return true

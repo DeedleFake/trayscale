@@ -257,6 +257,10 @@ func (s *IPNStatus) SelfAddr() netip.Addr {
 }
 
 type FileStatus struct {
+	// Profile is the login profile that Files belongs to. It's empty
+	// when Taildrop is unavailable and Files is empty.
+	Profile ipn.ProfileID
+
 	Files []apitype.WaitingFile
 
 	// Arrived holds the names of the files in Files that weren't in

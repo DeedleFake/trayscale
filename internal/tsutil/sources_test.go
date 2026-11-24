@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -39,10 +40,16 @@ type fakeDaemon struct {
 
 	// failProfiles is how many more profile fetches to fail.
 	failProfiles atomic.Int32
+
+	// current, if set, is the current profile's ID. It's "pA" if not.
+	current atomic.Pointer[string]
+
+	// deleted gets the name of each deleted waiting file.
+	deleted chan string
 }
 
 func startFakeDaemon(t *testing.T) *fakeDaemon {
-	d := &fakeDaemon{notes: make(chan ipn.Notify), release: make(chan struct{})}
+	d := &fakeDaemon{notes: make(chan ipn.Notify), release: make(chan struct{}), deleted: make(chan string, 16)}
 	l := listenLocalAPI(t)
 	srv := &http.Server{Handler: http.HandlerFunc(d.serve)}
 	go srv.Serve(l)
@@ -92,19 +99,46 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write([]byte(d.waitingBody()))
 	case "/localapi/v0/profiles/current":
+		json.NewEncoder(w).Encode(ipn.LoginProfile{ID: d.currentProfile()})
+	case "/localapi/v0/profiles/":
+		// Only ProfileStatus lists the profiles, so this counts its
+		// fetches. Files only asks for the current one.
 		d.profiles.Add(1)
 		if d.failProfiles.Add(-1) >= 0 {
 			http.Error(w, "busy", http.StatusInternalServerError)
 			return
 		}
-		w.Write([]byte("{}"))
-	case "/localapi/v0/profiles/":
 		w.Write([]byte("[]"))
 	case "/localapi/v0/file-targets":
 		w.Write([]byte("[]"))
 	default:
-		http.Error(w, "not found", http.StatusNotFound)
+		name, ok := strings.CutPrefix(r.URL.Path, "/localapi/v0/files/")
+		if !ok {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		switch r.Method {
+		case "DELETE":
+			d.deleted <- name
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.Header().Set("Content-Length", "4")
+			w.Write([]byte("data"))
+		}
 	}
+}
+
+func (d *fakeDaemon) currentProfile() ipn.ProfileID {
+	if p := d.current.Load(); p != nil {
+		return ipn.ProfileID(*p)
+	}
+	return "pA"
+}
+
+// setProfile makes id the current profile.
+func (d *fakeDaemon) setProfile(id ipn.ProfileID) {
+	s := string(id)
+	d.current.Store(&s)
 }
 
 func (d *fakeDaemon) waitingBody() string {

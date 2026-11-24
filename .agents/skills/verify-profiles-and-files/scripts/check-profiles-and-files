@@ -8,7 +8,7 @@ TLA_VERSION=1.7.4
 TLA_SHA256=936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
 
 # The tailscale.com version whose daemon behavior the model describes.
-MODELED_TAILSCALE=v1.104.4
+MODELED_TAILSCALE=v1.106.0
 
 # RUN:PART:MaxSwitches:MaxReceives:MaxOutsideDeletes:MaxListChanges:MaxLooks:MaxDeletes:MaxSaves:MaxToggles:Resends:AutoSaveEnabled
 RUNS=(
@@ -16,10 +16,11 @@ RUNS=(
   files:files:0:2:1:0:0:1:0:1:TRUE:FALSE
   switches:files:1:1:0:0:0:1:0:1:TRUE:FALSE
   autosave:files:1:0:0:0:0:0:1:0:FALSE:TRUE
+  returns:files:2:0:0:0:0:0:1:0:FALSE:FALSE
 )
 SWITCH_PROPERTIES=(SwitchStaysConnected HoldEnds HeldStateDisabled)
 PROFILE_PROPERTIES=(ProfilesSettle FailedTraySwitchNotifies MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
-FILE_PROPERTIES=(FilesSettle FilesWatched NoStrayFileNotice NoDuplicateFileNotice NoMissedFileNotice NoWrongDelete NoStaleFilesShown NoStaleFilesAfterHold MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
+FILE_PROPERTIES=(FilesSettle FilesWatched NoStrayFileNotice NoDuplicateFileNotice NoMissedFileNotice NoWrongDelete NoUncheckedWrongDelete NoWrongSave SavedFilesCleared NoStaleFilesShown NoStaleFilesAfterHold MainThreadNeverWaits "${SWITCH_PROPERTIES[@]}")
 
 # Properties the current code is known to break, as PROPERTY@RUN:OVERRIDES.
 # The property must hold in RUN with the comma-separated CONSTANT=VALUE
@@ -27,14 +28,18 @@ FILE_PROPERTIES=(FilesSettle FilesWatched NoStrayFileNotice NoDuplicateFileNotic
 # and OVERRIDES share one TLC run. Remove an entry once the code is fixed
 # and the check passes it.
 KNOWN_FINDINGS=(
-  NoStrayFileNotice@switches:MaxSwitches=0
   NoWrongDelete@switches:MaxSwitches=0
   NoStaleFilesShown@switches:MaxSwitches=0
-  NoMissedFileNotice@files:Resends=FALSE,MaxToggles=0
-  NoMissedFileNotice@switches:Resends=FALSE,MaxToggles=0
+  NoMissedFileNotice@files:Resends=FALSE,MaxToggles=2
+  NoMissedFileNotice@switches:Resends=FALSE
   NoStaleFilesAfterHold@switches:MaxSwitches=0
   NoWrongDelete@autosave:MaxSwitches=0
   NoStaleFilesShown@autosave:MaxSwitches=0
+  NoWrongDelete@returns:MaxSwitches=0
+  NoWrongSave@returns:MaxSwitches=1
+  NoStrayFileNotice@returns:MaxSwitches=1
+  NoStaleFilesShown@returns:MaxSwitches=0
+  SavedFilesCleared@returns:MaxSwitches=1
 )
 
 ONLY=
@@ -99,15 +104,37 @@ flag FilesGatedOnline "$(all \
   "$(anchor $FILES 'func \(r \*filesRun\) run\(ctx context\.Context\) error \{\s*for \{\s*if !r\.online\(\) \{\s*r\.reset\(\)')" \
   "$(anchor $FILES 'func \(r \*filesRun\) online\(\) bool \{\s*latest := r\.f\.Bus\.latest\.Load\(\)\s*return latest != nil && latest\.Online\(\)')")"
 flag DiscardStaleFetch "$(anchor $FILES "$FILES_RUN"'case filesReset:\s*continue\s*\}(?:\s*\/\/[^\n]*)*\s*if r\.drain\(\) \{\s*continue')"
-flag PollWhileWaiting "$(anchor $FILES "$FILES_RUN"'r\.push\(res\.files\)\s*if len\(r\.last\) == 0 \{\s*continue\s*\}\s*timer = time\.After\(r\.interval\)')"
-flag BaselineQuiet "$(anchor $FILES 'func \(r \*filesRun\) push\(files \[\]apitype\.WaitingFile\) \{\s*if !r\.baseline \{\s*r\.f\.New\(&FileStatus\{Files: files\}\)')"
+flag PollWhileWaiting "$(anchor $FILES "$FILES_RUN"'r\.push\(res\.profile, res\.files\)\s*if len\(r\.last\) == 0 \{\s*continue\s*\}\s*timer = time\.After\(r\.interval\)')"
+PUSH='func \(r \*filesRun\) push\(profile ipn\.ProfileID, files \[\]apitype\.WaitingFile\) \{'"$FUNC_BODY"
+flag BaselineQuiet "$(anchor $FILES 'func \(r \*filesRun\) push\(profile ipn\.ProfileID, files \[\]apitype\.WaitingFile\) \{\s*if !r\.baseline \{\s*var arrived \[\]string\s*if prev, ok := r\.seen\[profile\]; ok \{\s*arrived = arrivedFiles\(prev, files\)\s*\}\s*r\.f\.New\(&FileStatus\{Profile: profile, Files: files, Arrived: arrived\}\)')"
+flag SeenAcrossReset "$(all \
+  "$(anchor $FILES "$PUSH"'arrived = arrivedFiles\(prev, files\)'"$FUNC_BODY"'r\.remember\(profile, files\)\s*return'"$FUNC_BODY"'r\.remember\(profile, files\)\n\}')" \
+  "$(anchor $FILES 'func \(r \*filesRun\) remember\(profile ipn\.ProfileID, files \[\]apitype\.WaitingFile\) \{\s*if profile != "" \{\s*r\.seen\[profile\] = files')" \
+  "$(anchor $FILES 'func \(r \*filesRun\) reset\(\) \{(?:(?!\n\}\n)(?!seen).)*?\n\}\n')")"
+flag ProfileTagged "$(all \
+  "$(anchor $FILES 'profile, files, err := profileWaitingFiles\(checkCtx, wait\)')" \
+  "$(anchor $FILES 'func profileWaitingFiles\('"$FUNC_BODY"'before, err := currentProfile\(ctx\)'"$FUNC_BODY"'files, err := waitingFiles\(ctx, wait\)'"$FUNC_BODY"'after, err := currentProfile\(ctx\)'"$FUNC_BODY"'if after != before \{\s*return "", nil, ErrProfileChanged')" \
+  "$(anchor $FILES "$FILES_RUN"'case errors\.Is\(res\.err, ErrProfileChanged\):(?:\s*\/\/[^\n]*)*\s*r\.reset\(\)\s*continue')")"
+flag ResetOnProfile "$(anchor $FILES "$FILES_RUN"'if r\.baseline && res\.profile != r\.profile \{(?:\s*\/\/[^\n]*)*\s*r\.reset\(\)\s*\}\s*r\.push\(res\.profile, res\.files\)')"
+CHECK_PROFILE="$(anchor $FILES 'func checkProfile\(ctx context\.Context, profile ipn\.ProfileID\) error \{\s*cur, err := currentProfile\(ctx\)\s*if err != nil \{\s*return err\s*\}\s*if cur != profile \{\s*return ErrProfileChanged')"
+flag OpenChecksProfile "$(all "$CHECK_PROFILE" \
+  "$(anchor $FILES 'func \(f \*Files\) Open\(ctx context\.Context, profile ipn\.ProfileID, name string\) \(io\.ReadCloser, int64, error\) \{\s*if err := checkProfile\(ctx, profile\); err != nil \{\s*return nil, 0, err\s*\}\s*r, size, err := getWaitingFile\(ctx, name\)\s*if err != nil \{\s*return nil, 0, err\s*\}\s*if err := checkProfile\(ctx, profile\); err != nil \{')" \
+  "$(anchor internal/ui/io.go 'r, size, err := a\.files\.Open\(ctx, profile, file\.Name\)')")"
+flag DeleteChecksProfile "$(all "$CHECK_PROFILE" \
+  "$(anchor $FILES 'func \(f \*Files\) Delete\(ctx context\.Context, profile ipn\.ProfileID, name string\) error \{\s*defer f\.Refresh\(\)\s*if err := checkProfile\(ctx, profile\); err != nil \{\s*return err\s*\}\s*return deleteWaitingFile\(ctx, name\)')")"
+flag SaveDefersDelete "$(all \
+  "$(anchor internal/ui/io.go 'func \(a \*App\) deleteSaved\('"$FUNC_BODY"'err := a\.files\.Delete\(ctx, profile, file\.Name\)\s*if errors\.Is\(err, tsutil\.ErrProfileChanged\) \{\s*gutil\.IdleAdd\(func\(\) \{ a\.pending\.add\(profile, file\) \}\)')" \
+  "$(anchor internal/ui/io.go 'func \(a \*App\) saveFile\('"$FUNC_BODY"'err = a\.deleteSaved\(ctx, profile, file\)')")"
+flag RetriesPending "$(all \
+  "$(anchor $APP 'case \*tsutil\.FileStatus:(?:(?!\n\tcase ).)*?a\.waiting = status\s*a\.retryPendingDeletes\(status\)\s*a\.maybeAutoSaveFiles\(\)')" \
+  "$(anchor internal/ui/io.go 'func \(a \*App\) retryPendingDeletes\('"$FUNC_BODY"'for _, file := range a\.pending\.take\(status\.Profile, status\.Files\) \{'"$FUNC_BODY"'a\.deleteSaved\(ctx, status\.Profile, file\)')")"
 flag RefreshRepeats "$(anchor $FILES 'case filesRefresh:(?:\s*\/\/[^\n]*)*\s*again = again \|\| wait == 0')"
 flag RefreshBuffered "$(all \
   "$(anchor $FILES 'f\.refresh = make\(chan struct\{\}, 1\)')" \
   "$(anchor $SRC 'p\.refresh = make\(chan struct\{\}, 1\)')" \
   "$(anchor $SRC 'func kick\(c chan<- struct\{\}\) \{\s*select \{\s*case c <- struct\{\}\{\}:\s*default:\s*\}')")"
 flag SwitchRefreshes "$(anchor $SRC 'func \(p \*Profiles\) Switch\(ctx context\.Context, id ipn\.ProfileID\) error \{\s*defer p\.Refresh\(\)')"
-flag DeleteRefreshes "$(anchor $FILES 'func \(f \*Files\) Delete\(ctx context\.Context, name string\) error \{\s*defer f\.Refresh\(\)')"
+flag DeleteRefreshes "$(anchor $FILES 'func \(f \*Files\) Delete\(ctx context\.Context, profile ipn\.ProfileID, name string\) error \{\s*defer f\.Refresh\(\)')"
 flag WindowOpenRefreshes "$(anchor $APP 'func \(a \*App\) onAppActivate\('"$FUNC_BODY"'\ta\.files\.Refresh\(\)\s*a\.profiles\.Refresh\(\)')"
 flag DropDownRefreshes "$(anchor $WIN 'onDropDownPopup\(win\.ProfileDropDown, app\.profiles\.Refresh\)')"
 flag FocusRefreshes "$(all \
@@ -118,12 +145,12 @@ flag TraySwitchOffMain "$(anchor $APP "$TRAY_SWITCH"'go func\(\) \{(?:(?!\n\t\t\
 flag TraySwitchFailureNotifies "$(anchor $APP "$TRAY_SWITCH"'err := a\.profiles\.Switch\(ctx, id\)\s*if err != nil \{(?:(?!\n\t\t\t\t\t\}\n).)*?a\.notify\(locale\.Get\("Switch account"\)')"
 flag DropDownSwitchOffMain "$(anchor $WIN "$DROPDOWN"'go func\(\) \{(?:(?!\n\t\}\)\n).)*?app\.profiles\.Switch\(')"
 flag DeleteOffMain "$(anchor $SELF 'if accept \{\s*go func\(\) \{(?:(?!\n\t\t\}\)\n).)*?a\.files\.Delete\(')"
-flag SelfPageFillsFiles "$(anchor $SELF 'func \(page \*SelfPage\) init\('"$FUNC_BODY"'page\.fileModel\.Set\(\*a\.waiting\)')"
+flag SelfPageFillsFiles "$(anchor $SELF 'func \(page \*SelfPage\) init\('"$FUNC_BODY"'page\.fileModel\.Set\(a\.waiting\.Files\)\s*page\.fileProf = a\.waiting\.Profile')"
 flag NoticesFromArrivals "$(anchor $APP 'case \*tsutil\.FileStatus:(?:(?!\n\tcase ).)*?for _, file := range status\.Files \{\s*if slices\.Contains\(status\.Arrived, file\.Name\) \{\s*body := ')"
 flag HoldGatesFiles "$(anchor $APP 'case \*tsutil\.FileStatus:(?:(?!\n\tcase ).)*?if a\.win != nil && !a\.hold\.active\(\) \{\s*a\.win\.Update\(status\)')"
 flag HoldReplaysFiles "$(all \
   "$(anchor $APP 'func \(a \*App\) setSwitching\(on bool\) \{'"$FUNC_BODY"'if !on \{\s*a\.syncWindow\(\)')" \
-  "$(anchor $APP 'func \(a \*App\) syncWindow\(\) \{'"$FUNC_BODY"'if a\.waiting != nil \{\s*a\.win\.Update\(&tsutil\.FileStatus\{Files: \*a\.waiting\}\)')")"
+  "$(anchor $APP 'func \(a \*App\) syncWindow\(\) \{'"$FUNC_BODY"'if a\.waiting != nil \{\s*a\.win\.Update\(a\.waiting\)')")"
 flag SwitchHold "$(all \
   "$(anchor $APP 'hold, start, gen := a\.hold\.offer\(a\.online, status\)\s*if hold \{')" \
   "$(anchor $HOLD 'if online && switching\(s\) \{')" \
@@ -139,9 +166,9 @@ flag HoldReenables "$(all \
   "$(anchor $APP 'if s := a\.hold\.expire\(gen\); s != nil \{\s*a\.showIPN\(s\)\s*a\.setSwitching\(false\)')")"
 flag HoldFallback "$(anchor $APP 'if start \{\s*a\.setSwitching\(true\)\s*gutil\.TimeoutAdd\(switchTimeout, ')"
 IO=internal/ui/io.go
-flag SaveOffMain "$(anchor $SELF 'go func\(\) \{\s*a\.saveFile\(context\.TODO\(\), file\.Name, f\)')"
-flag AutoSaveOffMain "$(anchor $IO 'go func\(name, dest string\) \{(?:(?!\n\t\}\)\n).)*?err := a\.saveFile\(context\.Background\(\), name, f\)')"
-flag SyncShowsEmptyWaiting "$(anchor $APP 'func \(a \*App\) syncWindow\(\) \{'"$FUNC_BODY"'if a\.waiting != nil \{\s*a\.win\.Update\(&tsutil\.FileStatus\{Files: \*a\.waiting\}\)\s*\} else \{\s*a\.win\.Update\(&tsutil\.FileStatus')"
+flag SaveOffMain "$(anchor $SELF 'go func\(\) \{\s*err := a\.saveFile\(context\.TODO\(\), profile, file, f\)')"
+flag AutoSaveOffMain "$(anchor $IO 'go func\(name, dest string\) \{(?:(?!\n\t\}\)\n).)*?err := a\.saveFile\(context\.Background\(\), profile, waiting\[name\], f\)')"
+flag SyncShowsEmptyWaiting "$(anchor $APP 'func \(a \*App\) syncWindow\(\) \{'"$FUNC_BODY"'if a\.waiting != nil \{\s*a\.win\.Update\(a\.waiting\)\s*\} else \{\s*a\.win\.Update\(&tsutil\.FileStatus')"
 
 echo "code facts (model constants):"
 for k in "${FLAG_NAMES[@]}"; do

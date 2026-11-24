@@ -55,20 +55,37 @@ CONSTANTS
   AutoSaveEnabled,         \* bound: the taildrop-auto-save setting is on and a folder is set
   SyncShowsEmptyWaiting,   \* app: syncWindow updates the self page even when a.waiting is nil
   SaveOffMain,             \* self, io: the save button calls saveFile in a goroutine
-  AutoSaveOffMain          \* io: maybeAutoSaveFiles starts saveFile in a goroutine
+  AutoSaveOffMain,         \* io: maybeAutoSaveFiles starts saveFile in a goroutine
+  ProfileTagged,           \* files: profileWaitingFiles drops a list when the profile before and after differ
+  ResetOnProfile,          \* files: run resets when a list's profile isn't r.profile
+  SeenAcrossReset,         \* files: push compares the first list after a reset with r.seen[profile]
+  OpenChecksProfile,       \* files: Files.Open checks the profile before and after opening
+  DeleteChecksProfile,     \* files: Files.Delete checks the profile before deleting
+  SaveDefersDelete,        \* io: deleteSaved adds the file to a.pending when the profile changed
+  RetriesPending           \* app, io: App.update's FileStatus case calls retryPendingDeletes
 
 Profiles == {"A", "B"}
 Files == {"f1", "f2"}
 
 NoGen == [f \in Files |-> 0]
 StartFiles == [p \in Profiles |-> IF p = "A" THEN {"f1"} ELSE {"f1", "f2"}]
-NoFiles == [ok |-> FALSE, p |-> "none", fs |-> {}, gen |-> NoGen]
+\* A file list held by the App or the self page: p is FileStatus.Profile,
+\* rp the profile the files were read from (a ghost), and gen each file's
+\* arrival (a ghost).
+NoFiles == [ok |-> FALSE, p |-> "none", rp |-> "none", fs |-> {}, gen |-> NoGen]
 NoProfiles == [ok |-> FALSE, cur |-> "none", list |-> {}]
-NoOp == [k |-> "none", src |-> "none", to |-> "none", f |-> "none", p |-> "none"]
-\* A list from waitingFiles: the files, with the profile it was read from
-\* and each file's arrival as ghosts. The code only has the names.
-NoRes == [p |-> "none", fs |-> {}, gen |-> NoGen]
-Msg(k) == [k |-> k, st |-> "none", cur |-> "none", list |-> {}, p |-> "none", fs |-> {}, gen |-> NoGen, to |-> "none", arr |-> {}]
+\* A background operation. For a file operation, p is the profile it was
+\* started for (FileStatus.Profile), rp the profile the list it came from
+\* was read from (a ghost), ph its next step, rd the profile Open read the
+\* file from (a ghost), and ck the current profile at Delete's check (a ghost).
+NoOp == [k |-> "none", src |-> "none", to |-> "none", f |-> "none", p |-> "none", rp |-> "none",
+         ph |-> "none", rd |-> "none", ck |-> "none"]
+\* A list from profileWaitingFiles: t is the profile it carries, from the
+\* currentProfile call before the list, p the profile it was read from and
+\* each file's arrival are ghosts. The code has names and sizes.
+NoRes == [t |-> "none", p |-> "none", fs |-> {}, gen |-> NoGen]
+Msg(k) == [k |-> k, st |-> "none", cur |-> "none", list |-> {}, p |-> "none", rp |-> "none", fs |-> {},
+           gen |-> NoGen, to |-> "none", arr |-> {}, f |-> "none"]
 Notify(k, st) == [k |-> k, st |-> st]
 
 VARIABLES
@@ -87,7 +104,7 @@ VARIABLES
   \* Profiles.Run (fetchLoop, src)
   pPhase, pSig, pRef, pRes,
   \* Files.Run (filesRun, files)
-  fPhase,     \* "off": waiting offline; "check": a check in flight; "got": its list in hand; "wait": waiting to poll
+  fPhase,     \* "off": waiting offline; "list"/"after": a check in flight; "got": its list in hand; "wait": waiting to poll
   fLong,      \* the check in flight waits for a file to arrive
   fAgain,     \* check's again: a Refresh came during a check that doesn't wait
   fTimer,     \* the Interval timer is armed
@@ -96,14 +113,18 @@ VARIABLES
   fState,     \* r.state
   fLast,      \* r.last's names
   fBase,      \* r.baseline
-  fBaseP,     \* ghost: the profile r.last's baseline was read from
+  fProf,      \* r.profile: the profile r.last is from, "none" after a reset
+  fPB,        \* the profile profileWaitingFiles read before the list
+  fSeen,      \* r.seen: per profile, the names in the last list passed to New
+  fSeenP,     \* the profiles r.seen has a list for
   fRes,       \* the list the check returned
   \* the main thread
   mainQ,      \* IdleAdd callbacks not run yet
   mainWait,   \* a LocalAPI call the main thread is blocked in, or NoOp
   ops,        \* background switch and delete goroutines in flight
   online,     \* a.online
-  waiting,    \* a.waiting, with the profile it was read from as a ghost
+  waiting,    \* a.waiting, a FileStatus with its profile
+  pend,       \* a.pending: [p, f] saved from p while another profile was current
   appProf,    \* a.profileStatus, which the tray shows
   winOpen,    \* a.win != nil
   winProf,    \* the window's profiles and activeProfileID
@@ -123,6 +144,9 @@ VARIABLES
   stray,      \* a New Incoming File notification went out for a file that never arrived in that profile
   dup,        \* a New Incoming File notification went out again for an arrival already accounted for
   wrongDelete,\* a delete removed a file from a different profile than the list it was picked from
+  unchecked,  \* ghost: a wrong delete whose own profile check saw another profile than the op's
+  saved,      \* ghost: [p, f] whose content was saved from profile p and is still waiting there
+  wrongSave,  \* ghost: a save wrote a file read from another profile than the list it came from
   failedTray, \* tray switches that failed
   notices,    \* "Switch account" notifications shown
   stuck,      \* ghost: the switch stalled in Starting, a real failure, so the fallback may fire
@@ -132,11 +156,12 @@ VARIABLES
 daemonVars == <<cur, known, dstate, files>>
 busVars == <<busQ, busState, pending, busLatest, hold, runPhase>>
 pVars == <<pPhase, pSig, pRef, pRes>>
-fVars == <<fPhase, fLong, fAgain, fTimer, fRef, fSig, fState, fLast, fBase, fBaseP, fRes>>
+fVars == <<fPhase, fLong, fAgain, fTimer, fRef, fSig, fState, fLast, fBase, fProf, fPB, fSeen, fSeenP, fRes>>
 holdVars == <<heldSt, timerArmed, trayOff, winOff>>
-uiVars == <<online, waiting, appProf, winOpen, winProf, dropSel, selfPage, heldSt, timerArmed, trayOff, winOff>>
+uiVars == <<online, waiting, pend, appProf, winOpen, winProf, dropSel, selfPage, heldSt, timerArmed, trayOff, winOff>>
 noteVars == <<noticed, told, stray, dup>>
-ghostVars == <<unseenProf, fDirty, gen, noticed, owed, told, stray, dup, wrongDelete, failedTray, notices, stuck, flap>>
+fileGhosts == <<unchecked, saved, wrongSave>>
+ghostVars == <<unseenProf, fDirty, gen, noticed, owed, told, stray, dup, wrongDelete, fileGhosts, failedTray, notices, stuck, flap>>
 vars == <<daemonVars, busVars, pVars, fVars, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
 \* The loop that a Part leaves out gets no signals or refreshes.
@@ -148,7 +173,7 @@ FMask == IF Part # "files" THEN {}
 \* kick, src. With an unbuffered channel the send only lands while the
 \* loop is blocked in a select on it: await for Profiles, next for Files.
 KickP == IF Part = "profiles" /\ (RefreshBuffered \/ pPhase = "idle") THEN TRUE ELSE pRef
-KickF == IF Part = "files" /\ (RefreshBuffered \/ fPhase \in {"off", "check", "wait"}) THEN TRUE ELSE fRef
+KickF == IF Part = "files" /\ (RefreshBuffered \/ fPhase \in {"off", "list", "wait"}) THEN TRUE ELSE fRef
 
 \* The bus's select only runs when nothing is waiting to be published.
 BusSelects == pending = "none" \/ hold > 0
@@ -169,15 +194,17 @@ Init ==
   /\ pPhase = "idle" /\ pSig = FALSE /\ pRef = (Part = "profiles") /\ pRes = NoProfiles
   \* Files.Run starts offline, as b.latest is nil.
   /\ fPhase = "off" /\ fLong = FALSE /\ fAgain = FALSE /\ fTimer = FALSE /\ fRef = FALSE
-  /\ fSig = FALSE /\ fState = "NoState" /\ fLast = {} /\ fBase = FALSE /\ fBaseP = "none" /\ fRes = NoRes
+  /\ fSig = FALSE /\ fState = "NoState" /\ fLast = {} /\ fBase = FALSE /\ fProf = "none" /\ fPB = "none"
+  /\ fSeen = [p \in Profiles |-> {}] /\ fSeenP = {} /\ fRes = NoRes
   /\ mainQ = <<>> /\ mainWait = NoOp /\ ops = {}
-  /\ online = FALSE /\ waiting = NoFiles /\ appProf = NoProfiles
+  /\ online = FALSE /\ waiting = NoFiles /\ pend = {} /\ appProf = NoProfiles
   /\ winOpen = FALSE /\ winProf = NoProfiles /\ dropSel = "none" /\ selfPage = NoFiles
   /\ heldSt = "none" /\ timerArmed = FALSE /\ trayOff = FALSE /\ winOff = FALSE
   /\ unseenProf = FALSE /\ fDirty = (Part = "files")
   /\ gen = [p \in Profiles |-> NoGen] /\ noticed = [p \in Profiles |-> NoGen]
   /\ owed = [p \in Profiles |-> NoGen] /\ told = [p \in Profiles |-> NoGen]
   /\ stray = FALSE /\ dup = FALSE /\ wrongDelete = FALSE /\ failedTray = 0 /\ notices = 0
+  /\ unchecked = FALSE /\ saved = {} /\ wrongSave = FALSE
   /\ stuck = FALSE /\ flap = FALSE
   /\ budget = [switch |-> MaxSwitches, recv |-> MaxReceives, odel |-> MaxOutsideDeletes,
                list |-> MaxListChanges, look |-> MaxLooks, del |-> MaxDeletes,
@@ -187,8 +214,8 @@ Spend(k) == budget' = [budget EXCEPT ![k] = @ - 1]
 
 \* ---------------- tailscaled and other clients ----------------
 
-\* SwitchProfile, ll:8383-8398, and resetForProfileChangeLocked, ll:8414-8455:
-\* the taildrop manager moves to the new login (td:149-195) and the state
+\* SwitchProfile, ll:8805-8820, and resetForProfileChangeLocked, ll:8836-8896:
+\* the taildrop manager moves to the new login (td:149-196) and the state
 \* becomes NoState under b.mu, then startLocked brings it back up.
 \* Returns the error as a boolean.
 SwitchFails(p) == p \notin known
@@ -202,7 +229,7 @@ OtherClientSwitches(p) ==
   /\ budget.switch > 0 /\ p # cur /\ p \in known
   /\ DoSwitch(p) /\ Spend("switch")
   /\ UNCHANGED <<known, files, busState, pending, busLatest, hold, runPhase, pVars, fVars, mainQ, mainWait, ops, uiVars,
-                 unseenProf, gen, noticed, owed, told, stray, dup, wrongDelete, failedTray, notices, stuck, flap>>
+                 unseenProf, gen, noticed, owed, told, stray, dup, wrongDelete, fileGhosts, failedTray, notices, stuck, flap>>
 
 \* startLocked after a switch: Starting with WantRunning still set, then
 \* Running once the new profile's control server answers. Seen on the bus
@@ -213,41 +240,43 @@ TailscaledStarts(s) ==
   /\ dstate = "NoState" /\ dstate' = "Starting" /\ stuck' = s
   /\ busQ' = Append(busQ, Notify("state", "Starting"))
   /\ UNCHANGED <<cur, known, files, busState, pending, busLatest, hold, runPhase, pVars, fVars, mainQ, mainWait, ops, uiVars,
-                 unseenProf, fDirty, gen, noticed, owed, told, stray, dup, wrongDelete, failedTray, notices, flap, budget>>
+                 unseenProf, fDirty, gen, noticed, owed, told, stray, dup, wrongDelete, fileGhosts, failedTray, notices, flap, budget>>
 
 TailscaledComesBackUp ==
   /\ dstate = "Starting" /\ dstate' = "Running" /\ stuck' = FALSE
   /\ busQ' = Append(busQ, Notify("state", "Running"))
   /\ UNCHANGED <<cur, known, files, busState, pending, busLatest, hold, runPhase, pVars, fVars, mainQ, mainWait, ops, uiVars,
-                 unseenProf, fDirty, gen, noticed, owed, told, stray, dup, wrongDelete, failedTray, notices, flap, budget>>
+                 unseenProf, fDirty, gen, noticed, owed, told, stray, dup, wrongDelete, fileGhosts, failedTray, notices, flap, budget>>
 
 \* A Taildrop transfer finishes: PutFile (feature/taildrop/send.go) renames
 \* it into place as f, then wakes AwaitWaitingFiles. Rename keeps the name
 \* when no other file has it. Files doesn't follow the bus's deprecated
 \* IncomingFiles, so the bus is left out. Trayscale owes a notification
-\* for an arrival once Files has passed a first list for this profile to
-\* New; a file that arrives before that is listed quietly with it, like
-\* the files waiting at launch.
+\* for an arrival once Files has passed a list for this profile to New,
+\* which r.seen remembers across resets; a file that arrives before that
+\* is listed quietly with the first list, like the files waiting at launch.
 FileArrives(f) ==
   /\ Part = "files" /\ budget.recv > 0 /\ dstate = "Running" /\ f \notin files[cur]
   /\ Resends \/ (f \notin StartFiles[cur] /\ gen[cur][f] = 0)
   /\ files' = [files EXCEPT ![cur] = @ \cup {f}]
   /\ gen' = [gen EXCEPT ![cur][f] = @ + 1]
   /\ fDirty' = TRUE
-  /\ owed' = IF fBase /\ fBaseP = cur THEN [owed EXCEPT ![cur][f] = gen'[cur][f]] ELSE owed
+  /\ owed' = IF cur \in fSeenP THEN [owed EXCEPT ![cur][f] = gen'[cur][f]] ELSE owed
   /\ Spend("recv")
   /\ UNCHANGED <<cur, known, dstate, busVars, pVars, fVars, mainQ, mainWait, ops, uiVars,
-                 unseenProf, noticed, told, stray, dup, wrongDelete, failedTray, notices, stuck, flap>>
+                 unseenProf, noticed, told, stray, dup, wrongDelete, fileGhosts, failedTray, notices, stuck, flap>>
 
 \* `tailscale file get` or another client takes a waiting file. Nothing
 \* reports it, so only a check finds it.
 OtherClientTakesFile(f) ==
   /\ Part = "files" /\ budget.odel > 0 /\ dstate = "Running" /\ f \in files[cur]
   /\ files' = [files EXCEPT ![cur] = @ \ {f}]
+  /\ saved' = saved \ {[p |-> cur, f |-> f]}
   /\ fDirty' = TRUE
   /\ Spend("odel")
   /\ UNCHANGED <<cur, known, dstate, busVars, pVars, fVars, mainQ, mainWait, ops, uiVars,
-                 unseenProf, gen, noticed, owed, told, stray, dup, wrongDelete, failedTray, notices, stuck, flap>>
+                 unseenProf, gen, noticed, owed, told, stray, dup, wrongDelete, unchecked, wrongSave,
+                 failedTray, notices, stuck, flap>>
 
 \* Another client adds or deletes a profile that isn't the current one.
 \* Nothing reports it.
@@ -257,7 +286,7 @@ OtherClientChangesProfiles(q) ==
   /\ unseenProf' = TRUE
   /\ Spend("list")
   /\ UNCHANGED <<cur, dstate, files, busVars, pVars, fVars, mainQ, mainWait, ops, uiVars,
-                 fDirty, gen, noticed, owed, told, stray, dup, wrongDelete, failedTray, notices, stuck, flap>>
+                 fDirty, gen, noticed, owed, told, stray, dup, wrongDelete, fileGhosts, failedTray, notices, stuck, flap>>
 
 \* ---------------- Bus.Run ----------------
 
@@ -274,7 +303,7 @@ BusReads ==
         /\ pSig' = (pSig \/ changes \cap PMask # {})
         /\ fSig' = (fSig \/ changes \cap FMask # {})
   /\ UNCHANGED <<daemonVars, busLatest, hold, runPhase, pPhase, pRef, pRes,
-                 fPhase, fLong, fAgain, fTimer, fRef, fState, fLast, fBase, fBaseP, fRes,
+                 fPhase, fLong, fAgain, fTimer, fRef, fState, fLast, fBase, fProf, fPB, fSeen, fSeenP, fRes,
                  mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
 \* publish: b.latest.Swap, then Bus.New does gutil.IdleAdd(a.update), then
@@ -332,122 +361,221 @@ ProfilesPublish ==
 \* changed state always wakes drain.
 ResetPending == fSig \/ (ResetOnPublished /\ busLatest # fState)
 
-\* The top of run's loop, with r.last and r.baseline as last and base:
-\* offline, reset and wait for a signal or a Refresh; online, start a
-\* check, which waits for a file to arrive if the last list passed to New
-\* was empty.
-Top(last, base) ==
+\* The phases while a check is in flight, in profileWaitingFiles' check
+\* goroutine: "list" before waitingFiles, "after" before the second
+\* currentProfile. The first currentProfile reads cur, with nothing
+\* else modeled in between, so Top does it: a switch just before it is
+\* the same as one just before Top.
+InFlight == {"list", "after"}
+
+\* The top of run's loop, with r.last, r.baseline, and r.profile as last,
+\* base, and prof: offline, reset and wait for a signal or a Refresh;
+\* online, start a check, which waits for a file to arrive if the last
+\* list passed to New was empty.
+Top(last, base, prof) ==
   IF FilesGatedOnline /\ busLatest # "Running"
-  THEN fPhase' = "off" /\ fLast' = {} /\ fBase' = FALSE /\ fLong' = FALSE /\ fAgain' = FALSE
-  ELSE fPhase' = "check" /\ fLast' = last /\ fBase' = base /\ fLong' = (base /\ last = {}) /\ fAgain' = FALSE
+  THEN fPhase' = "off" /\ fLast' = {} /\ fBase' = FALSE /\ fProf' = "none" /\ fLong' = FALSE /\ fAgain' = FALSE
+       /\ fPB' = "none"
+  ELSE fPhase' = "list" /\ fPB' = cur /\ fLast' = last /\ fBase' = base /\ fProf' = prof
+       /\ fLong' = (base /\ last = {}) /\ fAgain' = FALSE
 
 \* next, or check's own loop, wakes on a signal and drain resets: the
 \* timer and a check in flight are dropped. In "got", run calls drain
 \* right after check returns.
 FilesResets ==
   /\ Part = "files" /\ ResetPending
-  /\ fPhase \in {"off", "check", "wait"} \/ (fPhase = "got" /\ DiscardStaleFetch)
+  /\ fPhase \in {"off", "wait"} \cup InFlight \/ (fPhase = "got" /\ DiscardStaleFetch)
   /\ fSig' = FALSE /\ fState' = busLatest /\ fTimer' = FALSE /\ fRes' = NoRes
-  /\ Top({}, FALSE)
-  /\ UNCHANGED <<daemonVars, busVars, pVars, fRef, fBaseP, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
+  /\ Top({}, FALSE, "none")
+  /\ UNCHANGED <<daemonVars, busVars, pVars, fRef, fSeen, fSeenP, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
 \* next returns filesRefresh while offline or waiting to poll.
 FilesRefreshWakes ==
   /\ Part = "files" /\ fRef /\ fPhase \in {"off", "wait"}
   /\ fRef' = FALSE /\ fTimer' = FALSE
-  /\ Top(fLast, fBase)
-  /\ UNCHANGED <<daemonVars, busVars, pVars, fSig, fState, fBaseP, fRes, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
+  /\ Top(fLast, fBase, fProf)
+  /\ UNCHANGED <<daemonVars, busVars, pVars, fSig, fState, fSeen, fSeenP, fRes, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
 \* check's loop takes a Refresh: one that doesn't wait for a file is
 \* repeated after it returns, as its list may predate the Refresh.
 FilesRefreshDuringCheck ==
-  /\ Part = "files" /\ fRef /\ fPhase = "check"
+  /\ Part = "files" /\ fRef /\ fPhase \in InFlight
   /\ fRef' = FALSE /\ fAgain' = (fAgain \/ (RefreshRepeats /\ ~fLong))
-  /\ UNCHANGED <<daemonVars, busVars, pVars, fPhase, fLong, fTimer, fSig, fState, fLast, fBase, fBaseP, fRes,
+  /\ UNCHANGED <<daemonVars, busVars, pVars, fPhase, fLong, fTimer, fSig, fState, fLast, fBase, fProf, fPB, fSeen, fSeenP, fRes,
                  mainQ, mainWait, ops, uiVars, ghostVars, budget>>
 
 \* The Interval timer fires.
 FilesTimer ==
   /\ Part = "files" /\ fPhase = "wait" /\ fTimer
   /\ fTimer' = FALSE
-  /\ Top(fLast, fBase)
-  /\ UNCHANGED <<daemonVars, busVars, pVars, fRef, fSig, fState, fBaseP, fRes, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
+  /\ Top(fLast, fBase, fProf)
+  /\ UNCHANGED <<daemonVars, busVars, pVars, fRef, fSig, fState, fSeen, fSeenP, fRes, mainQ, mainWait, ops, uiVars, ghostVars, budget>>
+
+FilesCheckUnchanged ==
+  UNCHANGED <<daemonVars, busVars, pVars, fLong, fAgain, fTimer, fRef, fSig, fState, fLast, fBase, fProf, fSeen, fSeenP,
+              mainQ, mainWait, ops, uiVars, unseenProf, gen, noticed, owed, told, stray, dup,
+              wrongDelete, fileGhosts, failedTray, notices, stuck, flap, budget>>
 
 \* waitingFiles: AwaitWaitingFiles against the current login's manager.
 \* With a wait it answers once any file is waiting. Its deadline passing
 \* with none waiting answers an empty list, which push drops as unchanged
 \* before the next long poll, so the model leaves it out.
 FilesFetch ==
-  /\ Part = "files" /\ fPhase = "check" /\ (~fLong \/ files[cur] # {})
-  /\ fPhase' = "got"
-  /\ fRes' = [p |-> cur, fs |-> files[cur],
+  /\ Part = "files" /\ fPhase = "list" /\ (~fLong \/ files[cur] # {})
+  /\ fPhase' = "after"
+  /\ fRes' = [t |-> fPB, p |-> cur, fs |-> files[cur],
               gen |-> [f \in Files |-> IF f \in files[cur] THEN gen[cur][f] ELSE 0]]
   /\ fDirty' = FALSE
-  /\ UNCHANGED <<daemonVars, busVars, pVars, fLong, fAgain, fTimer, fRef, fSig, fState, fLast, fBase, fBaseP,
-                 mainQ, mainWait, ops, uiVars, unseenProf, gen, noticed, owed, told, stray, dup,
-                 wrongDelete, failedTray, notices, stuck, flap, budget>>
+  /\ UNCHANGED fPB
+  /\ FilesCheckUnchanged
 
-\* push, then the rest of run's loop: New with the first list after a
-\* reset, or with a changed list and the files in it that weren't in the
+\* profileWaitingFiles' second currentProfile call: a different profile
+\* fails with ErrProfileChanged, and run resets and checks again. The list
+\* carries the profile from before it, which is the same.
+FilesProfileAfter ==
+  /\ Part = "files" /\ fPhase = "after"
+  /\ IF ProfileTagged /\ cur # fPB
+     THEN /\ fRes' = NoRes /\ Top({}, FALSE, "none")
+          /\ UNCHANGED <<fTimer, fAgain>>
+     ELSE /\ fPhase' = "got"
+          /\ UNCHANGED <<fRes, fLast, fBase, fProf, fPB, fLong, fAgain>>
+  /\ UNCHANGED <<daemonVars, busVars, pVars, fTimer, fRef, fSig, fState, fSeen, fSeenP,
+                 mainQ, mainWait, ops, uiVars, ghostVars, budget>>
+
+\* push, then the rest of run's loop. A list from another profile than
+\* r.profile resets first. New gets the first list after a reset with
+\* the files that aren't in r.seen for its profile (none if r.seen has
+\* no list for it), or a changed list with the files that weren't in the
 \* last one (arrivedFiles, which compares names and sizes; the model has
 \* names). An empty list goes straight to a long poll; a list with files
 \* arms the Interval timer, unless a Refresh came during the check.
 FilesPush ==
   /\ Part = "files" /\ fPhase = "got" /\ (~ResetPending \/ ~DiscardStaleFetch)
   /\ LET fs == fRes.fs
-         first == ~fBase
-         arr == IF first THEN (IF BaselineQuiet THEN {} ELSE fs) ELSE fs \ fLast
-     IN /\ mainQ' = IF first \/ fs # fLast
-                    THEN Append(mainQ, [Msg("files") EXCEPT !.p = fRes.p, !.fs = fs, !.gen = fRes.gen, !.arr = arr])
+         t == fRes.t
+         switched == ResetOnProfile /\ fBase /\ t # fProf
+         base == fBase /\ ~switched
+         last == IF switched THEN {} ELSE fLast
+         first == ~base
+         arr == IF ~first THEN fs \ last
+                ELSE IF SeenAcrossReset /\ t \in fSeenP THEN fs \ fSeen[t]
+                ELSE IF BaselineQuiet THEN {} ELSE fs
+     IN /\ mainQ' = IF first \/ fs # last
+                    THEN Append(mainQ, [Msg("files") EXCEPT !.p = t, !.rp = fRes.p, !.fs = fs, !.gen = fRes.gen, !.arr = arr])
                     ELSE mainQ
-        /\ fBaseP' = IF first THEN fRes.p ELSE fBaseP
+        /\ fSeen' = [fSeen EXCEPT ![t] = fs]
+        /\ fSeenP' = fSeenP \cup {t}
         /\ IF fs = {} \/ fAgain
-           THEN fTimer' = FALSE /\ Top(fs, TRUE)
-           ELSE /\ fPhase' = "wait" /\ fTimer' = PollWhileWaiting /\ fLast' = fs /\ fBase' = TRUE
+           THEN fTimer' = FALSE /\ Top(fs, TRUE, t)
+           ELSE /\ fPhase' = "wait" /\ fTimer' = PollWhileWaiting /\ fLast' = fs /\ fBase' = TRUE /\ fProf' = t
+                /\ fPB' = "none"
                 /\ UNCHANGED <<fLong, fAgain>>
   /\ fRes' = NoRes
   /\ UNCHANGED <<daemonVars, busVars, pVars, fRef, fSig, fState, mainWait, ops, uiVars, ghostVars, budget>>
 
-\* ---------------- Switches and deletes ----------------
+\* ---------------- Switches and file operations ----------------
 
 \* Profiles.Switch, src, from the tray (OnProfileSwitch) or the drop-down
-\* (its selected-item handler), and Files.Delete, files, from the self page
-\* (fileRow's delete button), saveFile's post-save delete (io), or
-\* maybeAutoSaveFiles, which calls saveFile. Each is one step: the
-\* LocalAPI call, then the deferred Refresh, then for the tray the failure
-\* notification's IdleAdd. DeleteWaitingFile always deletes by name in
-\* the current login's directory, so a save or delete started from another
-\* profile's list can remove that name from the profile you have switched to.
-Finish(op) ==
-  IF op.k = "switch" THEN
-    /\ DoSwitch(op.to)
-    /\ pRef' = IF SwitchRefreshes THEN KickP ELSE pRef
-    /\ IF op.src = "tray" /\ SwitchFails(op.to)
-       THEN /\ failedTray' = failedTray + 1
-            /\ mainQ' = IF TraySwitchFailureNotifies THEN Append(mainQ, Msg("notice")) ELSE mainQ
-       ELSE UNCHANGED <<failedTray, mainQ>>
-    /\ UNCHANGED <<known, files, fRef, wrongDelete>>
-  ELSE
-    /\ wrongDelete' = (wrongDelete \/ (op.p # cur /\ op.f \in files[cur]))
-    /\ files' = [files EXCEPT ![cur] = @ \ {op.f}]
-    /\ fDirty' = (fDirty \/ op.f \in files[cur])
-    /\ fRef' = IF DeleteRefreshes THEN KickF ELSE fRef
-    /\ UNCHANGED <<cur, known, dstate, busQ, pRef, failedTray, mainQ>>
-
-FinishUnchanged ==
-  UNCHANGED <<busState, pending, busLatest, hold, runPhase, pPhase, pSig, pRes,
-              fPhase, fLong, fAgain, fTimer, fSig, fState, fLast, fBase, fBaseP, fRes, uiVars,
-              unseenProf, gen, noticed, owed, told, stray, dup, notices, stuck, flap, budget>>
+\* (its selected-item handler). One step: the LocalAPI call, then the
+\* deferred Refresh, then for the tray the failure notification's IdleAdd.
+SwitchFinishes(op) ==
+  /\ DoSwitch(op.to)
+  /\ pRef' = IF SwitchRefreshes THEN KickP ELSE pRef
+  /\ IF op.src = "tray" /\ SwitchFails(op.to)
+     THEN /\ failedTray' = failedTray + 1
+          /\ mainQ' = IF TraySwitchFailureNotifies THEN Append(mainQ, Msg("notice")) ELSE mainQ
+     ELSE UNCHANGED <<failedTray, mainQ>>
+  /\ UNCHANGED <<known, files, busState, pending, busLatest, hold, runPhase, pPhase, pSig, pRes, fVars, uiVars,
+                 unseenProf, gen, noticed, owed, told, stray, dup, wrongDelete, fileGhosts, notices, stuck, flap, budget>>
 
 BackgroundFinishes(op) ==
-  /\ op \in ops /\ ops' = ops \ {op}
-  /\ Finish(op)
-  /\ FinishUnchanged /\ UNCHANGED mainWait
+  /\ op \in ops /\ op.k = "switch" /\ ops' = ops \ {op}
+  /\ SwitchFinishes(op)
+  /\ UNCHANGED mainWait
 
+\* A file operation's steps, each one LocalAPI call. Delete from the self
+\* page's delete button (fileRow), and the retry of a pending delete
+\* (retryPendingDeletes, io), start at Files.Delete's check. A save from
+\* the save button and an auto-save (maybeAutoSaveFiles, io) run saveFile:
+\* Files.Open's check, getWaitingFile, Open's second check, then the
+\* write, which the model leaves out, and deleteSaved's Files.Delete.
+\* Files.Delete defers a Refresh, so even a failed check kicks Files.
+\* DeleteWaitingFile always deletes by name in the current login's
+\* directory, so a switch between Delete's check and the delete still
+\* removes that name from the profile you switched to.
+\*
+\* next is the op after this step, or NoOp when it's done.
+FileOpUnchanged ==
+  UNCHANGED <<cur, known, dstate, busVars, pVars, fPhase, fLong, fAgain, fTimer, fSig, fState, fLast, fBase,
+              fProf, fPB, fSeen, fSeenP, fRes, online, waiting, pend, appProf, winOpen, winProf, dropSel, selfPage,
+              holdVars, unseenProf, gen, noticed, owed, told, stray, dup, failedTray, notices, stuck, flap, budget>>
+
+\* The op after op's next step, or NoOp when that step ends it.
+NextOp(op) ==
+  CASE op.ph = "open" ->
+         IF (~OpenChecksProfile \/ cur = op.p) /\ op.f \in files[cur] THEN [op EXCEPT !.ph = "open3", !.rd = cur] ELSE NoOp
+    [] op.ph = "open3" -> IF ~OpenChecksProfile \/ cur = op.p THEN [op EXCEPT !.ph = "chk"] ELSE NoOp
+    [] op.ph = "chk" -> IF ~DeleteChecksProfile \/ cur = op.p THEN [op EXCEPT !.ph = "del", !.ck = cur] ELSE NoOp
+    [] op.ph = "del" -> NoOp
+
+\* What op's next step does besides moving to NextOp(op).
+FileOpEffects(op) ==
+  CASE op.ph = "open" ->
+         \* Files.Open's first checkProfile, then getWaitingFile, which
+         \* opens the name in the current login's directory. A failure
+         \* saves nothing. One step: the second check catches a switch
+         \* between them, so splitting them adds only states.
+         UNCHANGED <<files, fRef, mainQ, wrongDelete, fileGhosts, fDirty>>
+    [] op.ph = "open3" ->
+         \* Open's second checkProfile, then saveFile writes the file.
+         IF NextOp(op) # NoOp
+         THEN /\ wrongSave' = (wrongSave \/ op.rd # op.rp)
+              /\ saved' = IF op.rd = op.rp THEN saved \cup {[p |-> op.rd, f |-> op.f]} ELSE saved
+              /\ UNCHANGED <<files, fRef, mainQ, wrongDelete, unchecked, fDirty>>
+         ELSE UNCHANGED <<files, fRef, mainQ, wrongDelete, fileGhosts, fDirty>>
+    [] op.ph = "chk" ->
+         \* Files.Delete's checkProfile. A failure deletes nothing, and
+         \* deleteSaved IdleAdds the file to a.pending.
+         /\ IF NextOp(op) # NoOp
+            THEN UNCHANGED <<fRef, mainQ>>
+            ELSE /\ fRef' = IF DeleteRefreshes THEN KickF ELSE fRef
+                 /\ mainQ' = IF op.k \in {"save", "autosave", "retry"} /\ SaveDefersDelete
+                             THEN Append(mainQ, [Msg("pend") EXCEPT !.p = op.p, !.f = op.f])
+                             ELSE mainQ
+         /\ UNCHANGED <<files, wrongDelete, fileGhosts, fDirty>>
+    [] op.ph = "del" ->
+         \* deleteWaitingFile, then the deferred Refresh.
+         /\ wrongDelete' = (wrongDelete \/ (op.rp # cur /\ op.f \in files[cur]))
+         /\ unchecked' = (unchecked \/ (op.rp # cur /\ op.f \in files[cur] /\ op.ck # op.p))
+         /\ files' = [files EXCEPT ![cur] = @ \ {op.f}]
+         /\ saved' = saved \ {[p |-> cur, f |-> op.f]}
+         /\ fDirty' = (fDirty \/ op.f \in files[cur])
+         /\ fRef' = IF DeleteRefreshes THEN KickF ELSE fRef
+         /\ UNCHANGED <<mainQ, wrongSave>>
+
+BackgroundFileStep(op) ==
+  /\ op \in ops /\ op.k # "switch"
+  /\ ops' = (ops \ {op}) \cup (IF NextOp(op) = NoOp THEN {} ELSE {NextOp(op)})
+  /\ FileOpEffects(op)
+  /\ UNCHANGED mainWait
+  /\ FileOpUnchanged
+
+\* A switch, delete, or save the main thread blocks in, which only
+\* happens when a code fact that keeps it off the main thread is FALSE.
+\* MainThreadNeverWaits already fails then, so the whole op is one step:
+\* the delete without the profile checks.
 MainThreadFinishes ==
   /\ mainWait # NoOp /\ mainWait' = NoOp
-  /\ Finish(mainWait)
-  /\ FinishUnchanged /\ UNCHANGED ops
+  /\ IF mainWait.k = "switch"
+     THEN SwitchFinishes(mainWait)
+     ELSE /\ wrongDelete' = (wrongDelete \/ (mainWait.rp # cur /\ mainWait.f \in files[cur]))
+          /\ files' = [files EXCEPT ![cur] = @ \ {mainWait.f}]
+          /\ saved' = saved \ {[p |-> cur, f |-> mainWait.f]}
+          /\ fDirty' = (fDirty \/ mainWait.f \in files[cur])
+          /\ fRef' = IF DeleteRefreshes THEN KickF ELSE fRef
+          /\ UNCHANGED <<mainQ, unchecked, wrongSave>>
+          /\ FileOpUnchanged
+  /\ UNCHANGED ops
 
 \* Start op on the main thread or in a goroutine.
 Launch(op, offMain) ==
@@ -507,7 +635,7 @@ ApplyIPN(m) ==
        /\ Show(m.st, heldSt # "none" /\ HoldReenables /\ HoldReplaysFiles)
        /\ IF heldSt # "none" /\ HoldReenables THEN SetSwitching(FALSE) ELSE UNCHANGED <<trayOff, winOff>>
        /\ UNCHANGED timerArmed
-  /\ UNCHANGED <<appProf, winOpen, winProf, dropSel, ops, mainWait, noteVars, notices>>
+  /\ UNCHANGED <<pend, appProf, winOpen, winProf, dropSel, ops, mainWait, noteVars, notices>>
 
 \* The fallback's TimeoutAdd callback: switchTimeout after the hold
 \* starts, show the latest held status. A switch that doesn't stall
@@ -517,21 +645,25 @@ HoldExpires ==
   /\ MainFree /\ timerArmed /\ (stuck \/ heldSt = "none")
   /\ timerArmed' = FALSE
   /\ IF heldSt = "none"
-     THEN UNCHANGED <<online, waiting, appProf, winOpen, winProf, dropSel, selfPage, heldSt, trayOff, winOff, flap>>
+     THEN UNCHANGED <<online, waiting, pend, appProf, winOpen, winProf, dropSel, selfPage, heldSt, trayOff, winOff, flap>>
      ELSE /\ heldSt' = "none"
           /\ Show(heldSt, HoldReenables /\ HoldReplaysFiles)
           /\ IF HoldReenables THEN SetSwitching(FALSE) ELSE UNCHANGED <<trayOff, winOff>>
-          /\ UNCHANGED <<appProf, winOpen, winProf, dropSel>>
+          /\ UNCHANGED <<pend, appProf, winOpen, winProf, dropSel>>
   /\ UNCHANGED <<daemonVars, busVars, pVars, fVars, mainQ, mainWait, ops,
-                 unseenProf, fDirty, gen, noteVars, owed, wrongDelete, failedTray, notices, stuck, budget>>
+                 unseenProf, fDirty, gen, noteVars, owed, wrongDelete, fileGhosts, failedTray, notices, stuck, budget>>
 
 \* App.update's FileStatus case: a file in the new list whose name is in
 \* Arrived gets a notification, unless auto-save is on, in which case
 \* maybeAutoSaveFiles (io) handles the files and there is nothing to tell.
 \* With NoticesFromArrivals FALSE, a file in the new list that isn't in
 \* a.waiting gets one, unless a.waiting is nil. During a hold the window
-\* keeps the old profile's list. maybeAutoSaveFiles reads a.waiting and
-\* starts saveFile in a goroutine for each name not already in flight.
+\* keeps the old profile's list. retryPendingDeletes (io) takes every
+\* entry in a.pending for the list's profile and starts a delete for each
+\* file still in the list, marking its name in flight; one already in
+\* flight goes back into a.pending. maybeAutoSaveFiles then reads
+\* a.waiting and starts saveFile in a goroutine for each name not
+\* already in flight.
 ApplyFiles(m) ==
   LET quiet == ~NoticesFromArrivals /\ ~waiting.ok
       new == IF AutoSaveEnabled THEN {}
@@ -540,32 +672,42 @@ ApplyFiles(m) ==
       \* A list taken quietly accounts for the arrival of each file in it.
       seen == IF quiet THEN m.fs ELSE new
       \* The arrival a notification for f stands for: the one in the
-      \* list's profile when it was read. 0 is none, a file that was there
+      \* profile the list was read from. 0 is none, a file that was there
       \* from the start.
       credit(f) == m.gen[f]
-      saving == {op.f : op \in {o \in ops : o.k \in {"save", "autosave"}}}
-      toSave == IF AutoSaveEnabled THEN m.fs \ saving ELSE {}
-      SaveOp(f) == [NoOp EXCEPT !.k = "autosave", !.f = f, !.p = m.p]
+      saving == {op.f : op \in {o \in ops : o.k \in {"save", "autosave", "retry"}}}
+      retry == IF RetriesPending THEN {f \in m.fs : [p |-> m.p, f |-> f] \in pend} ELSE {}
+      kept == IF RetriesPending THEN {e \in pend : e.p # m.p} ELSE pend
+      toSave == IF AutoSaveEnabled THEN m.fs \ (saving \cup retry) ELSE {}
+      FileOp(k, f, ph) == [NoOp EXCEPT !.k = k, !.f = f, !.p = m.p, !.rp = m.rp, !.ph = ph]
+      started == {FileOp("retry", f, "chk") : f \in retry \ saving}
+                 \cup {FileOp("autosave", f, "open") : f \in toSave}
   IN
   /\ stray' = (stray \/ \E f \in new : credit(f) = 0)
-  /\ dup' = (dup \/ \E f \in new : credit(f) > 0 /\ credit(f) <= noticed[m.p][f])
-  /\ noticed' = [noticed EXCEPT ![m.p] = [f \in Files |->
+  /\ dup' = (dup \/ \E f \in new : credit(f) > 0 /\ credit(f) <= noticed[m.rp][f])
+  /\ noticed' = [noticed EXCEPT ![m.rp] = [f \in Files |->
                    IF f \in seen /\ credit(f) > @[f] THEN credit(f) ELSE @[f]]]
-  /\ told' = [told EXCEPT ![m.p] = [f \in Files |-> IF f \in new /\ credit(f) > @[f] THEN credit(f) ELSE @[f]]]
-  /\ waiting' = [ok |-> TRUE, p |-> m.p, fs |-> m.fs, gen |-> m.gen]
+  /\ told' = [told EXCEPT ![m.rp] = [f \in Files |-> IF f \in new /\ credit(f) > @[f] THEN credit(f) ELSE @[f]]]
+  /\ waiting' = [ok |-> TRUE, p |-> m.p, rp |-> m.rp, fs |-> m.fs, gen |-> m.gen]
+  /\ pend' = kept \cup {[p |-> m.p, f |-> f] : f \in retry \cap saving}
   /\ selfPage' = IF selfPage.ok /\ (heldSt = "none" \/ ~HoldGatesFiles) THEN waiting' ELSE selfPage
-  /\ IF toSave = {} THEN UNCHANGED <<ops, mainWait>>
-     ELSE IF AutoSaveOffMain THEN ops' = ops \cup {SaveOp(f) : f \in toSave} /\ UNCHANGED mainWait
-     ELSE /\ \E f \in toSave : mainWait' = SaveOp(f)
-          /\ UNCHANGED ops
+  /\ IF toSave # {} /\ ~AutoSaveOffMain
+     THEN /\ \E f \in toSave : mainWait' = FileOp("autosave", f, "open")
+          /\ ops' = ops \cup {FileOp("retry", f, "chk") : f \in retry \ saving}
+     ELSE ops' = ops \cup started /\ UNCHANGED mainWait
   /\ UNCHANGED <<online, appProf, winOpen, winProf, dropSel, holdVars, notices, flap>>
+
+\* deleteSaved's IdleAdd: a.pending.add.
+ApplyPend(m) ==
+  /\ pend' = pend \cup {[p |-> m.p, f |-> m.f]}
+  /\ UNCHANGED <<online, waiting, appProf, winOpen, winProf, dropSel, selfPage, holdVars, ops, mainWait, noteVars, notices, flap>>
 
 \* App.update's ProfileStatus case and updateProfiles.
 ApplyProfiles(m) ==
   /\ appProf' = [ok |-> TRUE, cur |-> m.cur, list |-> m.list]
   /\ winProf' = IF winOpen THEN appProf' ELSE winProf
   /\ dropSel' = IF winOpen THEN m.cur ELSE dropSel
-  /\ UNCHANGED <<online, waiting, winOpen, selfPage, holdVars, ops, mainWait, noteVars, notices, flap>>
+  /\ UNCHANGED <<online, waiting, pend, winOpen, selfPage, holdVars, ops, mainWait, noteVars, notices, flap>>
 
 \* OnProfileSwitch's IdleAdd: skip the active profile, else switch.
 ApplyTrayClick(m) ==
@@ -581,9 +723,10 @@ MainRuns ==
          [] m.k = "files" -> ApplyFiles(m)
          [] m.k = "profiles" -> ApplyProfiles(m)
          [] m.k = "tray" -> ApplyTrayClick(m)
+         [] m.k = "pend" -> ApplyPend(m)
          [] m.k = "notice" -> notices' = notices + 1 /\ UNCHANGED <<uiVars, ops, mainWait, noteVars, flap>>
   /\ UNCHANGED <<daemonVars, busVars, pVars, fVars,
-                 unseenProf, fDirty, gen, owed, wrongDelete, failedTray, stuck, budget>>
+                 unseenProf, fDirty, gen, owed, wrongDelete, fileGhosts, failedTray, stuck, budget>>
 
 \* ---------------- The user ----------------
 
@@ -601,9 +744,9 @@ UserOpensWindow ==
   /\ fRef' = IF WindowOpenRefreshes THEN KickF ELSE fRef
   /\ unseenProf' = FALSE
   /\ UNCHANGED <<daemonVars, busVars, pPhase, pSig, pRes,
-                 fPhase, fLong, fAgain, fTimer, fSig, fState, fLast, fBase, fBaseP, fRes,
-                 mainQ, mainWait, ops, online, waiting, appProf, heldSt, timerArmed, trayOff,
-                 fDirty, gen, noticed, owed, told, stray, dup, wrongDelete, failedTray, notices, stuck, flap, budget>>
+                 fPhase, fLong, fAgain, fTimer, fSig, fState, fLast, fBase, fProf, fPB, fSeen, fSeenP, fRes,
+                 mainQ, mainWait, ops, online, waiting, pend, appProf, heldSt, timerArmed, trayOff,
+                 fDirty, gen, noticed, owed, told, stray, dup, wrongDelete, fileGhosts, failedTray, notices, stuck, flap, budget>>
 
 \* Looking at a profile list: opening the drop-down (onDropDownPopup),
 \* the tray's Switch account submenu on hosts that report it
@@ -621,7 +764,7 @@ UserOpensProfileList(where) ==
   /\ Spend("look")
   /\ UNCHANGED <<daemonVars, busVars, pPhase, pSig, pRes, fVars,
                  mainQ, mainWait, ops, uiVars, fDirty, gen, noticed, owed, told, stray, dup,
-                 wrongDelete, failedTray, notices, stuck, flap>>
+                 wrongDelete, fileGhosts, failedTray, notices, stuck, flap>>
 
 \* The drop-down's selected-item handler.
 UserPicksInDropDown(p) ==
@@ -631,7 +774,7 @@ UserPicksInDropDown(p) ==
   /\ Launch([NoOp EXCEPT !.k = "switch", !.src = "dropdown", !.to = p], DropDownSwitchOffMain)
   /\ Spend("switch")
   /\ UNCHANGED <<daemonVars, busVars, pVars, fVars, mainQ,
-                 online, waiting, appProf, winOpen, winProf, selfPage, holdVars, ghostVars>>
+                 online, waiting, pend, appProf, winOpen, winProf, selfPage, holdVars, ghostVars>>
 
 \* A tray radio item's handler runs on the D-Bus goroutine and IdleAdds.
 UserPicksInTray(p) ==
@@ -644,17 +787,17 @@ UserPicksInTray(p) ==
 \* The self page's delete confirmation.
 UserDeletes(f) ==
   /\ Part = "files" /\ MainFree /\ ~winOff /\ selfPage.ok /\ f \in selfPage.fs /\ budget.del > 0
-  /\ Launch([NoOp EXCEPT !.k = "delete", !.f = f, !.p = selfPage.p], DeleteOffMain)
+  /\ Launch([NoOp EXCEPT !.k = "delete", !.f = f, !.p = selfPage.p, !.rp = selfPage.rp, !.ph = "chk"], DeleteOffMain)
   /\ Spend("del")
   /\ UNCHANGED <<daemonVars, busVars, pVars, fVars, mainQ, uiVars, ghostVars>>
 
-\* The self page's save button: saveFile (io) writes the file, then
-\* a.files.Delete by name, the same LocalAPI as the delete button, on
-\* the same current login. The name comes from the row, which can be
-\* a previous profile's after a switch hold.
+\* The self page's save button: saveFile (io) opens and writes the file,
+\* then deleteSaved calls a.files.Delete, like the delete button. The
+\* name and the profile come from the rows, which can be a previous
+\* profile's after a switch.
 UserSaves(f) ==
   /\ Part = "files" /\ MainFree /\ ~winOff /\ selfPage.ok /\ f \in selfPage.fs /\ budget.save > 0
-  /\ Launch([NoOp EXCEPT !.k = "save", !.f = f, !.p = selfPage.p], SaveOffMain)
+  /\ Launch([NoOp EXCEPT !.k = "save", !.f = f, !.p = selfPage.p, !.rp = selfPage.rp, !.ph = "open"], SaveOffMain)
   /\ Spend("save")
   /\ UNCHANGED <<daemonVars, busVars, pVars, fVars, mainQ, uiVars, ghostVars>>
 
@@ -668,8 +811,8 @@ Next ==
   \/ SetRunningHolds \/ SetRunningCalls \/ SetRunningReleases
   \/ ProfilesFetch \/ ProfilesPublish
   \/ FilesResets \/ FilesRefreshWakes \/ FilesRefreshDuringCheck \/ FilesTimer
-  \/ FilesFetch \/ FilesPush
-  \/ \E op \in ops : BackgroundFinishes(op)
+  \/ FilesFetch \/ FilesProfileAfter \/ FilesPush
+  \/ \E op \in ops : BackgroundFinishes(op) \/ BackgroundFileStep(op)
   \/ MainThreadFinishes
   \/ MainRuns
   \/ HoldExpires
@@ -685,13 +828,13 @@ TypeOK ==
   /\ dstate \in {"Running", "Stopped", "NoState", "Starting"}
   /\ heldSt \in {"none", "NoState", "Starting"}
   /\ hold \in {0, 1} /\ runPhase \in {"idle", "held", "called"}
-  /\ pPhase \in {"deliver", "idle"} /\ fPhase \in {"off", "check", "got", "wait"}
+  /\ pPhase \in {"deliver", "idle"} /\ fPhase \in {"off", "got", "wait"} \cup InFlight
   /\ fLast \subseteq Files
 
 \* Files is blocked with nothing to do: offline, waiting to poll, or in a
 \* check that waits for a file while none is waiting.
 FilesIdle ==
-  /\ fPhase \in {"off", "wait"} \/ (fPhase = "check" /\ fLong /\ files[cur] = {})
+  /\ fPhase \in {"off", "wait"} \/ (fPhase = "list" /\ fLong /\ files[cur] = {})
   /\ ~fRef /\ ~ResetPending
 
 \* Nothing is in flight: every notify read and published, both loops
@@ -730,10 +873,29 @@ NoStrayFileNotice == ~stray
 
 NoDuplicateFileNotice == ~dup
 
+\* Checked while Tailscale is running: offline, App.update shows no
+\* list, and Files' first list after reconnecting announces what
+\* arrived since the last list it passed for the profile.
 NoMissedFileNotice ==
-  (Settled /\ ~fDirty) => \A f \in files[cur] : owed[cur][f] <= told[cur][f]
+  (Settled /\ ~fDirty /\ dstate = "Running") => \A f \in files[cur] : owed[cur][f] <= told[cur][f]
 
 NoWrongDelete == ~wrongDelete
+
+\* Every wrong delete passed its own profile check: the switch landed
+\* between Files.Delete's checkProfile and deleteWaitingFile, the one
+\* window LocalAPI leaves open.
+NoUncheckedWrongDelete == ~unchecked
+
+\* A save only writes a file read from the profile of the list it was
+\* picked from.
+NoWrongSave == ~wrongSave
+
+\* Once a profile's list has been applied and everything has landed, no
+\* file saved from that profile is still waiting in it: a delete that the
+\* profile check deferred has run.
+SavedFilesCleared ==
+  (Settled /\ ~fDirty /\ dstate = "Running" /\ waiting.ok /\ waiting.p = cur) =>
+    \A f \in files[cur] : [p |-> cur, f |-> f] \notin saved
 
 FailedTraySwitchNotifies == Settled => notices = failedTray
 
@@ -763,15 +925,15 @@ HoldEnds ==
 \* cleared a.waiting without clearing the self-page rows, and syncWindow
 \* skips them when a.waiting is nil.
 NoStaleFilesShown ==
-  (winOpen /\ ~winOff /\ selfPage.ok /\ selfPage.p # "none") => selfPage.p = cur
+  (winOpen /\ ~winOff /\ selfPage.ok /\ selfPage.rp # "none") => selfPage.rp = cur
 
 \* Once the switch has reached Running (or stalled and the fallback has
 \* fired) and the bus has been applied, the enabled self page must not
 \* still show the previous profile's rows. SyncShowsEmptyWaiting is
 \* FALSE in the code, so this fails until a later FileStatus arrives.
 NoStaleFilesAfterHold ==
-  (SwitchSettled /\ winOpen /\ online /\ ~winOff /\ selfPage.ok /\ selfPage.p # "none") =>
-    selfPage.p = cur
+  (SwitchSettled /\ winOpen /\ online /\ ~winOff /\ selfPage.ok /\ selfPage.rp # "none") =>
+    selfPage.rp = cur
 
 \* While a switch is held, the window, the tray, and the app actions show
 \* or act on the old profile, so none of them take a click.

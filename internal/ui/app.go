@@ -627,24 +627,13 @@ func (a *App) login(ctx context.Context) {
 			return
 		}
 
-		err = tsutil.StartLogin(ctx)
+		url, err := a.bus.WaitBrowseURL(ctx, tsutil.StartLogin)
 		if err != nil {
 			slog.Error("failed to start login", "err", err)
 			fail()
 			return
 		}
-
-		for {
-			status, err := a.bus.Next(ctx)
-			if err != nil {
-				fail()
-				return
-			}
-			if status.BrowseToURL != "" {
-				gutil.IdleAdd(func() { a.launchURI(status.BrowseToURL) })
-				return
-			}
-		}
+		gutil.IdleAdd(func() { a.launchURI(url) })
 	}()
 }
 

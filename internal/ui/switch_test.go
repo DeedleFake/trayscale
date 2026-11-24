@@ -21,7 +21,7 @@ func TestStatusSwitchUpdates(t *testing.T) {
 
 	w := gtk.NewWindow()
 	defer w.Destroy()
-	win := &MainWindow{app: &App{poller: new(tsutil.Poller)}, StatusSwitch: gtk.NewSwitch()}
+	win := &MainWindow{app: &App{bus: new(tsutil.Bus)}, StatusSwitch: gtk.NewSwitch()}
 	sw := win.StatusSwitch
 	gutil.Connect(sw, sw.ConnectStateSet, func(_ gtk.Switch, s bool) bool {
 		if s == sw.GetState() {

@@ -11,7 +11,7 @@ TLA_VERSION=1.7.4
 TLA_SHA256=936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
 
 # The tailscale.com version whose daemon behavior the model describes.
-MODELED_TAILSCALE=v1.104.2
+MODELED_TAILSCALE=v1.104.4
 
 # Properties the current code is known to break, as PROPERTY:BOUND. The
 # property must hold with the BOUND constant FALSE and is expected to fail

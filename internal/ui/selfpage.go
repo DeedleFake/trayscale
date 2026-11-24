@@ -95,9 +95,6 @@ func NewSelfPage(a *App, status *tsutil.IPNStatus) *SelfPage {
 func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	page.app = a
 	page.peer, _ = status.Self()
-	if a.files != nil {
-		page.incomingFiles = len(*a.files)
-	}
 
 	page.actions = gio.NewSimpleActionGroup()
 
@@ -119,6 +116,10 @@ func (page *SelfPage) init(a *App, status *tsutil.IPNStatus) {
 	page.fileModel = gobj.NewList(func(f1, f2 apitype.WaitingFile) int { return cmp.Compare(f1.Name, f2.Name) })
 	gobj.BindListBox(page.FilesList, page.fileModel, page.fileRow)
 	setPlaceholder(page.FilesList, locale.Get("No incoming files."))
+	if a.waiting != nil {
+		page.fileModel.Set(*a.waiting)
+		page.incomingFiles = len(*a.waiting)
+	}
 
 	gutil.Connect(page.ExitNodeRow, page.ExitNodeRow.ConnectActivated, func(adw.ActionRow) {
 		page.showExitNode()
@@ -310,12 +311,16 @@ func (page *SelfPage) fileRow(file apitype.WaitingFile) *gtk.Widget {
 			Reject:  locale.Get("_Cancel"),
 		}.Show(a, func(accept bool) {
 			if accept {
-				err := tsutil.DeleteWaitingFile(context.TODO(), file.Name)
-				if err != nil {
-					slog.Error("delete file", "err", err)
-					return
-				}
-				<-a.poller.Poll()
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer cancel()
+
+					err := a.files.Delete(ctx, file.Name)
+					if err != nil {
+						slog.Error("delete file", "err", err)
+						a.toast(locale.Get("Failed to delete file"))
+					}
+				}()
 			}
 		})
 	})

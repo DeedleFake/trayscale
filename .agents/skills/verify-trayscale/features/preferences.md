@@ -1,6 +1,6 @@
 # Preferences
 
-Preferences is a dialog with a General group (tray icon, polling interval, and exit node selection) and a Taildrop group (auto-save received files).
+Preferences is a dialog with a General group (tray icon and exit node selection) and a Taildrop group (auto-save received files).
 
 ## Sub-features
 

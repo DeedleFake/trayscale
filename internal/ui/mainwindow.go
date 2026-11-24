@@ -59,6 +59,8 @@ type MainWindow struct {
 	PeersStack       *adw.ViewStack
 	WorkSpinner      *adw.Spinner
 	ProfileDropDown  *gtk.DropDown
+	SwitchSpinner    *adw.Spinner
+	ContentView      *adw.ToolbarView
 	PageMenuButton   *gtk.MenuButton
 
 	pages       map[string]Page
@@ -66,6 +68,7 @@ type MainWindow struct {
 	showOffline bool
 	peerQuery   string
 	ipn         *tsutil.IPNStatus
+	engine      *tsutil.EngineStatus
 	sidebarHold int
 
 	profiles         []ipn.LoginProfile
@@ -147,16 +150,25 @@ func NewMainWindow(app *App) *MainWindow {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 
-		err := tsutil.SwitchProfile(ctx, profile.ID)
-		if err != nil {
-			slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
-			return
-		}
-		<-app.poller.Poll()
+			err := app.profiles.Switch(ctx, profile.ID)
+			if err != nil {
+				slog.Error("failed to switch profiles", "err", err, "id", profile.ID, "name", profile.Name)
+				gutil.IdleAdd(func() {
+					app.notify(locale.Get("Switch account"), err.Error())
+				})
+			}
+		}()
 	})
+	// Nothing reports a profile that isn't the current one being
+	// deleted, so the list could be stale.
+	onDropDownPopup(win.ProfileDropDown, app.profiles.Refresh)
+	// Nothing reports a profile that isn't the current one being
+	// deleted, so check whenever the user comes back to the window.
+	onWindowActive(&win.MainWindow.Window, app.profiles.Refresh)
 
 	contentVariant := glib.NewVariantString("content").RefSink()
 	gutil.Connect(win.PeersSidebar, win.PeersSidebar.ConnectActivated, func(adw.ViewSwitcherSidebar) {
@@ -289,6 +301,10 @@ func (win *MainWindow) Dispose() {
 func (win *MainWindow) Update(status tsutil.Status) {
 	switch status := status.(type) {
 	case *tsutil.IPNStatus:
+		if !status.Online() {
+			// Pages made after reconnecting would show its counters.
+			win.engine = nil
+		}
 		win.updateStatusSwitch(status.Online())
 
 		win.updatePeers(status)
@@ -300,6 +316,28 @@ func (win *MainWindow) Update(status tsutil.Status) {
 
 	case *tsutil.ProfileStatus:
 		win.updateProfiles(status)
+
+	case *tsutil.EngineStatus:
+		win.engine = status
+		for _, page := range win.pages {
+			page.Update(status)
+		}
+	}
+}
+
+// SetSwitching greys out the window and shows a spinner by the
+// profile drop-down while a profile switch is in progress.
+func (win *MainWindow) SetSwitching(switching bool) {
+	win.SwitchSpinner.SetVisible(switching)
+	for _, w := range []*gtk.Widget{
+		&win.StatusSwitch.Widget,
+		&win.ProfileDropDown.Widget,
+		&win.PeerSearchButton.Widget,
+		&win.PeerSearchBar.Widget,
+		&win.PeersSidebar.Widget,
+		&win.ContentView.Widget,
+	} {
+		w.SetSensitive(!switching)
 	}
 }
 
@@ -381,7 +419,11 @@ func (win *MainWindow) updatePeers(status *tsutil.IPNStatus) {
 		defer win.holdSidebar()()
 	}
 	for _, id := range newPeers {
-		win.addPage(string(id), NewPeerPage(win.app, status, status.Peers[id]))
+		page := NewPeerPage(win.app, status, status.Peers[id])
+		win.addPage(string(id), page)
+		if win.engine != nil {
+			page.Update(win.engine)
+		}
 	}
 
 	win.updatePages(status)
@@ -647,6 +689,28 @@ func (win *MainWindow) updateProfiles(status *tsutil.ProfileStatus) {
 	}
 }
 
+// onDropDownPopup calls f each time dd's list pops up. GtkDropDown has
+// no signal for that, so this watches the popover it shows the list in.
+func onDropDownPopup(dd *gtk.DropDown, f func()) {
+	for child := range gutil.WidgetChildren(&dd.Widget) {
+		if gutil.IsA(child, gtk.PopoverGLibType()) {
+			gutil.Connect(child, child.ConnectShow, func(gtk.Widget) { f() })
+			return
+		}
+	}
+	slog.Error("drop down has no popover")
+}
+
+// onWindowActive calls f each time w becomes the active window, as
+// when the user switches to it.
+func onWindowActive(w *gtk.Window, f func()) {
+	gutil.ConnectNotify(w, "is-active", func() {
+		if w.IsActive() {
+			f()
+		}
+	})
+}
+
 func (win *MainWindow) Toast(msg string) {
 	toast := adw.NewToast(msg)
 	toast.SetTimeout(3)
@@ -660,10 +724,9 @@ func removeActionGroup(w *gtk.Widget, prefix string) {
 	w.InsertActionGroup(prefix, &gio.SimpleActionGroup{})
 }
 
-// setStatus asks the poller to start Tailscale if s is true and stop
-// it otherwise. The status updates that follow set the switch, unless
-// the request couldn't be sent, in which case it's turned back. It
-// doesn't block.
+// setStatus starts Tailscale if s is true and stops it otherwise. The
+// status updates that follow set the switch, unless it couldn't try,
+// in which case it's turned back. It doesn't block.
 func (win *MainWindow) setStatus(ctx context.Context, s bool) {
 	app := win.app
 	sw := win.StatusSwitch

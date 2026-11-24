@@ -39,3 +39,4 @@ Preconditions:
 - A user-owned `trayscale --hide-window` can sit on the session bus at the same time. Doctor the isolated run, not that process.
 - Offline peers disappear from the sidebar if `show-offline-peers` is off. Launch uses in-memory defaults, so the key starts on. `action show-offline-peers` flips it; run it an even number of times so later recipes see offline peers.
 - While a search query is active the sidebar has no section titles. Close search before you check `sidebar-sections`.
+- During a profile switch the window keeps the old profile's peers, its content is insensitive, and a spinner with the tooltip `Switching accounts` shows next to the profile drop-down until tailscaled reports `Running`, or for at most 5 seconds. A snapshot taken then shows insensitive controls and no `Not Connected`. Wait for the spinner to go before you check anything else.

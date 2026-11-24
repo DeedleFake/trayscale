@@ -2,10 +2,12 @@ package ui
 
 import (
 	"net/netip"
+	"slices"
 	"testing"
 
 	"deedles.dev/trayscale/internal/tsutil"
 	"github.com/stretchr/testify/require"
+	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/ipn"
 	"tailscale.com/tailcfg"
 )
@@ -97,4 +99,18 @@ func TestSelfPageExitNodeRow(t *testing.T) {
 			require.Equal(t, test.wantActivatable, page.ExitNodeIcon.GetVisible())
 		})
 	}
+}
+
+// TestSelfPageStartsWithWaitingFiles checks that a self page created
+// after the waiting files arrived lists them, as nothing fetches them
+// again for it.
+func TestSelfPageStartsWithWaitingFiles(t *testing.T) {
+	requireGTK(t)
+
+	waiting := []apitype.WaitingFile{{Name: "a.txt", Size: 1}, {Name: "b.txt", Size: 2}}
+	page := NewSelfPage(&App{waiting: &waiting}, &tsutil.IPNStatus{State: ipn.Running, Prefs: ipn.NewPrefs().View()})
+	defer page.Widget().Unref()
+
+	require.Equal(t, waiting, slices.Collect(page.fileModel.All()))
+	require.Equal(t, len(waiting), page.incomingFiles)
 }

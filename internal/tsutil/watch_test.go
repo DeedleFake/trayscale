@@ -13,10 +13,10 @@ import (
 	"tailscale.com/ipn"
 )
 
-// TestPollerReportsDaemonStopped checks that the poller publishes a
+// TestBusReportsDaemonStopped checks that the bus publishes a
 // not-running status when tailscaled goes away, instead of leaving the
 // UI on the last status it saw.
-func TestPollerReportsDaemonStopped(t *testing.T) {
+func TestBusReportsDaemonStopped(t *testing.T) {
 	l := listenLocalAPI(t)
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/localapi/v0/watch-ipn-bus" {
@@ -33,12 +33,8 @@ func TestPollerReportsDaemonStopped(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	statuses := make(chan *IPNStatus, 16)
-	p := &Poller{Interval: 50 * time.Millisecond, New: func(s Status) {
-		if s, ok := s.(*IPNStatus); ok {
-			statuses <- s
-		}
-	}}
-	go p.Run(ctx)
+	b := &Bus{New: func(s *IPNStatus) { statuses <- s }}
+	go b.Run(ctx)
 
 	if s := <-statuses; !s.Online() {
 		t.Fatalf("first status not online: %v", s.State)
@@ -59,11 +55,11 @@ func TestPollerReportsDaemonStopped(t *testing.T) {
 	}
 }
 
-// TestPollerPublishesLatestAfterStart checks that the first status
+// TestBusPublishesLatestAfterStart checks that the first status
 // published after starting Tailscale is the newest one tailscaled sent
 // while it was starting, not one it was holding from before, which made
 // the switch flick off and back on.
-func TestPollerPublishesLatestAfterStart(t *testing.T) {
+func TestBusPublishesLatestAfterStart(t *testing.T) {
 	l := listenLocalAPI(t)
 	notes := make(chan ipn.State, 4)
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -88,13 +84,8 @@ func TestPollerPublishesLatestAfterStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	statuses := make(chan *IPNStatus, 16)
-	p := &Poller{
-		Interval: time.Hour,
-		New: func(s Status) {
-			if s, ok := s.(*IPNStatus); ok {
-				statuses <- s
-			}
-		},
+	b := &Bus{
+		New: func(s *IPNStatus) { statuses <- s },
 		setRunning: func(ctx context.Context, up bool) error {
 			notes <- ipn.Starting
 			notes <- ipn.Running
@@ -103,14 +94,14 @@ func TestPollerPublishesLatestAfterStart(t *testing.T) {
 			return nil
 		},
 	}
-	go p.Run(ctx)
+	go b.Run(ctx)
 
 	notes <- ipn.Stopped
 	if s := <-statuses; s.State != ipn.Stopped {
 		t.Fatalf("first status is %v, not Stopped", s.State)
 	}
 
-	p.SetRunning() <- true
+	go b.SetRunning(ctx, true)
 	if s := <-statuses; s.State != ipn.Running {
 		t.Fatalf("first status after starting is %v, not Running", s.State)
 	}
@@ -119,7 +110,7 @@ func TestPollerPublishesLatestAfterStart(t *testing.T) {
 var fakeSocket string
 
 func TestMain(m *testing.M) {
-	// Set before any test starts a poller, as pollers from earlier
+	// Set before any test starts a bus, as buses from earlier
 	// tests may still be dialing.
 	dir, err := os.MkdirTemp("", "trayscale-test")
 	if err != nil {
@@ -150,9 +141,9 @@ func listenLocalAPI(t *testing.T) net.Listener {
 	return l
 }
 
-// TestPollerDownStatusIsUsable checks that the status published when
+// TestBusDownStatusIsUsable checks that the status published when
 // tailscaled stops can be read like any other, as the UI does.
-func TestPollerDownStatusIsUsable(t *testing.T) {
+func TestBusDownStatusIsUsable(t *testing.T) {
 	l := listenLocalAPI(t)
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "down", http.StatusServiceUnavailable)
@@ -163,12 +154,8 @@ func TestPollerDownStatusIsUsable(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	statuses := make(chan *IPNStatus, 16)
-	p := &Poller{Interval: time.Hour, New: func(s Status) {
-		if s, ok := s.(*IPNStatus); ok {
-			statuses <- s
-		}
-	}}
-	go p.Run(ctx)
+	b := &Bus{New: func(s *IPNStatus) { statuses <- s }}
+	go b.Run(ctx)
 
 	s := <-statuses
 	if s.Online() {

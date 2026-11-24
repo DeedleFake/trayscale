@@ -2,7 +2,7 @@ package tsutil
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -449,7 +449,7 @@ func currentProfile(ctx context.Context) (ipn.ProfileID, error) {
 		return "", fmt.Errorf("get current profile: %v: %s", res.Status, strings.TrimSpace(string(body)))
 	}
 	var profile ipn.LoginProfile
-	if err := json.NewDecoder(res.Body).Decode(&profile); err != nil {
+	if err := json.UnmarshalRead(res.Body, &profile); err != nil {
 		return "", fmt.Errorf("get current profile: %w", err)
 	}
 	return profile.ID, nil

@@ -2,7 +2,7 @@ package tsutil
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 	"strconv"
 	"strings"
@@ -60,14 +60,13 @@ func startFakeDaemon(t *testing.T) *fakeDaemon {
 func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/localapi/v0/watch-ipn-bus":
-		enc := json.NewEncoder(w)
 		w.(http.Flusher).Flush()
 		for {
 			select {
 			case <-r.Context().Done():
 				return
 			case n := <-d.notes:
-				enc.Encode(n)
+				json.MarshalWrite(w, n)
 				w.(http.Flusher).Flush()
 			}
 		}
@@ -99,7 +98,7 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write([]byte(d.waitingBody()))
 	case "/localapi/v0/profiles/current":
-		json.NewEncoder(w).Encode(ipn.LoginProfile{ID: d.currentProfile()})
+		json.MarshalWrite(w, ipn.LoginProfile{ID: d.currentProfile()})
 	case "/localapi/v0/profiles/":
 		// Only ProfileStatus lists the profiles, so this counts its
 		// fetches. Files only asks for the current one.

@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"io/fs"
 	"log/slog"

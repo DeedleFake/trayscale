@@ -3,6 +3,8 @@ package tsutil
 import (
 	"cmp"
 	"context"
+	"errors"
+	"io"
 	"log/slog"
 	"slices"
 	"sync"
@@ -23,6 +25,11 @@ import (
 // say when that changes, so it checks every Interval. It checks right
 // away after Delete and when Refresh is called, and only while Bus's
 // latest status is online.
+//
+// LocalAPI lists, opens, and deletes the current profile's files by
+// name and never says whose they are, so Files asks for the current
+// profile around each of those calls. Each list carries its profile,
+// and Open and Delete only act on the profile they're given.
 //
 // Set the exported fields before calling Run and don't change them
 // afterwards.
@@ -63,10 +70,54 @@ func (f *Files) Refresh() {
 	kick(f.refresh)
 }
 
-// Delete deletes a waiting file and then checks the list again, even
-// if deleting failed, as that most likely means the list was stale.
-func (f *Files) Delete(ctx context.Context, name string) error {
+// ErrProfileChanged means that another profile became current, so a
+// file of the profile asked for can't be reached.
+var ErrProfileChanged = errors.New("the current profile changed")
+
+// checkProfile returns ErrProfileChanged if profile isn't current.
+func checkProfile(ctx context.Context, profile ipn.ProfileID) error {
+	cur, err := currentProfile(ctx)
+	if err != nil {
+		return err
+	}
+	if cur != profile {
+		return ErrProfileChanged
+	}
+	return nil
+}
+
+// Open opens profile's waiting file name. It fails with
+// ErrProfileChanged if profile isn't current before or after opening
+// it, so the file read is profile's unless profiles switched away and
+// back while it opened.
+func (f *Files) Open(ctx context.Context, profile ipn.ProfileID, name string) (io.ReadCloser, int64, error) {
+	if err := checkProfile(ctx, profile); err != nil {
+		return nil, 0, err
+	}
+	r, size, err := getWaitingFile(ctx, name)
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := checkProfile(ctx, profile); err != nil {
+		r.Close()
+		return nil, 0, err
+	}
+	return r, size, nil
+}
+
+// Delete deletes profile's waiting file name and then checks the list
+// again, even if deleting failed, as that most likely means the list
+// was stale. It fails with ErrProfileChanged, deleting nothing, if
+// profile isn't current.
+//
+// LocalAPI only deletes by name from the current profile, so a switch
+// between the check and the delete still deletes the new profile's
+// file of that name. Nothing on Trayscale's side can close that.
+func (f *Files) Delete(ctx context.Context, profile ipn.ProfileID, name string) error {
 	defer f.Refresh()
+	if err := checkProfile(ctx, profile); err != nil {
+		return err
+	}
 	return deleteWaitingFile(ctx, name)
 }
 
@@ -78,6 +129,7 @@ func (f *Files) Run(ctx context.Context) error {
 		s:        f.Bus.signals(),
 		interval: cmp.Or(f.Interval, 5*time.Second),
 		wait:     cmp.Or(f.Wait, time.Minute),
+		seen:     make(map[ipn.ProfileID][]apitype.WaitingFile),
 	}
 	return r.run(ctx)
 }
@@ -90,14 +142,21 @@ type filesRun struct {
 	wait     time.Duration
 
 	state    ipn.State             // the state of the latest status looked at
+	profile  ipn.ProfileID         // the profile last is from
 	last     []apitype.WaitingFile // the last list passed to New
 	baseline bool                  // whether last was passed to New since the last reset
 	failures int                   // checks failed in a row
+
+	// seen is the last list passed to New for each profile. Resets
+	// keep it, so the first list after one reports the files that
+	// arrived since, such as one in a list that a reset dropped.
+	seen map[ipn.ProfileID][]apitype.WaitingFile
 }
 
 type filesResult struct {
-	files []apitype.WaitingFile
-	err   error
+	profile ipn.ProfileID
+	files   []apitype.WaitingFile
+	err     error
 }
 
 // filesEvent is what ended a wait in filesRun.next.
@@ -142,9 +201,18 @@ func (r *filesRun) run(ctx context.Context) error {
 
 		var timer <-chan time.Time
 		switch {
+		case errors.Is(res.err, ErrProfileChanged):
+			// The list could be either profile's. Ask again.
+			r.reset()
+			continue
+
 		case res.err == nil:
 			r.failures = 0
-			r.push(res.files)
+			if r.baseline && res.profile != r.profile {
+				// Switched before the bus said so.
+				r.reset()
+			}
+			r.push(res.profile, res.files)
 			if len(r.last) == 0 {
 				continue
 			}
@@ -154,7 +222,7 @@ func (r *filesRun) run(ctx context.Context) error {
 			// There's nowhere to keep files, so none can arrive until
 			// something changes, and asking again would fail at once.
 			r.failures = 0
-			r.push(nil)
+			r.push("", nil)
 
 		default:
 			r.failures++
@@ -184,8 +252,8 @@ func (r *filesRun) check(ctx context.Context, wait time.Duration) (res filesResu
 
 	done := make(chan filesResult, 1)
 	go func() {
-		files, err := waitingFiles(checkCtx, wait)
-		done <- filesResult{files: files, err: err}
+		profile, files, err := profileWaitingFiles(checkCtx, wait)
+		done <- filesResult{profile: profile, files: files, err: err}
 	}()
 
 	for {
@@ -203,6 +271,28 @@ func (r *filesRun) check(ctx context.Context, wait time.Duration) (res filesResu
 		<-done
 		return filesResult{}, again, ev
 	}
+}
+
+// profileWaitingFiles gets the waiting files and the profile they're
+// from. It fails with ErrProfileChanged if the current profile changed
+// while it asked, as the list could then be either profile's.
+func profileWaitingFiles(ctx context.Context, wait time.Duration) (ipn.ProfileID, []apitype.WaitingFile, error) {
+	before, err := currentProfile(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	files, err := waitingFiles(ctx, wait)
+	if err != nil {
+		return "", nil, err
+	}
+	after, err := currentProfile(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	if after != before {
+		return "", nil, ErrProfileChanged
+	}
+	return after, files, nil
 }
 
 // next waits for ctx to be done, the bus to reset the list, Refresh,
@@ -256,8 +346,9 @@ func (r *filesRun) drain() bool {
 }
 
 // reset forgets the last list, so that the next one is passed to New
-// without reporting any arrivals.
+// and compared only with the last one seen for its profile.
 func (r *filesRun) reset() {
+	r.profile = ""
 	r.last = nil
 	r.baseline = false
 	r.failures = 0
@@ -268,19 +359,36 @@ func (r *filesRun) online() bool {
 	return latest != nil && latest.Online()
 }
 
-// push passes files to New if they're the first since a reset or they
-// differ from the last list.
-func (r *filesRun) push(files []apitype.WaitingFile) {
+// push passes profile's files to New if they're the first since a
+// reset or they differ from the last list. The first list after a
+// reset reports what arrived since the last list seen for profile, or
+// nothing if there was none, so that files that were already waiting
+// when Files started aren't reported as new.
+func (r *filesRun) push(profile ipn.ProfileID, files []apitype.WaitingFile) {
 	if !r.baseline {
-		r.f.New(&FileStatus{Files: files})
-		r.last, r.baseline = files, true
+		var arrived []string
+		if prev, ok := r.seen[profile]; ok {
+			arrived = arrivedFiles(prev, files)
+		}
+		r.f.New(&FileStatus{Profile: profile, Files: files, Arrived: arrived})
+		r.profile, r.last, r.baseline = profile, files, true
+		r.remember(profile, files)
 		return
 	}
 	if slices.Equal(files, r.last) {
 		return
 	}
-	r.f.New(&FileStatus{Files: files, Arrived: arrivedFiles(r.last, files)})
-	r.last = files
+	r.f.New(&FileStatus{Profile: profile, Files: files, Arrived: arrivedFiles(r.last, files)})
+	r.profile, r.last = profile, files
+	r.remember(profile, files)
+}
+
+// remember keeps files as the last list seen for profile. A list with
+// no profile, as when Taildrop is off, isn't kept.
+func (r *filesRun) remember(profile ipn.ProfileID, files []apitype.WaitingFile) {
+	if profile != "" {
+		r.seen[profile] = files
+	}
 }
 
 // arrivedFiles returns the names of the files in cur that aren't in

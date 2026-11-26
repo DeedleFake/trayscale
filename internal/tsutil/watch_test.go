@@ -2,7 +2,7 @@ package tsutil
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"net"
 	"net/http"
 	"os"
@@ -24,7 +24,7 @@ func TestBusReportsDaemonStopped(t *testing.T) {
 			return
 		}
 		running := ipn.Running
-		json.NewEncoder(w).Encode(ipn.Notify{State: &running})
+		json.MarshalWrite(w, ipn.Notify{State: &running})
 		w.(http.Flusher).Flush()
 		<-r.Context().Done()
 	})}
@@ -67,13 +67,12 @@ func TestBusPublishesLatestAfterStart(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		enc := json.NewEncoder(w)
 		for {
 			select {
 			case <-r.Context().Done():
 				return
 			case state := <-notes:
-				enc.Encode(ipn.Notify{State: &state})
+				json.MarshalWrite(w, ipn.Notify{State: &state})
 				w.(http.Flusher).Flush()
 			}
 		}

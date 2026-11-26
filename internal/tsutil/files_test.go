@@ -2,6 +2,8 @@ package tsutil
 
 import (
 	"context"
+	"errors"
+	"io"
 	"slices"
 	"testing"
 	"time"
@@ -152,13 +154,18 @@ func TestFilesResetOnSwitch(t *testing.T) {
 	for d.canceled.Load() == 0 {
 		time.Sleep(5 * time.Millisecond)
 	}
+	d.setProfile("pB")
 	d.setWaiting(jsonAB)
 	d.setState(ipn.Starting)
 	if f, _ := d.settle(); f != 2 {
 		t.Fatalf("%v files fetches during the switch, want none", f-2)
 	}
 	d.setState(ipn.Running)
-	checkPush(t, nextPush(t, pushed), []apitype.WaitingFile{fileA, fileB}, nil)
+	s := nextPush(t, pushed)
+	checkPush(t, s, []apitype.WaitingFile{fileA, fileB}, nil)
+	if s.Profile != "pB" {
+		t.Fatalf("list after the switch is from %q, want pB", s.Profile)
+	}
 }
 
 // TestFilesDiscardsCheckAcrossReset checks that a list fetched while
@@ -181,6 +188,7 @@ func TestFilesDiscardsCheckAcrossReset(t *testing.T) {
 	}
 	// Another client switches profiles while the check is in flight
 	// and the new profile has another file waiting.
+	d.setProfile("pB")
 	d.setWaiting(jsonAB)
 	head := files.Bus.signals()
 	d.notes <- ipn.Notify{LoginFinished: &empty.Message{}}
@@ -190,6 +198,109 @@ func TestFilesDiscardsCheckAcrossReset(t *testing.T) {
 	close(d.release)
 
 	checkPush(t, nextPush(t, pushed), []apitype.WaitingFile{fileA, fileB}, nil)
+}
+
+// TestFilesUnannouncedSwitch checks that a list from a profile that
+// became current before the bus said so isn't compared to the last
+// profile's list, so its files that were already waiting aren't
+// reported as arrived, whether the switch landed before the check or
+// during it.
+func TestFilesUnannouncedSwitch(t *testing.T) {
+	for _, during := range []bool{false, true} {
+		t.Run(map[bool]string{false: "before", true: "during"}[during], func(t *testing.T) {
+			d := startFakeDaemon(t)
+			d.setWaiting(jsonA)
+			files := &Files{Interval: time.Hour}
+			pushed := d.runFiles(t, files)
+
+			d.setState(ipn.Running)
+			s := nextPush(t, pushed)
+			checkPush(t, s, []apitype.WaitingFile{fileA}, nil)
+			if s.Profile != "pA" {
+				t.Fatalf("first list is from %q, want pA", s.Profile)
+			}
+			before, _ := d.settle()
+
+			if during {
+				d.holdFiles.Store(before + 1)
+			}
+			files.Refresh()
+			if during {
+				for d.files.Load() == before {
+					time.Sleep(5 * time.Millisecond)
+				}
+			}
+			// No bus notify: tailscaled has switched, but Bus hasn't
+			// read it yet.
+			d.setProfile("pB")
+			d.setWaiting(jsonAB)
+			if during {
+				close(d.release)
+			}
+
+			s = nextPush(t, pushed)
+			checkPush(t, s, []apitype.WaitingFile{fileA, fileB}, nil)
+			if s.Profile != "pB" {
+				t.Fatalf("list after the switch is from %q, want pB", s.Profile)
+			}
+		})
+	}
+}
+
+// TestFilesArrivalAcrossReset checks that a file that arrived while a
+// reset dropped the list, as when Tailscale stops right after a check,
+// is reported once the list is back for the same profile, and that the
+// files already reported aren't again.
+func TestFilesArrivalAcrossReset(t *testing.T) {
+	d := startFakeDaemon(t)
+	d.setWaiting(jsonA)
+	pushed := d.runFiles(t, &Files{Interval: time.Hour})
+
+	d.setState(ipn.Running)
+	checkPush(t, nextPush(t, pushed), []apitype.WaitingFile{fileA}, nil)
+	d.settle()
+
+	d.setState(ipn.Stopped)
+	d.setWaiting(jsonAB)
+	d.settle()
+	d.setState(ipn.Running)
+	checkPush(t, nextPush(t, pushed), []apitype.WaitingFile{fileA, fileB}, []string{"b.txt"})
+}
+
+// TestFilesOpenDeleteCheckProfile checks that Open and Delete act only
+// on the profile they're given.
+func TestFilesOpenDeleteCheckProfile(t *testing.T) {
+	d := startFakeDaemon(t)
+	files := &Files{}
+
+	r, size, err := files.Open(t.Context(), "pA", "a.txt")
+	if err != nil {
+		t.Fatalf("open the current profile's file: %v", err)
+	}
+	data, _ := io.ReadAll(r)
+	r.Close()
+	if size != 4 || string(data) != "data" {
+		t.Fatalf("opened %q of size %v", data, size)
+	}
+	if err := files.Delete(t.Context(), "pA", "a.txt"); err != nil {
+		t.Fatalf("delete the current profile's file: %v", err)
+	}
+	if name := <-d.deleted; name != "a.txt" {
+		t.Fatalf("deleted %q, want a.txt", name)
+	}
+
+	d.setProfile("pB")
+	if _, _, err := files.Open(t.Context(), "pA", "a.txt"); !errors.Is(err, ErrProfileChanged) {
+		t.Fatalf("open another profile's file: err = %v, want ErrProfileChanged", err)
+	}
+	if err := files.Delete(t.Context(), "pA", "a.txt"); !errors.Is(err, ErrProfileChanged) {
+		t.Fatalf("delete another profile's file: err = %v, want ErrProfileChanged", err)
+	}
+	select {
+	case name := <-d.deleted:
+		t.Fatalf("deleted %q from another profile", name)
+	default:
+	}
 }
 
 // TestFilesRefreshCoalesces checks that refreshes during a check cause

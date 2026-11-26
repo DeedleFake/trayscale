@@ -1,0 +1,13 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - depguard
+  settings:
+    depguard:
+      rules:
+        no-encoding-json-v1:
+          deny:
+            - pkg: encoding/json$
+              desc: use encoding/json/v2

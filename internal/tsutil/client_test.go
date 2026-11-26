@@ -1,7 +1,7 @@
 package tsutil
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 	"net/netip"
 	"sync"
@@ -56,9 +56,9 @@ func TestSetUseExitNodeFallback(t *testing.T) {
 				case "/localapi/v0/set-use-exit-node-enabled":
 					http.Error(w, "disable denied", http.StatusInternalServerError)
 				case "/localapi/v0/suggest-exit-node":
-					json.NewEncoder(w).Encode(apitype.ExitNodeSuggestionResponse{ID: "suggested"})
+					json.MarshalWrite(w, apitype.ExitNodeSuggestionResponse{ID: "suggested"})
 				case "/localapi/v0/prefs":
-					json.NewEncoder(w).Encode(ipn.Prefs{})
+					json.MarshalWrite(w, ipn.Prefs{})
 				}
 			})}
 			l := listenLocalAPI(t)
@@ -87,14 +87,14 @@ func TestExitNodeClearsStaleIP(t *testing.T) {
 			return
 		}
 		var edit ipn.MaskedPrefs
-		if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+		if err := json.UnmarshalRead(r.Body, &edit); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		prefs := ipn.Prefs{ExitNodeIP: netip.MustParseAddr("100.64.0.1")}
 		prefs.ApplyEdits(&edit)
 		updatedPrefs <- prefs
-		json.NewEncoder(w).Encode(prefs)
+		json.MarshalWrite(w, prefs)
 	})}
 	l := listenLocalAPI(t)
 	go srv.Serve(l)
@@ -147,11 +147,11 @@ func (d *fakeExitNodeDaemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			d.prefs.ExitNodeID = "auto:any"
 		}
 	case "/localapi/v0/suggest-exit-node":
-		json.NewEncoder(w).Encode(apitype.ExitNodeSuggestionResponse{ID: "suggested"})
+		json.MarshalWrite(w, apitype.ExitNodeSuggestionResponse{ID: "suggested"})
 	case "/localapi/v0/prefs":
 		if r.Method == http.MethodPatch {
 			var edit ipn.MaskedPrefs
-			if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+			if err := json.UnmarshalRead(r.Body, &edit); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -160,7 +160,7 @@ func (d *fakeExitNodeDaemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				d.prefs.ExitNodeID = "auto:any"
 			}
 		}
-		json.NewEncoder(w).Encode(d.prefs)
+		json.MarshalWrite(w, d.prefs)
 	default:
 		http.NotFound(w, r)
 	}

@@ -2,10 +2,12 @@ package tsutil
 
 import (
 	"context"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/netip"
 	"strings"
 	"time"
@@ -403,7 +405,7 @@ func PushFile(ctx context.Context, target tailcfg.StableNodeID, size int64, name
 	return localClient.PushFile(ctx, target, size, name, r)
 }
 
-func GetWaitingFile(ctx context.Context, name string) (io.ReadCloser, int64, error) {
+func getWaitingFile(ctx context.Context, name string) (io.ReadCloser, int64, error) {
 	return localClient.GetWaitingFile(ctx, name)
 }
 
@@ -427,6 +429,30 @@ func waitingFiles(ctx context.Context, wait time.Duration) ([]apitype.WaitingFil
 
 func FileTargets(ctx context.Context) ([]apitype.FileTarget, error) {
 	return localClient.FileTargets(ctx)
+}
+
+// currentProfile returns the ID of the current login profile. It asks
+// only for the current one, which ProfileStatus does before also
+// listing them all.
+func currentProfile(ctx context.Context) (ipn.ProfileID, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+apitype.LocalAPIHost+"/localapi/v0/profiles/current", nil)
+	if err != nil {
+		return "", err
+	}
+	res, err := localClient.DoLocalRequest(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(res.Body, 1024))
+		return "", fmt.Errorf("get current profile: %v: %s", res.Status, strings.TrimSpace(string(body)))
+	}
+	var profile ipn.LoginProfile
+	if err := json.UnmarshalRead(res.Body, &profile); err != nil {
+		return "", fmt.Errorf("get current profile: %w", err)
+	}
+	return profile.ID, nil
 }
 
 func getProfileStatus(ctx context.Context) (ipn.LoginProfile, []ipn.LoginProfile, error) {

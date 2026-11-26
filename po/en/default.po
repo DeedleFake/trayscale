@@ -127,6 +127,9 @@ msgstr "Failed to start login"
 msgid "Failed to toggle exit node"
 msgstr "Failed to toggle exit node"
 
+msgid "File saved. It will leave the incoming files the next time its account is active"
+msgstr "File saved. It will leave the incoming files the next time its account is active"
+
 msgid "Files"
 msgstr "Files"
 
@@ -201,6 +204,12 @@ msgstr "Not Connected"
 
 msgid "Not connected"
 msgstr "Not connected"
+
+msgid "Not deleted because the account changed"
+msgstr "Not deleted because the account changed"
+
+msgid "Not saved because the account changed"
+msgstr "Not saved because the account changed"
 
 msgid "Offline"
 msgstr "Offline"
